@@ -165,6 +165,7 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "db_world.inc"
 #include "cleaner_container.inc"
 #include "admin_teleport.inc"
+#include "admin_vehicle.inc"
 #include "commands.inc"
 
 stock bool:Auth_SetAccountName(playerid)
@@ -727,6 +728,7 @@ public OnGameModeExit()
     Guard_Shutdown();
     PayDay_Shutdown();
     Auth_Autosave();
+    AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
     CleanerDump_Shutdown();
@@ -741,6 +743,7 @@ public OnPlayerConnect(playerid)
 {
     Guard_OnConnect(playerid);
     Admin_OnConnect(playerid);
+    AdminVeh_Reset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
     Cleaner_OnConnect(playerid);
@@ -804,6 +807,7 @@ public OnPlayerDisconnect(playerid, reason)
     Cleaner_OnDisconnect(playerid);
     Admin_UI_OnDisconnect(playerid);
     AdminTP_Reset(playerid);
+    AdminVeh_Destroy(playerid);
     Admin_OnDisconnect(playerid);
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
@@ -944,6 +948,13 @@ public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstat
 public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
 {
     return AdminTP_OnClickMap(playerid, fX, fY, fZ);
+}
+
+public OnVehicleDeath(vehicleid, killerid)
+{
+    #pragma unused killerid
+    AdminVeh_OnVehicleDeath(vehicleid);
+    return 1;
 }
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
