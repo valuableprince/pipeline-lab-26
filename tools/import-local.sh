@@ -15,10 +15,10 @@ cd "$root"
 source_root=$(git -C "$1" rev-parse --show-toplevel)
 source_root=$(cd "$source_root" && pwd -P)
 [[ "$root" != "$source_root" ]] || { echo "Source and destination must differ" >&2; exit 2; }
-[[ -z "$(git -C "$source_root" status --porcelain)" ]] || {
-  echo "Source checkout has uncommitted changes; commit or clean it before snapshotting" >&2
-  exit 2
-}
+if [[ -n "$(git -C "$source_root" status --porcelain)" ]]; then
+  echo "NOTICE: source checkout has local modifications; importing committed HEAD only." >&2
+  echo "Uncommitted edits and untracked files will NOT be included." >&2
+fi
 [[ -z "$(git status --porcelain)" ]] || {
   echo "Destination checkout has uncommitted changes; commit or clean it first" >&2
   exit 2
