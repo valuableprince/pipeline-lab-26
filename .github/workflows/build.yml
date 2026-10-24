@@ -70,6 +70,7 @@ jobs:
       - name: Validate PayDay, character menu and Studio contracts
         run: |
           python3 -m unittest discover -s tests -p 'test_payday.py' -v
+          python3 -m unittest discover -s tests -p 'test_story_prologue.py' -v
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
