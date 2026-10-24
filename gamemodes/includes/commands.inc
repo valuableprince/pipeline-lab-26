@@ -196,15 +196,7 @@ cmd:zoneedit(playerid, params[])
 
 cmd:story(playerid, params[])
 {
-    SendClientMessage(playerid, COLOR_AMBER, "ЛИЧНОЕ ДЕЛО | Номер 17");
-    switch (gBackground[playerid])
-    {
-        case 1: SendClientMessage(playerid, COLOR_WHITE, "Воспоминание: ночь аварии выпала из памяти.");
-        case 2: SendClientMessage(playerid, COLOR_WHITE, "Воспоминание: кто-то произнёс ваше имя в эфире.");
-        case 3: SendClientMessage(playerid, COLOR_WHITE, "Воспоминание: подпись в письме была чужой.");
-    }
-    SendClientMessage(playerid, COLOR_GREY, "Полноценный журнал расследования появится позже.");
-    return 1;
+    return Story_Command(playerid);
 }
 
 cmd:position(playerid, params[])
