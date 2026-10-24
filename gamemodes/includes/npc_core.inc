@@ -101,8 +101,8 @@ stock bool:NpcCore_MoveNext(index)
     if (!NPCRoute_GetPoint(route, point, x, y, z)) return false;
     if (!NPC_Move(gNpcCoreBot[index], x, y, z,
         NPC_MOVE_TYPE_WALK, NPC_MOVE_SPEED_WALK, 0.35)) return false;
-    NPC_ApplyAnimation(gNpcCoreBot[index], "PED", "WALK_player", 4.1,
-        true, false, false, false, 0);
+    // Movement includes the walk animation. Forcing another looping
+    // animation here can reset the NPC to a previous waypoint.
     // Patrol back and forth along adjacent points: never jump from the last
     // recorded position directly to the first over an unrecorded shortcut.
     if (point >= gNPCRouteCount[route] - 1)
