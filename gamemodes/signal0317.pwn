@@ -711,6 +711,7 @@ public OnGameModeInit()
 
 
     PayDay_Init();
+    Story_TapeInit();
     Cleaner_Init();
     CleanerDump_Init();
     Race_Init();
