@@ -407,8 +407,15 @@ stock NPCRoute_Command(playerid, const params[])
         return SendClientMessage(playerid, ADMIN_ERROR,
             "Редактор маршрутов доступен основателю в режиме /aduty.");
     if (isnull(params)) return NPCRoute_Help(playerid);
-    new action[20];
-    if (sscanf(params, "s[20]", action)) return NPCRoute_Help(playerid);
+    // sscanf("s[20]") absorbs the entire remaining string for a final
+    // string argument (e.g. "record 0"). Extract just the action token.
+    new action[20], pos = 0, length = 0;
+    while (params[pos] == ' ') pos++;
+    while (params[pos] != EOS && params[pos] != ' ' &&
+        length < sizeof(action) - 1)
+        action[length++] = params[pos++];
+    action[length] = EOS;
+    if (!length) return NPCRoute_Help(playerid);
     if (!strcmp(action, "status", true))
     {
         new msg[128];
