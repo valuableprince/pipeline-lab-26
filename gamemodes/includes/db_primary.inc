@@ -29,6 +29,8 @@
     new gDBPrimaryVersion[MAX_PLAYERS];
     new bool:gDBPrimaryLoaded[MAX_PLAYERS];
     new gDBPrimaryRequestName[MAX_PLAYERS][MAX_PLAYER_NAME];
+    // YYYY-MM-DD taken from accounts.created_at, never guessed from login time.
+    new gDBPrimaryRegistrationDate[MAX_PLAYERS][11];
 
     forward DBPrimary_OnAccount(playerid, token, fromIntro);
     forward OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle);
@@ -44,6 +46,7 @@
         gDBPrimaryVersion[playerid] = 0;
         gDBPrimaryLoaded[playerid] = false;
         gDBPrimaryRequestName[playerid][0] = EOS;
+        gDBPrimaryRegistrationDate[playerid][0] = EOS;
         return 1;
     }
 
@@ -158,7 +161,7 @@
         format(gDBPrimaryRequestName[playerid], MAX_PLAYER_NAME, "%s", gAccountName[playerid]);
         new q[1400];
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT account_id,username,password_hash,background,mute_until,balance,health,armour,cleaner_paid,txn_serial,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,start_region,character_level,character_exp,last_payday_hour,row_version FROM accounts WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
+            "SELECT account_id,username,password_hash,background,mute_until,balance,health,armour,cleaner_paid,txn_serial,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,start_region,character_level,character_exp,last_payday_hour,row_version,DATE(created_at) AS registered_date FROM accounts WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
         if (!mysql_tquery(gDBPrimary, q, "DBPrimary_OnAccount", "iii",
             playerid, gAuthToken[playerid], _:fromIntro))
         {
@@ -201,7 +204,7 @@
         }
         new id, background, muted, balance, paid, serial, starts, finishes;
         new wins, best, earned, lastPaid, region, version, hash[61], savedName[MAX_PLAYER_NAME];
-        new characterLevel, characterExp, lastPaydayHour;
+        new characterLevel, characterExp, lastPaydayHour, registered[11];
         new Float:health, Float:armour;
         new bool:valid = true;
         if (!cache_get_value_name_int(0, "account_id", id) ||
@@ -224,6 +227,7 @@
             !cache_get_value_name_int(0, "character_level", characterLevel) ||
             !cache_get_value_name_int(0, "character_exp", characterExp) ||
             !cache_get_value_name_int(0, "last_payday_hour", lastPaydayHour) ||
+            !cache_get_value_name(0, "registered_date", registered, sizeof(registered)) ||
             !cache_get_value_name_int(0, "row_version", version))
             valid = false;
         if (id <= 0 || version < 0 || strlen(hash) != 60 ||
@@ -240,7 +244,8 @@
             characterLevel < 1 || characterLevel > PAYDAY_LEVEL_LIMIT ||
             characterExp < 0 || (characterLevel < PAYDAY_LEVEL_LIMIT &&
                 characterExp >= characterLevel * PAYDAY_EXP_STEP) ||
-            lastPaydayHour < 0)
+            lastPaydayHour < 0 || strlen(registered) != 10 ||
+            registered[4] != '-' || registered[7] != '-')
             valid = false;
         if (!valid)
         {
@@ -270,6 +275,8 @@
         gCharacterLevel[playerid] = characterLevel;
         gCharacterEXP[playerid] = characterExp;
         gCharacterLastPaydayHour[playerid] = lastPaydayHour;
+        format(gDBPrimaryRegistrationDate[playerid],
+            sizeof(gDBPrimaryRegistrationDate[]), "%s", registered);
         gAccountLegacy[playerid] = false;
         if (Auth_IsLocked(playerid)) { Kick(playerid); return 1; }
         Auth_ShowLogin(playerid);
@@ -307,9 +314,16 @@
                 "INSERT INTO accounts (username,password_hash,background,start_region) VALUES ('%e','%e',%d,%d)",
                 gAccountName[playerid], gAccountHash[playerid], gBackground[playerid], gStartRegion[playerid]);
             if (!DBPrimary_Execute(q, affected) || affected != 1) return false;
-            new Cache:c = mysql_query(gDBPrimary, "SELECT LAST_INSERT_ID() AS id");
+            new Cache:c = mysql_query(gDBPrimary,
+                "SELECT account_id AS id,DATE(created_at) AS registered_date FROM accounts WHERE account_id=LAST_INSERT_ID()");
+            new rows;
             if (c == Cache:0 || mysql_errno(gDBPrimary) ||
-                !cache_get_value_name_int(0, "id", gDBPrimaryAccountId[playerid]))
+                !cache_get_row_count(rows) || rows != 1 ||
+                !cache_get_value_name_int(0, "id", gDBPrimaryAccountId[playerid]) ||
+                !cache_get_value_name(0, "registered_date",
+                    gDBPrimaryRegistrationDate[playerid],
+                    sizeof(gDBPrimaryRegistrationDate[])) ||
+                strlen(gDBPrimaryRegistrationDate[playerid]) != 10)
             {
                 if (c != Cache:0) cache_delete(c);
                 return false;
