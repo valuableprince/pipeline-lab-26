@@ -42,11 +42,7 @@ stock PlayerMenu_Statistics(playerid)
             level * PAYDAY_EXP_STEP);
 
     format(body, sizeof(body),
-        "{8EACBC}Имя персонажа:  {FFFFFF}%s\n\n"
-        "{8EACBC}Уровень:  {D5B477}%d\n\n"
-        "{8EACBC}Опыт (EXP):  {FFFFFF}%s\n\n"
-        "{8EACBC}Дата регистрации:  {FFFFFF}%s\n\n"
-        "{8EACBC}Досье №:  {D5B477}%d",
+        "{8EACBC}Имя персонажа:  {FFFFFF}%s\n\n{8EACBC}Уровень:  {D5B477}%d\n\n{8EACBC}Опыт (EXP):  {FFFFFF}%s\n\n{8EACBC}Дата регистрации:  {FFFFFF}%s\n\n{8EACBC}Досье №:  {D5B477}%d",
         gAccountName[playerid], level, experience, registration,
         gDBPrimaryAccountId[playerid]);
     ShowPlayerDialog(playerid, PLAYER_MENU_STATS, DIALOG_STYLE_MSGBOX,
