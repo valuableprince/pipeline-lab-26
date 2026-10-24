@@ -82,6 +82,7 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
           echo "Default AMX: $(stat -c %s build/compiled.amx) bytes"
           for mode in primary shadow; do
             case "$mode" in
