@@ -18,7 +18,7 @@ class StudioStage2Contract(unittest.TestCase):
                         MAIN.index('#include "studio_ui.inc"'))
         self.assertIn("StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)", MAIN)
         self.assertIn("StudioUI_Reset(playerid);", MAIN)
-        self.assertIn('"studio_ui.inc"', BUILD)
+        self.assertIn('.glob("*.inc")', BUILD)
         self.assertIn('"gamemodes/**"', CI)
 
     def test_founder_and_dialog_actions(self):
