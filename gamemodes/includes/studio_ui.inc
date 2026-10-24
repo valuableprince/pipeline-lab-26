@@ -8,16 +8,12 @@
 #define STUDIO_UI_ZONES         (6310)
 #define STUDIO_UI_ZONE_ACTION  (6311)
 #define STUDIO_UI_ZONE_RADIUS  (6312)
-#define STUDIO_UI_NPC_SLOTS    (6313)
-#define STUDIO_UI_NPC_ACTION  (6314)
 
 new gStudioUiZoneSlot[MAX_PLAYERS];
-new gStudioUiNpcSlot[MAX_PLAYERS];
 
 stock StudioUI_Reset(playerid)
 {
     gStudioUiZoneSlot[playerid] = 0;
-    gStudioUiNpcSlot[playerid] = 0;
     return 1;
 }
 
@@ -97,48 +93,17 @@ stock bool:StudioUI_ZoneOwned(playerid)
         gStudioZoneDraftSlot == gStudioUiZoneSlot[playerid];
 }
 
-stock StudioUI_NpcSlots(playerid)
-{
-    if (!Studio_Require(playerid)) return 1;
-    new list[1400], line[80];
-    for (new slot = 0; slot < NPCROUTE_COUNT; slot++)
-    {
-        format(line, sizeof(line), "Маршрут %d | %s%s\n", slot,
-            gNPCRouteInvalid[slot] ? ("Ошибка") :
-            (gNPCRouteEnabled[slot] ? ("Сохранён") : ("Пустой")),
-            (gNPCRouteOwner != INVALID_PLAYER_ID && gNPCRouteSlot == slot) ?
-            (" | черновик") : (""));
-        strcat(list, line, sizeof(list));
-    }
-    ShowPlayerDialog(playerid, STUDIO_UI_NPC_SLOTS, DIALOG_STYLE_LIST,
-        "TARKENSO STUDIO | Редактор маршрутов", list,
-        "Выбрать", "Назад");
-    return 1;
-}
-
-stock StudioUI_NpcAction(playerid)
-{
-    if (!Studio_Require(playerid)) return 1;
-    new heading[70];
-    format(heading, sizeof(heading), "STUDIO | Маршрут %d", gStudioUiNpcSlot[playerid]);
-    ShowPlayerDialog(playerid, STUDIO_UI_NPC_ACTION, DIALOG_STYLE_LIST, heading,
-        "Начать запись пешего маршрута\nОтметить начало / конец перехода\nОстановить запись\nОтменить последнюю точку\nПоказать путевые метки\nЗапустить тестового NPC\nСохранить маршрут\nПрименить сохранённые маршруты\nОтменить черновик\nПоказать статус маршрутов",
-        "Выбрать", "Назад");
-    return 1;
-}
-
 // Возвращает 1, только если callback принадлежит Studio.
 stock StudioUI_OnDialog(playerid, dialogid, response, listitem, const inputtext[])
 {
-    if (dialogid < STUDIO_UI_ZONES || dialogid > STUDIO_UI_NPC_ACTION) return 0;
+    if (dialogid < STUDIO_UI_ZONES || dialogid > STUDIO_UI_ZONE_RADIUS) return 0;
     if (!Studio_Require(playerid)) return 1;
     if (!response)
     {
         switch (dialogid)
         {
-            case STUDIO_UI_ZONES, STUDIO_UI_NPC_SLOTS: return Studio_Open(playerid);
+            case STUDIO_UI_ZONES: return Studio_Open(playerid);
             case STUDIO_UI_ZONE_ACTION: return StudioUI_ZoneList(playerid);
-            case STUDIO_UI_NPC_ACTION: return StudioUI_NpcSlots(playerid);
         }
         return StudioUI_ZoneAction(playerid);
     }
@@ -147,12 +112,6 @@ stock StudioUI_OnDialog(playerid, dialogid, response, listitem, const inputtext[
         if (listitem < 0 || listitem >= STUDIO_ZONE_COUNT) return 1;
         gStudioUiZoneSlot[playerid] = listitem;
         return StudioUI_ZoneAction(playerid);
-    }
-    if (dialogid == STUDIO_UI_NPC_SLOTS)
-    {
-        if (listitem < 0 || listitem >= NPCROUTE_COUNT) return 1;
-        gStudioUiNpcSlot[playerid] = listitem;
-        return StudioUI_NpcAction(playerid);
     }
     if (dialogid == STUDIO_UI_ZONE_RADIUS)
     {
@@ -235,36 +194,6 @@ stock StudioUI_OnDialog(playerid, dialogid, response, listitem, const inputtext[
             }
         }
         return StudioUI_ZoneAction(playerid);
-    }
-    if (dialogid == STUDIO_UI_NPC_ACTION)
-    {
-        new cmdtext[36], slot = gStudioUiNpcSlot[playerid];
-        if (slot < 0 || slot >= NPCROUTE_COUNT) return 1;
-        // Для редактирования нужен черновик выбранного слота.
-        // Иначе команда из меню могла изменить чужой или другой маршрут.
-        if (listitem != 0 && listitem != 7 && listitem != 9 &&
-            (gNPCRouteOwner != playerid || gNPCRouteSlot != slot))
-        {
-            SendClientMessage(playerid, ADMIN_ERROR,
-                "Сначала начните запись выбранного маршрута.");
-            return StudioUI_NpcAction(playerid);
-        }
-        switch (listitem)
-        {
-            case 0: format(cmdtext, sizeof(cmdtext), "record %d", slot);
-            case 1: format(cmdtext, sizeof(cmdtext), "crossing");
-            case 2: format(cmdtext, sizeof(cmdtext), "stop");
-            case 3: format(cmdtext, sizeof(cmdtext), "undo");
-            case 4: format(cmdtext, sizeof(cmdtext), "show");
-            case 5: format(cmdtext, sizeof(cmdtext), "test");
-            case 6: format(cmdtext, sizeof(cmdtext), "save");
-            case 7: format(cmdtext, sizeof(cmdtext), "apply");
-            case 8: format(cmdtext, sizeof(cmdtext), "cancel");
-            case 9: format(cmdtext, sizeof(cmdtext), "status");
-            default: return 1;
-        }
-        NPCRoute_Command(playerid, cmdtext);
-        return StudioUI_NpcAction(playerid);
     }
     return 1;
 }
