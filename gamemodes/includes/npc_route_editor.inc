@@ -39,8 +39,7 @@ new gNPCRouteTimer;
 
 // Предпросмотр использует последовательные точки и не зависит от светофоров.
 new gNPCRoutePreview = INVALID_NPC_ID;
-new gNPCRoutePreviewIndex;
-new bool:gNPCRoutePreviewMoving;
+new gNPCRoutePreviewPath = INVALID_PATH_ID;
 
 forward NPCRoute_Tick();
 
@@ -261,8 +260,9 @@ stock NPCRoute_StopTest()
 {
     if (NPC_IsValid(gNPCRoutePreview)) NPC_Destroy(gNPCRoutePreview);
     gNPCRoutePreview = INVALID_NPC_ID;
-    gNPCRoutePreviewIndex = 0;
-    gNPCRoutePreviewMoving = false;
+    if (NPC_IsValidPath(gNPCRoutePreviewPath))
+        NPC_DestroyPath(gNPCRoutePreviewPath);
+    gNPCRoutePreviewPath = INVALID_PATH_ID;
     return 1;
 }
 
@@ -336,37 +336,21 @@ public NPCRoute_Tick()
     return 1;
 }
 
-// Каждая точка проходится сразу после предыдущей, включая размеченные
-// пешеходные переходы. Флаги перехода в данных маршрута сохраняются.
-stock bool:NPCRoute_PreviewNext()
-{
-    if (!NPC_IsValid(gNPCRoutePreview) || gNPCRoutePreviewMoving ||
-        gNPCRoutePreviewIndex >= gNPCRouteDraftCount) return false;
-    new i = gNPCRoutePreviewIndex;
-    // NPC_Move already selects the walking animation and synchronizes position.
-    // Reapplying a looping animation with unlocked XY axes can snap the NPC
-    // back to its last animation origin at each short waypoint.
-    if (!NPC_Move(gNPCRoutePreview, gNPCRouteDraftX[i], gNPCRouteDraftY[i],
-        gNPCRouteDraftZ[i], NPC_MOVE_TYPE_WALK, NPC_MOVE_SPEED_WALK, 0.35))
-        return false;
-    gNPCRoutePreviewMoving = true;
-    return true;
-}
-
-// Возвращает 1 только для тестового NPC: штатный callback города не затрагивается.
+// A single native path prevents a new NPC_Move call at every short
+// waypoint; use the path completion callback rather than OnNPCFinishMove.
 stock NPCRoute_OnNPCFinishMove(npcid)
 {
-    if (npcid != gNPCRoutePreview || !NPC_IsValid(gNPCRoutePreview)) return 0;
-    if (!gNPCRoutePreviewMoving) return 1;
-    gNPCRoutePreviewMoving = false;
-    gNPCRoutePreviewIndex++;
-    if (gNPCRoutePreviewIndex >= gNPCRouteDraftCount)
-    {
-        if (gNPCRouteOwner != INVALID_PLAYER_ID && IsPlayerConnected(gNPCRouteOwner))
-            SendClientMessage(gNPCRouteOwner, NPCROUTE_COLOR, "Проверка маршрута завершена.");
-        NPCRoute_StopTest();
-    }
-    else if (!NPCRoute_PreviewNext()) NPCRoute_StopTest();
+    return npcid == gNPCRoutePreview && NPC_IsValid(gNPCRoutePreview);
+}
+
+stock NPCRoute_OnNPCFinishMovePath(npcid, pathid)
+{
+    if (npcid != gNPCRoutePreview || pathid != gNPCRoutePreviewPath ||
+        !NPC_IsValid(gNPCRoutePreview)) return 0;
+    if (gNPCRouteOwner != INVALID_PLAYER_ID && IsPlayerConnected(gNPCRouteOwner))
+        SendClientMessage(gNPCRouteOwner, NPCROUTE_COLOR,
+            "Тест завершён: NPC дошёл до конца маршрута.");
+    NPCRoute_StopTest();
     return 1;
 }
 
@@ -375,23 +359,54 @@ stock NPCRoute_Test(playerid)
     if (gNPCRouteDraftCount < 2)
         return SendClientMessage(playerid, NPCROUTE_COLOR, "Нужно минимум 2 точки.");
     NPCRoute_StopTest();
+    gNPCRoutePreviewPath = NPC_CreatePath();
+    if (!NPC_IsValidPath(gNPCRoutePreviewPath))
+    {
+        gNPCRoutePreviewPath = INVALID_PATH_ID;
+        return SendClientMessage(playerid, NPCROUTE_COLOR,
+            "Не удалось создать путь NPC. Проверьте компонент NPC.");
+    }
+    for (new i = 0; i < gNPCRouteDraftCount; i++)
+    {
+        if (!NPC_AddPointToPath(gNPCRoutePreviewPath, gNPCRouteDraftX[i],
+            gNPCRouteDraftY[i], gNPCRouteDraftZ[i], 0.35))
+        {
+            NPCRoute_StopTest();
+            return SendClientMessage(playerid, NPCROUTE_COLOR,
+                "Не удалось передать точки в путь NPC.");
+        }
+    }
     gNPCRoutePreview = NPC_Create("Route_Test");
     if (!NPC_IsValid(gNPCRoutePreview))
+    {
+        NPCRoute_StopTest();
         return SendClientMessage(playerid, NPCROUTE_COLOR,
             "Нет слота NPC. В config.json выставьте max_bots не менее 5.");
-    if (!NPC_Spawn(gNPCRoutePreview)) { NPCRoute_StopTest(); return 0; }
+    }
+    if (!NPC_Spawn(gNPCRoutePreview))
+    {
+        NPCRoute_StopTest();
+        return SendClientMessage(playerid, NPCROUTE_COLOR,
+            "Не удалось создать тестового NPC в игровом мире.");
+    }
     NPC_SetVirtualWorld(gNPCRoutePreview, 0);
     NPC_SetSkin(gNPCRoutePreview, 60);
     NPC_SetPos(gNPCRoutePreview, gNPCRouteDraftX[0],
         gNPCRouteDraftY[0], gNPCRouteDraftZ[0]);
-    gNPCRoutePreviewIndex = 1;
-    gNPCRoutePreviewMoving = false;
-    if (!NPCRoute_PreviewNext())
+    if (!NPC_MoveByPath(gNPCRoutePreview, gNPCRoutePreviewPath,
+        NPC_MOVE_TYPE_WALK, NPC_MOVE_SPEED_AUTO, false))
     {
         NPCRoute_StopTest();
-        return SendClientMessage(playerid, NPCROUTE_COLOR, "Тестовый NPC не смог начать движение.");
+        return SendClientMessage(playerid, NPCROUTE_COLOR,
+            "NPC не смог запустить путь. Проверьте журнал сервера.");
     }
-    return SendClientMessage(playerid, NPCROUTE_COLOR, "Тестовый NPC следует записанному маршруту.");
+    new message[112];
+    format(message, sizeof(message),
+        "Тест NPC запущен: %d точек. Ожидайте прохождения до конца.",
+        gNPCRouteDraftCount);
+    printf("[NPCRoute] Preview started: player=%d, slot=%d, waypoints=%d, path=%d.",
+        playerid, gNPCRouteSlot, gNPCRouteDraftCount, gNPCRoutePreviewPath);
+    return SendClientMessage(playerid, NPCROUTE_COLOR, message);
 }
 
 stock NPCRoute_Help(playerid)
