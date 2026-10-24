@@ -113,7 +113,7 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, ADMIN_COLOR,
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Прочее: /spec, /goto, /gethere, /tpcor X Y Z, /freeze, /event, /guardstatus.");
+            "Прочее: /veh ID [цвет1] [цвет2], /veh del, /spec, /goto, /tpcor, /event.");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
@@ -172,6 +172,11 @@ cmd:mm(playerid, params[])
 cmd:menu(playerid, params[])
 {
     return PlayerMenu_Open(playerid);
+}
+
+cmd:veh(playerid, params[])
+{
+    return AdminVeh_Command(playerid, params);
 }
 
 cmd:studio(playerid, params[])
