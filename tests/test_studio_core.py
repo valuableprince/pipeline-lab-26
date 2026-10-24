@@ -18,7 +18,7 @@ class StudioCoreContract(unittest.TestCase):
                      "Studio_OnDisconnect(playerid);",
                      "Studio_OnDialog(playerid, dialogid, response, listitem)"):
             self.assertIn(code, MAIN)
-        self.assertIn('"studio_system.inc"', BUILD)
+        self.assertIn('.glob("*.inc")', BUILD)
         self.assertIn('"gamemodes/**"', CI)
 
     def test_commands_and_founder_only(self):
