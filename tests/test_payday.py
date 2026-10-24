@@ -37,7 +37,8 @@ class PayDayContract(unittest.TestCase):
         self.assertIn("PayDay_OnReady(playerid);", GAME)
         self.assertIn("PayDay_Init();", GAME)
         self.assertIn("PayDay_Shutdown();", GAME)
-        self.assertIn("cmd:level(playerid, params[])", COMMANDS)
+        self.assertIn("cmd:mn(playerid, params[])", COMMANDS)
+        self.assertNotIn("cmd:level(playerid, params[])", COMMANDS)
 
     def test_npc_runtime_removed_without_db_drops(self):
         for name in ("npc_core.inc", "npc_editor.inc", "npc_route_editor.inc"):
