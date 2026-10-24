@@ -35,4 +35,4 @@ fi
 git add gamemodes db tests tools config
 echo "Review all staged changes and search for credentials and identifying strings BEFORE pushing."
 echo "git diff --cached --stat"
-echo "git diff --cached | grep -Ei '(password|token|secret|api[_-]?key|tarkenso|open\.mp|pawn|gta|samp)'"
+echo "git diff --cached | grep -Ei '(password|token|secret|api[_-]?key)'"
