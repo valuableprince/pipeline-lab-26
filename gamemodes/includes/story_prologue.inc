@@ -319,7 +319,13 @@ stock Story_OnDialog(playerid, dialogid, response)
     if (dialogid == STORY_DIALOG_JOURNAL) return 1;
     if (dialogid == STORY_DIALOG_TAPE)
     {
-        if (!response) return Story_TapePlay(playerid);
+        if (!response)
+        {
+            if (!Story_TapePlay(playerid))
+                SendClientMessage(playerid, COLOR_RED,
+                    "Не удалось повторить запись. Попробуйте взаимодействовать снова.");
+            return 1;
+        }
         Story_TapeStop(playerid);
         if (!Story_Advance(playerid, 2))
             SendClientMessage(playerid, COLOR_RED,
