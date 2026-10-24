@@ -67,9 +67,10 @@ jobs:
               (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
           PY
 
-      - name: Validate PayDay and Studio contracts
+      - name: Validate PayDay, character menu and Studio contracts
         run: |
           python3 -m unittest discover -s tests -p 'test_payday.py' -v
+          python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 
