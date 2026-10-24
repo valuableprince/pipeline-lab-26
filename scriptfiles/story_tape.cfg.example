@@ -1,0 +1,4 @@
+# Example only. Do not use this file as an active config.
+# Copy to the server's scriptfiles/story_tape.cfg after publishing the track.
+# The sole line of the actual config must be the URL, without comments.
+https://audio.tarkenso.ru/story/room17-cassette.mp3
