@@ -161,6 +161,7 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "db_shadow.inc"
 #include "db_primary.inc"
 #include "payday.inc"
+#include "player_menu.inc"
 #include "db_world.inc"
 #include "cleaner_container.inc"
 #include "admin_teleport.inc"
@@ -947,6 +948,7 @@ public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
