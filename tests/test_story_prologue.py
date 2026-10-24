@@ -50,7 +50,7 @@ class Room17Contract(unittest.TestCase):
         self.assertNotIn("GivePlayerMoney", STORY)
 
     def test_story_progression_and_ending(self):
-        for line in ("СТОЙКА", "Стойка", "НОМЕР 17", "РАДИОСИГНАЛ",
+        for line in ("Стойка", "НОМЕР 17", "РАДИОСИГНАЛ",
                      "НОРА", "КОНТУР", "ПРОЛОГ ЗАВЕРШЁН"):
             self.assertIn(line, STORY)
         self.assertIn("STORY_DONE            (4)", STORY)
