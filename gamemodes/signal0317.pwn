@@ -66,6 +66,7 @@ new gAccountMoney[MAX_PLAYERS];
 new gCharacterLevel[MAX_PLAYERS];
 new gCharacterEXP[MAX_PLAYERS];
 new gCharacterLastPaydayHour[MAX_PLAYERS];
+new gStoryStage[MAX_PLAYERS];
 // -1: нужна однократная инициализация исторически оплаченных услуг уборщика.
 new gAccountCleanerPaid[MAX_PLAYERS];
 new gAccountTxnSerial[MAX_PLAYERS];
@@ -161,6 +162,7 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "db_shadow.inc"
 #include "db_primary.inc"
 #include "payday.inc"
+#include "story_prologue.inc"
 #include "player_menu.inc"
 #include "db_world.inc"
 #include "cleaner_container.inc"
@@ -747,6 +749,7 @@ public OnPlayerConnect(playerid)
     AdminVeh_Reset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
+    Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Race_OnConnect(playerid);
     Leader_OnConnect(playerid);
@@ -805,6 +808,7 @@ public OnPlayerDisconnect(playerid, reason)
     Race_OnDisconnect(playerid);
     Studio_OnDisconnect(playerid);
     StudioUI_Reset(playerid);
+    Story_OnDisconnect(playerid);
     Cleaner_OnDisconnect(playerid);
     Admin_UI_OnDisconnect(playerid);
     AdminTP_Reset(playerid);
@@ -909,8 +913,7 @@ public OnPlayerSpawn(playerid)
     OrvelarHUD_Show(playerid);
     Race_OnSpawn(playerid);
     Admin_ApplyEvent(playerid);
-    SendClientMessage(playerid, COLOR_AMBER, "ПРОЛОГ: Номер 17");
-    SendClientMessage(playerid, COLOR_GREY, "Ваша история продолжается в выбранном регионе.");
+    Story_OnSpawn(playerid);
     return 1;
 }
 
@@ -930,6 +933,7 @@ public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 
 public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
+    if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
     return 1;
 }
@@ -960,6 +964,7 @@ public OnVehicleDeath(vehicleid, killerid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
