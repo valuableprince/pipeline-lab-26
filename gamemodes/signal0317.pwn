@@ -24,6 +24,8 @@
 #define REGION_PALOMINO      (3)
 #define ACCOUNT_MAX_MONEY    (1000000000)
 #define ACCOUNT_AUTOSAVE_MS  (120000)
+#define PAYDAY_LEVEL_LIMIT    (1000)
+#define PAYDAY_EXP_STEP       (4)
 #define AUTH_COST           (12)
 #define AUTH_LOCK_SECONDS   (300)
 #define AUTH_FAILURE_WINDOW (600)
@@ -61,6 +63,9 @@ new gAccountHash[MAX_PLAYERS][61];
 new gBackground[MAX_PLAYERS];
 new gStartRegion[MAX_PLAYERS];
 new gAccountMoney[MAX_PLAYERS];
+new gCharacterLevel[MAX_PLAYERS];
+new gCharacterEXP[MAX_PLAYERS];
+new gCharacterLastPaydayHour[MAX_PLAYERS];
 // -1: нужна однократная инициализация исторически оплаченных услуг уборщика.
 new gAccountCleanerPaid[MAX_PLAYERS];
 new gAccountTxnSerial[MAX_PLAYERS];
@@ -125,12 +130,6 @@ forward bool:DBPrimary_IsBanned(playerid);
 forward bool:DBPrimary_WriteBan(playerid, until, const reason[]);
 forward bool:DBPrimary_BanExists(const name[]);
 forward bool:DBPrimary_UnbanName(const name[]);
-forward bool:NPCRoute_ValidSlot(slot);
-forward bool:NPCRoute_PointOK(Float:x, Float:y, Float:z);
-forward bool:DBWorld_RouteLoad(slot);
-forward bool:DBWorld_RouteSave();
-forward NpcEditor_Open(playerid);
-forward NpcEditor_Command(playerid, const params[]);
 forward bool:DBWorld_LeaderSave(org);
 forward bool:DBWorld_LeaderLoad(org);
 forward bool:DBWorld_DistrictLoad();
@@ -144,7 +143,6 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "admin_system.inc"
-#include "npc_route_editor.inc"
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "economy.inc"
@@ -162,10 +160,9 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "server_guard.inc"
 #include "db_shadow.inc"
 #include "db_primary.inc"
+#include "payday.inc"
 #include "db_world.inc"
 #include "cleaner_container.inc"
-#include "npc_core.inc"
-#include "npc_editor.inc"
 #include "admin_teleport.inc"
 #include "commands.inc"
 
@@ -578,6 +575,7 @@ stock Auth_EnterWorld(playerid)
     Leader_OnReady(playerid);
     Cleaner_OnReady(playerid);
     RaceProgress_OnReady(playerid);
+    PayDay_OnReady(playerid);
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
     Auth_GetSpawnCoordinates(playerid, spawnX, spawnY, spawnZ, spawnA);
     SetSpawnInfo(playerid, NO_TEAM, 26, spawnX, spawnY, spawnZ, spawnA,
@@ -706,8 +704,9 @@ public OnGameModeInit()
         return 0;
     }
     Guard_Init();
-    NPCRoute_Init();
-    NpcCore_Init();
+
+
+    PayDay_Init();
     Cleaner_Init();
     CleanerDump_Init();
     Race_Init();
@@ -725,8 +724,7 @@ public OnGameModeExit()
     if (gAccountAutosaveTimer) KillTimer(gAccountAutosaveTimer);
     gAccountAutosaveTimer = 0;
     Guard_Shutdown();
-    NPCRoute_Shutdown();
-    NpcCore_Shutdown();
+    PayDay_Shutdown();
     Auth_Autosave();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
@@ -759,6 +757,10 @@ public OnPlayerConnect(playerid)
     gBackground[playerid] = 0;
     gStartRegion[playerid] = REGION_FORT_CARSON;
     gAccountMoney[playerid] = 0;
+    gCharacterLevel[playerid] = 1;
+    gCharacterEXP[playerid] = 0;
+    gCharacterLastPaydayHour[playerid] = 0;
+    SetPlayerScore(playerid, 0);
     gAccountCleanerPaid[playerid] = 0;
     gAccountTxnSerial[playerid] = 0;
     gAccountRaceStarts[playerid] = 0;
@@ -797,8 +799,6 @@ public OnPlayerDisconnect(playerid, reason)
     DBPrimary_OnDisconnect(playerid);
     Race_OnDisconnect(playerid);
     Studio_OnDisconnect(playerid);
-    NPCRoute_OnDisconnect(playerid);
-    NpcEditor_OnDisconnect(playerid);
     StudioUI_Reset(playerid);
     Cleaner_OnDisconnect(playerid);
     Admin_UI_OnDisconnect(playerid);
@@ -817,6 +817,9 @@ public OnPlayerDisconnect(playerid, reason)
     gBackground[playerid] = 0;
     gStartRegion[playerid] = REGION_FORT_CARSON;
     gAccountMoney[playerid] = 0;
+    gCharacterLevel[playerid] = 1;
+    gCharacterEXP[playerid] = 0;
+    gCharacterLastPaydayHour[playerid] = 0;
     gAccountCleanerPaid[playerid] = 0;
     gAccountTxnSerial[playerid] = 0;
     gAccountRaceStarts[playerid] = 0;
@@ -942,22 +945,9 @@ public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
     return AdminTP_OnClickMap(playerid, fX, fY, fZ);
 }
 
-public OnNPCFinishMove(npcid)
-{
-    if (NPCRoute_OnNPCFinishMove(npcid)) return 1;
-    return NpcCore_OnFinishMove(npcid);
-}
-
-public OnNPCFinishMovePath(npcid, pathid)
-{
-    if (NPCRoute_OnNPCFinishMovePath(npcid, pathid)) return 1;
-    return 1;
-}
-
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
-    if (NpcEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
