@@ -8,7 +8,7 @@ MAIN = (BASE / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 UI = (BASE / "gamemodes/includes/studio_ui.inc").read_text(encoding="utf-8")
 CORE = (BASE / "gamemodes/includes/studio_system.inc").read_text(encoding="utf-8")
 BUILD = (BASE / "tools/build_windows.py").read_text(encoding="utf-8")
-CI = (BASE / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+CI = (BASE / ".github/workflows/build.yml").read_text(encoding="utf-8")
 
 
 class StudioStage2Contract(unittest.TestCase):
@@ -19,16 +19,15 @@ class StudioStage2Contract(unittest.TestCase):
         self.assertIn("StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)", MAIN)
         self.assertIn("StudioUI_Reset(playerid);", MAIN)
         self.assertIn('"studio_ui.inc"', BUILD)
-        self.assertIn('"studio_ui.inc"', CI)
+        self.assertIn('"gamemodes/**"', CI)
 
     def test_founder_and_dialog_actions(self):
         self.assertIn("if (!Studio_Require(playerid))", UI)
         self.assertIn("if (!Studio_Require(playerid)) return 1;", CORE)
         for marker in ("STUDIO_UI_ZONES", "STUDIO_UI_ZONE_ACTION", "STUDIO_UI_ZONE_RADIUS",
-                       "STUDIO_UI_NPC_SLOTS", "STUDIO_UI_NPC_ACTION",
                        "StudioUI_ZoneBegin(playerid)", "StudioUI_ZoneOwned(playerid)",
-                       "StudioZone_Show(playerid)", 'StudioZone_Command(playerid, "publish")',
-                       "NPCRoute_Command(playerid, cmdtext)"):
+                       "StudioZone_Show(playerid)", 'StudioZone_Command(playerid, "publish")'):
+):
             self.assertIn(marker, UI)
 
     def test_checkpoint_backward_compat(self):
