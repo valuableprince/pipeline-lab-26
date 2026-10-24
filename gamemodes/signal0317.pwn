@@ -948,6 +948,12 @@ public OnNPCFinishMove(npcid)
     return NpcCore_OnFinishMove(npcid);
 }
 
+public OnNPCFinishMovePath(npcid, pathid)
+{
+    if (NPCRoute_OnNPCFinishMovePath(npcid, pathid)) return 1;
+    return 1;
+}
+
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
