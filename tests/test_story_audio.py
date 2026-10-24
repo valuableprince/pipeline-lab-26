@@ -38,7 +38,7 @@ class StoryAudioContract(unittest.TestCase):
 
     def test_script_and_config_are_not_fake_asset(self):
         self.assertIn("НОРА", SCRIPT)
-        self.assertIn("КОНТУР", SCRIPT)
+        self.assertIn("Контур", SCRIPT)
         self.assertIn("MP3", SCRIPT)
         self.assertIn("файл ещё не опубликован", SCRIPT)
         self.assertIn("https://audio.tarkenso.ru/story/room17-cassette.mp3", CONFIG)
