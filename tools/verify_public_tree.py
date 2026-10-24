@@ -14,6 +14,10 @@ ALLOWED = {
     "tools/pack.sh",
     "tools/check-local.sh",
     "tools/import-local.sh",
+    "tools/safe_extract.py",
+    "tools/open-workspace.sh",
+    "tools/check_workspace.py",
+    "tools/seal-workspace.sh",
     "tools/test_public_tree.py",
 }
 PAYLOAD = "payload/release.age"
