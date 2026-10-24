@@ -51,7 +51,7 @@ def build(server: Path, output: Path) -> int:
         return 2
 
     try:
-        source_bytes = encode_source(SOURCE.read_text(encoding="utf-8-sig"))
+        source_bytes = b"#define TARKENSO_DB_PRIMARY\n" + encode_source(SOURCE.read_text(encoding="utf-8-sig"))
     except (UnicodeError, OSError) as exc:
         print(f"Ошибка чтения/кодировки исходника: {exc}", file=sys.stderr)
         return 2
