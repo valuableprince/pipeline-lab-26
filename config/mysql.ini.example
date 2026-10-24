@@ -1,0 +1,8 @@
+# Шаблон pBlueG SA-MP-MySQL R41: заполнить локально и сохранить как mysql.ini
+# в КОРНЕ игрового сервера, рядом с config.json; не загружать в Git.
+hostname = 127.0.0.1
+username = TARKENSO_DB_USER
+password = CHANGE_ME
+database = TARKENSO_DB_NAME
+server_port = 3306
+# auto_reconnect = true
