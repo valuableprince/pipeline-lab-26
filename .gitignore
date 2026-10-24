@@ -20,3 +20,4 @@ out/
 secrets/
 *.log
 __pycache__/
+*.tmp.*
