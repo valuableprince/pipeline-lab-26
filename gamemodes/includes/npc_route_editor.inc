@@ -395,9 +395,22 @@ stock NPCRoute_Test(playerid)
 
 stock NPCRoute_Help(playerid)
 {
-    SendClientMessage(playerid, NPCROUTE_COLOR, "/npcroute record 0..15 — запись маршрута, /npcroute crossing — границы перехода.");
-    SendClientMessage(playerid, NPCROUTE_COLOR, "/npcroute stop, undo, show, test, save, apply, status, cancel.");
-    SendClientMessage(playerid, NPCROUTE_COLOR, "Пешком в мире 0. Точки каждые 2м, максимум 128. Apply перечитывает сохранённые маршруты.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "/npcroute record N — начать запись пути в слот N (0..15), идите пешком.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "/npcroute crossing — отметить начало/конец перехода через дорогу.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "/npcroute stop — остановить запись; /npcroute undo — убрать последнюю точку.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "/npcroute show — показать метки; /npcroute test — проверить путь с NPC.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "/npcroute save — сохранить путь; /npcroute apply — перечитать сохранённые пути.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "/npcroute status — состояние слотов; /npcroute cancel — отменить черновик.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "Порядок: record N -> пройти -> stop -> test -> save -> apply. Пешком, мир 0.");
+    SendClientMessage(playerid, NPCROUTE_COLOR,
+        "Справка: /npcroute help. Между точками около 2 м, не более 128 точек.");
     return 1;
 }
 
@@ -415,7 +428,8 @@ stock NPCRoute_Command(playerid, const params[])
         length < sizeof(action) - 1)
         action[length++] = params[pos++];
     action[length] = EOS;
-    if (!length) return NPCRoute_Help(playerid);
+    if (!length || !strcmp(action, "help", true))
+        return NPCRoute_Help(playerid);
     if (!strcmp(action, "status", true))
     {
         new msg[128];
@@ -448,6 +462,10 @@ stock NPCRoute_Command(playerid, const params[])
         new msg[100];
         format(msg, sizeof(msg), "Запись маршрута %d запущена. Идите по тротуару. /npcroute stop.", slot);
         SendClientMessage(playerid, NPCROUTE_COLOR, msg);
+        SendClientMessage(playerid, NPCROUTE_COLOR,
+            "Переход: /npcroute crossing перед дорогой и ещё раз после неё.");
+        SendClientMessage(playerid, NPCROUTE_COLOR,
+            "Подробно о командах: /npcroute help.");
         return 1;
     }
     if (!strcmp(action, "apply", true))
