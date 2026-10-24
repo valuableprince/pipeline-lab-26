@@ -426,13 +426,11 @@ stock Studio_Open(playerid)
 {
     if (!Studio_Require(playerid)) return 1;
     ShowPlayerDialog(playerid, STUDIO_DIALOG_MAIN, DIALOG_STYLE_LIST, "TARKENSO STUDIO",
-        "Персонажи NPC\nМаршруты NPC\nЗоны / контрольные точки\nСостояние Studio",
+        "Зоны / контрольные точки\nСостояние Studio",
         "Открыть", "Закрыть");
     return 1;
 }
 
-// Единственная точка входа для редакторов. Старые /npcroute и /zoneedit
-// остаются прямыми совместимыми командами; здесь только маршрутизация.
 stock Studio_Command(playerid, const params[])
 {
     if (!Studio_Require(playerid)) return 1;
@@ -447,36 +445,23 @@ stock Studio_Command(playerid, const params[])
     while (params[start] == ' ') start++;
     strmid(tail, params, start, strlen(params), sizeof(tail));
 
-    if (!strcmp(action, "npc", true) || !strcmp(action, "npcs", true))
-        return NpcEditor_Command(playerid, tail);
-    if (!strcmp(action, "route", true) || !strcmp(action, "routes", true))
-    {
-        if (!tail[0]) return StudioUI_NpcSlots(playerid);
-        return NPCRoute_Command(playerid, tail);
-    }
     if (!strcmp(action, "zone", true) || !strcmp(action, "zones", true))
     {
         if (!tail[0]) return StudioUI_ZoneList(playerid);
         return StudioZone_Command(playerid, tail);
     }
     if (!strcmp(action, "status", true))
-    {
-        StudioZone_Status(playerid);
-        NPCRoute_Command(playerid, "status");
-        return 1;
-    }
+        return StudioZone_Status(playerid);
     if (!strcmp(action, "help", true))
     {
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "Studio: /studio [npc|routes|zones|status] — разделы и состояние.");
+            "Studio: /studio zones — редактор зон и контрольных точек.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "NPC: /studio npc new, /nset. Маршруты: /studio routes record 0.");
-        SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "Старые команды /npcroute и /zoneedit сохранены.");
+            "/studio status — состояние зон; /zoneedit — прямые команды.");
         return 1;
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
-        "Использование: /studio npc|routes|zones|status|help.");
+        "Использование: /studio zones|status|help.");
 }
 
 stock Studio_OnDialog(playerid, dialogid, response, listitem)
@@ -485,14 +470,8 @@ stock Studio_OnDialog(playerid, dialogid, response, listitem)
     if (!Studio_Require(playerid) || !response) return 1;
     switch (listitem)
     {
-        case 0: NpcEditor_Open(playerid);
-        case 1: StudioUI_NpcSlots(playerid);
-        case 2: StudioUI_ZoneList(playerid);
-        case 3:
-        {
-            StudioZone_Status(playerid);
-            NPCRoute_Command(playerid, "status");
-        }
+        case 0: StudioUI_ZoneList(playerid);
+        case 1: StudioZone_Status(playerid);
     }
     return 1;
 }
