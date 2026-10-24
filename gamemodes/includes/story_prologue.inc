@@ -16,7 +16,6 @@
 #define STORY_COLOR           (0xE6BB79FF)
 #define STORY_INTERACT_SQ     (16.0)
 
-new gStoryStage[MAX_PLAYERS];
 new bool:gStoryIntroSeen[MAX_PLAYERS];
 new gStoryLastInteract[MAX_PLAYERS];
 new PlayerText3D:gStoryLabel[MAX_PLAYERS];
