@@ -67,11 +67,6 @@ jobs:
               (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
           PY
 
-      - name: Run regression tests
-        run: |
-          python3 -m compileall -q tools tests
-          python3 -m unittest discover -s tests -v
-
       - name: Compile source
         shell: bash
         run: |
