@@ -5,9 +5,7 @@
 
 // PAYDAY-01: one EXP at each server-clock HH:00; no AFK checks or wages.
 // EXP needed for next level = current level * 4.
-#define PAYDAY_LEVEL_LIMIT (1000)
 #define PAYDAY_EXP_PER_HOUR (1)
-#define PAYDAY_EXP_STEP (4)
 #define PAYDAY_COLOR (0xA7D6B5FF)
 
 new gPayDayTimer;
@@ -96,6 +94,7 @@ public PayDay_Tick()
     if (minute != 0 || currentHourKey == gPayDayLastHour) return 1;
     // Update the process-wide clock before granting to prevent repeated awards.
     gPayDayLastHour = currentHourKey;
+    printf("[PayDay] Processing %02d:%02d, hour key %d.", hour, second, currentHourKey);
     for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
     {
         if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
