@@ -77,7 +77,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /story, /level, /position, /hudlogo, /report, /admins.");
+            "Игрок: /mn (/mm, /menu), /story, /position, /hudlogo, /report, /admins.");
         return 1;
     }
     if (!strcmp(category, "jobs", true))
@@ -159,9 +159,19 @@ cmd:hudlogo(playerid, params[])
     return 1;
 }
 
-cmd:level(playerid, params[])
+cmd:mn(playerid, params[])
 {
-    return PayDay_Status(playerid);
+    return PlayerMenu_Open(playerid);
+}
+
+cmd:mm(playerid, params[])
+{
+    return PlayerMenu_Open(playerid);
+}
+
+cmd:menu(playerid, params[])
+{
+    return PlayerMenu_Open(playerid);
 }
 
 cmd:studio(playerid, params[])
