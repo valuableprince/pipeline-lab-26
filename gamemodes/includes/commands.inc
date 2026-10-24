@@ -77,7 +77,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /story, /position, /hudlogo, /report, /admins.");
+            "Игрок: /story, /level, /position, /hudlogo, /report, /admins.");
         return 1;
     }
     if (!strcmp(category, "jobs", true))
@@ -126,9 +126,9 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
             "TARKENSO Studio: включите /aduty и откройте /studio.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "/studio npc|routes|zones|status|help — разделы редактора.");
+            "/studio zones|status|help — редактор зон.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "Прямые команды /npcroute и /zoneedit сохранены; /founder — права основателя.");
+            "Прямые команды: /zoneedit; /founder — права основателя.");
         return 1;
     }
     return SendClientMessage(playerid, COLOR_RED,
@@ -159,14 +159,9 @@ cmd:hudlogo(playerid, params[])
     return 1;
 }
 
-cmd:nset(playerid, params[])
+cmd:level(playerid, params[])
 {
-    return NpcEditor_Capture(playerid);
-}
-
-cmd:npcroute(playerid, params[])
-{
-    return NPCRoute_Command(playerid, params);
+    return PayDay_Status(playerid);
 }
 
 cmd:studio(playerid, params[])
