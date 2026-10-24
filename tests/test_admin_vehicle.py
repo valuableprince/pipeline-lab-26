@@ -1,4 +1,4 @@
-"""Admin /veh contracts: permissions, input bounds, cleanup and logging."""
+"""Admin /veh contracts: many temporary cars, ID deletion and throttling."""
 from pathlib import Path
 import unittest
 
@@ -9,7 +9,7 @@ CMDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 
 
 class AdminVehicleContract(unittest.TestCase):
-    def test_admin_only_and_strict_parameters(self):
+    def test_admin_only_and_valid_creation_parameters(self):
         self.assertIn("cmd:veh(playerid, params[])", CMDS)
         self.assertIn("return AdminVeh_Command(playerid, params);", CMDS)
         self.assertIn("Admin_Require(playerid, PERM_REPORT)", VEH)
@@ -20,30 +20,40 @@ class AdminVehicleContract(unittest.TestCase):
                      "PLAYER_STATE_ONFOOT", "Race_IsParticipant(playerid)"):
             self.assertIn(term, VEH)
 
-    def test_temp_vehicle_lifecycle(self):
-        self.assertIn("new gAdminVehVehicle[MAX_PLAYERS]", VEH)
-        self.assertIn("AdminVeh_Destroy(playerid);", VEH)
-        self.assertIn("AdminVeh_Reset(playerid);", MAIN)
-        self.assertIn("AdminVeh_Destroy(playerid);", MAIN)
-        self.assertIn("AdminVeh_Shutdown();", MAIN)
-        self.assertIn("AdminVeh_OnVehicleDeath(vehicleid);", MAIN)
-        self.assertIn("IsValidVehicle(vehicleid)", VEH)
+    def test_multiple_cars_and_id_based_deletion(self):
+        self.assertIn("new bool:gAdminVehCreated[MAX_VEHICLES + 1]", VEH)
+        self.assertIn("gAdminVehCreated[vehicleid] = true;", VEH)
+        self.assertIn("cmd:delveh(playerid, params[])", CMDS)
+        self.assertIn("return AdminVeh_DeleteCommand(playerid, params);", CMDS)
+        self.assertIn('sscanf(params, "s[8]i"', VEH)
+        self.assertIn("AdminVeh_DeleteById(playerid, deleteId)", VEH)
+        self.assertIn("AdminVeh_IsTracked(vehicleid)", VEH)
         self.assertIn("DestroyVehicle(vehicleid)", VEH)
-        self.assertIn("CreateVehicle(modelid", VEH)
-        self.assertIn("SetVehicleVirtualWorld(vehicleid, world)", VEH)
-        self.assertIn("LinkVehicleToInterior(vehicleid, interior)", VEH)
-        self.assertIn("PutPlayerInVehicle(playerid, vehicleid, 0)", VEH)
-        self.assertNotIn("mysql_", VEH)
+        self.assertIn("gAdminVehCreated[vehicleid] = false;", VEH)
+        self.assertNotIn("gAdminVehVehicle[MAX_PLAYERS]", VEH)
+        self.assertNotIn("PutPlayerInVehicle(", VEH)
 
-    def test_audit_first_and_no_unlimited_spawn(self):
+    def test_antiflood_audit_and_lifecycle(self):
+        self.assertIn("#define ADMIN_VEH_COOLDOWN_SEC (3)", VEH)
+        self.assertIn("AdminVeh_CooldownReady(playerid)", VEH)
+        self.assertIn("gAdminVehNextAction[playerid] = gettime() +", VEH)
         self.assertIn('Admin_LogPlayer(playerid, "VEH_CREATE", detail)', VEH)
         self.assertIn('Admin_LogPlayer(playerid, "VEH_DELETE", detail)', VEH)
         self.assertLess(VEH.index('Admin_LogPlayer(playerid, "VEH_CREATE", detail)'),
                         VEH.index("CreateVehicle(modelid"))
-        self.assertLess(VEH.index("CreateVehicle(modelid"),
-                        VEH.rindex("AdminVeh_Destroy(playerid);"))
-        self.assertIn("У вас нет созданного", VEH)
-        self.assertIn("/veh del", VEH)
+        self.assertIn("AdminVeh_Init();", MAIN)
+        self.assertIn("AdminVeh_Reset(playerid);", MAIN)
+        self.assertIn("AdminVeh_Shutdown();", MAIN)
+        self.assertIn("AdminVeh_OnVehicleDeath(vehicleid);", MAIN)
+        self.assertNotIn("AdminVeh_Destroy(playerid);", MAIN)
+        self.assertIn("SetVehicleVirtualWorld(vehicleid, world)", VEH)
+        self.assertIn("LinkVehicleToInterior(vehicleid, interior)", VEH)
+        self.assertNotIn("mysql_", VEH)
+
+    def test_dl_remains_builtin(self):
+        self.assertIn("ID через /dl", VEH)
+        self.assertNotIn("cmd:dl(", CMDS)
+        self.assertIn("/veh del ID", CMDS)
 
 
 if __name__ == "__main__":
