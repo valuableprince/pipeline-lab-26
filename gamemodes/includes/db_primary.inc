@@ -245,7 +245,7 @@
             characterLevel < 1 || characterLevel > PAYDAY_LEVEL_LIMIT ||
             characterExp < 0 || (characterLevel < PAYDAY_LEVEL_LIMIT &&
                 characterExp >= characterLevel * PAYDAY_EXP_STEP) ||
-            lastPaydayHour < 0 || storyStage < 0 || storyStage > STORY_DONE ||
+            lastPaydayHour < 0 || storyStage < 0 || storyStage > 4 ||
             strlen(registered) != 10 ||
             registered[4] != '-' || registered[7] != '-')
             valid = false;
