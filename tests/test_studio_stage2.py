@@ -27,7 +27,6 @@ class StudioStage2Contract(unittest.TestCase):
         for marker in ("STUDIO_UI_ZONES", "STUDIO_UI_ZONE_ACTION", "STUDIO_UI_ZONE_RADIUS",
                        "StudioUI_ZoneBegin(playerid)", "StudioUI_ZoneOwned(playerid)",
                        "StudioZone_Show(playerid)", 'StudioZone_Command(playerid, "publish")'):
-):
             self.assertIn(marker, UI)
 
     def test_checkpoint_backward_compat(self):
