@@ -3,95 +3,144 @@
 #endif
 #define _tarkenso_admin_vehicle_included
 
-// ADMIN-VEH-01. One temporary vehicle per on-duty administrator.
-// No database persistence; vehicle is removed on replacement, death,
-// disconnect or game-mode shutdown.
-new gAdminVehVehicle[MAX_PLAYERS];
+// ADMIN-VEH-02. Administrators can create many temporary vehicles.
+// /dl is the built-in client debug-label command showing vehicle IDs.
+// Only /veh del ID (or /delveh ID) can remove an admin-created vehicle.
+// Never destroy unrelated cars by ID. Vehicles remain after admin logout.
+#define ADMIN_VEH_COOLDOWN_SEC (3)
+new bool:gAdminVehCreated[MAX_VEHICLES + 1];
+new gAdminVehNextAction[MAX_PLAYERS];
 
 stock AdminVeh_Reset(playerid)
 {
-    gAdminVehVehicle[playerid] = INVALID_VEHICLE_ID;
+    // Player slot reset does NOT destroy their previously created vehicles.
+    gAdminVehNextAction[playerid] = 0;
     return 1;
 }
 
-stock AdminVeh_Destroy(playerid)
+stock AdminVeh_Init()
 {
-    new vehicleid = gAdminVehVehicle[playerid];
-    gAdminVehVehicle[playerid] = INVALID_VEHICLE_ID;
-    if (vehicleid != INVALID_VEHICLE_ID && IsValidVehicle(vehicleid))
-        DestroyVehicle(vehicleid);
+    for (new vehicleid = 0; vehicleid <= MAX_VEHICLES; vehicleid++)
+        gAdminVehCreated[vehicleid] = false;
+    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
+        AdminVeh_Reset(playerid);
+    return 1;
+}
+
+stock bool:AdminVeh_IsTracked(vehicleid)
+{
+    return vehicleid > 0 && vehicleid <= MAX_VEHICLES &&
+        gAdminVehCreated[vehicleid] && IsValidVehicle(vehicleid);
+}
+
+stock AdminVeh_DestroyById(vehicleid)
+{
+    if (!AdminVeh_IsTracked(vehicleid)) return 0;
+    // Clear registry first, before ID can be reused by other modules.
+    gAdminVehCreated[vehicleid] = false;
+    DestroyVehicle(vehicleid);
     return 1;
 }
 
 stock AdminVeh_OnVehicleDeath(vehicleid)
 {
-    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
-    {
-        if (gAdminVehVehicle[playerid] != vehicleid) continue;
-        gAdminVehVehicle[playerid] = INVALID_VEHICLE_ID;
-        if (IsValidVehicle(vehicleid)) DestroyVehicle(vehicleid);
-        return 1;
-    }
-    return 0;
+    // Clean up destroyed temporary vehicles; regular vehicles are untouched.
+    return AdminVeh_DestroyById(vehicleid);
 }
 
 stock AdminVeh_Shutdown()
 {
-    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
-        AdminVeh_Destroy(playerid);
+    for (new vehicleid = 1; vehicleid <= MAX_VEHICLES; vehicleid++)
+        if (gAdminVehCreated[vehicleid])
+        {
+            if (IsValidVehicle(vehicleid)) DestroyVehicle(vehicleid);
+            gAdminVehCreated[vehicleid] = false;
+        }
     return 1;
+}
+
+stock bool:AdminVeh_CooldownReady(playerid)
+{
+    if (gettime() >= gAdminVehNextAction[playerid]) return true;
+    SendClientMessage(playerid, ADMIN_ERROR,
+        "Антифлуд: подождите 3 секунды между операциями с транспортом.");
+    return false;
+}
+
+stock AdminVeh_DeleteById(playerid, vehicleid)
+{
+    if (!Admin_Require(playerid, PERM_REPORT)) return 1;
+    if (!AdminVeh_IsTracked(vehicleid))
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Машина не найдена или не создана администрацией через /veh.");
+    if (!AdminVeh_CooldownReady(playerid)) return 1;
+
+    new detail[64];
+    format(detail, sizeof(detail), "vehicleid=%d", vehicleid);
+    if (!Admin_LogPlayer(playerid, "VEH_DELETE", detail))
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Журнал администрации недоступен: удаление отменено.");
+
+    AdminVeh_DestroyById(vehicleid);
+    gAdminVehNextAction[playerid] = gettime() + ADMIN_VEH_COOLDOWN_SEC;
+    new message[90];
+    format(message, sizeof(message),
+        "Административный транспорт ID %d удалён.", vehicleid);
+    return SendClientMessage(playerid, ADMIN_OK, message);
+}
+
+stock AdminVeh_DeleteCommand(playerid, const params[])
+{
+    if (!Admin_Require(playerid, PERM_REPORT)) return 1;
+    new vehicleid;
+    if (sscanf(params, "i", vehicleid))
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Использование: /delveh ID. ID машины можно увидеть через /dl.");
+    return AdminVeh_DeleteById(playerid, vehicleid);
 }
 
 stock AdminVeh_Command(playerid, const params[])
 {
-    // Even administrator level 1 requires the explicit /aduty switch.
     if (!Admin_Require(playerid, PERM_REPORT)) return 1;
     if (isnull(params))
         return SendClientMessage(playerid, ADMIN_COLOR,
-            "Использование: /veh ID [цвет1] [цвет2] | /veh del. Пример: /veh 411 1 1.");
+            "Использование: /veh модель [цвет1] [цвет2] | /veh del ID. Узнать ID: /dl.");
 
     if (!strcmp(params, "del", true) || !strcmp(params, "delete", true))
-    {
-        if (gAdminVehVehicle[playerid] == INVALID_VEHICLE_ID ||
-            !IsValidVehicle(gAdminVehVehicle[playerid]))
-        {
-            AdminVeh_Reset(playerid);
-            return SendClientMessage(playerid, ADMIN_ERROR,
-                "У вас нет созданного административного транспорта.");
-        }
-        new detail[64];
-        format(detail, sizeof(detail), "vehicleid=%d",
-            gAdminVehVehicle[playerid]);
-        if (!Admin_LogPlayer(playerid, "VEH_DELETE", detail))
-            return SendClientMessage(playerid, ADMIN_ERROR,
-                "Журнал администрации недоступен: действие отменено.");
-        AdminVeh_Destroy(playerid);
-        return SendClientMessage(playerid, ADMIN_OK,
-            "Административный транспорт удалён.");
-    }
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Укажите ID: /veh del ID. Посмотреть номера машин: /dl.");
+
+    new verb[8], deleteId;
+    if (!sscanf(params, "s[8]i", verb, deleteId) &&
+        (!strcmp(verb, "del", true) || !strcmp(verb, "delete", true)))
+        return AdminVeh_DeleteById(playerid, deleteId);
 
     new modelid, color1 = -1, color2 = -1;
     if (sscanf(params, "iI(-1)I(-1)", modelid, color1, color2) ||
         modelid < 400 || modelid > 611 || color1 < -1 || color1 > 255 ||
         color2 < -1 || color2 > 255)
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Укажите модель 400..611 и цвета 0..255 (-1 = случайный). Пример: /veh 411 1 1.");
+            "Модель 400..611, цвета 0..255 (-1 случайный). Пример: /veh 411 1 1.");
 
-    // Rail vehicles cannot be placed safely at arbitrary coordinates.
     if (modelid == 449 || modelid == 537 || modelid == 538 ||
         modelid == 569 || modelid == 570 || modelid == 590)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "Железнодорожный транспорт здесь не поддерживается.");
 
+    new PLAYER_STATE:state = GetPlayerState(playerid);
     if (Race_IsParticipant(playerid) ||
-        GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
+        (state != PLAYER_STATE_ONFOOT && state != PLAYER_STATE_DRIVER) ||
         gAdminSpectate[playerid] != INVALID_PLAYER_ID)
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Создание транспорта доступно только пешком, вне гонки и наблюдения.");
+            "Создание возможно пешком или за рулём, вне гонки и наблюдения.");
 
+    if (!AdminVeh_CooldownReady(playerid)) return 1;
     new Float:x, Float:y, Float:z, Float:angle;
     GetPlayerPos(playerid, x, y, z);
-    GetPlayerFacingAngle(playerid, angle);
+    if (state == PLAYER_STATE_DRIVER)
+        GetVehicleZAngle(GetPlayerVehicleID(playerid), angle);
+    else
+        GetPlayerFacingAngle(playerid, angle);
     x += floatsin(-angle, degrees) * 5.0;
     y += floatcos(-angle, degrees) * 5.0;
 
@@ -102,25 +151,29 @@ stock AdminVeh_Command(playerid, const params[])
         modelid, color1, color2, x, y, z, world, interior);
     if (!Admin_LogPlayer(playerid, "VEH_CREATE", detail))
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Журнал администрации недоступен: действие отменено.");
+            "Журнал администрации недоступен: создание отменено.");
 
     new vehicleid = CreateVehicle(modelid, x, y, z + 0.5, angle,
         color1, color2, -1);
     if (vehicleid == INVALID_VEHICLE_ID)
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Не удалось создать транспорт: проверьте лимит машин сервера.");
+            "Не удалось создать транспорт: исчерпан лимит машин сервера.");
+    if (vehicleid < 1 || vehicleid > MAX_VEHICLES)
+    {
+        DestroyVehicle(vehicleid);
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Сервер вернул некорректный ID транспорта.");
+    }
 
     SetVehicleVirtualWorld(vehicleid, world);
     LinkVehicleToInterior(vehicleid, interior);
+    gAdminVehCreated[vehicleid] = true;
+    gAdminVehNextAction[playerid] = gettime() + ADMIN_VEH_COOLDOWN_SEC;
 
-    // Only discard the old temporary vehicle after the replacement exists.
-    AdminVeh_Destroy(playerid);
-    gAdminVehVehicle[playerid] = vehicleid;
-    PutPlayerInVehicle(playerid, vehicleid, 0);
-
-    new message[100];
+    // Do not automatically seat the admin: they may place several cars.
+    new message[116];
     format(message, sizeof(message),
-        "Создан транспорт: модель %d, ID %d. Удалить: /veh del.",
-        modelid, vehicleid);
+        "Создан транспорт: модель %d, ID %d. Удалить: /veh del %d (ID через /dl).",
+        modelid, vehicleid, vehicleid);
     return SendClientMessage(playerid, ADMIN_OK, message);
 }
