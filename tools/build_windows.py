@@ -57,25 +57,17 @@ def build(server: Path, output: Path) -> int:
         return 2
 
     output.mkdir(parents=True, exist_ok=True)
-    target = output / "signal0317"
+    target = output / "compiled"
     amx = target.with_suffix(".amx")
     if amx.exists():
         amx.unlink()
 
-    with tempfile.TemporaryDirectory(prefix="signal0317_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="compile_") as tmp:
         temporary_source = Path(tmp) / "signal0317.pwn"
         temporary_source.write_bytes(source_bytes)
         try:
-            for module_name in ("npc_route_editor.inc", "city_npcs.inc", "npc_route_editor.inc", "studio_system.inc", "studio_ui.inc", "auth_camera.inc", "auth_dialogs.inc"):
-                module = ROOT / "gamemodes" / "includes" / module_name
-                (Path(tmp) / module_name).write_bytes(
-                    encode_source(module.read_text(encoding="utf-8"))
-                )
-            for module_name in ("admin_system.inc", "admin_ui.inc", "commands.inc",
-                                "leader_system.inc", "leader_ui.inc", "island_lab.inc", "race_map.inc", "race_event.inc", "race_playlist.inc", "race_audio.inc", "race_progress.inc",
-                                "orvelar_hud.inc", "cleaner_job.inc", "cleaner_container.inc", "race_core.inc", "economy.inc", "server_guard.inc", "db_shadow.inc", "db_primary.inc", "db_world.inc", "npc_core.inc", "npc_editor.inc", "admin_teleport.inc", "Pawn.CMD.inc", "sscanf2.inc", "streamer.inc"):
-                module = ROOT / "gamemodes" / "includes" / module_name
-                (Path(tmp) / module_name).write_bytes(
+            for module in sorted((ROOT / "gamemodes" / "includes").glob("*.inc")):
+                (Path(tmp) / module.name).write_bytes(
                     encode_source(module.read_text(encoding="utf-8"))
                 )
         except (UnicodeError, OSError) as exc:
