@@ -86,26 +86,6 @@ stock Story_TapeStop(playerid)
     return 1;
 }
 
-stock Story_TapePlay(playerid)
-{
-    // The radio URL does not exist yet until the owner publishes the voiceover.
-    // Fail closed to the existing text scene; never fake successful playback.
-    if (!gStoryTapeUrl[0]) return 0;
-    if (gStoryStage[playerid] != 2 || !Story_NearObjective(playerid))
-        return 0;
-    Story_TapeStop(playerid);
-    if (!PlayAudioStreamForPlayer(playerid, gStoryTapeUrl,
-        gStoryLocations[1][0], gStoryLocations[1][1],
-        gStoryLocations[1][2], 18.0, true))
-        return 0;
-    gStoryTapePlaying[playerid] = true;
-    ShowPlayerDialog(playerid, STORY_DIALOG_TAPE, DIALOG_STYLE_MSGBOX,
-        "Номер 17 | Кассета играет",
-        "{E6BB79}КОНТУР / ПРОТОКОЛ 03:17\n{94A3B8}__________________________________\n\n{FFFFFF}Щелчок механизма. Шипение магнитной ленты.\nСлышен мужской голос, затем голос Норы.\n\n{94A3B8}Запись идёт из магнитофона рядом с вами.\nМожно забрать кассету или прослушать её снова.",
-        "Забрать кассету", "Повторить");
-    return 1;
-}
-
 stock Story_OnConnect(playerid)
 {
     gStoryStage[playerid] = 0;
@@ -193,6 +173,26 @@ stock bool:Story_NearObjective(playerid)
     new Float:dy = y - gStoryLocations[index][1];
     new Float:dz = z - gStoryLocations[index][2];
     return dx * dx + dy * dy + dz * dz <= STORY_INTERACT_SQ;
+}
+
+stock Story_TapePlay(playerid)
+{
+    // The radio URL does not exist yet until the owner publishes the voiceover.
+    // Fail closed to the existing text scene; never fake successful playback.
+    if (!gStoryTapeUrl[0]) return 0;
+    if (gStoryStage[playerid] != 2 || !Story_NearObjective(playerid))
+        return 0;
+    Story_TapeStop(playerid);
+    if (!PlayAudioStreamForPlayer(playerid, gStoryTapeUrl,
+        gStoryLocations[1][0], gStoryLocations[1][1],
+        gStoryLocations[1][2], 18.0, true))
+        return 0;
+    gStoryTapePlaying[playerid] = true;
+    ShowPlayerDialog(playerid, STORY_DIALOG_TAPE, DIALOG_STYLE_MSGBOX,
+        "Номер 17 | Кассета играет",
+        "{E6BB79}КОНТУР / ПРОТОКОЛ 03:17\n{94A3B8}__________________________________\n\n{FFFFFF}Щелчок механизма. Шипение магнитной ленты.\nСлышен мужской голос, затем голос Норы.\n\n{94A3B8}Запись идёт из магнитофона рядом с вами.\nМожно забрать кассету или прослушать её снова.",
+        "Забрать кассету", "Повторить");
+    return 1;
 }
 
 stock Story_ShowLetter(playerid)
