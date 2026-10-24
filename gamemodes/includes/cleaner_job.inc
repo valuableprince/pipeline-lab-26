@@ -335,6 +335,37 @@ stock Cleaner_HideTrashLabels(playerid)
     return 1;
 }
 
+// Physics may knock breakable litter aside only on a player's client.
+// The server does not receive that local displacement. Re-create the shared
+// objects at their authoritative locations before opening a cleaner shift,
+// so an old local prop cannot remain away from its collection label.
+stock Cleaner_RestoreTrashObjects()
+{
+    for (new i = 0; i < CLEANER_SPOT_COUNT; i++)
+    {
+        new objectid = gCleanerTrash[i];
+        if (objectid == INVALID_OBJECT_ID) continue;
+
+        new model = GetObjectModel(objectid);
+        if (model < 0)
+        {
+            gCleanerTrash[i] = INVALID_OBJECT_ID;
+            Cleaner_RemoveTrashLabels(i);
+            continue;
+        }
+
+        new Float:rx, Float:ry, Float:rz;
+        GetObjectRot(objectid, rx, ry, rz);
+        DestroyObject(objectid);
+        gCleanerTrash[i] = CreateObject(model,
+            gCleanerSpots[i][0], gCleanerSpots[i][1],
+            gCleanerSpots[i][2] - 0.75, rx, ry, rz, 120.0);
+        if (gCleanerTrash[i] == INVALID_OBJECT_ID)
+            Cleaner_RemoveTrashLabels(i);
+    }
+    return 1;
+}
+
 stock Cleaner_SyncTrashLabels(playerid)
 {
     // Персональные 3D подписи не имеют надёжной фильтрации virtual world.
@@ -355,10 +386,12 @@ stock Cleaner_SyncTrashLabels(playerid)
         }
         if (gCleanerTrashLabel[playerid][i] != PlayerText3D:INVALID_3DTEXT_ID)
             continue;
+        new Float:objectX, Float:objectY, Float:objectZ;
+        if (!GetObjectPos(gCleanerTrash[i], objectX, objectY, objectZ))
+            continue;
         gCleanerTrashLabel[playerid][i] = CreatePlayer3DTextLabel(playerid,
             "{A7D6B5}МУСОР\n{FFFFFF}Подойдите ближе для сбора",
-            CLEANER_COLOR, gCleanerSpots[i][0], gCleanerSpots[i][1],
-            gCleanerSpots[i][2] + 0.30, 7.0);
+            CLEANER_COLOR, objectX, objectY, objectZ + 1.05, 7.0);
     }
     return 1;
 }
@@ -401,6 +434,8 @@ stock Cleaner_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
             Cleaner_RemoveBagProp(playerid);
             return SendClientMessage(playerid, COLOR_RED, "Смена недоступна: лимит работников.");
         }
+        // Restore props displaced by client-side physics before creating labels.
+        Cleaner_RestoreTrashObjects();
         gCleanerDuty[playerid] = true;
         gCleanerZoneHold[playerid] = 0;
         Cleaner_StartNightContract(playerid);
