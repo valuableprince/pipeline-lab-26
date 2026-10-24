@@ -13,6 +13,7 @@ ALLOWED = {
     "tools/verify_public_tree.py",
     "tools/pack.sh",
     "tools/check-local.sh",
+    "tools/import-local.sh",
     "tools/test_public_tree.py",
 }
 PAYLOAD = "payload/release.age"
