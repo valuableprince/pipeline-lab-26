@@ -8,7 +8,7 @@ STUDIO = (ROOT / "gamemodes/includes/studio_system.inc").read_text(encoding="utf
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+CI = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 
 
 class StudioCoreContract(unittest.TestCase):
@@ -19,7 +19,7 @@ class StudioCoreContract(unittest.TestCase):
                      "Studio_OnDialog(playerid, dialogid, response, listitem)"):
             self.assertIn(code, MAIN)
         self.assertIn('"studio_system.inc"', BUILD)
-        self.assertIn('"studio_system.inc"', CI)
+        self.assertIn('"gamemodes/**"', CI)
 
     def test_commands_and_founder_only(self):
         self.assertIn("cmd:studio(playerid, params[])", COMMANDS)
