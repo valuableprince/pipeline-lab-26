@@ -11,6 +11,9 @@
 #define STORY_DIALOG_ROOM      (6442)
 #define STORY_DIALOG_RADIO     (6443)
 #define STORY_DIALOG_JOURNAL   (6444)
+#define STORY_DIALOG_TAPE      (6445)
+#define STORY_TAPE_CONFIG      "story_tape.cfg"
+#define STORY_TAPE_URL_SIZE    (192)
 #define STORY_DONE            (4)
 #define STORY_MAP_ICON        (88)
 #define STORY_COLOR           (0xE6BB79FF)
@@ -19,6 +22,8 @@
 new bool:gStoryIntroSeen[MAX_PLAYERS];
 new gStoryLastInteract[MAX_PLAYERS];
 new PlayerText3D:gStoryLabel[MAX_PLAYERS];
+new gStoryTapeUrl[STORY_TAPE_URL_SIZE];
+new bool:gStoryTapePlaying[MAX_PLAYERS];
 
 new const Float:gStoryLocations[3][3] = {
     {-252.0, 1104.0, 19.6}, // Pilot position: motel reception
@@ -26,12 +31,88 @@ new const Float:gStoryLocations[3][3] = {
     {-287.0, 1122.0, 19.6}  // Pilot position: abandoned transmitter
 };
 
+// Copy story_tape.cfg to scriptfiles. One direct HTTPS MP3/OGG URL per file.
+// Domain allowlist avoids passing arbitrary user-supplied URLs to game clients.
+stock bool:Story_TapeAllowedUrl(const url[])
+{
+    if (strfind(url, "https://tarkenso.ru/", true) != 0 &&
+        strfind(url, "https://audio.tarkenso.ru/", true) != 0)
+        return false;
+    new length = strlen(url);
+    if (length < 28 || length >= STORY_TAPE_URL_SIZE) return false;
+    if (strfind(url, ".mp3", true) != length - 4 &&
+        strfind(url, ".ogg", true) != length - 4) return false;
+    for (new i = 0; i < length; i++)
+        if (url[i] < 33 || url[i] > 126 || url[i] == '"' ||
+            url[i] == '\\' || url[i] == '<' || url[i] == '>')
+            return false;
+    return true;
+}
+
+stock Story_TapeInit()
+{
+    gStoryTapeUrl[0] = EOS;
+    new File:handle = fopen(STORY_TAPE_CONFIG, io_read);
+    if (!handle)
+    {
+        print("[STORY-AUDIO] story_tape.cfg not found; text-only cassette active.");
+        return 1;
+    }
+    new line[STORY_TAPE_URL_SIZE];
+    new bool:valid = bool:fread(handle, line, sizeof(line));
+    if (valid)
+    {
+        new length = strlen(line);
+        while (length > 0 && (line[length - 1] == '\r' ||
+            line[length - 1] == '\n')) line[--length] = EOS;
+        valid = Story_TapeAllowedUrl(line);
+    }
+    fclose(handle);
+    if (!valid)
+    {
+        print("[STORY-AUDIO] Invalid URL; text-only cassette active.");
+        return 1;
+    }
+    format(gStoryTapeUrl, sizeof(gStoryTapeUrl), "%s", line);
+    print("[STORY-AUDIO] Room 17 cassette URL configured.");
+    return 1;
+}
+
+stock Story_TapeStop(playerid)
+{
+    if (gStoryTapePlaying[playerid] && IsPlayerConnected(playerid))
+        StopAudioStreamForPlayer(playerid);
+    gStoryTapePlaying[playerid] = false;
+    return 1;
+}
+
+stock Story_TapePlay(playerid)
+{
+    // The radio URL does not exist yet until the owner publishes the voiceover.
+    // Fail closed to the existing text scene; never fake successful playback.
+    if (!gStoryTapeUrl[0]) return 0;
+    if (gStoryStage[playerid] != 2 || !Story_NearObjective(playerid))
+        return 0;
+    Story_TapeStop(playerid);
+    if (!PlayAudioStreamForPlayer(playerid, gStoryTapeUrl,
+        gStoryLocations[1][0], gStoryLocations[1][1],
+        gStoryLocations[1][2], 18.0, true))
+        return 0;
+    gStoryTapePlaying[playerid] = true;
+    ShowPlayerDialog(playerid, STORY_DIALOG_TAPE, DIALOG_STYLE_MSGBOX,
+        "Номер 17 | Кассета играет",
+        "{E6BB79}КОНТУР / ПРОТОКОЛ 03:17\n{94A3B8}__________________________________\n\n{FFFFFF}Щелчок механизма. Шипение магнитной ленты.\nСлышен мужской голос, затем голос Норы.\n\n{94A3B8}Запись идёт из магнитофона рядом с вами.\nМожно забрать кассету или прослушать её снова.",
+        "Забрать кассету", "Повторить");
+    return 1;
+}
+
 stock Story_OnConnect(playerid)
 {
     gStoryStage[playerid] = 0;
     gStoryIntroSeen[playerid] = false;
     gStoryLastInteract[playerid] = 0;
     gStoryLabel[playerid] = PlayerText3D:INVALID_3DTEXT_ID;
+    gStoryTapePlaying[playerid] = false;
     return 1;
 }
 
@@ -48,6 +129,7 @@ stock Story_ClearMarker(playerid)
 
 stock Story_OnDisconnect(playerid)
 {
+    Story_TapeStop(playerid);
     Story_ClearMarker(playerid);
     gStoryStage[playerid] = 0;
     gStoryIntroSeen[playerid] = false;
@@ -165,6 +247,7 @@ stock bool:Story_Advance(playerid, expected)
     }
     gDBPrimaryVersion[playerid]++;
 #endif
+    if (expected == 2) Story_TapeStop(playerid);
     gStoryStage[playerid] = expected + 1;
     Story_UpdateMarker(playerid);
     new objective[150];
@@ -178,6 +261,7 @@ stock bool:Story_Advance(playerid, expected)
 
 stock Story_OnSpawn(playerid)
 {
+    Story_TapeStop(playerid);
     if (gAuthState[playerid] != AUTH_READY) return 1;
     Story_UpdateMarker(playerid);
     if (gStoryStage[playerid] == 0 && !gStoryIntroSeen[playerid])
@@ -206,10 +290,23 @@ stock Story_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
                 "{94A3B8}Стойка покрыта пылью. Книга постояльцев открыта\nна странице, где есть только одна запись.\n\n{E6BB79}НОМЕР 17 — НОРА — 03:17\n\n{FFFFFF}Под книгой лежит ключ с цифрой 17.\nРядом записка: «Не стучи. Дверь уже открыта».",
                 "Забрать", "Отойти");
         case 2:
-            ShowPlayerDialog(playerid, STORY_DIALOG_ROOM, DIALOG_STYLE_MSGBOX,
-                "Номер 17 | За дверью",
-                "{94A3B8}Внутри темно. Пахнет озоном.\nНа тумбочке лежит магнитофон.\n\n{E6BB79}«КОНТУР. ПРОТОКОЛ 03:17. ОБЪЕКТ Н.»\n\n{FFFFFF}Далее на плёнке слышен голос Норы:\n«Записи подделаны. Ищи передатчик снаружи».\n\n{94A3B8}Вы забираете кассету как улику.",
-                "Взять кассету", "Назад");
+        {
+            if (gStoryTapeUrl[0])
+                ShowPlayerDialog(playerid, STORY_DIALOG_ROOM, DIALOG_STYLE_MSGBOX,
+                    "Номер 17 | Старый магнитофон",
+                    "{94A3B8}На тумбочке стоит кассетный магнитофон.\n"
+                    "{FFFFFF}Внутри кассета с надписью «КОНТУР / 03:17».\n\n"
+                    "{E6BB79}Нажать PLAY и прослушать запись?",
+                    "PLAY", "Отойти");
+            else
+                ShowPlayerDialog(playerid, STORY_DIALOG_ROOM, DIALOG_STYLE_MSGBOX,
+                    "Номер 17 | Плёнка (текстовая версия)",
+                    "{94A3B8}Магнитофон. Надпись: «КОНТУР. ПРОТОКОЛ 03:17».\n\n"
+                    "{FFFFFF}Запись повреждена. Из расшифровки: Нора сообщает,\n"
+                    "что архивные записи подделаны и нужно найти передатчик.\n\n"
+                    "{94A3B8}Заберите кассету для расследования.",
+                    "Взять кассету", "Назад");
+        }
         case 3:
             ShowPlayerDialog(playerid, STORY_DIALOG_RADIO, DIALOG_STYLE_MSGBOX,
                 "03:17 | Неизвестная частота",
@@ -221,11 +318,28 @@ stock Story_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 
 stock Story_OnDialog(playerid, dialogid, response)
 {
-    if (dialogid < STORY_DIALOG_LETTER || dialogid > STORY_DIALOG_JOURNAL)
+    if (dialogid < STORY_DIALOG_LETTER || dialogid > STORY_DIALOG_TAPE)
         return 0;
     if (gAuthState[playerid] != AUTH_READY) return 1;
     if (dialogid == STORY_DIALOG_JOURNAL) return 1;
+    if (dialogid == STORY_DIALOG_TAPE)
+    {
+        if (!response) return Story_TapePlay(playerid);
+        Story_TapeStop(playerid);
+        if (!Story_Advance(playerid, 2))
+            SendClientMessage(playerid, COLOR_RED,
+                "Не удалось сохранить кассету. Вернитесь к магнитофону.");
+        return 1;
+    }
     if (!response) return 1;
+    if (dialogid == STORY_DIALOG_ROOM && gStoryTapeUrl[0])
+    {
+        if (Story_TapePlay(playerid)) return 1;
+        // A failed stream request is not a confirmed recording playback.
+        // Let the investigator complete the scene with readable evidence.
+        SendClientMessage(playerid, STORY_COLOR,
+            "Аудио недоступно. Расшифровка: архив подделан; найдите передатчик.");
+    }
     new expected = dialogid - STORY_DIALOG_LETTER;
     if (!Story_Advance(playerid, expected))
         SendClientMessage(playerid, COLOR_RED,
