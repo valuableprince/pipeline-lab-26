@@ -72,9 +72,9 @@
             gDBPrimary = MYSQL_INVALID_HANDLE;
             return 0;
         }
-        print("[DB-PRIMARY] Connected. Checking schema_migrations version 7...");
+        print("[DB-PRIMARY] Connected. Checking schema_migrations version 8...");
         gDBPrimaryReady = true;
-        new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=7 LIMIT 1");
+        new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=8 LIMIT 1");
         if (c == Cache:0)
         {
             printf("[DB-PRIMARY] ERROR: schema query returned invalid cache; MySQL errno=%d.", mysql_errno(gDBPrimary));
@@ -99,13 +99,13 @@
         }
         if (rows != 1)
         {
-            printf("[DB-PRIMARY] ERROR: expected schema version 7, rows found=%d.", rows);
+            printf("[DB-PRIMARY] ERROR: expected schema version 8, rows found=%d.", rows);
             cache_delete(c);
             gDBPrimaryReady = false;
             return 0;
         }
         cache_delete(c);
-        print("[DB-PRIMARY] MySQL schema v7 detected; SQL accounts and PayDay enabled.");
+        print("[DB-PRIMARY] MySQL schema v8 detected; PayDay and story progress enabled.");
         return 1;
     }
 
@@ -161,7 +161,7 @@
         format(gDBPrimaryRequestName[playerid], MAX_PLAYER_NAME, "%s", gAccountName[playerid]);
         new q[1400];
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT account_id,username,password_hash,background,mute_until,balance,health,armour,cleaner_paid,txn_serial,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,start_region,character_level,character_exp,last_payday_hour,row_version,DATE(created_at) AS registered_date FROM accounts WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
+            "SELECT account_id,username,password_hash,background,mute_until,balance,health,armour,cleaner_paid,txn_serial,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,start_region,character_level,character_exp,last_payday_hour,story_stage,row_version,DATE(created_at) AS registered_date FROM accounts WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
         if (!mysql_tquery(gDBPrimary, q, "DBPrimary_OnAccount", "iii",
             playerid, gAuthToken[playerid], _:fromIntro))
         {
@@ -204,7 +204,7 @@
         }
         new id, background, muted, balance, paid, serial, starts, finishes;
         new wins, best, earned, lastPaid, region, version, hash[61], savedName[MAX_PLAYER_NAME];
-        new characterLevel, characterExp, lastPaydayHour, registered[11];
+        new characterLevel, characterExp, lastPaydayHour, storyStage, registered[11];
         new Float:health, Float:armour;
         new bool:valid = true;
         if (!cache_get_value_name_int(0, "account_id", id) ||
@@ -227,6 +227,7 @@
             !cache_get_value_name_int(0, "character_level", characterLevel) ||
             !cache_get_value_name_int(0, "character_exp", characterExp) ||
             !cache_get_value_name_int(0, "last_payday_hour", lastPaydayHour) ||
+            !cache_get_value_name_int(0, "story_stage", storyStage) ||
             !cache_get_value_name(0, "registered_date", registered, sizeof(registered)) ||
             !cache_get_value_name_int(0, "row_version", version))
             valid = false;
@@ -244,7 +245,8 @@
             characterLevel < 1 || characterLevel > PAYDAY_LEVEL_LIMIT ||
             characterExp < 0 || (characterLevel < PAYDAY_LEVEL_LIMIT &&
                 characterExp >= characterLevel * PAYDAY_EXP_STEP) ||
-            lastPaydayHour < 0 || strlen(registered) != 10 ||
+            lastPaydayHour < 0 || storyStage < 0 || storyStage > STORY_DONE ||
+            strlen(registered) != 10 ||
             registered[4] != '-' || registered[7] != '-')
             valid = false;
         if (!valid)
@@ -275,6 +277,7 @@
         gCharacterLevel[playerid] = characterLevel;
         gCharacterEXP[playerid] = characterExp;
         gCharacterLastPaydayHour[playerid] = lastPaydayHour;
+        gStoryStage[playerid] = storyStage;
         format(gDBPrimaryRegistrationDate[playerid],
             sizeof(gDBPrimaryRegistrationDate[]), "%s", registered);
         gAccountLegacy[playerid] = false;
