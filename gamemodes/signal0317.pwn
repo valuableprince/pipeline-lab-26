@@ -713,6 +713,7 @@ public OnGameModeInit()
     CleanerDump_Init();
     Race_Init();
     Admin_Init();
+    AdminVeh_Init();
     Studio_Init();
     Economy_Init();
     Leader_Init();
@@ -807,7 +808,7 @@ public OnPlayerDisconnect(playerid, reason)
     Cleaner_OnDisconnect(playerid);
     Admin_UI_OnDisconnect(playerid);
     AdminTP_Reset(playerid);
-    AdminVeh_Destroy(playerid);
+    AdminVeh_Reset(playerid);
     Admin_OnDisconnect(playerid);
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
