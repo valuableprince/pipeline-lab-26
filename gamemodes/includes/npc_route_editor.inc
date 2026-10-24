@@ -343,8 +343,9 @@ stock bool:NPCRoute_PreviewNext()
     if (!NPC_IsValid(gNPCRoutePreview) || gNPCRoutePreviewMoving ||
         gNPCRoutePreviewIndex >= gNPCRouteDraftCount) return false;
     new i = gNPCRoutePreviewIndex;
-    NPC_ApplyAnimation(gNPCRoutePreview, "PED", "WALK_player", 4.1,
-        true, false, false, false, 0);
+    // NPC_Move already selects the walking animation and synchronizes position.
+    // Reapplying a looping animation with unlocked XY axes can snap the NPC
+    // back to its last animation origin at each short waypoint.
     if (!NPC_Move(gNPCRoutePreview, gNPCRouteDraftX[i], gNPCRouteDraftY[i],
         gNPCRouteDraftZ[i], NPC_MOVE_TYPE_WALK, NPC_MOVE_SPEED_WALK, 0.35))
         return false;
