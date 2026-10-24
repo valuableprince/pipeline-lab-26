@@ -77,6 +77,24 @@ jobs:
           python3 tools/check_pawn_output.py build/compiler.log
           test -s build/compiled.amx
 
+      - name: Compare build variants
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          echo "Default AMX: $(stat -c %s build/compiled.amx) bytes"
+          for mode in primary shadow; do
+            case "$mode" in
+              primary) define=TARKENSO_DB_PRIMARY ;;
+              shadow) define=TARKENSO_DB_SHADOW ;;
+            esac
+            printf '#define %s\n' "$define" > "build/stage/diagnostic_$mode.pwn"
+            cat build/stage/signal0317.pwn >> "build/stage/diagnostic_$mode.pwn"
+            "$PAWN_COMPILER" "-i$PAWN_INCLUDE" "-ibuild/stage" "-obuild/diagnostic_$mode.amx" "build/stage/diagnostic_$mode.pwn" 2>&1 | tee "build/diagnostic_$mode.log"
+            python3 tools/check_pawn_output.py "build/diagnostic_$mode.log"
+            echo "$mode AMX: $(stat -c %s "build/diagnostic_$mode.amx") bytes"
+          done
+
       - name: Upload compiled output
         if: success()
         uses: actions/upload-artifact@v4
