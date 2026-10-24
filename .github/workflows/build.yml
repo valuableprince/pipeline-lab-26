@@ -1,0 +1,101 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gamemodes/**"
+      - "tests/**"
+      - "tools/check_pawn_output.py"
+      - ".github/workflows/build.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: Compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libc6-i386
+
+      - name: Obtain compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sdk"
+          curl -fL --retry 3 \
+            https://github.com/openmultiplayer/open.mp/releases/download/v1.5.8.3079/open.mp-linux-x86.tar.gz \
+            -o "$RUNNER_TEMP/sdk.tar.gz"
+          tar -xzf "$RUNNER_TEMP/sdk.tar.gz" -C "$RUNNER_TEMP/sdk"
+          COMPILER=$(find "$RUNNER_TEMP/sdk" -type f -name pawncc | head -n 1)
+          INCLUDE=$(find "$RUNNER_TEMP/sdk" -type f -name open.mp.inc | head -n 1)
+          LIBPAWNC=$(find "$RUNNER_TEMP/sdk" -type f -name libpawnc.so | head -n 1)
+          test -n "$COMPILER"
+          test -n "$INCLUDE"
+          test -n "$LIBPAWNC"
+          echo "PAWN_COMPILER=$COMPILER" >> "$GITHUB_ENV"
+          echo "PAWN_INCLUDE=$(dirname "$INCLUDE")" >> "$GITHUB_ENV"
+          echo "PAWN_LIB=$(dirname "$LIBPAWNC")" >> "$GITHUB_ENV"
+
+      - name: Stage source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          dest = Path("build/stage")
+          dest.mkdir(parents=True, exist_ok=True)
+          main = Path("gamemodes/signal0317.pwn")
+          (dest / main.name).write_bytes(main.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
+          for source in sorted(Path("gamemodes/includes").glob("*.inc")):
+              (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
+          PY
+
+      - name: Run regression tests
+        run: |
+          python3 -m compileall -q tools tests
+          python3 -m unittest discover -s tests -v
+
+      - name: Compile source
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x "$PAWN_COMPILER"
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          "$PAWN_COMPILER" "-i$PAWN_INCLUDE" "-ibuild/stage" "-obuild/compiled.amx" build/stage/signal0317.pwn 2>&1 | tee build/compiler.log
+          python3 tools/check_pawn_output.py build/compiler.log
+          test -s build/compiled.amx
+
+      - name: Upload compiled output
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-output
+          path: build/compiled.amx
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics
+          path: build/compiler.log
+          if-no-files-found: ignore
+          retention-days: 3
