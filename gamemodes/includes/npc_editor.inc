@@ -562,8 +562,13 @@ stock NpcEditor_OnDialog(playerid, dialogid, response, listitem, const inputtext
             new cmd[32];
             format(cmd,sizeof(cmd),"record %d",slot);
             NPCRoute_Command(playerid,cmd);
-            SendClientMessage(playerid,NPC_CORE_COLOR,
-                "Запишите маршрут, /npcroute stop, /npcroute save, затем /studio npc publish.");
+            if (gNPCRouteOwner == playerid && gNPCRouteSlot == slot &&
+                gNPCRouteRecording)
+            {
+                NPCRoute_Help(playerid);
+                SendClientMessage(playerid,NPC_CORE_COLOR,
+                    "После записи и сохранения маршрута: /studio npc publish.");
+            }
         }
         return 1;
     }
