@@ -127,9 +127,9 @@ stock AdminVeh_Command(playerid, const params[])
         return SendClientMessage(playerid, ADMIN_ERROR,
             "Железнодорожный транспорт здесь не поддерживается.");
 
-    new PLAYER_STATE:state = GetPlayerState(playerid);
+    new PLAYER_STATE:spawnState = GetPlayerState(playerid);
     if (Race_IsParticipant(playerid) ||
-        (state != PLAYER_STATE_ONFOOT && state != PLAYER_STATE_DRIVER) ||
+        (spawnState != PLAYER_STATE_ONFOOT && spawnState != PLAYER_STATE_DRIVER) ||
         gAdminSpectate[playerid] != INVALID_PLAYER_ID)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "Создание возможно пешком или за рулём, вне гонки и наблюдения.");
@@ -137,7 +137,7 @@ stock AdminVeh_Command(playerid, const params[])
     if (!AdminVeh_CooldownReady(playerid)) return 1;
     new Float:x, Float:y, Float:z, Float:angle;
     GetPlayerPos(playerid, x, y, z);
-    if (state == PLAYER_STATE_DRIVER)
+    if (spawnState == PLAYER_STATE_DRIVER)
         GetVehicleZAngle(GetPlayerVehicleID(playerid), angle);
     else
         GetPlayerFacingAngle(playerid, angle);
