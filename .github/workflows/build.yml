@@ -85,6 +85,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_cleaner_editor05.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_truck01.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_truck02.py' -v
+          python3 -m unittest discover -s tests -p 'test_cleaner_truck03.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 
