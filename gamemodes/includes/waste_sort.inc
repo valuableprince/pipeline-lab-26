@@ -49,7 +49,7 @@ new const gSortCatalogModels[SORT_CATALOG_COUNT] =
     19587, // Plastic tray
     19592, // Shopping basket
     1238, // Traffic cone
-    2814, // Takeaway package
+    2437, // Stack of disposable cups
     2601, // Juice can
     18633, // Wrench
     18634, // Crowbar
@@ -82,7 +82,7 @@ new const Float:gSortCatalogRot[SORT_CATALOG_COUNT][4] =
     {35.0, 0.0, 25.0, 1.00}, // Plastic tray
     {20.0, 0.0, 25.0, 1.00}, // Shopping basket
     {-10.0, 0.0, 25.0, 1.00}, // Traffic cone
-    {25.0, 0.0, -20.0, 1.00}, // Takeaway package
+    {25.0, 0.0, -20.0, 0.85}, // Stack of disposable cups
     {-18.0, 0.0, -18.0, 0.80}, // Juice can
     {-10.0, 0.0, 22.0, 1.00}, // Wrench
     {-10.0, 0.0, 30.0, 1.00}, // Crowbar
