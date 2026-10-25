@@ -290,6 +290,23 @@ stock Truck_FleetBay(vehicleid)
 // Loading declarations must precede Tick and vehicle callbacks.
 #include "cleaner_truck_loading.inc"
 
+stock Truck_OnEnterVehicle(playerid, vehicleid, ispassenger)
+{
+    new bay = Truck_FleetBay(vehicleid);
+    if (bay < 0) return 1;
+    if ((!gCleanerDuty[playerid] && !gTruckOnShift[playerid]) ||
+        (!ispassenger && (!gTruckOnShift[playerid] ||
+         gTruckBayOwner[bay] != playerid + 1)))
+    {
+        // Deny at entry animation; state-change handler still catches
+        // direct PutPlayerInVehicle and client-side sync anomalies.
+        ClearAnimations(playerid);
+        SendClientMessage(playerid, COLOR_RED,
+            "Мусоровоз доступен только сотрудникам; за рулём — назначенный водитель.");
+    }
+    return 1;
+}
+
 stock Truck_OnStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     #pragma unused oldstate
