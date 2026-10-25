@@ -66,7 +66,7 @@ cmd:help(playerid, params[])
             "Tarkenso RPG | /help player, /help jobs, /help race, /help factions.");
         if (gAdminLevel[playerid] > 0)
             SendClientMessage(playerid, ADMIN_COLOR,
-                "Администрация: /help admin.");
+                "Администрация: /ahelp, /help admin.");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, STUDIO_ZONE_COLOR,
                 "Разработка: /help studio; главное меню: /studio.");
@@ -109,11 +109,11 @@ cmd:help(playerid, params[])
         if (gAdminLevel[playerid] == 0)
             return SendClientMessage(playerid, ADMIN_ERROR, "Раздел доступен только администрации.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Администрация: /aduty, /admin, /admins, /reports, /a, /alog.");
+            "Администрация: /aduty, /ahelp, /admin, /check ID, /admins, /reports.");
         SendClientMessage(playerid, ADMIN_COLOR,
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Прочее: /veh модель [цвета], /veh del ID, /delveh ID, /weather, /event.");
+            "Прочее: /veh del ID, /weather, /event; остальные: /ahelp.");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
@@ -302,6 +302,36 @@ cmd:event(playerid, params[])
 cmd:weather(playerid, params[])
 {
     return Command_ExecuteAdmin(playerid, "weather", params);
+}
+
+cmd:ahelp(playerid, params[])
+{
+    return AdminTools_Help(playerid);
+}
+
+cmd:check(playerid, params[])
+{
+    return AdminTools_Check(playerid, params);
+}
+
+cmd:heal(playerid, params[])
+{
+    return AdminTools_ChangeVitals(playerid, params, true);
+}
+
+cmd:armour(playerid, params[])
+{
+    return AdminTools_ChangeVitals(playerid, params, false);
+}
+
+cmd:fixveh(playerid, params[])
+{
+    return AdminTools_Vehicle(playerid, params, false);
+}
+
+cmd:flip(playerid, params[])
+{
+    return AdminTools_Vehicle(playerid, params, true);
 }
 
 cmd:unban(playerid, params[])
