@@ -175,6 +175,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "race_audio.inc"
 #include "race_progress.inc"
 #include "race_core.inc"
+#include "broadcast.inc"
 #include "server_guard.inc"
 #include "db_shadow.inc"
 #include "db_primary.inc"
@@ -617,6 +618,7 @@ stock Auth_EnterWorld(playerid)
     TogglePlayerSpectating(playerid, false);
     SetPlayerVirtualWorld(playerid, 0);
     SpawnPlayer(playerid);
+    Broadcast_OnReady(playerid);
     return 1;
 }
 
@@ -751,6 +753,7 @@ public OnGameModeInit()
     Race_Init();
     Admin_Init();
     AdminVeh_Init();
+    Broadcast_Init();
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
     Economy_Init();
@@ -771,6 +774,7 @@ public OnGameModeExit()
     Economy_Shutdown();
     Admin_ClockShutdown();
     Auth_Autosave();
+    Broadcast_Shutdown();
     AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
@@ -803,6 +807,7 @@ public OnPlayerConnect(playerid)
     Truck_Reset(playerid);
     Race_OnConnect(playerid);
     Radio_OnConnect(playerid);
+    Broadcast_OnConnect(playerid);
     Leader_OnConnect(playerid);
     Leader_UI_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
@@ -855,6 +860,7 @@ public OnPlayerDisconnect(playerid, reason)
     Guard_OnDisconnect(playerid);
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
+    Broadcast_OnDisconnect(playerid);
     DBShadow_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
@@ -1071,6 +1077,7 @@ public OnVehicleDeath(vehicleid, killerid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (Broadcast_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
