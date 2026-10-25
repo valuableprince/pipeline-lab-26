@@ -33,7 +33,7 @@ stock Admin_UI_Toggle(playerid)
         format(title, sizeof(title), "ADMIN | Уровень %d | Duty: %s",
             gAdminLevel[playerid], gAdminDuty[playerid] ? ("ON") : ("OFF"));
     format(body, sizeof(body),
-        "Рабочий режим: %s\nОбращения: %d открыто\nИгроки\nНаказания и команды\nЖурнал действий\nСюжетные события\nТелепортация (карта / координаты)",
+        "Рабочий режим: %s\nОбращения: %d открыто\nИгроки\nНаказания и команды\nЖурнал действий\nСюжетные события\nТелепортация (карта / координаты)\nСправочник команд",
         gAdminDuty[playerid] ? ("выключить") : ("включить"), Admin_OpenReportCount());
     gAdminUIDialogMode[playerid] = 1;
     ShowPlayerDialog(playerid, ADMIN_DLG_MAIN, DIALOG_STYLE_LIST,
@@ -117,7 +117,7 @@ stock Admin_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext[
     {
         if (gAdminUIDialogMode[playerid] != 1) return 1;
         gAdminUIDialogMode[playerid] = 0;
-        if (!response || listitem < 0 || listitem > 6) return 1;
+        if (!response || listitem < 0 || listitem > 7) return 1;
         if (!Admin_Allowed(playerid, PERM_REPORT)) return 1;
         switch (listitem)
         {
@@ -136,6 +136,7 @@ stock Admin_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext[
             }
             case 5: return Admin_UI_ShowEvents(playerid);
             case 6: return AdminTP_Info(playerid);
+            case 7: return AdminHelp_Categories(playerid);
         }
         return 1;
     }

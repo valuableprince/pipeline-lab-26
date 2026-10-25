@@ -5,7 +5,16 @@
 
 // ADMIN-TOOLS-02. Single source for syntax, purpose and example strings.
 // Level 6 denotes Founder exclusively; level 7 denotes Event Team.
-#define ADMIN_HELP_PAGE_SIZE (4)
+#define ADMIN_HELP_PAGE_SIZE (9)
+#define ADMIN_HELP_DLG_CATEGORIES (6550)
+#define ADMIN_HELP_DLG_LIST (6551)
+#define ADMIN_HELP_DLG_DETAIL (6552)
+
+new gAdminHelpCategory[MAX_PLAYERS];
+new gAdminHelpPage[MAX_PLAYERS];
+new gAdminHelpSelected[MAX_PLAYERS];
+new gAdminHelpRow[MAX_PLAYERS][12];
+new gAdminHelpRowCount[MAX_PLAYERS];
 
 enum E_ADMIN_HELP_ENTRY
 {
@@ -13,62 +22,63 @@ enum E_ADMIN_HELP_ENTRY
     ahUsage[66],
     ahPurpose[85],
     ahExample[84],
+    ahCategory,
     ahAccess
 };
 new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
 {
-    {"ahelp", "/ahelp [страница|команда]", "Справка по разрешённым командам", "/ahelp mute", 1},
-    {"aduty", "/aduty", "Включить или выключить режим администратора", "/aduty", 1},
-    {"admin", "/admin", "Открыть административное меню", "/admin", 1},
-    {"admins", "/admins", "Посмотреть администрацию онлайн", "/admins", 1},
-    {"a", "/a текст", "Написать в чат администрации", "/a Проверяю репорт", 1},
-    {"report", "/report текст", "Отправить обращение администрации", "/report Не работает маркер", 1},
-    {"reports", "/reports", "Посмотреть обращения игроков", "/reports", 1},
-    {"accept", "/accept номер", "Принять обращение", "/accept 7", 1},
-    {"areply", "/areply номер текст", "Ответить на обращение", "/areply 7 Проверим", 1},
-    {"close", "/close номер", "Закрыть обращение", "/close 7", 1},
-    {"check", "/check ID", "Посмотреть данные персонажа", "/check 12", 1},
-    {"veh", "/veh модель [цвет1] [цвет2]", "Создать временный транспорт", "/veh 411 1 1", 1},
-    {"delveh", "/delveh ID", "Удалить созданный админом транспорт", "/delveh 125", 1},
-    {"guardstatus", "/guardstatus", "Показать защиту сервера", "/guardstatus", 1},
-    {"tpcor", "/tpcor X Y Z", "Телепортироваться по координатам", "/tpcor -220 1065 20", 1},
-    {"heal", "/heal ID", "Восстановить здоровье персонажа", "/heal 12", 2},
-    {"armour", "/armour ID 0-100", "Установить броню персонажа", "/armour 12 70", 2},
-    {"fixveh", "/fixveh [ID]", "Отремонтировать автомобиль", "/fixveh 125", 2},
-    {"flip", "/flip [ID]", "Поставить автомобиль на колёса", "/flip 125", 2},
-    {"warn", "/warn ID причина", "Выдать предупреждение", "/warn 12 Нарушение правил", 2},
-    {"mute", "/mute ID минуты причина", "Заблокировать игроку чат на время", "/mute 12 30 Флуд", 2},
-    {"unmute", "/unmute ID", "Досрочно разблокировать чат", "/unmute 12", 2},
-    {"history", "/history ID", "Посмотреть историю наказаний", "/history 12", 2},
-    {"kick", "/kick ID причина", "Отключить игрока от сервера", "/kick 12 Нарушение правил", 2},
-    {"freeze", "/freeze ID", "Заморозить или разморозить игрока", "/freeze 12", 2},
-    {"spec", "/spec ID|off", "Наблюдать за игроком", "/spec 12", 2},
-    {"weather", "/weather 0-45", "Сменить погоду на сервере", "/weather 9", 2},
-    {"respawn", "/respawn ID", "Возродить игрока на точке появления", "/respawn 12", 3},
-    {"setskin", "/setskin ID skin", "Временно изменить скин персонажа", "/setskin 12 29", 3},
-    {"settime", "/settime часы минуты", "Установить время суток для всех", "/settime 18 30", 3},
-    {"goto", "/goto ID", "Телепортироваться к игроку", "/goto 12", 3},
-    {"gethere", "/gethere ID", "Переместить игрока к себе", "/gethere 12", 3},
-    {"ban", "/ban ID минуты причина", "Заблокировать аккаунт игрока", "/ban 12 60 Читы", 3},
-    {"clearchat", "/clearchat", "Очистить общий чат", "/clearchat", 4},
-    {"setvw", "/setvw ID мир", "Перенести игрока в виртуальный мир", "/setvw 12 2", 4},
-    {"setint", "/setint ID интерьер", "Перенести игрока в интерьер", "/setint 12 3", 4},
-    {"alog", "/alog", "Посмотреть последние действия администрации", "/alog", 4},
-    {"ajail", "/ajail ID минуты причина", "Заключить игрока в административную тюрьму", "/ajail 12 30 Флуд", 3},
-    {"unjail", "/unjail ID", "Досрочно освободить из админ-тюрьмы", "/unjail 12", 3},
-    {"jailinfo", "/jailinfo ID", "Показать срок и причину заключения", "/jailinfo 12", 2},
-    {"warns", "/warns ID", "Показать активные предупреждения", "/warns 12", 2},
-    {"unwarn", "/unwarn ID номер причина", "Отменить предупреждение", "/unwarn 12 5 Ошибка", 4},
-    {"anote", "/anote ID текст", "Добавить служебную заметку об игроке", "/anote 12 Проверить", 2},
-    {"anotes", "/anotes ID", "Посмотреть служебные заметки", "/anotes 12", 2},
-    {"offlineban", "/offlineban ник минуты причина", "Заблокировать аккаунт оффлайн", "/offlineban Player_Name 60 Читы", 5},
-    {"unban", "/unban имя", "Разблокировать аккаунт", "/unban Player_Name", 5},
-    {"setadmin", "/setadmin ID уровень", "Назначить права администратора", "/setadmin 12 2", 5},
-    {"setevent", "/setevent ID 0|1", "Управлять ролью Event Team", "/setevent 12 1", 5},
-    {"event", "/event fog|night|clear", "Активировать сюжетную атмосферу", "/event fog", 7},
-    {"founder", "/founder [announce текст]", "Инструменты основателя проекта", "/founder announce Сбор", 6},
-    {"studio", "/studio [режим]", "Открыть редактор мира", "/studio", 6},
-    {"zoneedit", "/zoneedit", "Редактировать игровые зоны", "/zoneedit", 6},
+    {"ahelp", "/ahelp [страница|команда]", "Справка по разрешённым командам", "/ahelp mute", 1, 1},
+    {"aduty", "/aduty", "Включить или выключить режим администратора", "/aduty", 1, 1},
+    {"admin", "/admin", "Открыть административное меню", "/admin", 1, 1},
+    {"admins", "/admins", "Посмотреть администрацию онлайн", "/admins", 1, 1},
+    {"a", "/a текст", "Написать в чат администрации", "/a Проверяю репорт", 1, 1},
+    {"report", "/report текст", "Отправить обращение администрации", "/report Не работает маркер", 1, 1},
+    {"reports", "/reports", "Посмотреть обращения игроков", "/reports", 1, 1},
+    {"accept", "/accept номер", "Принять обращение", "/accept 7", 1, 1},
+    {"areply", "/areply номер текст", "Ответить на обращение", "/areply 7 Проверим", 1, 1},
+    {"close", "/close номер", "Закрыть обращение", "/close 7", 1, 1},
+    {"check", "/check ID", "Посмотреть данные персонажа", "/check 12", 2, 1},
+    {"veh", "/veh модель [цвет1] [цвет2]", "Создать временный транспорт", "/veh 411 1 1", 4, 1},
+    {"delveh", "/delveh ID", "Удалить созданный админом транспорт", "/delveh 125", 4, 1},
+    {"guardstatus", "/guardstatus", "Показать защиту сервера", "/guardstatus", 1, 1},
+    {"tpcor", "/tpcor X Y Z", "Телепортироваться по координатам", "/tpcor -220 1065 20", 4, 1},
+    {"heal", "/heal ID", "Восстановить здоровье персонажа", "/heal 12", 2, 2},
+    {"armour", "/armour ID 0-100", "Установить броню персонажа", "/armour 12 70", 2, 2},
+    {"fixveh", "/fixveh [ID]", "Отремонтировать автомобиль", "/fixveh 125", 4, 2},
+    {"flip", "/flip [ID]", "Поставить автомобиль на колёса", "/flip 125", 4, 2},
+    {"warn", "/warn ID причина", "Выдать предупреждение", "/warn 12 Нарушение правил", 3, 2},
+    {"mute", "/mute ID минуты причина", "Заблокировать игроку чат на время", "/mute 12 30 Флуд", 3, 2},
+    {"unmute", "/unmute ID", "Досрочно разблокировать чат", "/unmute 12", 3, 2},
+    {"history", "/history ID", "Посмотреть историю наказаний", "/history 12", 3, 2},
+    {"kick", "/kick ID причина", "Отключить игрока от сервера", "/kick 12 Нарушение правил", 3, 2},
+    {"freeze", "/freeze ID", "Заморозить или разморозить игрока", "/freeze 12", 2, 2},
+    {"spec", "/spec ID|off", "Наблюдать за игроком", "/spec 12", 2, 2},
+    {"weather", "/weather 0-45", "Сменить погоду на сервере", "/weather 9", 4, 2},
+    {"respawn", "/respawn ID", "Возродить игрока на точке появления", "/respawn 12", 2, 3},
+    {"setskin", "/setskin ID skin", "Временно изменить скин персонажа", "/setskin 12 29", 2, 3},
+    {"settime", "/settime часы минуты", "Установить время суток для всех", "/settime 18 30", 4, 3},
+    {"goto", "/goto ID", "Телепортироваться к игроку", "/goto 12", 2, 3},
+    {"gethere", "/gethere ID", "Переместить игрока к себе", "/gethere 12", 2, 3},
+    {"ban", "/ban ID минуты причина", "Заблокировать аккаунт игрока", "/ban 12 60 Читы", 3, 3},
+    {"clearchat", "/clearchat", "Очистить общий чат", "/clearchat", 3, 4},
+    {"setvw", "/setvw ID мир", "Перенести игрока в виртуальный мир", "/setvw 12 2", 4, 4},
+    {"setint", "/setint ID интерьер", "Перенести игрока в интерьер", "/setint 12 3", 4, 4},
+    {"alog", "/alog", "Посмотреть последние действия администрации", "/alog", 3, 4},
+    {"ajail", "/ajail ID минуты причина", "Заключить игрока в административную тюрьму", "/ajail 12 30 Флуд", 3, 3},
+    {"unjail", "/unjail ID", "Досрочно освободить из админ-тюрьмы", "/unjail 12", 3, 3},
+    {"jailinfo", "/jailinfo ID", "Показать срок и причину заключения", "/jailinfo 12", 3, 2},
+    {"warns", "/warns ID", "Показать активные предупреждения", "/warns 12", 3, 2},
+    {"unwarn", "/unwarn ID номер причина", "Отменить предупреждение", "/unwarn 12 5 Ошибка", 3, 4},
+    {"anote", "/anote ID текст", "Добавить служебную заметку об игроке", "/anote 12 Проверить", 3, 2},
+    {"anotes", "/anotes ID", "Посмотреть служебные заметки", "/anotes 12", 3, 2},
+    {"offlineban", "/offlineban ник минуты причина", "Заблокировать аккаунт оффлайн", "/offlineban Player_Name 60 Читы", 3, 5},
+    {"unban", "/unban имя", "Разблокировать аккаунт", "/unban Player_Name", 3, 5},
+    {"setadmin", "/setadmin ID уровень", "Назначить права администратора", "/setadmin 12 2", 3, 5},
+    {"setevent", "/setevent ID 0|1", "Управлять ролью Event Team", "/setevent 12 1", 3, 5},
+    {"event", "/event fog|night|clear", "Активировать сюжетную атмосферу", "/event fog", 4, 7},
+    {"founder", "/founder [announce текст]", "Инструменты основателя проекта", "/founder announce Сбор", 5, 6},
+    {"studio", "/studio [режим]", "Открыть редактор мира", "/studio", 5, 6},
+    {"zoneedit", "/zoneedit", "Редактировать игровые зоны", "/zoneedit", 5, 6},
     {"trashservice", "/trashservice", "Обслужить контейнер мусора", "/trashservice", 6}
 };
 
@@ -93,13 +103,93 @@ stock AdminHelp_Print(playerid, index)
 {
     if (!AdminHelp_Access(playerid, index))
         return SendClientMessage(playerid, ADMIN_ERROR, "Команда вам недоступна.");
-    new line[170];
-    format(line, sizeof(line), "Синтаксис: %s", gAdminHelp[index][ahUsage]);
-    SendClientMessage(playerid, ADMIN_COLOR, line);
-    format(line, sizeof(line), "Назначение: %s", gAdminHelp[index][ahPurpose]);
-    SendClientMessage(playerid, ADMIN_COLOR, line);
-    format(line, sizeof(line), "Пример: %s", gAdminHelp[index][ahExample]);
-    return SendClientMessage(playerid, ADMIN_COLOR, line);
+    gAdminHelpSelected[playerid] = index;
+    new title[80], body[520];
+    format(title, sizeof(title), "TARKENSO | Справка: /%s", gAdminHelp[index][ahName]);
+    format(body, sizeof(body),
+        "КОМАНДА\n%s\n\nНАЗНАЧЕНИЕ\n%s\n\nПРИМЕР\n%s\n\nДоступ: уровень %d",
+        gAdminHelp[index][ahUsage], gAdminHelp[index][ahPurpose],
+        gAdminHelp[index][ahExample], gAdminHelp[index][ahAccess]);
+    return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_DETAIL, DIALOG_STYLE_MSGBOX,
+        title, body, "К списку", "Закрыть");
+}
+
+stock AdminHelp_Categories(playerid)
+{
+    return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_CATEGORIES, DIALOG_STYLE_LIST,
+        "TARKENSO | Справочник администрации",
+        "Все доступные команды\nОбщие и обращения\nУправление игроками\nМодерация и наказания\nМир и транспорт\nTarkenso Studio",
+        "Открыть", "Закрыть");
+}
+
+stock AdminHelp_List(playerid)
+{
+    if (!Admin_Require(playerid, PERM_REPORT)) return 1;
+    new body[1700] = "Команда\tНазначение\n", row[180], visible, first;
+    first = gAdminHelpPage[playerid] * ADMIN_HELP_PAGE_SIZE;
+    gAdminHelpRowCount[playerid] = 0;
+    for (new i = 0; i < sizeof(gAdminHelp); i++)
+    {
+        if (!AdminHelp_Access(playerid, i)) continue;
+        if (gAdminHelpCategory[playerid] &&
+            gAdminHelp[i][ahCategory] != gAdminHelpCategory[playerid]) continue;
+        if (visible >= first && visible < first + ADMIN_HELP_PAGE_SIZE)
+        {
+            format(row, sizeof(row), "/%s\t%s\n",
+                gAdminHelp[i][ahName], gAdminHelp[i][ahPurpose]);
+            strcat(body, row, sizeof(body));
+            gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = i;
+        }
+        visible++;
+    }
+    if (gAdminHelpPage[playerid] > 0)
+    {
+        strcat(body, "Предыдущая страница\t<\n", sizeof(body));
+        gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = -1;
+    }
+    if ((gAdminHelpPage[playerid] + 1) * ADMIN_HELP_PAGE_SIZE < visible)
+    {
+        strcat(body, "Следующая страница\t>\n", sizeof(body));
+        gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = -2;
+    }
+    new title[100];
+    format(title, sizeof(title), "TARKENSO | Команды (%d) | Страница %d/%d",
+        visible, gAdminHelpPage[playerid] + 1,
+        (visible + ADMIN_HELP_PAGE_SIZE - 1) / ADMIN_HELP_PAGE_SIZE);
+    return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_LIST, DIALOG_STYLE_TABLIST_HEADERS,
+        title, body, "Подробнее", "Категории");
+}
+
+stock AdminHelp_OnDialog(playerid, dialogid, response, listitem)
+{
+    if (dialogid < ADMIN_HELP_DLG_CATEGORIES || dialogid > ADMIN_HELP_DLG_DETAIL) return 0;
+    if (!Admin_Require(playerid, PERM_REPORT)) return 1;
+    if (dialogid == ADMIN_HELP_DLG_CATEGORIES)
+    {
+        if (!response || listitem < 0 || listitem > 5) return 1;
+        gAdminHelpCategory[playerid] = listitem;
+        gAdminHelpPage[playerid] = 0;
+        return AdminHelp_List(playerid);
+    }
+    if (dialogid == ADMIN_HELP_DLG_LIST)
+    {
+        if (!response) return AdminHelp_Categories(playerid);
+        if (listitem < 0 || listitem >= gAdminHelpRowCount[playerid]) return 1;
+        new index = gAdminHelpRow[playerid][listitem];
+        if (index == -1)
+        {
+            if (gAdminHelpPage[playerid] > 0) gAdminHelpPage[playerid]--;
+            return AdminHelp_List(playerid);
+        }
+        if (index == -2)
+        {
+            gAdminHelpPage[playerid]++;
+            return AdminHelp_List(playerid);
+        }
+        return AdminHelp_Print(playerid, index);
+    }
+    if (response) return AdminHelp_List(playerid);
+    return 1;
 }
 
 stock bool:AdminHelp_RequiresParams(const command[])
@@ -151,31 +241,14 @@ stock AdminHelp_Open(playerid, const params[])
     if (!Admin_Require(playerid, PERM_REPORT)) return 1;
     new offset, argument[32], extra[8];
     if (!Admin_Next(params, offset, argument, sizeof(argument)))
-        format(argument, sizeof(argument), "1");
+        return AdminHelp_Categories(playerid);
     if (Admin_Next(params, offset, extra, sizeof(extra)))
         return AdminHelp_Usage(playerid, "ahelp");
     if (!Admin_UnsignedNumber(argument))
         return AdminHelp_Usage(playerid, argument);
     new page = strval(argument);
     if (page < 1 || page > 99) return AdminHelp_Usage(playerid, "ahelp");
-    new visible, first = (page - 1) * ADMIN_HELP_PAGE_SIZE;
-    new label[110];
-    format(label, sizeof(label), "Справка администрации: страница %d. /ahelp [страница|команда]", page);
-    SendClientMessage(playerid, ADMIN_COLOR, label);
-    for (new i = 0; i < sizeof(gAdminHelp); i++)
-    {
-        if (!AdminHelp_Access(playerid, i)) continue;
-        if (visible >= first && visible < first + ADMIN_HELP_PAGE_SIZE)
-            AdminHelp_Print(playerid, i);
-        visible++;
-    }
-    if (first >= visible)
-        SendClientMessage(playerid, ADMIN_ERROR, "Страница не существует.");
-    else
-    {
-        format(label, sizeof(label), "Доступно команд: %d. Страниц: %d. Пример: /ahelp mute",
-            visible, (visible + ADMIN_HELP_PAGE_SIZE - 1) / ADMIN_HELP_PAGE_SIZE);
-        SendClientMessage(playerid, ADMIN_COLOR, label);
-    }
-    return 1;
+    gAdminHelpCategory[playerid] = 0;
+    gAdminHelpPage[playerid] = page - 1;
+    return AdminHelp_List(playerid);
 }
