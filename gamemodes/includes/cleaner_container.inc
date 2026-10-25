@@ -10,6 +10,8 @@
 #define CLEANER_DUMP_BAG_OBJECTS (10)
 #define CLEANER_DUMP_MODEL (1344)
 #define CLEANER_DUMP_BAG_MODEL (1264)
+#define CLEANER_DUMP_NO_SPACE_COOLDOWN (60)
+#define CLEANER_DUMP_GROUND_OFFSET (0.35)
 #define CLEANER_DUMP_INTERACT_SQ (16.0)
 #define CLEANER_DUMP_MAP_SLOT (73)
 #define CLEANER_DUMP_MAP_COLOR (0xEE3333FF)
@@ -28,6 +30,7 @@ new Text3D:gCleanerDumpLabel[CLEANER_DUMP_LIMIT];
 new gCleanerDumpBags[CLEANER_DUMP_LIMIT][CLEANER_DUMP_BAG_OBJECTS];
 new gCleanerDumpTarget[MAX_PLAYERS]; // selected on proximity check
 new bool:gCleanerDumpNav[MAX_PLAYERS];
+new gCleanerDumpNoSpaceNotice[MAX_PLAYERS];
 new gCleanerDumpNavSlot[MAX_PLAYERS];
 new bool:gCleanerDumpStaged;
 new gCleanerDumpStageSlot = -1;
@@ -55,6 +58,7 @@ stock CleanerDump_NavReset(playerid)
     gCleanerDumpNavSlot[playerid] = -1;
     gCleanerDumpTarget[playerid] = -1;
     gCleanerDumpNavTick[playerid] = 0;
+    gCleanerDumpNoSpaceNotice[playerid] = 0;
     return 1;
 }
 
@@ -106,9 +110,16 @@ stock CleanerDump_Navigate(playerid, count)
     if (slot < 0)
     {
         CleanerDump_NavClear(playerid);
-        return SendClientMessage(playerid, COLOR_RED,
-            "Свободных контейнеров нет. Ожидайте муниципального вывоза.");
+        new now = gettime();
+        if (now >= gCleanerDumpNoSpaceNotice[playerid])
+        {
+            gCleanerDumpNoSpaceNotice[playerid] = now + CLEANER_DUMP_NO_SPACE_COOLDOWN;
+            SendClientMessage(playerid, COLOR_RED,
+                "Свободных контейнеров нет. Ожидайте муниципального вывоза.");
+        }
+        return 1;
     }
+    gCleanerDumpNoSpaceNotice[playerid] = 0;
     if (gCleanerDumpNav[playerid] && gCleanerDumpNavSlot[playerid] == slot) return 1;
     CleanerDump_NavClear(playerid);
     SetPlayerMapIcon(playerid, CLEANER_DUMP_MAP_SLOT,
@@ -151,7 +162,7 @@ stock CleanerDump_Refresh(slot)
         {
             gCleanerDumpBags[slot][j] = CreateObject(CLEANER_DUMP_BAG_MODEL,
                 gCleanerDumpBagPos[slot][j][0], gCleanerDumpBagPos[slot][j][1],
-                gCleanerDumpBagPos[slot][j][2], 0.0, 0.0,
+                gCleanerDumpBagPos[slot][j][2] - CLEANER_DUMP_GROUND_OFFSET, 0.0, 0.0,
                 gCleanerDumpBagPos[slot][j][3], 80.0);
         }
     }
