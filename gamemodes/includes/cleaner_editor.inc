@@ -15,6 +15,7 @@ new gCleanerEditorSlot = -1;
 new bool:gCleanerEditorNew;
 new gCleanerEditorStage; // 0 idle, 1 bin edit, 2 bag edit, 3 waiting
 new gCleanerEditorBagSlot;
+new bool:gCleanerEditorBagWasEnabled;
 new gCleanerEditorObject = INVALID_OBJECT_ID;
 new gCleanerEditorBagObject[CLEANER_DUMP_BAG_OBJECTS];
 new bool:gCleanerEditorBagEnabled[CLEANER_DUMP_BAG_OBJECTS];
@@ -212,6 +213,8 @@ stock CleanerEditor_Write()
     if (!DBWorld_Exec("COMMIT"))
     { DBWorld_Rollback(); return SendClientMessage(owner, ADMIN_ERROR, "Ошибка COMMIT."); }
     CleanerEditor_Cancel();
+    for (new p = 0; p < MAX_PLAYERS; p++)
+        if (IsPlayerConnected(p)) CleanerDump_NavClear(p);
     CleanerDump_ClearObjects();
     gCleanerDumpReady = CleanerDump_Load();
     if (gCleanerDumpReady) CleanerDump_BuildObjects();
@@ -237,6 +240,8 @@ stock CleanerEditor_Delete(playerid, slot)
         gCleanerDumpId[slot]);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
         return SendClientMessage(playerid, ADMIN_ERROR, "Удаление не подтверждено MariaDB.");
+    for (new p = 0; p < MAX_PLAYERS; p++)
+        if (IsPlayerConnected(p)) CleanerDump_NavClear(p);
     CleanerDump_ClearObjects();
     gCleanerDumpReady = CleanerDump_Load();
     if (gCleanerDumpReady) CleanerDump_BuildObjects();
@@ -290,6 +295,7 @@ stock CleanerEditor_OnDialog(playerid, dialogid, response, listitem)
         if (!response) return CleanerEditor_BagMenu(playerid);
         if (listitem < 0 || listitem >= CLEANER_DUMP_BAG_OBJECTS) return 1;
         gCleanerEditorBagSlot = listitem;
+        gCleanerEditorBagWasEnabled = gCleanerEditorBagEnabled[listitem];
         if (!gCleanerEditorBagEnabled[listitem])
         {
             gCleanerEditorBagPos[listitem][0] = gCleanerEditorPos[0] + 2.5 + float(listitem / 2);
@@ -332,7 +338,7 @@ stock CleanerEditor_OnEdit(playerid, playerobject, objectid, EDIT_RESPONSE:respo
     {
         if (response == EDIT_RESPONSE_CANCEL)
         {
-            gCleanerEditorBagEnabled[i] = false;
+            gCleanerEditorBagEnabled[i] = gCleanerEditorBagWasEnabled;
             CleanerEditor_PreviewBags();
             CleanerEditor_BagMenu(playerid);
         }
