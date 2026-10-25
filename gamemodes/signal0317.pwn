@@ -774,6 +774,10 @@ public OnPlayerConnect(playerid)
 {
     // Also apply at connection: default GTA stunt bonuses are enabled per player.
     EnableStuntBonusForPlayer(playerid, false);
+    // No stock GTA checkpoints are used by the Tarkenso game mode.
+    // Reset stale script checkpoints, not arbitrary map-icon slots.
+    DisablePlayerCheckpoint(playerid);
+    DisablePlayerRaceCheckpoint(playerid);
     Guard_OnConnect(playerid);
     Admin_OnConnect(playerid);
     AdminPunish_Reset(playerid);
@@ -946,6 +950,10 @@ public OnPlayerSpawn(playerid)
     }
     gAccountDead[playerid] = false;
     gAuthDeathRespawnPending[playerid] = false;
+    // Clear inherited ordinary/race checkpoints on spawn. Our custom races
+    // re-create their checkpoints only after a player has joined the event.
+    DisablePlayerCheckpoint(playerid);
+    DisablePlayerRaceCheckpoint(playerid);
     Cleaner_OnSpawn(playerid);
     Truck_Reset(playerid);
     SetPlayerInterior(playerid, 0);
