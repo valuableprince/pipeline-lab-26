@@ -61,11 +61,12 @@ stock Truck_ShowDepot(playerid)
 stock Truck_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
     if (!(newkeys & KEY_WALK) || (oldkeys & KEY_WALK)) return 0;
-    if (gTruckOnShift[playerid] && GetPlayerState(playerid) == PLAYER_STATE_DRIVER &&
-        GetPlayerVehicleID(playerid) == gTruckVehicle[playerid] &&
-        gTruckReservedId[playerid])
+    if (gTruckOnShift[playerid] && gTruckReservedId[playerid] &&
+        (GetPlayerState(playerid) == PLAYER_STATE_DRIVER ||
+         (GetPlayerState(playerid) == PLAYER_STATE_ONFOOT &&
+          !Cleaner_NearDepot(playerid))))
     {
-        Truck_ParkCommand(playerid);
+        TruckLoad_HandleKey(playerid);
         return 1;
     }
     if (GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
@@ -169,7 +170,7 @@ stock Truck_OnDialog(playerid, dialogid, response, listitem)
                 return SendClientMessage(playerid, COLOR_RED,
                     "Нет свободного служебного мусоровоза. Попробуйте позднее.");
             SendClientMessage(playerid, CLEANER_COLOR,
-                "Вы водитель. Trashmaster на стоянке. /orders - заказы, /truckveh - машина.");
+                "Вы водитель. Мусоровоз уже на стоянке; /truckveh - GPS, /orders - заказы.");
         }
         return 1;
     }
