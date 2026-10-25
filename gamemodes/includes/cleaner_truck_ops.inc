@@ -290,13 +290,39 @@ stock Truck_FleetBay(vehicleid)
 // Loading declarations must precede Tick and vehicle callbacks.
 #include "cleaner_truck_loading.inc"
 
+// A driver may choose either unoccupied parked truck, not only the bay
+// automatically assigned when starting a shift. Reservations stay with the
+// player; cargo remains with the actual physical vehicle.
+stock bool:Truck_SelectVehicle(playerid, bay)
+{
+    if (!gTruckOnShift[playerid] || bay < 0 || bay >= TRUCK_BAYS ||
+        !IsValidVehicle(gTruckFleet[bay]) ||
+        (gTruckBayOwner[bay] && gTruckBayOwner[bay] != playerid + 1) ||
+        TruckLoad_CurrentBusy(playerid)) return false;
+    if (gTruckBay[playerid] == bay)
+        return gTruckBayOwner[bay] == playerid + 1;
+
+    new oldBay = gTruckBay[playerid];
+    if (oldBay >= 0 && oldBay < TRUCK_BAYS &&
+        gTruckBayOwner[oldBay] == playerid + 1)
+        gTruckBayOwner[oldBay] = 0;
+
+    gTruckBayOwner[bay] = playerid + 1;
+    gTruckBay[playerid] = bay;
+    gTruckVehicle[playerid] = gTruckFleet[bay];
+    gTruckDockReady[playerid] = false;
+    gTruckDockHint[playerid] = false;
+    if (IsPlayerConnected(playerid))
+        RemovePlayerMapIcon(playerid, TRUCK_VEHICLE_MAP_SLOT);
+    return true;
+}
+
 stock Truck_OnEnterVehicle(playerid, vehicleid, ispassenger)
 {
     new bay = Truck_FleetBay(vehicleid);
     if (bay < 0) return 1;
     if ((!gCleanerDuty[playerid] && !gTruckOnShift[playerid]) ||
-        (!ispassenger && (!gTruckOnShift[playerid] ||
-         gTruckBayOwner[bay] != playerid + 1)))
+        (!ispassenger && !Truck_SelectVehicle(playerid, bay)))
     {
         // Deny at entry animation; state-change handler still catches
         // direct PutPlayerInVehicle and client-side sync anomalies.
@@ -327,9 +353,10 @@ stock Truck_OnStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate
             "Служебный мусоровоз доступен только работникам муниципальной службы.");
         return 1;
     }
-    // Driving requires the truck-driver specialization and bay assignment.
+    // Also validates direct PutPlayerInVehicle, where the entry callback
+    // may not have run.
     if (newstate == PLAYER_STATE_DRIVER &&
-        (!gTruckOnShift[playerid] || gTruckBayOwner[bay] != playerid + 1))
+        !Truck_SelectVehicle(playerid, bay))
     {
         RemovePlayerFromVehicle(playerid);
         SendClientMessage(playerid, COLOR_RED,
@@ -382,7 +409,8 @@ public Truck_Tick()
         if (!canDock)
         {
             gTruckDockHint[playerid] = false;
-            if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
+            if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER &&
+                !TruckLoad_CurrentBusy(playerid))
                 gTruckDockReady[playerid] = false;
             continue;
         }
