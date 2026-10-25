@@ -14,8 +14,7 @@
 #define SORT_CATEGORY_COUNT (3)
 #define SORT_TD_ITEM_START (11)
 #define SORT_TD_CATEGORY_START (17)
-#define SORT_TD_LABEL_START (22)
-#define SORT_TD_TOTAL (28)
+#define SORT_TD_TOTAL (22)
 
 #define SORT_COLOR_GOLD (0xF1C263FF)
 #define SORT_COLOR_TEXT (0xEDF4FFFF)
@@ -27,22 +26,19 @@
 // Verified stock GTA SA objects. No downloaded models, TXD or client mods.
 // Paper: magazine pile and cardboard box.
 // Plastic: two separate disposable drink cup models (not glass bottles).
-// Metal: juice can and metal tins.
-new const gSortItemNames[SORT_ITEM_COUNT][16] =
-{
-    "MAGAZINES", "CARDBOARD", "DRINK CUP", "SLUSH CUP", "JUICE CAN", "METAL TINS"
-};
+// Metal: juice can and a cog-shaped marker. Verify the marker in-game.
 new const gSortItemModels[SORT_ITEM_COUNT] =
 {
-    2852, 1220, 2647, 2874, 2601, 2057
+    2852, 1220, 2647, 1484, 2601, 18631
 };
-new const Float:gSortItemYaw[SORT_ITEM_COUNT] =
+new const Float:gSortItemRot[SORT_ITEM_COUNT][4] =
 {
-    -18.0, 24.0, -12.0, 17.0, -20.0, 30.0
-};
-new const Float:gSortItemZoom[SORT_ITEM_COUNT] =
-{
-    0.90, 1.00, 0.75, 0.78, 0.73, 1.00
+    {-18.0, 0.0, 110.0, 0.95}, // magazines
+    {-10.0, 0.0, 25.0, 1.00},  // cardboard
+    {-12.0, 0.0, -12.0, 0.80}, // drink cup
+    {-10.0, 0.0, 18.0, 0.80},  // plastic drink object
+    {-18.0, 0.0, -18.0, 0.75},// juice can
+    {-10.0, 0.0, 22.0, 1.00}  // cog marker
 };
 new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2};
 new const gSortCategoryNames[SORT_CATEGORY_COUNT][12] = {"PAPER", "PLASTIC", "METAL"};
@@ -126,12 +122,10 @@ stock SortUI_Refresh(playerid)
     for (new i = 0; i < SORT_ITEM_COUNT; i++)
     {
         new PlayerText:td = gSortDraws[playerid][SORT_TD_ITEM_START + i];
-        new PlayerText:caption = gSortDraws[playerid][SORT_TD_LABEL_START + i];
         if (gSortCompleted[playerid] & (1 << i))
         {
             completed++;
             PlayerTextDrawHide(playerid, td);
-            PlayerTextDrawHide(playerid, caption);
             continue;
         }
         new box = SORT_COLOR_METAL;
@@ -140,7 +134,6 @@ stock SortUI_Refresh(playerid)
         if (gSortSelection[playerid] == i) box = 0xD2A044FF;
         PlayerTextDrawBoxColour(playerid, td, box);
         PlayerTextDrawShow(playerid, td);
-        PlayerTextDrawShow(playerid, caption);
     }
     new progress[32];
     format(progress, sizeof(progress), "%d / %d", completed, SORT_ITEM_COUNT);
@@ -188,15 +181,15 @@ stock SortUI_Open(playerid)
 
     // Panel and title, viewport 640 x 448.
     SortUI_Add(playerid, 0, 84.0, 82.0, "_", 472.0, 291.0,
-        0.01, 0.01, 0x00000000, 0x0C1219EC);
+        0.01, 0.01, 0x00000000, 0x1A1D22E8);
     SortUI_Add(playerid, 1, 90.0, 88.0, "_", 460.0, 56.0,
-        0.01, 0.01, 0x00000000, 0x263440F5);
+        0.01, 0.01, 0x00000000, 0x20242AEF);
     SortUI_Add(playerid, 2, 108.0, 96.0, "WASTE SORTING", 265.0, 29.0,
         0.47, 1.95, SORT_COLOR_GOLD);
     SortUI_Add(playerid, 3, 109.0, 122.0, "TARKENSO / RECYCLING STATION", 300.0, 19.0,
         0.20, 0.95, SORT_COLOR_MUTED);
     SortUI_Add(playerid, 4, 102.0, 153.0, "_", 214.0, 177.0,
-        0.01, 0.01, 0x00000000, 0x23303CC8);
+        0.01, 0.01, 0x00000000, 0x171B20E8);
 
     // Game-native object preview. Model 1265 is a GTA rubbish bag; an opened
     // bag textured illustration would require an additional TXD asset.
@@ -219,7 +212,7 @@ stock SortUI_Open(playerid)
         0.45, 1.7, SORT_COLOR_GOLD, 0x4B3026E8, true);
 
     // Six clickable 3D model previews, not text-only placeholders.
-    // Their boxes own the entire hit areas; captions are non-selectable.
+    // Their boxes own the entire hit areas; no captions are rendered.
     // This is supported by stock SA-MP/open.mp clients via font 5.
     for (new item = 0; item < SORT_ITEM_COUNT; item++)
     {
@@ -237,13 +230,11 @@ stock SortUI_Open(playerid)
         PlayerTextDrawBoxColour(playerid, preview, colour);
         PlayerTextDrawBackgroundColour(playerid, preview, 0x17222DE8);
         PlayerTextDrawSetPreviewModel(playerid, preview, gSortItemModels[item]);
-        PlayerTextDrawSetPreviewRot(playerid, preview, -12.0, 0.0,
-            gSortItemYaw[item], gSortItemZoom[item]);
+        PlayerTextDrawSetPreviewRot(playerid, preview,
+            gSortItemRot[item][0], gSortItemRot[item][1],
+            gSortItemRot[item][2], gSortItemRot[item][3]);
         PlayerTextDrawSetSelectable(playerid, preview, true);
 
-        SortUI_Add(playerid, SORT_TD_LABEL_START + item, x + 4.0, y + 32.0,
-            gSortItemNames[item], 83.0, 11.0,
-            0.18, 0.85, SORT_COLOR_TEXT);
     }
     for (new category = 0; category < SORT_CATEGORY_COUNT; category++)
     {
@@ -265,6 +256,8 @@ stock SortUI_Open(playerid)
         PlayerTextDrawShow(playerid, gSortDraws[playerid][i]);
     SortUI_Refresh(playerid);
     SelectTextDraw(playerid, SORT_COLOR_GOLD);
+    SendClientMessage(playerid, 0xFFFFFFFF,
+        "{33CC33}[Сортировка] {FFFFFF}Выберите элемент, затем нажмите на соответствующую кнопку.");
     return 1;
 }
 
