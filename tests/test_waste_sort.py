@@ -26,33 +26,25 @@ class WasteSortingTextDrawTests(unittest.TestCase):
     def test_six_objects_and_three_english_bins(self):
         for material in ('"PAPER"', '"PLASTIC"', '"METAL"'):
             self.assertIn(material, UI)
-        for item in ("MAGAZINES", "CARDBOARD", "DRINK CUP",
-                     "SLUSH CUP", "JUICE CAN", "METAL TINS"):
-            self.assertIn(item, UI)
         self.assertIn('new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2}', UI)
         self.assertIn('#define SORT_ITEM_COUNT (6)', UI)
         self.assertIn('#define SORT_CATEGORY_COUNT (3)', UI)
         self.assertIn('TEXT_DRAW_FONT_MODEL_PREVIEW', UI)
         self.assertIn('PlayerTextDrawSetPreviewModel(playerid, bag, 1265)', UI)
 
-    def test_all_six_items_have_stock_model_previews_and_captions(self):
-        self.assertIn("#define SORT_TD_LABEL_START (22)", UI)
-        self.assertIn("#define SORT_TD_TOTAL (28)", UI)
-        expected = [2852, 1220, 2647, 2874, 2601, 2057]
-        models = UI.split("new const gSortItemModels[SORT_ITEM_COUNT] =", 1)[1]
-        models = models.split("};", 1)[0]
-        for model in expected:
-            self.assertIn(str(model), models)
-        self.assertEqual(len(expected), len(set(expected)))
-        self.assertIn("TEXT_DRAW_FONT_MODEL_PREVIEW", UI)
-        self.assertIn("gSortDraws[playerid][SORT_TD_ITEM_START + item] = preview;", UI)
+    def test_no_object_captions_and_dark_ui(self):
+        self.assertIn("#define SORT_TD_TOTAL (22)", UI)
+        self.assertNotIn("SORT_TD_LABEL_START", UI)
+        self.assertNotIn("gSortItemNames", UI)
+        self.assertIn("0x1A1D22E8", UI)
+        self.assertIn("0x20242AEF", UI)
+        self.assertIn("0x171B20E8", UI)
         self.assertIn("PlayerTextDrawSetPreviewModel(playerid, preview, gSortItemModels[item]);", UI)
-        self.assertIn("PlayerTextDrawSetPreviewRot(playerid, preview", UI)
         self.assertIn("PlayerTextDrawSetSelectable(playerid, preview, true);", UI)
-        self.assertIn("SORT_TD_LABEL_START + item, x + 4.0, y + 32.0", UI)
-        self.assertIn("PlayerTextDrawHide(playerid, caption);", UI)
-        self.assertIn("PlayerTextDrawShow(playerid, caption);", UI)
-        self.assertNotIn("gSortItemNames[item], 83.0, 27.0", UI)
+        self.assertIn("gSortItemRot[item][0]", UI)
+        self.assertIn("2814", UI)
+        self.assertIn("18633", UI)
+        self.assertIn("[Сортировка]", UI)
 
     def test_click_to_select_and_server_category_validation(self):
         for fragment in (
