@@ -69,35 +69,3 @@ class RadioPlayerContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-, countries.group(1), re.MULTILINE)), 10)
-        self.assertIn("Швейцария", countries.group(1))
-        self.assertIn("Германия", countries.group(1))
-        self.assertIn("Великобритания", countries.group(1))
-        self.assertIn("Нидерланды", countries.group(1))
-        self.assertIn("Выключить радио", RADIO)
-        self.assertIn("if (!response) return 1;", RADIO)
-        self.assertIn("if (listitem == RADIO_STATION_COUNT)", RADIO)
-        self.assertIn("return Radio_Play(playerid, listitem);", RADIO)
-
-    def test_integration_and_audio_ownership(self):
-        self.assertIn('#include "radio_player.inc"', MAIN)
-        self.assertIn("Radio_OnConnect(playerid);", MAIN)
-        self.assertIn("Radio_OnDisconnect(playerid);", MAIN)
-        self.assertIn("Radio_OnDialog(playerid, dialogid, response, listitem)", MAIN)
-        self.assertIn("Radio_Stop(playerid);", RACE)
-        self.assertIn("GetPlayerVirtualWorld(playerid) == RACE_WORLD_ID", RADIO)
-        self.assertIn('strcmp(cmd, "raceaudio", true)', COMMANDS)
-        self.assertIn("if (gRadioStation[playerid] != -1 && IsPlayerConnected(playerid))", RADIO)
-        self.assertIn("StopAudioStreamForPlayer(playerid);", RADIO)
-        self.assertIn("PlayAudioStreamForPlayer(playerid, gRadioUrls[station])", RADIO)
-        self.assertIn("gRadioStation[playerid] = -1;", RADIO)
-
-    def test_encoding_and_manual_validation_documented(self):
-        RADIO.encode("cp1251")
-        self.assertIn("Ручная проверка", DOC)
-        self.assertIn("AAC", DOC)
-        self.assertIn("не подтверждает", DOC)
-
-
-if __name__ == "__main__":
-    unittest.main()
