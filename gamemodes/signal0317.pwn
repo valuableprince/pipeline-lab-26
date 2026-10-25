@@ -172,6 +172,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "race_event.inc"
 #include "race_playlist.inc"
 #include "race_audio.inc"
+#include "radio_player.inc"
 #include "race_progress.inc"
 #include "race_core.inc"
 #include "server_guard.inc"
@@ -801,6 +802,7 @@ public OnPlayerConnect(playerid)
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
     Race_OnConnect(playerid);
+    Radio_OnConnect(playerid);
     Leader_OnConnect(playerid);
     Leader_UI_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
@@ -855,6 +857,7 @@ public OnPlayerDisconnect(playerid, reason)
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
     DBShadow_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
+    Radio_OnDisconnect(playerid);
     Race_OnDisconnect(playerid);
     if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
@@ -1068,6 +1071,7 @@ public OnVehicleDeath(vehicleid, killerid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
