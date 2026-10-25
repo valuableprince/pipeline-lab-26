@@ -201,6 +201,8 @@ stock Race_Join(playerid)
         return SendClientMessage(playerid, COLOR_RED, "Не удалось создать гоночный автомобиль.");
     }
 
+    // Успешное вступление в гонку заменяет обычное радио саундтреком гонки.
+    Radio_Stop(playerid);
     GetPlayerPos(playerid, gRaceReturn[playerid][0],
         gRaceReturn[playerid][1], gRaceReturn[playerid][2]);
     GetPlayerFacingAngle(playerid, gRaceReturn[playerid][3]);
