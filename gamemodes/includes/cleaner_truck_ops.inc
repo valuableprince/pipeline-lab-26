@@ -7,7 +7,7 @@
 // Trashmaster fleet and geometric reverse-parking validation.
 // This stage never empties containers or credits money.
 #define TRUCK_VEHICLE_MODEL (408)
-#define TRUCK_BAYS (4)
+#define TRUCK_BAYS (2)
 #define TRUCK_TICK_MS (1500)
 #define TRUCK_DOCK_MIN_SQ (9.0)
 #define TRUCK_DOCK_MAX_SQ (64.0)
@@ -18,6 +18,12 @@
 new gTruckVehicle[MAX_PLAYERS];
 new gTruckBay[MAX_PLAYERS];
 new gTruckBayOwner[TRUCK_BAYS];
+// Approved Fort Carson municipal truck parking bays: X, Y, Z, heading.
+new Float:gTruckSpawnPositions[TRUCK_BAYS][4] =
+{
+    {-233.7885, 1086.0983, 20.2871, 90.8476},
+    {-233.7681, 1081.5675, 20.2994, 88.8619}
+};
 new gTruckClaimId[CLEANER_DUMP_LIMIT];
 new gTruckClaimOwner[CLEANER_DUMP_LIMIT]; // playerid+1; zero is free
 new gTruckReservedId[MAX_PLAYERS];
@@ -85,12 +91,11 @@ stock bool:Truck_IssueVehicle(playerid)
     }
     if (bay < 0) return false;
 
-    // Four separate staging bays beside the Fort Carson municipal dispatcher.
-    // Exact collision-free parking coordinates must be confirmed in game.
-    new Float:x = CLEANER_DEPOT_X + 10.0 + float(bay) * 7.5;
-    new Float:y = CLEANER_DEPOT_Y + 8.0;
-    new vehicleid = CreateVehicle(TRUCK_VEHICLE_MODEL, x, y,
-        CLEANER_DEPOT_Z + 0.6, CLEANER_DEPOT_A, 1, 1, -1);
+    // Use precisely configured positions; do not offset the supplied Z value.
+    new vehicleid = CreateVehicle(TRUCK_VEHICLE_MODEL,
+        gTruckSpawnPositions[bay][0], gTruckSpawnPositions[bay][1],
+        gTruckSpawnPositions[bay][2], gTruckSpawnPositions[bay][3],
+        1, 1, -1);
     if (vehicleid == INVALID_VEHICLE_ID) return false;
     SetVehicleVirtualWorld(vehicleid, 0);
     LinkVehicleToInterior(vehicleid, 0);

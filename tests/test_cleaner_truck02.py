@@ -18,13 +18,23 @@ class TruckStageTwoTests(unittest.TestCase):
         self.assertIn("return Truck_StopShift(playerid);", TRUCK)
 
     def test_dedicated_vehicle_and_ownership(self):
-        for symbol in ("TRUCK_VEHICLE_MODEL (408)", "TRUCK_BAYS (4)",
+        for symbol in ("TRUCK_VEHICLE_MODEL (408)", "TRUCK_BAYS (2)",
                        "CreateVehicle(TRUCK_VEHICLE_MODEL", "gTruckBayOwner[bay] = playerid + 1;",
                        "IsValidVehicle(gTruckVehicle[playerid])",
                        "RemovePlayerFromVehicle(playerid);", "GetPlayerVehicleID(playerid)"):
             self.assertIn(symbol, OPS)
         self.assertIn("Truck_DestroyVehicle(playerid);", OPS)
         self.assertIn("Truck_ReleaseOrder(playerid);", OPS)
+
+    def test_truck_parking_spawns_at_two_exact_positions(self):
+        self.assertIn("new Float:gTruckSpawnPositions[TRUCK_BAYS][4]", OPS)
+        self.assertIn("{-233.7885, 1086.0983, 20.2871, 90.8476}", OPS)
+        self.assertIn("{-233.7681, 1081.5675, 20.2994, 88.8619}", OPS)
+        self.assertIn("gTruckSpawnPositions[bay][0], gTruckSpawnPositions[bay][1]", OPS)
+        self.assertIn("gTruckSpawnPositions[bay][2], gTruckSpawnPositions[bay][3]", OPS)
+        self.assertNotIn("CLEANER_DEPOT_Z + 0.6", OPS)
+        self.assertIn("for (new i = 0; i < TRUCK_BAYS; i++)", OPS)
+        self.assertIn("if (bay < 0) return false;", OPS)
 
     def test_unique_claims_by_immutable_container_id(self):
         self.assertIn("gTruckClaimOwner[free] = playerid + 1;", OPS)
