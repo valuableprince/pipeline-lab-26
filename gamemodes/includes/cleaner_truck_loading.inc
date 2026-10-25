@@ -29,27 +29,8 @@ new gTruckLoadBinUnits[MAX_PLAYERS];
 new Float:gTruckLoadHighZ[MAX_PLAYERS];
 new Float:gTruckLoadAnchor[MAX_PLAYERS][3];
 new gTruckThrowObject[MAX_PLAYERS];
-new bool:gTruckLoadSchemaReady;
 new gTruckLoadError[MAX_PLAYERS];
 forward TruckLoad_Step(playerid, epoch);
-
-// v11 removes the legacy bin-full-while-overflow CHECK. Without that
-// migration, the database correctly rejects bin unloading before bag pickup.
-stock TruckLoad_CheckSchema()
-{
-    gTruckLoadSchemaReady = false;
-    if (!DBPrimary_IsReady()) return 0;
-    new rows;
-    new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=11 LIMIT 1");
-    if (c != Cache:0 && !mysql_errno(gDBPrimary) &&
-        cache_get_row_count(rows) && rows == 1)
-        gTruckLoadSchemaReady = true;
-    if (c != Cache:0) cache_delete(c);
-    if (!gTruckLoadSchemaReady)
-        print("[TRUCK-LOAD] Disabled until db/migrations/011_truck_container_independent_overflow.sql is applied.");
-    return gTruckLoadSchemaReady;
-}
 
 stock TruckLoad_InitPlayer(playerid)
 {
@@ -170,7 +151,6 @@ stock TruckLoad_Notice(playerid)
 stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
 {
     gTruckLoadError[playerid] = 1; // Invalid ownership/session or container.
-    if (!gTruckLoadSchemaReady) return false;
     if (!CleanerDump_IsReady() || gCleanerDumpStaged || amount < 1 ||
         slot < 0 || slot >= gCleanerDumpCount ||
         !gCleanerDumpEnabled[slot] ||
@@ -181,6 +161,9 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
         gTruckCargo[bay] + amount > TRUCK_CARGO_CAP) return false;
     new current = overflow ? gCleanerDumpOverflow[slot] : gCleanerDumpBin[slot];
     if (amount > current) return false;
+    // Existing MariaDB v10 CHECK requires a full bin while overflow exists.
+    // Never empty a bin before the ground bags have been loaded.
+    if (!overflow && gCleanerDumpOverflow[slot] > 0) return false;
     new query[330], changed;
     if (overflow)
         mysql_format(gDBPrimary, query, sizeof(query),
@@ -229,16 +212,17 @@ stock TruckLoad_Bin(playerid)
 {
     if (!gTruckOnShift[playerid] || !gTruckReservedId[playerid])
         return SendClientMessage(playerid, COLOR_RED, "Сначала примите заказ /orders.");
-    if (!gTruckLoadSchemaReady)
-        return SendClientMessage(playerid, COLOR_RED,
-            "Погрузка недоступна: администратор должен установить миграцию БД v11.");
     if (TruckLoad_CurrentBusy(playerid))
         return SendClientMessage(playerid, COLOR_GREY, "Сначала завершите текущую погрузку.");
     if (!Truck_CanDock(playerid) || !gTruckDockReady[playerid])
         return SendClientMessage(playerid, COLOR_RED,
             "Остановитесь задним бортом к контейнеру и подтвердите /truckpark.");
     new slot = Truck_FindContainer(gTruckReservedId[playerid]);
-    if (slot < 0 || gCleanerDumpBin[slot] <= 0 ||
+    if (slot < 0) return SendClientMessage(playerid, COLOR_RED, "Контейнер недоступен.");
+    if (gCleanerDumpOverflow[slot] > 0)
+        return SendClientMessage(playerid, COLOR_RED,
+            "Сначала соберите все мешки с площадки: /truckbag, /truckthrow. Затем контейнер.");
+    if (gCleanerDumpBin[slot] <= 0 ||
         gCleanerDumpObject[slot] == INVALID_OBJECT_ID ||
         !IsValidObject(gCleanerDumpObject[slot]))
         return SendClientMessage(playerid, COLOR_GREY, "Контейнер пуст или недоступен.");
@@ -277,9 +261,6 @@ stock TruckLoad_Bin(playerid)
 
 stock TruckLoad_Bag(playerid)
 {
-    if (!gTruckLoadSchemaReady)
-        return SendClientMessage(playerid, COLOR_RED,
-            "Погрузка недоступна: требуется миграция БД v11.");
     if (!gTruckOnShift[playerid] || !gTruckReservedId[playerid] ||
         GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         GetPlayerVirtualWorld(playerid) != 0 || GetPlayerInterior(playerid) != 0 ||
@@ -439,9 +420,6 @@ public TruckLoad_Step(playerid, epoch)
     {
         TruckLoad_Reset(playerid);
         TruckLoad_Notice(playerid);
-        if (gCleanerDumpOverflow[slot] > 0)
-            SendClientMessage(playerid, CLEANER_COLOR,
-                "Контейнер пуст. Выйдите и соберите мешки: /truckbag.");
         TruckLoad_FinishIfEmpty(playerid, slot);
         return 1;
     }
