@@ -34,7 +34,7 @@ class AdminTools02Contract(unittest.TestCase):
         self.assertIn("ahPurpose", HELP)
         self.assertIn("ahExample", HELP)
         self.assertIn("AdminHelp_Access(playerid, index)", HELP)
-        self.assertIn("AdminHelp_Print(playerid, i)", HELP)
+        self.assertIn("AdminHelp_Print(playerid, index)", HELP)
         self.assertIn("ADMIN_HELP_PAGE_SIZE (4)", HELP)
         self.assertIn("AdminHelp_Usage(playerid, \"mute\")", CMDS)
         self.assertIn("AdminHelp_FromSlash(playerid, command)", ADMIN)

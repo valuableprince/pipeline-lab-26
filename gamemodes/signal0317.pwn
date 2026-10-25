@@ -1004,6 +1004,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
