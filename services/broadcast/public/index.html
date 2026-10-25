@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>TARKENSO Broadcast — студия</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <div class="kicker">TARKENSO / BROADCAST</div>
+    <h1>Студия прямого эфира</h1>
+    <p>Голос администратора передаётся через Icecast в GTA. Игрокам ничего устанавливать не нужно.</p>
+
+    <section id="login" class="panel">
+      <h2>Доступ к микрофону</h2>
+      <form id="login-form">
+        <label for="token">Ключ веб-студии</label>
+        <input id="token" name="token" type="password" autocomplete="off" minlength="32" required>
+        <button type="submit">Войти</button>
+      </form>
+    </section>
+
+    <section id="studio" class="panel" hidden>
+      <h2>Передача звука</h2>
+      <p>Сначала начните передавать звук здесь, затем в игре введите <code>/broadcast start</code> (администратор 5+ в Duty). После окончания нажмите обе кнопки остановки.</p>
+      <div class="actions">
+        <button id="start" type="button">Включить микрофон</button>
+        <button id="stop" type="button" disabled>Остановить микрофон</button>
+        <button id="logout" type="button">Выйти</button>
+      </div>
+      <p class="note">До 2 минут непрерывной передачи. Требуется HTTPS, браузер с WebM/Opus (Chrome/Edge) и разрешение на микрофон.</p>
+    </section>
+    <div id="status" aria-live="polite" class="status">Загрузка…</div>
+  </main>
+</body>
+</html>

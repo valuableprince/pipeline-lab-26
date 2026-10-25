@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "gamemodes/**"
+      - "services/broadcast/**"
+      - "docs/BROADCAST.md"
       - "tests/**"
       - "tools/check_pawn_output.py"
       - ".github/workflows/build.yml"
@@ -75,6 +77,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_radio_player.py' -v
+          python3 -m unittest discover -s tests -p 'test_broadcast.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
           python3 -m unittest discover -s tests -p 'test_stunt_bonus.py' -v
           python3 -m unittest discover -s tests -p 'test_legacy_race_entries.py' -v
@@ -92,6 +95,11 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_cleaner_truck04.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
+
+      - name: Check web microphone gateway JavaScript
+        run: |
+          node --check services/broadcast/server.js
+          node --check services/broadcast/public/app.js
 
       - name: Compile source
         shell: bash

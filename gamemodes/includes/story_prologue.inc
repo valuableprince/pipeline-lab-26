@@ -80,7 +80,8 @@ stock Story_TapeInit()
 
 stock Story_TapeStop(playerid)
 {
-    if (gStoryTapePlaying[playerid] && IsPlayerConnected(playerid))
+    if (gStoryTapePlaying[playerid] && IsPlayerConnected(playerid) &&
+        !Broadcast_IsActiveForPlayer(playerid))
         StopAudioStreamForPlayer(playerid);
     gStoryTapePlaying[playerid] = false;
     return 1;
@@ -179,7 +180,7 @@ stock Story_TapePlay(playerid)
 {
     // The radio URL does not exist yet until the owner publishes the voiceover.
     // Fail closed to the existing text scene; never fake successful playback.
-    if (!gStoryTapeUrl[0]) return 0;
+    if (!gStoryTapeUrl[0] || Broadcast_IsActiveForPlayer(playerid)) return 0;
     if (gStoryStage[playerid] != 2 || !Story_NearObjective(playerid))
         return 0;
     Story_TapeStop(playerid);

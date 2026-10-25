@@ -65,7 +65,8 @@ stock Radio_OnConnect(playerid)
 stock Radio_Stop(playerid)
 {
     // Не прерываем гоночный саундтрек или поток другого модуля.
-    if (gRadioStation[playerid] != -1 && IsPlayerConnected(playerid))
+    if (gRadioStation[playerid] != -1 && IsPlayerConnected(playerid) &&
+        !Broadcast_IsActiveForPlayer(playerid))
         StopAudioStreamForPlayer(playerid);
     gRadioStation[playerid] = -1;
     return 1;
@@ -79,6 +80,9 @@ stock Radio_OnDisconnect(playerid)
 
 stock Radio_Open(playerid)
 {
+    if (Broadcast_IsActiveForPlayer(playerid))
+        return SendClientMessage(playerid, RADIO_COLOR,
+            "Во время объявления радиостанции недоступны.");
     new body[1024], row[112];
     format(body, sizeof(body), "№\tРадиостанция\tСтрана\n");
     for (new i = 0; i < RADIO_STATION_COUNT; i++)
@@ -94,6 +98,7 @@ stock Radio_Open(playerid)
 
 stock Radio_Play(playerid, station)
 {
+    if (Broadcast_IsActiveForPlayer(playerid)) return 0;
     if (station < 0 || station >= RADIO_STATION_COUNT) return 1;
     Radio_Stop(playerid);
     if (!PlayAudioStreamForPlayer(playerid, gRadioUrls[station]))
@@ -111,6 +116,7 @@ stock Radio_Play(playerid, station)
 stock Radio_OnDialog(playerid, dialogid, response, listitem)
 {
     if (dialogid != RADIO_DIALOG_LIST) return 0;
+    if (Broadcast_IsActiveForPlayer(playerid)) return 1;
     if (gAuthState[playerid] != AUTH_READY ||
         AdminPunish_IsJailed(playerid) ||
         GetPlayerVirtualWorld(playerid) == RACE_WORLD_ID)

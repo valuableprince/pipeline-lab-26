@@ -718,6 +718,10 @@ stock Admin_Execute(playerid, const input[])
         gAdminDuty[playerid] = !gAdminDuty[playerid];
         if (!gAdminDuty[playerid])
         {
+            Broadcast_OnDutyDisabled(playerid);
+        }
+        if (!gAdminDuty[playerid])
+        {
             Admin_StopSpectate(playerid);
             AdminTP_Reset(playerid);
         }
