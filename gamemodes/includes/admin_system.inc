@@ -969,10 +969,11 @@ stock Admin_Execute(playerid, const input[])
         }
         if (!strcmp(command, "/warn", true))
         {
-            if (!Admin_LogPlayer(playerid, "WARN", detail))
+            if (!Admin_LogPlayer(playerid, "WARN_REQUEST", detail))
                 return SendClientMessage(playerid, ADMIN_ERROR, "Журнал недоступен. Действие отменено.");
             if (!AdminPunish_WriteWarning(playerid, target, reason))
                 return SendClientMessage(playerid, ADMIN_ERROR, "Ошибка MariaDB. Предупреждение не выдано.");
+            Admin_LogPlayer(playerid, "WARN", detail);
             SendClientMessage(target, ADMIN_ERROR, "Вы получили предупреждение администрации.");
             return 1;
         }
