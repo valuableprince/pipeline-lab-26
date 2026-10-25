@@ -58,9 +58,17 @@ stock CleanerDump_NavReset(playerid)
     return 1;
 }
 
+stock bool:CleanerDump_CanNavigate(playerid)
+{
+    return IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
+        gAuthState[playerid] == AUTH_READY && gCleanerDuty[playerid] &&
+        !AdminPunish_IsJailed(playerid) && !Race_IsParticipant(playerid) &&
+        GetPlayerVirtualWorld(playerid) == 0 && GetPlayerInterior(playerid) == 0;
+}
+
 stock CleanerDump_Nearest(playerid, count, bool:nearOnly = false)
 {
-    if (!CleanerDump_IsReady() || !Cleaner_InWorld(playerid)) return -1;
+    if (!CleanerDump_IsReady() || !CleanerDump_CanNavigate(playerid)) return -1;
     new Float:px, Float:py, Float:pz;
     GetPlayerPos(playerid, px, py, pz);
     new nearest = -1;
@@ -85,14 +93,14 @@ stock CleanerDump_Nearest(playerid, count, bool:nearOnly = false)
 
 stock bool:CleanerDump_Near(playerid)
 {
-    if (GetPlayerState(playerid) != PLAYER_STATE_ONFOOT) return false;
+    if (!Cleaner_InWorld(playerid) || GetPlayerState(playerid) != PLAYER_STATE_ONFOOT) return false;
     gCleanerDumpTarget[playerid] = CleanerDump_Nearest(playerid, 0, true);
     return gCleanerDumpTarget[playerid] >= 0;
 }
 
 stock CleanerDump_Navigate(playerid, count)
 {
-    if (count <= 0 || !Cleaner_InWorld(playerid))
+    if (count <= 0 || !CleanerDump_CanNavigate(playerid))
         return CleanerDump_NavClear(playerid);
     new slot = CleanerDump_Nearest(playerid, count);
     if (slot < 0)
@@ -354,6 +362,43 @@ stock bool:CleanerDump_Commit()
     gCleanerDumpStaged = false;
     gCleanerDumpStageSlot = -1;
     CleanerDump_Refresh(slot);
+    return true;
+}
+
+// Explicit fill control is fail-closed, capacity-bound and concurrency safe.
+stock bool:CleanerDump_SetFill(playerid, slot, total)
+{
+    if (!Admin_IsFounder(playerid) || !gAdminDuty[playerid] ||
+        !gCleanerDumpReady || gCleanerDumpStaged ||
+        slot < 0 || slot >= gCleanerDumpCount || !gCleanerDumpEnabled[slot] ||
+        total < 0 || total > CLEANER_DUMP_CAP + CLEANER_DUMP_OVERFLOW_CAP)
+        return false;
+    new bin = total;
+    if (bin > CLEANER_DUMP_CAP) bin = CLEANER_DUMP_CAP;
+    new overflow = total - bin;
+    if (bin == gCleanerDumpBin[slot] &&
+        overflow == gCleanerDumpOverflow[slot]) return true;
+    new detail[108];
+    format(detail, sizeof(detail), "id=%d old=%d/%d new=%d/%d",
+        gCleanerDumpId[slot], gCleanerDumpBin[slot], gCleanerDumpOverflow[slot],
+        bin, overflow);
+    if (!Admin_LogPlayer(playerid, "DUMP_EDITOR_FILL", detail)) return false;
+    new q[320], changed;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE cleaner_containers SET bin_units=%d,overflow_units=%d WHERE container_id=%d AND bin_units=%d AND overflow_units=%d AND enabled=1",
+        bin, overflow, gCleanerDumpId[slot],
+        gCleanerDumpBin[slot], gCleanerDumpOverflow[slot]);
+    if (!DBPrimary_Execute(q, changed) || changed != 1) return false;
+    gCleanerDumpBin[slot] = bin;
+    gCleanerDumpOverflow[slot] = overflow;
+    CleanerDump_Refresh(slot);
+    for (new p = 0; p < MAX_PLAYERS; p++)
+        if (IsPlayerConnected(p) && gCleanerDumpNav[p])
+        {
+            gCleanerDumpNavTick[p] = 0;
+            if (gCleanerDuty[p] && gCleanerBag[p] > 0)
+                CleanerDump_Navigate(p, gCleanerBag[p]);
+        }
     return true;
 }
 
