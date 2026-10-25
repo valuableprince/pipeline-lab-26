@@ -757,6 +757,7 @@ public OnGameModeExit()
     if (gAdminJailTimer) KillTimer(gAdminJailTimer);
     gAdminJailTimer = 0;
     PayDay_Shutdown();
+    Economy_Shutdown();
     Auth_Autosave();
     AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
