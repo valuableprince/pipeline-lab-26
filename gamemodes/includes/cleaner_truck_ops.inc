@@ -39,7 +39,7 @@ forward TruckLoad_Reset(playerid);
 forward TruckLoad_CanLeaveVehicle(playerid);
 forward TruckLoad_HandleKey(playerid);
 forward TruckLoad_Notice(playerid);
-forward TruckLoad_CurrentBusy(playerid);
+forward bool:TruckLoad_CurrentBusy(playerid);
 forward TruckLoad_OnTick(playerid);
 forward TruckLoad_OnVehicleDestroyed(vehicleid);
 
