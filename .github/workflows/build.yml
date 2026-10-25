@@ -74,6 +74,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_death_respawn.py' -v
           python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
+          python3 -m unittest discover -s tests -p 'test_radio_player.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
           python3 -m unittest discover -s tests -p 'test_stunt_bonus.py' -v
           python3 -m unittest discover -s tests -p 'test_legacy_race_entries.py' -v
