@@ -399,6 +399,7 @@ stock Cleaner_SyncTrashLabels(playerid)
 stock Cleaner_EndShift(playerid)
 {
     gCleanerDuty[playerid] = false;
+    CleanerDump_NavClear(playerid);
     Cleaner_HideTrashLabels(playerid);
     Cleaner_BagHudHide(playerid);
     Cleaner_RemoveBagProp(playerid);
@@ -756,6 +757,7 @@ stock Cleaner_OnConnect(playerid)
         gCleanerTrashLabel[playerid][i] = PlayerText3D:INVALID_3DTEXT_ID;
     gCleanerZoneHold[playerid] = 0;
     gCleanerDuty[playerid] = false;
+    CleanerDump_NavReset(playerid);
     gCleanerDataError[playerid] = false;
     gCleanerBag[playerid] = 0;
     gCleanerXP[playerid] = 0;
@@ -1045,8 +1047,11 @@ stock Cleaner_ZoneCollect(playerid)
         true, false, false, false, CLEANER_ANIM_MS, SYNC_ALL);
     Cleaner_BagHudUpdate(playerid);
     if (gCleanerBag[playerid] >= Cleaner_Capacity(playerid))
-        SendClientMessage(playerid, COLOR_GREY,
-            "Мешок заполнен. Сдайте его на пункте приёма мусора.");
+        {
+            SendClientMessage(playerid, COLOR_GREY,
+                "Мешок заполнен. Ближайший контейнер отмечен красным на карте.");
+            CleanerDump_Navigate(playerid, gCleanerBag[playerid]);
+        }
     return 1;
 }
 
@@ -1060,6 +1065,12 @@ public Cleaner_ZoneTick()
         {
             Cleaner_SyncTrashLabels(playerid);
             Cleaner_ZoneCollect(playerid);
+            if (gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&
+                gettime() >= gCleanerDumpNavTick[playerid])
+            {
+                gCleanerDumpNavTick[playerid] = gettime() + 3;
+                CleanerDump_Navigate(playerid, gCleanerBag[playerid]);
+            }
         }
     }
     return 1;
@@ -1079,7 +1090,7 @@ stock Cleaner_Deposit(playerid)
         return SendClientMessage(playerid, COLOR_GREY, "Ваш мешок пуст.");
 
     new count = gCleanerBag[playerid];
-    if (!CleanerDump_CanAccept(count))
+    if (!CleanerDump_CanAccept(playerid, count))
         return SendClientMessage(playerid, COLOR_RED,
             "Контейнер и площадка заполнены. Ожидайте муниципального вывоза.");
 
@@ -1090,7 +1101,7 @@ stock Cleaner_Deposit(playerid)
             "Достигнут лимит статистики уборщика.");
     // SQL-first: START TRANSACTION + guarded bin update + profile save + COMMIT.
     // On error the transaction is rolled back and the bag stays with the player.
-    if (!CleanerDump_Stage(count))
+    if (!CleanerDump_Stage(playerid, count))
         return SendClientMessage(playerid, COLOR_RED,
             "Не удалось зарезервировать место в контейнере. Мешок остаётся у вас.");
     gCleanerXP[playerid] += count;
@@ -1122,6 +1133,7 @@ stock Cleaner_Deposit(playerid)
     }
     // Cleared only after durable storage of both report and shared container.
     gCleanerBag[playerid] = 0;
+    CleanerDump_NavClear(playerid);
     Cleaner_BagHudUpdate(playerid);
     if (!Cleaner_SettlePending(playerid))
         SendClientMessage(playerid, COLOR_RED,
