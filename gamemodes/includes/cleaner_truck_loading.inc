@@ -13,6 +13,9 @@
 #define TRUCK_PHASE_RETURN (3)
 #define TRUCK_PHASE_THROW_UP (4)
 #define TRUCK_PHASE_THROW_IN (5)
+#define TRUCK_PHASE_LOWER (6)
+#define TRUCK_HIGH_CLEARANCE (5.5)
+#define TRUCK_LOAD_MAX_DRIFT_SQ (36.0)
 #define TRUCK_LOAD_BAG_RADIUS_SQ (10.0)
 #define TRUCK_LOAD_REAR_RADIUS_SQ (16.0)
 
@@ -23,6 +26,8 @@ new gTruckCarrySlot[MAX_PLAYERS];
 new gTruckCarryIndex[MAX_PLAYERS];
 new gTruckHeldUnits[MAX_PLAYERS];
 new gTruckLoadBinUnits[MAX_PLAYERS];
+new Float:gTruckLoadHighZ[MAX_PLAYERS];
+new Float:gTruckLoadAnchor[MAX_PLAYERS][3];
 new gTruckThrowObject[MAX_PLAYERS];
 forward TruckLoad_Step(playerid, epoch);
 
@@ -105,6 +110,24 @@ stock bool:TruckLoad_Parked(playerid)
         >= TRUCK_DOCK_REAR_COS * floatsqroot(distanceSq);
 }
 
+// The initial dock check is strict; an active animation retains its signed
+// order and vehicle, tolerating a small involuntary nudge during loading.
+stock bool:TruckLoad_ValidSession(playerid)
+{
+    if (!gTruckOnShift[playerid] || !gTruckReservedId[playerid]) return false;
+    new bay = gTruckBay[playerid];
+    if (bay < 0 || bay >= TRUCK_BAYS ||
+        gTruckBayOwner[bay] != playerid + 1 ||
+        gTruckVehicle[playerid] != gTruckFleet[bay] ||
+        !IsValidVehicle(gTruckFleet[bay])) return false;
+    new Float:x, Float:y, Float:z;
+    GetVehiclePos(gTruckFleet[bay], x, y, z);
+    new Float:dx = x - gTruckLoadAnchor[playerid][0];
+    new Float:dy = y - gTruckLoadAnchor[playerid][1];
+    new Float:dz = z - gTruckLoadAnchor[playerid][2];
+    return dx*dx + dy*dy + dz*dz <= TRUCK_LOAD_MAX_DRIFT_SQ;
+}
+
 stock TruckLoad_CanLeaveVehicle(playerid)
 {
     return TruckLoad_Parked(playerid);
@@ -129,7 +152,7 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
         slot < 0 || slot >= gCleanerDumpCount ||
         !gCleanerDumpEnabled[slot] ||
         !gTruckOnShift[playerid] || gTruckReservedId[playerid] != gCleanerDumpId[slot] ||
-        !TruckLoad_Parked(playerid)) return false;
+        !TruckLoad_ValidSession(playerid)) return false;
     new bay = gTruckBay[playerid];
     if (bay < 0 || bay >= TRUCK_BAYS ||
         gTruckCargo[bay] + amount > TRUCK_CARGO_CAP) return false;
@@ -187,9 +210,19 @@ stock TruckLoad_Bin(playerid)
     gTruckLoadSlot[playerid] = slot;
     gTruckLoadBinUnits[playerid] = amount;
     gTruckLoadPhase[playerid] = TRUCK_PHASE_LIFT;
+    new Float:tx, Float:ty, Float:tz;
+    GetVehiclePos(gTruckFleet[bay], tx, ty, tz);
+    gTruckLoadAnchor[playerid][0] = tx;
+    gTruckLoadAnchor[playerid][1] = ty;
+    gTruckLoadAnchor[playerid][2] = tz;
+    // Solid GTA objects keep their collision. Clear the truck's roof
+    // *before* any horizontal movement.
+    gTruckLoadHighZ[playerid] = gCleanerDumpPos[slot][2] + TRUCK_HIGH_CLEARANCE;
+    if (tz + TRUCK_HIGH_CLEARANCE > gTruckLoadHighZ[playerid])
+        gTruckLoadHighZ[playerid] = tz + TRUCK_HIGH_CLEARANCE;
     new objectid = gCleanerDumpObject[slot];
     new travelMs = MoveObject(objectid, gCleanerDumpPos[slot][0],
-        gCleanerDumpPos[slot][1], gCleanerDumpPos[slot][2] + 1.45,
+        gCleanerDumpPos[slot][1], gTruckLoadHighZ[playerid],
         1.1, 0.0, 0.0, gCleanerDumpPos[slot][3]);
     if (travelMs <= 0)
     {
@@ -269,6 +302,9 @@ stock TruckLoad_Throw(playerid)
     if (objectid == INVALID_OBJECT_ID)
         return SendClientMessage(playerid, COLOR_RED, "Ошибка создания мешка.");
     gTruckThrowObject[playerid] = objectid;
+    gTruckLoadAnchor[playerid][0] = x;
+    gTruckLoadAnchor[playerid][1] = y;
+    gTruckLoadAnchor[playerid][2] = z;
     RemovePlayerAttachedObject(playerid, TRUCK_BAG_SLOT);
     ApplyAnimation(playerid, "BASKETBALL", "BBALL_shoot", 4.1,
         false, false, false, false, 1000, SYNC_ALL);
@@ -290,11 +326,12 @@ public TruckLoad_Step(playerid, epoch)
         !IsPlayerConnected(playerid) || epoch != gTruckLoadEpoch[playerid] ||
         !gTruckOnShift[playerid]) return 1;
     new phase = gTruckLoadPhase[playerid];
-    new slot = (phase >= TRUCK_PHASE_THROW_UP) ?
+    new slot = (phase == TRUCK_PHASE_THROW_UP ||
+        phase == TRUCK_PHASE_THROW_IN) ?
         gTruckCarrySlot[playerid] : gTruckLoadSlot[playerid];
     if (slot < 0 || slot >= gCleanerDumpCount ||
         gTruckReservedId[playerid] != gCleanerDumpId[slot] ||
-        !TruckLoad_Parked(playerid))
+        !TruckLoad_ValidSession(playerid))
     {
         TruckLoad_Reset(playerid);
         return 1;
@@ -308,8 +345,10 @@ public TruckLoad_Step(playerid, epoch)
         GetVehicleZAngle(gTruckFleet[bay], angle);
         x += floatsin(angle, degrees) * 3.2;
         y -= floatcos(angle, degrees) * 3.2;
-        new travelMs = MoveObject(gCleanerDumpObject[slot], x, y, z + 2.1,
-            1.6, 110.0, 0.0, gCleanerDumpPos[slot][3]);
+        // Tip only after reaching safe altitude, above the vehicle collider.
+        new travelMs = MoveObject(gCleanerDumpObject[slot], x, y,
+            gTruckLoadHighZ[playerid], 1.6, 110.0, 0.0,
+            gCleanerDumpPos[slot][3]);
         if (travelMs <= 0) { TruckLoad_Reset(playerid); return 1; }
         gTruckLoadPhase[playerid] = TRUCK_PHASE_TIP;
         SetTimerEx("TruckLoad_Step", travelMs + 350, false, "ii", playerid, epoch);
@@ -320,18 +359,32 @@ public TruckLoad_Step(playerid, epoch)
         if (!TruckLoad_Commit(playerid, slot, false, gTruckLoadBinUnits[playerid]))
         {
             TruckLoad_Reset(playerid);
-            SendClientMessage(playerid, COLOR_RED, "Погрузка отменена: данные контейнера изменились.");
+            SendClientMessage(playerid, COLOR_RED,
+                "Погрузка не подтверждена: проверьте заказ и содержимое контейнера.");
             return 1;
         }
         gTruckLoadPhase[playerid] = TRUCK_PHASE_RETURN;
+        // Return above the truck before lowering through its roofline.
         new travelMs = MoveObject(gCleanerDumpObject[slot], gCleanerDumpPos[slot][0],
-            gCleanerDumpPos[slot][1], gCleanerDumpPos[slot][2] - 0.85,
+            gCleanerDumpPos[slot][1], gTruckLoadHighZ[playerid],
             2.1, 0.0, 0.0, gCleanerDumpPos[slot][3]);
         if (travelMs <= 0) { TruckLoad_Reset(playerid); return 1; }
         SetTimerEx("TruckLoad_Step", travelMs + 150, false, "ii", playerid, epoch);
         return 1;
     }
     if (phase == TRUCK_PHASE_RETURN)
+    {
+        // The high-altitude return has finished; lower the bin in place.
+        new travelMs = MoveObject(gCleanerDumpObject[slot],
+            gCleanerDumpPos[slot][0], gCleanerDumpPos[slot][1],
+            gCleanerDumpPos[slot][2] - 0.85, 2.0, 0.0, 0.0,
+            gCleanerDumpPos[slot][3]);
+        if (travelMs <= 0) { TruckLoad_Reset(playerid); return 1; }
+        gTruckLoadPhase[playerid] = TRUCK_PHASE_LOWER;
+        SetTimerEx("TruckLoad_Step", travelMs + 150, false, "ii", playerid, epoch);
+        return 1;
+    }
+    if (phase == TRUCK_PHASE_LOWER)
     {
         TruckLoad_Reset(playerid);
         TruckLoad_Notice(playerid);
@@ -374,7 +427,7 @@ public TruckLoad_Step(playerid, epoch)
 stock TruckLoad_OnTick(playerid)
 {
     if (!gTruckOnShift[playerid]) return 0;
-    if (gTruckLoadPhase[playerid] == TRUCK_PHASE_IDLE &&
+    if (!TruckLoad_CurrentBusy(playerid) &&
         gTruckDockReady[playerid] && !TruckLoad_Parked(playerid))
         gTruckDockReady[playerid] = false;
     return 1;
