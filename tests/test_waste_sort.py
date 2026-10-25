@@ -67,6 +67,16 @@ class WasteSortingTextDrawTests(unittest.TestCase):
                         UI.index('for (new item = 0; item < SORT_ITEM_COUNT; item++)',
                                  UI.index('stock SortUI_Open(playerid)')))
 
+    def test_cyrillic_textdraw_labels_using_cp1251_build(self):
+        for sample in ("СОРТИРОВКА ОТХОДОВ", "ПЕРЕРАБОТКА",
+                       "ВЫБЕРИТЕ ПРЕДМЕТ И КОНТЕЙНЕР",
+                       "СНАЧАЛА ВЫБЕРИТЕ ПРЕДМЕТ",
+                       "НЕВЕРНАЯ КАТЕГОРИЯ"):
+            self.assertIn(sample, UI)
+            self.assertTrue(sample.encode("cp1251"))
+        for english_bin in ('"PAPER"', '"PLASTIC"', '"METAL"'):
+            self.assertIn(english_bin, UI)
+
     def test_click_to_select_and_server_category_validation(self):
         for fragment in (
             "PlayerTextDrawSetSelectable(playerid, td, true)",
