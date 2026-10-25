@@ -21,6 +21,7 @@ new gBroadcastEndsAt;
 new gBroadcastNextAllowedAt;
 new gBroadcastTimer;
 new bool:gBroadcastPlaying[MAX_PLAYERS];
+new bool:gBroadcastAttempted[MAX_PLAYERS];
 new gBroadcastPreviousRadio[MAX_PLAYERS];
 
 stock bool:Broadcast_IsActive()
@@ -86,6 +87,7 @@ stock Broadcast_LoadConfig()
 stock Broadcast_OnConnect(playerid)
 {
     gBroadcastPlaying[playerid] = false;
+    gBroadcastAttempted[playerid] = false;
     gBroadcastPreviousRadio[playerid] = -1;
     return 1;
 }
@@ -93,7 +95,8 @@ stock Broadcast_OnConnect(playerid)
 stock Broadcast_Apply(playerid)
 {
     if (!Broadcast_IsActive() || !IsPlayerConnected(playerid) ||
-        gAuthState[playerid] != AUTH_READY || gBroadcastPlaying[playerid]) return 0;
+        gAuthState[playerid] != AUTH_READY || gBroadcastAttempted[playerid]) return 0;
+    gBroadcastAttempted[playerid] = true;
     gBroadcastPreviousRadio[playerid] = gRadioStation[playerid];
     // One client-side URL slot: the broadcast temporarily owns it.
     if (gRadioStation[playerid] != -1 || gRaceAudioPlaying[playerid] ||
@@ -118,10 +121,12 @@ stock Broadcast_Restore(playerid)
 {
     if (!gBroadcastPlaying[playerid])
     {
+        gBroadcastAttempted[playerid] = false;
         gBroadcastPreviousRadio[playerid] = -1;
         return 0;
     }
     gBroadcastPlaying[playerid] = false;
+    gBroadcastAttempted[playerid] = false;
     if (!IsPlayerConnected(playerid))
     {
         gBroadcastPreviousRadio[playerid] = -1;
@@ -257,6 +262,7 @@ stock Broadcast_OnDisconnect(playerid)
     if (Broadcast_IsActive() && gBroadcastOwner == playerid)
         Broadcast_Stop("ведущий отключился");
     gBroadcastPlaying[playerid] = false;
+    gBroadcastAttempted[playerid] = false;
     gBroadcastPreviousRadio[playerid] = -1;
     return 1;
 }
