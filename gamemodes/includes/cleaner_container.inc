@@ -29,7 +29,6 @@ new gCleanerDumpBags[CLEANER_DUMP_LIMIT][CLEANER_DUMP_BAG_OBJECTS];
 new gCleanerDumpTarget[MAX_PLAYERS]; // selected on proximity check
 new bool:gCleanerDumpNav[MAX_PLAYERS];
 new gCleanerDumpNavSlot[MAX_PLAYERS];
-new gCleanerDumpNavTick[MAX_PLAYERS];
 new bool:gCleanerDumpStaged;
 new gCleanerDumpStageSlot = -1;
 new gCleanerDumpNextBin;
