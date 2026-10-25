@@ -75,6 +75,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
+          python3 -m unittest discover -s tests -p 'test_stunt_bonus.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_weather.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_tools.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_tools2.py' -v
