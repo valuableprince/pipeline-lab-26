@@ -39,7 +39,7 @@ class CleanerEditor05(unittest.TestCase):
                      "GetPlayerInterior(playerid) == 0", "gCleanerDumpBin[slot] || gCleanerDumpOverflow[slot]"):
             self.assertIn(term,EDITOR)
         self.assertIn("CleanerEditor_OnEdit(playerid, playerobject, objectid, response,",MAIN)
-        self.assertIn("CleanerEditor_OnDialog(playerid, dialogid, response, listitem)",MAIN)
+        self.assertIn("CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)",MAIN)
         self.assertIn("CleanerEditor_List(playerid)",STUDIO)
         self.assertIn('/studio containers', STUDIO)
 
@@ -77,6 +77,29 @@ class CleanerEditor05(unittest.TestCase):
         self.assertIn("gCleanerDumpBagDefined[slot][j]",DUMP)
         self.assertIn("CreateObject(CLEANER_DUMP_BAG_MODEL",DUMP)
         self.assertIn("gCleanerEditorBagEnabled[i]",EDITOR)
+
+    def test_navigation_survives_vehicle_state_change(self):
+        self.assertIn("stock bool:CleanerDump_CanNavigate(playerid)",DUMP)
+        self.assertNotIn("!Cleaner_InWorld(playerid) return -1",DUMP)
+        can=DUMP.split("stock bool:CleanerDump_CanNavigate(playerid)",1)[1].split("stock CleanerDump_Nearest",1)[0]
+        self.assertNotIn("IsPlayerInAnyVehicle",can)
+        self.assertIn("CleanerDump_NavClear(playerid);\n        CleanerDump_Navigate(playerid, gCleanerBag[playerid]);",MAIN)
+        self.assertIn("CleanerDump_Nearest(playerid, count)",DUMP)
+
+    def test_editor_fill_has_strict_bounds_audit_and_compare_swap(self):
+        for value in ("CLEANER_EDITOR_FILL_INPUT", "Опустошить контейнер",
+                      "Установить заполнение (0-100)", "strlen(inputtext) > 3",
+                      "inputtext[i] < '0' || inputtext[i] > '9'",
+                      "total > CLEANER_DUMP_CAP + CLEANER_DUMP_OVERFLOW_CAP",
+                      "CleanerDump_SetFill(playerid, gCleanerEditorSelection[playerid], total)",
+                      "CleanerDump_SetFill(playerid, slot, 0)"):
+            self.assertIn(value, EDITOR)
+        for value in ("Admin_LogPlayer(playerid, \"DUMP_EDITOR_FILL\"",
+                      "bin = CLEANER_DUMP_CAP", "overflow = total - bin",
+                      "bin_units=%d AND overflow_units=%d AND enabled=1",
+                      "DBPrimary_Execute(q, changed) || changed != 1",
+                      "CleanerDump_Refresh(slot)", "CleanerDump_Navigate(p, gCleanerBag[p])"):
+            self.assertIn(value,DUMP)
 
     def test_cp1251(self):
         for content in (MAIN,EDITOR,JOB,DUMP,STUDIO):

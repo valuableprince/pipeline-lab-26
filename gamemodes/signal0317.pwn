@@ -113,7 +113,7 @@ forward CleanerDump_NavReset(playerid);
 forward CleanerDump_NavClear(playerid);
 forward CleanerDump_Navigate(playerid, count);
 forward CleanerEditor_List(playerid);
-forward CleanerEditor_OnDialog(playerid, dialogid, response, listitem);
+forward CleanerEditor_OnDialog(playerid, dialogid, response, listitem, const inputtext[]);
 forward CleanerEditor_OnEdit(playerid, playerobject, objectid, EDIT_RESPONSE:response, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:rz);
 forward CleanerDump_GetOverflow();
 forward CleanerDump_GetBinCap();
@@ -974,6 +974,12 @@ public OnPlayerEnterRaceCheckpoint(playerid)
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     Race_OnStateChange(playerid, newstate, oldstate);
+    if (gCleanerDuty[playerid] && gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&
+        gCleanerDumpNav[playerid])
+    {
+        CleanerDump_NavClear(playerid);
+        CleanerDump_Navigate(playerid, gCleanerBag[playerid]);
+    }
     return 1;
 }
 
@@ -1001,7 +1007,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
-    if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;

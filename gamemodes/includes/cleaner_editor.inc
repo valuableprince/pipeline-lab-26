@@ -10,6 +10,7 @@
 #define CLEANER_EDITOR_PICK_BAG (6343)
 #define CLEANER_EDITOR_CONFIRM_DELETE (6344)
 #define CLEANER_EDITOR_NO_OWNER (65535)
+#define CLEANER_EDITOR_FILL_INPUT (6345)
 
 new gCleanerEditorSlot = -1;
 new bool:gCleanerEditorNew;
@@ -248,9 +249,9 @@ stock CleanerEditor_Delete(playerid, slot)
     return SendClientMessage(playerid, STUDIO_ZONE_COLOR, "Пустой контейнер удалён.");
 }
 
-stock CleanerEditor_OnDialog(playerid, dialogid, response, listitem)
+stock CleanerEditor_OnDialog(playerid, dialogid, response, listitem, const inputtext[])
 {
-    if (dialogid < CLEANER_EDITOR_LIST || dialogid > CLEANER_EDITOR_CONFIRM_DELETE) return 0;
+    if (dialogid < CLEANER_EDITOR_LIST || dialogid > CLEANER_EDITOR_FILL_INPUT) return 0;
     if (!CleanerEditor_Allowed(playerid))
     {
         if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
@@ -264,18 +265,45 @@ stock CleanerEditor_OnDialog(playerid, dialogid, response, listitem)
         if (gCleanerEditorSelection[playerid] < 0 ||
             gCleanerEditorSelection[playerid] >= gCleanerDumpCount) return 1;
         return ShowPlayerDialog(playerid, CLEANER_EDITOR_ACTION, DIALOG_STYLE_LIST,
-            "Действие с контейнером", "Переместить и настроить мешки\nУдалить (если пуст)",
+            "Действие с контейнером", "Переместить и настроить мешки\nУдалить (если пуст)\nОпустошить контейнер\nУстановить заполнение (0-100)",
             "Выбрать", "Назад");
     }
     if (dialogid == CLEANER_EDITOR_ACTION)
     {
         if (!response) return CleanerEditor_List(playerid);
         if (listitem == 0) return CleanerEditor_Begin(playerid, gCleanerEditorSelection[playerid]);
+        if (listitem == 2)
+        {
+            new slot = gCleanerEditorSelection[playerid];
+            if (!CleanerDump_SetFill(playerid, slot, 0))
+                SendClientMessage(playerid, ADMIN_ERROR, "Не удалось опустошить контейнер.");
+            return CleanerEditor_List(playerid);
+        }
+        if (listitem == 3)
+            return ShowPlayerDialog(playerid, CLEANER_EDITOR_FILL_INPUT, DIALOG_STYLE_INPUT,
+                "Tarkenso Studio | Заполнение контейнера",
+                "Введите от 0 до 100 единиц.\n0-60 внутри; 61-100 снаружи.",
+                "Сохранить", "Отмена");
         if (listitem == 1)
             return ShowPlayerDialog(playerid, CLEANER_EDITOR_CONFIRM_DELETE,
                 DIALOG_STYLE_MSGBOX, "Удаление контейнера",
                 "Удалить пустой контейнер без возможности отмены?", "Удалить", "Отмена");
         return 1;
+    }
+    if (dialogid == CLEANER_EDITOR_FILL_INPUT)
+    {
+        if (!response) return CleanerEditor_List(playerid);
+        if (!inputtext[0] || strlen(inputtext) > 3)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Допустимы только целые числа от 0 до 100.");
+        for (new i = 0; inputtext[i]; i++)
+            if (inputtext[i] < '0' || inputtext[i] > '9')
+                return SendClientMessage(playerid, ADMIN_ERROR, "Недопустимое значение заполнения.");
+        new total = strval(inputtext);
+        if (total > CLEANER_DUMP_CAP + CLEANER_DUMP_OVERFLOW_CAP)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Заполнение не может превышать 100.");
+        if (!CleanerDump_SetFill(playerid, gCleanerEditorSelection[playerid], total))
+            return SendClientMessage(playerid, ADMIN_ERROR, "Сохранение отменено: контейнер изменился или БД недоступна.");
+        return CleanerEditor_List(playerid);
     }
     if (dialogid == CLEANER_EDITOR_CONFIRM_DELETE)
     {
