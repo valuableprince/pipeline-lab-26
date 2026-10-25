@@ -122,14 +122,21 @@ stock bool:Truck_AssignVehicle(playerid)
     if (!gTruckPersistenceReady || !Cleaner_NearDepot(playerid) ||
         gCleanerDataError[playerid] ||
         gTruckVehicle[playerid] != INVALID_VEHICLE_ID) return false;
-    for (new bay = 0; bay < TRUCK_BAYS; bay++)
+    // Recover the player's own persisted cargo first, even if another
+    // empty bay has a smaller index.
+    for (new pass = 0; pass < 2; pass++)
     {
-        if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay]) ||
-            !TruckPersist_CargoAllowed(playerid, bay)) continue;
-        gTruckBayOwner[bay] = playerid + 1;
-        gTruckVehicle[playerid] = gTruckFleet[bay];
-        gTruckBay[playerid] = bay;
-        return true;
+        for (new bay = 0; bay < TRUCK_BAYS; bay++)
+        {
+            if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay]) ||
+                !TruckPersist_CargoAllowed(playerid, bay)) continue;
+            if (pass == 0 && gTruckCargo[bay] == 0) continue;
+            if (pass == 1 && gTruckCargo[bay] > 0) continue;
+            gTruckBayOwner[bay] = playerid + 1;
+            gTruckVehicle[playerid] = gTruckFleet[bay];
+            gTruckBay[playerid] = bay;
+            return true;
+        }
     }
     return false;
 }
@@ -141,6 +148,8 @@ stock bool:Truck_StartShift(playerid)
         !Cleaner_NearDepot(playerid)) return false;
     if (!Truck_AssignVehicle(playerid)) return false;
     gTruckOnShift[playerid] = true;
+    new bay = gTruckBay[playerid];
+    if (gTruckCargo[bay] > 0) TruckPersist_ReturnGPS(playerid);
     return true;
 }
 
