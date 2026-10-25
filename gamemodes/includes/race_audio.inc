@@ -24,7 +24,8 @@ new gRaceAudioRound;
 stock RaceAudio_Stop(playerid)
 {
     // Не останавливаем чужое радио, если наша система не запускала поток.
-    if (gRaceAudioPlaying[playerid] && IsPlayerConnected(playerid))
+    if (gRaceAudioPlaying[playerid] && IsPlayerConnected(playerid) &&
+        !Broadcast_IsActiveForPlayer(playerid))
         StopAudioStreamForPlayer(playerid);
     gRaceAudioPlaying[playerid] = false;
     gRaceAudioStage[playerid] = 0;
@@ -61,7 +62,8 @@ stock RaceAudio_OnRaceStart()
 
 stock bool:RaceAudio_Play(playerid, stage)
 {
-    if (!IsPlayerConnected(playerid) || !gRaceAudioEnabled[playerid])
+    if (!IsPlayerConnected(playerid) || !gRaceAudioEnabled[playerid] ||
+        Broadcast_IsActiveForPlayer(playerid))
         return false;
     new bool:ok = false;
     if (gRacePlaylistReady)
@@ -109,6 +111,7 @@ stock RaceAudio_Begin(playerid)
 
 stock RaceAudio_Tick(playerid, elapsed)
 {
+    if (Broadcast_IsActiveForPlayer(playerid)) return 1;
     if (!gRaceAudioEnabled[playerid] || !gRaceAudioPlaying[playerid] ||
         gRaceAudioPreviewUntil[playerid] != 0) return 0;
     if (gRacePlaylistReady)
@@ -194,6 +197,9 @@ stock RaceAudio_Credits(playerid)
 
 stock RaceAudio_Command(playerid, const params[], bool:inRace, bool:raceStarted, elapsed)
 {
+    if (Broadcast_IsActiveForPlayer(playerid))
+        return SendClientMessage(playerid, RACE_AUDIO_COLOR,
+            "Во время объявления управление гоночным радио приостановлено.");
     if (isnull(params))
         return SendClientMessage(playerid, RACE_AUDIO_COLOR,
             "Команды: /raceaudio on | off | test | playlist | status | credits.");
