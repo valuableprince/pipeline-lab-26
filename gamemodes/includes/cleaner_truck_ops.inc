@@ -106,7 +106,10 @@ stock Truck_StopShift(playerid)
     gTruckOnShift[playerid] = false;
     gTruckDialogCount[playerid] = 0;
     if (IsPlayerConnected(playerid))
+    {
         RemovePlayerMapIcon(playerid, TRUCK_VEHICLE_MAP_SLOT);
+        RemovePlayerMapIcon(playerid, TRUCK_UNLOAD_MAP_SLOT);
+    }
     return 1;
 }
 
@@ -444,7 +447,7 @@ public Truck_Tick()
         if (!gTruckDockHint[playerid] && !gTruckDockReady[playerid])
         {
             SendClientMessage(playerid, CLEANER_COLOR,
-                "Мусоровоз стоит правильно! Левый ALT или /truckpark.");
+                "Мусоровоз стоит правильно! Нажмите левый ALT для парковки.");
             gTruckDockHint[playerid] = true;
         }
     }
