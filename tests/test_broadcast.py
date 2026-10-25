@@ -21,10 +21,9 @@ class BroadcastContract(unittest.TestCase):
 
     def test_compose_main(self):
         self.assertIn('#include "broadcast.inc"', MAIN)
-        for name in ("Broadcast_Init", "Broadcast_Shutdown",
-                     "Broadcast_OnConnect", "Broadcast_OnDisconnect",
-                     "Broadcast_OnReady", "Broadcast_OnDialog"):
-            self.assertIn(name + "(playerid)", MAIN if "Init" not in name and "Shutdown" not in name and "OnDialog" not in name else (MAIN + BROADCAST))
+        for name in ("Broadcast_OnConnect", "Broadcast_OnDisconnect",
+                     "Broadcast_OnReady"):
+            self.assertIn(name + "(playerid)", MAIN)
         self.assertIn("Broadcast_Init();", MAIN)
         self.assertIn("Broadcast_Shutdown();", MAIN)
         self.assertIn("Broadcast_OnDialog(playerid, dialogid, response, listitem)", MAIN)
