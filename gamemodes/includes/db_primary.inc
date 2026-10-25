@@ -72,9 +72,9 @@
             gDBPrimary = MYSQL_INVALID_HANDLE;
             return 0;
         }
-        print("[DB-PRIMARY] Connected. Checking schema_migrations version 8...");
+        print("[DB-PRIMARY] Connected. Checking schema_migrations version 9...");
         gDBPrimaryReady = true;
-        new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=8 LIMIT 1");
+        new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=9 LIMIT 1");
         if (c == Cache:0)
         {
             printf("[DB-PRIMARY] ERROR: schema query returned invalid cache; MySQL errno=%d.", mysql_errno(gDBPrimary));
@@ -99,13 +99,13 @@
         }
         if (rows != 1)
         {
-            printf("[DB-PRIMARY] ERROR: expected schema version 8, rows found=%d.", rows);
+            printf("[DB-PRIMARY] ERROR: expected schema version 9, rows found=%d.", rows);
             cache_delete(c);
             gDBPrimaryReady = false;
             return 0;
         }
         cache_delete(c);
-        print("[DB-PRIMARY] MySQL schema v8 detected; PayDay and story progress enabled.");
+        print("[DB-PRIMARY] MySQL schema v9 detected; administrative punishments enabled.");
         return 1;
     }
 
