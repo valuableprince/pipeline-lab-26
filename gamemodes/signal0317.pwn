@@ -81,6 +81,7 @@ new Float:gAccountArmour[MAX_PLAYERS];
 new bool:gAccountLegacy[MAX_PLAYERS];
 new bool:gAccountSpawned[MAX_PLAYERS];
 new bool:gAccountDead[MAX_PLAYERS];
+new bool:gAuthDeathRespawnPending[MAX_PLAYERS];
 new gAccountAutosaveTimer;
 new gCleanerDumpNavTick[MAX_PLAYERS];
 new gCleanerEditorOwner = 65535;
@@ -100,6 +101,7 @@ native bcrypt_get_hash(dest[], size = sizeof(dest));
 forward Auth_OnPasswordHashed(playerid, token);
 forward Auth_OnPasswordVerified(playerid, bool:success, token);
 forward Auth_Autosave();
+forward Auth_DeathRespawn(playerid, token);
 forward bool:Auth_SaveAccount(playerid);
 forward bool:Auth_Unsigned(const value[], &number, maximum);
 forward bool:Economy_Credit(playerid, amount, const reason[]);
@@ -869,11 +871,21 @@ public OnPlayerDisconnect(playerid, reason)
     gAccountLegacy[playerid] = false;
     gAccountSpawned[playerid] = false;
     gAccountDead[playerid] = false;
+    gAuthDeathRespawnPending[playerid] = false;
     return 1;
 }
 
 public OnPlayerRequestClass(playerid, classid)
 {
+    // Registered characters never enter SA-MP skin/class selection after death.
+    if (gAuthState[playerid] == AUTH_READY && gAccountSpawned[playerid] &&
+        gAccountDead[playerid])
+    {
+        // If the client enters class selection before the fallback timer,
+        // force the saved class immediately; the timer becomes a no-op.
+        SpawnPlayer(playerid);
+        return 1;
+    }
     if (gAuthState[playerid] != AUTH_READY && gAuthState[playerid] != AUTH_NONE)
     {
         AuthCamera_SetOpeningView(playerid);
@@ -925,6 +937,7 @@ public OnPlayerSpawn(playerid)
         SetPlayerArmour(playerid, 0.0);
     }
     gAccountDead[playerid] = false;
+    gAuthDeathRespawnPending[playerid] = false;
     Cleaner_OnSpawn(playerid);
     SetPlayerInterior(playerid, 0);
     SetPlayerVirtualWorld(playerid, 0);
@@ -954,7 +967,21 @@ public OnPlayerDeath(playerid, killerid, WEAPON:reason)
         gAccountArmour[playerid] = 0.0;
         if (!Auth_SaveAccount(playerid))
             printf("[ACCOUNT] Failed to persist death state for player %d.", playerid);
+        if (!gAuthDeathRespawnPending[playerid])
+        {
+            gAuthDeathRespawnPending[playerid] = true;
+            SetTimerEx("Auth_DeathRespawn", 1500, false, "ii", playerid, gAuthToken[playerid]);
+        }
     }
+    return 1;
+}
+
+public Auth_DeathRespawn(playerid, token)
+{
+    if (!IsPlayerConnected(playerid) || gAuthToken[playerid] != token ||
+        gAuthState[playerid] != AUTH_READY || !gAccountDead[playerid]) return 1;
+    gAuthDeathRespawnPending[playerid] = false;
+    SpawnPlayer(playerid);
     return 1;
 }
 

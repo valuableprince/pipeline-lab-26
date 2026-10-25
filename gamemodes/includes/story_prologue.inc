@@ -264,6 +264,8 @@ stock Story_OnSpawn(playerid)
     Story_TapeStop(playerid);
     if (gAuthState[playerid] != AUTH_READY) return 1;
     Story_UpdateMarker(playerid);
+    // Completed prologue must not be announced on every death/respawn.
+    if (gStoryStage[playerid] >= STORY_DONE) return 1;
     if (gStoryStage[playerid] == 0 && !gStoryIntroSeen[playerid])
     {
         gStoryIntroSeen[playerid] = true;

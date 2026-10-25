@@ -71,6 +71,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_payday.py' -v
           python3 -m unittest discover -s tests -p 'test_story_prologue.py' -v
+          python3 -m unittest discover -s tests -p 'test_death_respawn.py' -v
           python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
