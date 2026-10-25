@@ -110,8 +110,15 @@ stock AdminTools2_History(playerid, const params[])
         }
         if (detailStart < 0 || !AdminTools2_HistoryAction(action)) continue;
         if (strlen(line) < detailStart + targetLength + 1 ||
-            strncmp(line[detailStart], gAccountName[target], targetLength, true) ||
             line[detailStart + targetLength] != ':') continue;
+        new bool:matches = true;
+        for (new k = 0; k < targetLength; k++)
+            if (line[detailStart + k] != gAccountName[target][k])
+            {
+                matches = false;
+                break;
+            }
+        if (!matches) continue;
         start = strfind(line, "|");
         if (start < 1 || start >= sizeof(ts)) continue;
         strmid(ts, line, 0, start, sizeof(ts));
