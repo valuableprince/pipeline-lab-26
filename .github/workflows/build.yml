@@ -87,6 +87,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_cleaner_truck02.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_truck03.py' -v
           python3 -m unittest discover -s tests -p 'test_truck_loading_hotfix.py' -v
+          python3 -m unittest discover -s tests -p 'test_truck_alt_cargo_labels.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 
