@@ -107,7 +107,7 @@ stock AdminHelp_Print(playerid, index)
     new title[80], body[520];
     format(title, sizeof(title), "TARKENSO | Справка: /%s", gAdminHelp[index][ahName]);
     format(body, sizeof(body),
-        "{D9AA55}СИНТАКСИС{FFFFFF}\\n%s\\n\\n{D9AA55}ОПИСАНИЕ{FFFFFF}\\n%s\\n\\n{D9AA55}ПРИМЕР ИСПОЛЬЗОВАНИЯ{FFFFFF}\\n{B6E4B3}%s\\n\\n{9FAAB8}Доступ: уровень %d{FFFFFF}",
+        "{D9AA55}СИНТАКСИС{FFFFFF}\n%s\n\n{D9AA55}ОПИСАНИЕ{FFFFFF}\n%s\n\n{D9AA55}ПРИМЕР ИСПОЛЬЗОВАНИЯ{FFFFFF}\n{B6E4B3}%s\n\n{9FAAB8}Доступ: уровень %d{FFFFFF}",
         gAdminHelp[index][ahUsage], gAdminHelp[index][ahPurpose],
         gAdminHelp[index][ahExample], gAdminHelp[index][ahAccess]);
     return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_DETAIL, DIALOG_STYLE_MSGBOX,
@@ -125,7 +125,7 @@ stock AdminHelp_Categories(playerid)
 stock AdminHelp_List(playerid)
 {
     if (!Admin_Require(playerid, PERM_REPORT)) return 1;
-    new body[1700] = "Команда\tНазначение\n", row[180], visible, first;
+    new body[1700] = "{D9AA55}Команда\t{D9AA55}Назначение{FFFFFF}\n", row[180], visible, first;
     first = gAdminHelpPage[playerid] * ADMIN_HELP_PAGE_SIZE;
     gAdminHelpRowCount[playerid] = 0;
     for (new i = 0; i < sizeof(gAdminHelp); i++)
@@ -135,7 +135,7 @@ stock AdminHelp_List(playerid)
             gAdminHelp[i][ahCategory] != gAdminHelpCategory[playerid]) continue;
         if (visible >= first && visible < first + ADMIN_HELP_PAGE_SIZE)
         {
-            format(row, sizeof(row), "/%s\t%s\n",
+            format(row, sizeof(row), "{B6E4B3}/%s\t{FFFFFF}%s\n",
                 gAdminHelp[i][ahName], gAdminHelp[i][ahPurpose]);
             strcat(body, row, sizeof(body));
             gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = i;
@@ -144,12 +144,12 @@ stock AdminHelp_List(playerid)
     }
     if (gAdminHelpPage[playerid] > 0)
     {
-        strcat(body, "Предыдущая страница\t<\n", sizeof(body));
+        strcat(body, "{9FAAB8}Предыдущая страница\t<\n", sizeof(body));
         gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = -1;
     }
     if ((gAdminHelpPage[playerid] + 1) * ADMIN_HELP_PAGE_SIZE < visible)
     {
-        strcat(body, "Следующая страница\t>\n", sizeof(body));
+        strcat(body, "{9FAAB8}Следующая страница\t>\n", sizeof(body));
         gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = -2;
     }
     new title[100];
@@ -260,7 +260,7 @@ stock AdminHelp_Open(playerid, const params[])
     if (!Admin_UnsignedNumber(argument))
         return AdminHelp_Print(playerid, AdminHelp_Find(argument));
     new page = strval(argument);
-    if (page < 1 || page > 99) return AdminHelp_Usage(playerid, "ahelp");
+    if (page < 1 || page > 99) return AdminHelp_Print(playerid, AdminHelp_Find("ahelp"));
     gAdminHelpCategory[playerid] = 0;
     gAdminHelpPage[playerid] = page - 1;
     return AdminHelp_List(playerid);
