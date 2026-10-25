@@ -23,7 +23,10 @@ class TruckStageTwoTests(unittest.TestCase):
                        "IsValidVehicle(gTruckVehicle[playerid])",
                        "RemovePlayerFromVehicle(playerid);", "GetPlayerVehicleID(playerid)"):
             self.assertIn(symbol, OPS)
-        self.assertIn("Truck_DestroyVehicle(playerid);", OPS)
+        self.assertIn("Truck_ReturnVehicle(playerid);", OPS)
+        self.assertIn("new gTruckFleet[TRUCK_BAYS];", OPS)
+        self.assertIn("gTruckFleet[i] = CreateVehicle(TRUCK_VEHICLE_MODEL", OPS)
+        self.assertIn("SetVehicleToRespawn(vehicleid);", OPS)
         self.assertIn("Truck_ReleaseOrder(playerid);", OPS)
 
     def test_truck_parking_spawns_at_two_exact_positions(self):
@@ -65,7 +68,7 @@ class TruckStageTwoTests(unittest.TestCase):
         self.assertIn("gTruckDialogContainer[playerid][gTruckDialogCount[playerid]++] = gCleanerDumpId[i];", TRUCK)
         self.assertIn('DIALOG_STYLE_TABLIST_HEADERS', TRUCK)
 
-    def test_reverse_dock_no_loading_yet(self):
+    def test_reverse_dock_and_separate_loading(self):
         for symbol in ("GetVehicleZAngle(vehicleid, angle)", "GetVehicleVelocity(vehicleid, vx, vy, vz)",
                        "GetVehicleVirtualWorld(vehicleid) != 0",
                        "GetPlayerState(playerid) != PLAYER_STATE_DRIVER",
@@ -73,12 +76,13 @@ class TruckStageTwoTests(unittest.TestCase):
                        "TRUCK_DOCK_MIN_SQ", "TRUCK_DOCK_MAX_SQ",
                        "TRUCK_DOCK_SPEED_SQ", "Truck_CanDock(playerid)"):
             self.assertIn(symbol, OPS)
+        self.assertIn('#include "cleaner_truck_loading.inc"', OPS)
         self.assertNotIn("CleanerDump_Stage(", OPS)
         self.assertNotIn("Economy_Credit(", OPS)
         self.assertNotIn("GivePlayerMoney(", OPS)
 
     def test_commands_and_ui(self):
-        for command in ("truckpark", "truckcancel", "truckveh"):
+        for command in ("truckpark", "truckcancel", "truckveh", "truckload", "truckbag", "truckthrow", "truckcargo"):
             self.assertIn(f"cmd:{command}(playerid, params[])", COMMANDS)
         self.assertIn("return Truck_ClaimOrder(playerid, id);", TRUCK)
         self.assertIn("DIALOG_STYLE_TABLIST_HEADERS", TRUCK)
