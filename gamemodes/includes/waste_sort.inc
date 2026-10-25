@@ -83,9 +83,10 @@ stock bool:SortUI_CanUse(playerid)
     return x*x + y*y + z*z <= SORT_STATION_RADIUS_SQ;
 }
 
-// Shared creator: all TextDraw strings use ASCII because GTA fonts do not
-// reliably render Cyrillic. Selection rectangles and colours are authoritative
-// client-side presentation only; the server validates every category click.
+// Cyrillic strings compile from UTF-8 sources to CP1251 in the build;
+// rustext v2.0.11 nomemhack handles TextDraw RPC conversion on the server.
+// Category names remain English pending client visual validation.
+// The server still validates every item and category click.
 // Font 4 treats TextSize as width/height. Unlike font-1 dummy text with
 // near-zero LetterSize Y, this renders a real filled rectangle in stock GTA.
 stock SortUI_Rect(playerid, slot, Float:x, Float:y,
@@ -198,9 +199,9 @@ stock SortUI_Open(playerid)
     // font-1 box strips. Keep all background draws before interactive items.
     SortUI_Rect(playerid, 0, 84.0, 82.0, 472.0, 291.0, 0x171B21F5);
     SortUI_Rect(playerid, 1, 90.0, 88.0, 460.0, 56.0, 0x242930FA);
-    SortUI_Add(playerid, 2, 108.0, 96.0, "WASTE SORTING", 265.0, 29.0,
+    SortUI_Add(playerid, 2, 108.0, 96.0, "СОРТИРОВКА ОТХОДОВ", 265.0, 29.0,
         0.47, 1.95, SORT_COLOR_GOLD);
-    SortUI_Add(playerid, 3, 109.0, 122.0, "TARKENSO / RECYCLING STATION", 300.0, 19.0,
+    SortUI_Add(playerid, 3, 109.0, 122.0, "TARKENSO / ПЕРЕРАБОТКА", 300.0, 19.0,
         0.20, 0.95, SORT_COLOR_MUTED);
     // Independent dark zones for six selectable objects and three bins.
     // The large rubbish-bag 3D preview was removed at player request.
@@ -211,7 +212,7 @@ stock SortUI_Open(playerid)
         0.26, 1.15, SORT_COLOR_GOLD);
     SortUI_Add(playerid, 7, 329.0, 174.0, "02 / DROP ZONE", 185.0, 17.0,
         0.26, 1.15, SORT_COLOR_GOLD);
-    SortUI_Add(playerid, 8, 108.0, 348.0, "SELECT AN ITEM AND THEN ITS BIN", 421.0, 17.0,
+    SortUI_Add(playerid, 8, 108.0, 348.0, "ВЫБЕРИТЕ ПРЕДМЕТ И КОНТЕЙНЕР", 421.0, 17.0,
         0.22, 1.05, SORT_COLOR_TEXT);
     SortUI_Add(playerid, 9, 484.0, 125.0, "0 / 6", 54.0, 19.0,
         0.30, 1.35, SORT_COLOR_GOLD);
@@ -300,7 +301,7 @@ stock SortUI_OnClick(playerid, PlayerText:clickedid)
             continue;
         if (gSortCompleted[playerid] & (1 << item)) return 1;
         gSortSelection[playerid] = item;
-        SortUI_Status(playerid, "ITEM SELECTED - CHOOSE A BIN");
+        SortUI_Status(playerid, "ПРЕДМЕТ ВЫБРАН - УКАЖИТЕ КОНТЕЙНЕР");
         SortUI_Refresh(playerid);
         return 1;
     }
@@ -311,14 +312,14 @@ stock SortUI_OnClick(playerid, PlayerText:clickedid)
         new selected = gSortSelection[playerid];
         if (selected < 0 || selected >= SORT_ITEM_COUNT)
         {
-            SortUI_Status(playerid, "SELECT AN ITEM FIRST");
+            SortUI_Status(playerid, "СНАЧАЛА ВЫБЕРИТЕ ПРЕДМЕТ");
             return 1;
         }
         if (gSortCompleted[playerid] & (1 << selected)) return 1;
         if (gSortItemCategory[selected] != category)
         {
             gSortErrors[playerid]++;
-            SortUI_Status(playerid, "WRONG MATERIAL - TRY AGAIN");
+            SortUI_Status(playerid, "НЕВЕРНАЯ КАТЕГОРИЯ - ПОВТОРИТЕ");
             return 1;
         }
         gSortCompleted[playerid] |= (1 << selected);
@@ -329,9 +330,9 @@ stock SortUI_OnClick(playerid, PlayerText:clickedid)
             format(message, sizeof(message),
                 "Сортировка завершена: 6 предметов, ошибок: %d.", gSortErrors[playerid]);
             SendClientMessage(playerid, CLEANER_COLOR, message);
-            SortUI_Status(playerid, "COMPLETE! 6 / 6 - PRESS X OR ESC");
+            SortUI_Status(playerid, "ГОТОВО! 6 / 6 - НАЖМИТЕ X ИЛИ ESC");
         }
-        else SortUI_Status(playerid, "CORRECT! SELECT NEXT ITEM");
+        else SortUI_Status(playerid, "ВЕРНО! ВЫБЕРИТЕ СЛЕДУЮЩИЙ ПРЕДМЕТ");
         return 1;
     }
     // Active sorting consumes only its own elements, not other UI systems.
