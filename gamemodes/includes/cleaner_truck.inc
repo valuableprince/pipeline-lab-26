@@ -19,6 +19,9 @@ new gTruckDialogContainer[MAX_PLAYERS][CLEANER_DUMP_LIMIT];
 new gTruckDialogCount[MAX_PLAYERS];
 new bool:gTruckMapMarked[MAX_PLAYERS];
 
+// State and operations are available before the dialog/key handlers below.
+#include "cleaner_truck_ops.inc"
+
 stock Truck_Reset(playerid)
 {
     return Truck_StopShift(playerid);
