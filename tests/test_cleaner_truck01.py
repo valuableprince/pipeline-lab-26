@@ -25,7 +25,7 @@ class TruckStageOneTests(unittest.TestCase):
         for token in ("gCleanerDumpId[i]", "gCleanerDumpPos[i][0]", "gCleanerDumpBin[i] + gCleanerDumpOverflow[i]", "Truck_LocationName(", "TRUCK_ORDER_THRESHOLD (60)", "Fort Carson", "Las Payasadas"):
             self.assertIn(token, TRUCK)
         self.assertIn("gTruckDialogContainer[playerid][gTruckDialogCount[playerid]++] = gCleanerDumpId[i];", TRUCK)
-        self.assertIn("gCleanerDumpId[i] != id", TRUCK)
+        self.assertIn("Truck_ClaimOrder(playerid, id)", TRUCK)
         self.assertIn("TRUCK_MAP_SLOT (74)", TRUCK)
 
     def test_order_table_and_estimated_pay(self):
