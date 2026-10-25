@@ -11,6 +11,8 @@
 #define SORT_STATION_Z (19.7422)
 #define SORT_STATION_RADIUS_SQ (16.0)
 #define SORT_ITEM_COUNT (6)
+#define SORT_MODELS_PER_CATEGORY (10)
+#define SORT_CATALOG_COUNT (SORT_CATEGORY_COUNT * SORT_MODELS_PER_CATEGORY)
 #define SORT_CATEGORY_COUNT (3)
 #define SORT_TD_ITEM_START (11)
 #define SORT_TD_CATEGORY_START (17)
@@ -23,24 +25,75 @@
 #define SORT_COLOR_PLASTIC (0x26475EE8)
 #define SORT_COLOR_METAL (0x44505CE8)
 
-// Verified stock GTA SA objects. No downloaded models, TXD or client mods.
-// Paper: magazine pile and cardboard box.
-// Plastic: two separate disposable drink cup models (not glass bottles).
-// Metal: juice can and a stock metal wrench (gear model pending art validation).
-new const gSortItemModels[SORT_ITEM_COUNT] =
+// 30 curated stock game / SA-MP models, grouped by material: 10 per group.
+// Entries are stable catalog indices; a per-player session maps six UI slots
+// to selected indices. Art / material recognition still needs client UAT.
+new const gSortCatalogModels[SORT_CATALOG_COUNT] =
 {
-    2852, 1220, 2647, 2814, 2601, 18633
+    2852, // Magazines
+    1220, // Cardboard box #1
+    1221, // Cardboard box #2
+    1230, // Cardboard box #3
+    2059, // Scattered booklets
+    2894, // Rhyme book
+    1582, // Pizza box
+    2663, // Fast food paper bag
+    19561, // Cereal carton #1
+    19562, // Cereal carton #2
+    2647, // Disposable drink cup
+    2767, // Fast food tray
+    19560, // Supermarket meat tray
+    19567, // Ice cream tub #1
+    19568, // Ice cream tub #2
+    19570, // Milk bottle
+    19587, // Plastic tray
+    19592, // Shopping basket
+    1238, // Traffic cone
+    2437, // Stack of disposable cups
+    2601, // Juice can
+    18633, // Wrench
+    18634, // Crowbar
+    18635, // Hammer
+    18644, // Screwdriver
+    2057, // Metal tins
+    19581, // Frying pan
+    19583, // Kitchen knife
+    19584, // Saucepan
+    19586 // Spatula
 };
-new const Float:gSortItemRot[SORT_ITEM_COUNT][4] =
+new const Float:gSortCatalogRot[SORT_CATALOG_COUNT][4] =
 {
-    {-18.0, 0.0, 110.0, 0.95}, // magazines
-    {-10.0, 0.0, 25.0, 1.00},  // cardboard
-    {-12.0, 0.0, -12.0, 0.80}, // drink cup
-    {-10.0, 0.0, 18.0, 0.80},  // takeaway container
-    {-18.0, 0.0, -18.0, 0.75},// juice can
-    {-10.0, 0.0, 22.0, 1.00}  // metal wrench
+    {35.0, 0.0, 110.0, 1.05}, // Magazines
+    {-10.0, 0.0, 25.0, 1.00}, // Cardboard box #1
+    {-10.0, 0.0, -20.0, 1.00}, // Cardboard box #2
+    {-10.0, 0.0, 20.0, 1.00}, // Cardboard box #3
+    {45.0, 0.0, 35.0, 1.00}, // Scattered booklets
+    {35.0, 0.0, 40.0, 1.00}, // Rhyme book
+    {30.0, 0.0, 20.0, 1.00}, // Pizza box
+    {-10.0, 0.0, 25.0, 1.00}, // Fast food paper bag
+    {-10.0, 0.0, 25.0, 1.00}, // Cereal carton #1
+    {-10.0, 0.0, -20.0, 1.00}, // Cereal carton #2
+    {-12.0, 0.0, -12.0, 0.80}, // Disposable drink cup
+    {35.0, 0.0, 20.0, 1.00}, // Fast food tray
+    {35.0, 0.0, 25.0, 1.00}, // Supermarket meat tray
+    {-10.0, 0.0, 35.0, 1.00}, // Ice cream tub #1
+    {-10.0, 0.0, -25.0, 1.00}, // Ice cream tub #2
+    {-10.0, 0.0, 25.0, 1.00}, // Milk bottle
+    {35.0, 0.0, 25.0, 1.00}, // Plastic tray
+    {20.0, 0.0, 25.0, 1.00}, // Shopping basket
+    {-10.0, 0.0, 25.0, 1.00}, // Traffic cone
+    {25.0, 0.0, -20.0, 0.85}, // Stack of disposable cups
+    {-18.0, 0.0, -18.0, 0.80}, // Juice can
+    {-10.0, 0.0, 22.0, 1.00}, // Wrench
+    {-10.0, 0.0, 30.0, 1.00}, // Crowbar
+    {-10.0, 0.0, -25.0, 1.00}, // Hammer
+    {-10.0, 0.0, 20.0, 1.00}, // Screwdriver
+    {-10.0, 0.0, 30.0, 1.00}, // Metal tins
+    {25.0, 0.0, 50.0, 1.00}, // Frying pan
+    {20.0, 0.0, 35.0, 1.00}, // Kitchen knife
+    {20.0, 0.0, -25.0, 1.00}, // Saucepan
+    {15.0, 0.0, 45.0, 1.00} // Spatula
 };
-new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2};
 new const gSortCategoryNames[SORT_CATEGORY_COUNT][12] = {"БУМАГА", "ПЛАСТИК", "МЕТАЛЛ"};
 
 new PlayerText:gSortDraws[MAX_PLAYERS][SORT_TD_TOTAL];
@@ -48,6 +101,10 @@ new bool:gSortOpen[MAX_PLAYERS];
 new gSortSelection[MAX_PLAYERS];
 new gSortCompleted[MAX_PLAYERS];
 new gSortErrors[MAX_PLAYERS];
+// A random catalog index per UI slot; never trust clients for classification.
+new gSortRoundItems[MAX_PLAYERS][SORT_ITEM_COUNT];
+new gSortLastRound[MAX_PLAYERS][SORT_ITEM_COUNT];
+new bool:gSortHasLastRound[MAX_PLAYERS];
 new Text3D:gSortStationLabel = Text3D:INVALID_3DTEXT_ID;
 
 stock SortUI_Init()
@@ -124,6 +181,101 @@ stock SortUI_Add(playerid, slot, Float:x, Float:y, const label[],
     return 1;
 }
 
+// Guarantee one of each material, then draw 3 additional unique models
+// without replacement from the other 27. Shuffle the six visible slots so
+// their screen positions do not disclose the category.
+stock SortUI_RollItems(playerid)
+{
+    new pool[SORT_CATALOG_COUNT];
+    new poolSize = 0;
+
+    for (new category = 0; category < SORT_CATEGORY_COUNT; category++)
+        gSortRoundItems[playerid][category] =
+            category * SORT_MODELS_PER_CATEGORY + random(SORT_MODELS_PER_CATEGORY);
+
+    for (new catalog = 0; catalog < SORT_CATALOG_COUNT; catalog++)
+    {
+        new bool:chosen = false;
+        for (new slot = 0; slot < SORT_CATEGORY_COUNT; slot++)
+        {
+            if (gSortRoundItems[playerid][slot] == catalog)
+            {
+                chosen = true;
+                break;
+            }
+        }
+        if (!chosen) pool[poolSize++] = catalog;
+    }
+    for (new slot = SORT_CATEGORY_COUNT; slot < SORT_ITEM_COUNT; slot++)
+    {
+        new pick = random(poolSize);
+        gSortRoundItems[playerid][slot] = pool[pick];
+        poolSize--;
+        pool[pick] = pool[poolSize];
+    }
+
+    // If random selection happened to reproduce the previous six-model set,
+    // replace one choice with an unused model from the same material group.
+    // Thus consecutive sessions always contain at least one different model.
+    if (gSortHasLastRound[playerid])
+    {
+        new bool:unchanged = true;
+        for (new oldSlot = 0; oldSlot < SORT_ITEM_COUNT; oldSlot++)
+        {
+            new bool:found = false;
+            for (new slot = 0; slot < SORT_ITEM_COUNT; slot++)
+            {
+                if (gSortLastRound[playerid][oldSlot] ==
+                    gSortRoundItems[playerid][slot])
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                unchanged = false;
+                break;
+            }
+        }
+        if (unchanged)
+        {
+            new category = gSortRoundItems[playerid][0] / SORT_MODELS_PER_CATEGORY;
+            for (new catalog = category * SORT_MODELS_PER_CATEGORY;
+                 catalog < (category + 1) * SORT_MODELS_PER_CATEGORY; catalog++)
+            {
+                new bool:alreadyUsed = false;
+                for (new slot = 0; slot < SORT_ITEM_COUNT; slot++)
+                {
+                    if (gSortRoundItems[playerid][slot] == catalog)
+                    {
+                        alreadyUsed = true;
+                        break;
+                    }
+                }
+                if (!alreadyUsed)
+                {
+                    gSortRoundItems[playerid][0] = catalog;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Fisher-Yates shuffle of the six clickable model slots.
+    for (new slot = SORT_ITEM_COUNT - 1; slot > 0; slot--)
+    {
+        new pick = random(slot + 1);
+        new tmp = gSortRoundItems[playerid][slot];
+        gSortRoundItems[playerid][slot] = gSortRoundItems[playerid][pick];
+        gSortRoundItems[playerid][pick] = tmp;
+    }
+    for (new slot = 0; slot < SORT_ITEM_COUNT; slot++)
+        gSortLastRound[playerid][slot] = gSortRoundItems[playerid][slot];
+    gSortHasLastRound[playerid] = true;
+    return 1;
+}
+
 stock SortUI_Status(playerid, const message[])
 {
     PlayerTextDrawSetString(playerid, gSortDraws[playerid][8], message);
@@ -143,9 +295,8 @@ stock SortUI_Refresh(playerid)
             PlayerTextDrawHide(playerid, td);
             continue;
         }
-        new box = SORT_COLOR_METAL;
-        if (gSortItemCategory[i] == 0) box = SORT_COLOR_PAPER;
-        if (gSortItemCategory[i] == 1) box = SORT_COLOR_PLASTIC;
+        // Neutral item tiles prevent revealing the answer by material colour.
+        new box = 0x27323BEE;
         if (gSortSelection[playerid] == i) box = 0xD2A044FF;
         PlayerTextDrawBoxColour(playerid, td, box);
         PlayerTextDrawShow(playerid, td);
@@ -180,6 +331,7 @@ stock SortUI_Reset(playerid)
     gSortSelection[playerid] = -1;
     gSortCompleted[playerid] = 0;
     gSortErrors[playerid] = 0;
+    gSortHasLastRound[playerid] = false;
     return 1;
 }
 
@@ -193,6 +345,7 @@ stock SortUI_Open(playerid)
     gSortSelection[playerid] = -1;
     gSortCompleted[playerid] = 0;
     gSortErrors[playerid] = 0;
+    SortUI_RollItems(playerid);
 
     // Panel and title, viewport 640 x 448.
     // Sprite-backed panels: real 472x291 and 460x56 fills, not one-pixel
@@ -226,21 +379,18 @@ stock SortUI_Open(playerid)
     {
         new Float:x = item % 2 ? 215.0 : 113.0;
         new Float:y = 184.0 + float(item / 2) * 47.0;
-        new colour = SORT_COLOR_METAL;
-        if (gSortItemCategory[item] == 0) colour = SORT_COLOR_PAPER;
-        if (gSortItemCategory[item] == 1) colour = SORT_COLOR_PLASTIC;
-
+        new catalog = gSortRoundItems[playerid][item];
         new PlayerText:preview = CreatePlayerTextDraw(playerid, x, y, "_");
         gSortDraws[playerid][SORT_TD_ITEM_START + item] = preview;
         PlayerTextDrawFont(playerid, preview, TEXT_DRAW_FONT_MODEL_PREVIEW);
         PlayerTextDrawTextSize(playerid, preview, 88.0, 43.0);
         PlayerTextDrawUseBox(playerid, preview, true);
-        PlayerTextDrawBoxColour(playerid, preview, colour);
+        PlayerTextDrawBoxColour(playerid, preview, 0x27323BEE);
         PlayerTextDrawBackgroundColour(playerid, preview, 0x17222DE8);
-        PlayerTextDrawSetPreviewModel(playerid, preview, gSortItemModels[item]);
+        PlayerTextDrawSetPreviewModel(playerid, preview, gSortCatalogModels[catalog]);
         PlayerTextDrawSetPreviewRot(playerid, preview,
-            gSortItemRot[item][0], gSortItemRot[item][1],
-            gSortItemRot[item][2], gSortItemRot[item][3]);
+            gSortCatalogRot[catalog][0], gSortCatalogRot[catalog][1],
+            gSortCatalogRot[catalog][2], gSortCatalogRot[catalog][3]);
         PlayerTextDrawSetSelectable(playerid, preview, true);
 
     }
@@ -316,7 +466,9 @@ stock SortUI_OnClick(playerid, PlayerText:clickedid)
             return 1;
         }
         if (gSortCompleted[playerid] & (1 << selected)) return 1;
-        if (gSortItemCategory[selected] != category)
+        new catalog = gSortRoundItems[playerid][selected];
+        if (catalog < 0 || catalog >= SORT_CATALOG_COUNT) return 1;
+        if (catalog / SORT_MODELS_PER_CATEGORY != category)
         {
             gSortErrors[playerid]++;
             SortUI_Status(playerid, "НЕВЕРНАЯ КАТЕГОРИЯ - ПОВТОРИТЕ");
