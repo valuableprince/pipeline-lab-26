@@ -107,7 +107,7 @@ stock AdminHelp_Print(playerid, index)
     new title[80], body[520];
     format(title, sizeof(title), "TARKENSO | Справка: /%s", gAdminHelp[index][ahName]);
     format(body, sizeof(body),
-        "КОМАНДА\n%s\n\nНАЗНАЧЕНИЕ\n%s\n\nПРИМЕР\n%s\n\nДоступ: уровень %d",
+        "{D9AA55}СИНТАКСИС{FFFFFF}\\n%s\\n\\n{D9AA55}ОПИСАНИЕ{FFFFFF}\\n%s\\n\\n{D9AA55}ПРИМЕР ИСПОЛЬЗОВАНИЯ{FFFFFF}\\n{B6E4B3}%s\\n\\n{9FAAB8}Доступ: уровень %d{FFFFFF}",
         gAdminHelp[index][ahUsage], gAdminHelp[index][ahPurpose],
         gAdminHelp[index][ahExample], gAdminHelp[index][ahAccess]);
     return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_DETAIL, DIALOG_STYLE_MSGBOX,
@@ -220,11 +220,24 @@ stock bool:AdminHelp_RequiresParams(const command[])
     return false;
 }
 
+// Incomplete / invalid admin commands should not interrupt gameplay with a dialog.
 stock AdminHelp_Usage(playerid, const command[])
 {
     new index = AdminHelp_Find(command);
     if (index == -1) return SendClientMessage(playerid, ADMIN_ERROR, "Неизвестная команда.");
-    return AdminHelp_Print(playerid, index);
+    if (!AdminHelp_Access(playerid, index))
+        return SendClientMessage(playerid, ADMIN_ERROR, "Команда вам недоступна.");
+
+    new message[192];
+    format(message, sizeof(message), "{D9AA55}[TARKENSO] {FFFFFF}Синтаксис: {B6E4B3}%s",
+        gAdminHelp[index][ahUsage]);
+    SendClientMessage(playerid, -1, message);
+    format(message, sizeof(message), "{9FAAB8}Описание: {FFFFFF}%s",
+        gAdminHelp[index][ahPurpose]);
+    SendClientMessage(playerid, -1, message);
+    format(message, sizeof(message), "{9FAAB8}Пример: {B6E4B3}%s {9FAAB8}| Подробнее: /ahelp %s",
+        gAdminHelp[index][ahExample], gAdminHelp[index][ahName]);
+    return SendClientMessage(playerid, -1, message);
 }
 
 stock AdminHelp_FromSlash(playerid, const slashCommand[])
@@ -243,9 +256,9 @@ stock AdminHelp_Open(playerid, const params[])
     if (!Admin_Next(params, offset, argument, sizeof(argument)))
         return AdminHelp_Categories(playerid);
     if (Admin_Next(params, offset, extra, sizeof(extra)))
-        return AdminHelp_Usage(playerid, "ahelp");
+        return AdminHelp_Print(playerid, AdminHelp_Find("ahelp"));
     if (!Admin_UnsignedNumber(argument))
-        return AdminHelp_Usage(playerid, argument);
+        return AdminHelp_Print(playerid, AdminHelp_Find(argument));
     new page = strval(argument);
     if (page < 1 || page > 99) return AdminHelp_Usage(playerid, "ahelp");
     gAdminHelpCategory[playerid] = 0;
