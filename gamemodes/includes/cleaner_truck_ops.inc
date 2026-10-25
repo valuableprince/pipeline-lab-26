@@ -426,7 +426,6 @@ public Truck_Tick()
 
 stock Truck_Init()
 {
-    TruckLoad_CheckSchema();
     for (new i = 0; i < TRUCK_BAYS; i++)
     {
         gTruckBayOwner[i] = 0;
