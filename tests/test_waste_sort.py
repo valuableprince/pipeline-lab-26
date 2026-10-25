@@ -23,8 +23,8 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         self.assertIn("public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)", GAME)
         self.assertIn("public OnPlayerClickTextDraw(playerid, Text:clickedid)", GAME)
 
-    def test_six_objects_and_three_english_bins(self):
-        for material in ('"PAPER"', '"PLASTIC"', '"METAL"'):
+    def test_six_objects_and_three_russian_categories(self):
+        for material in ('"БУМАГА"', '"ПЛАСТИК"', '"МЕТАЛЛ"'):
             self.assertIn(material, UI)
         self.assertIn('new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2}', UI)
         self.assertIn('#define SORT_ITEM_COUNT (6)', UI)
@@ -32,7 +32,7 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         self.assertIn('TEXT_DRAW_FONT_MODEL_PREVIEW', UI)
         self.assertNotIn('PlayerTextDrawSetPreviewModel(playerid, bag, 1265)', UI)
         self.assertNotIn('new PlayerText:bag', UI)
-        self.assertIn('"01 / MATERIALS"', UI)
+        self.assertIn('"01 / ПРЕДМЕТЫ"', UI)
 
     def test_no_object_captions_and_dark_ui(self):
         self.assertIn("#define SORT_TD_TOTAL (22)", UI)
@@ -69,13 +69,23 @@ class WasteSortingTextDrawTests(unittest.TestCase):
 
     def test_cyrillic_textdraw_labels_using_cp1251_build(self):
         for sample in ("СОРТИРОВКА ОТХОДОВ", "ПЕРЕРАБОТКА",
-                       "ВЫБЕРИТЕ ПРЕДМЕТ И КОНТЕЙНЕР",
+                       "ВЫБЕРИТЕ ПРЕДМЕТ, ЗАТЕМ КАТЕГОРИЮ",
                        "СНАЧАЛА ВЫБЕРИТЕ ПРЕДМЕТ",
                        "НЕВЕРНАЯ КАТЕГОРИЯ"):
             self.assertIn(sample, UI)
             self.assertTrue(sample.encode("cp1251"))
-        for english_bin in ('"PAPER"', '"PLASTIC"', '"METAL"'):
-            self.assertIn(english_bin, UI)
+        for category in ('"БУМАГА"', '"ПЛАСТИК"', '"МЕТАЛЛ"'):
+            self.assertIn(category, UI)
+        self.assertIn('"02 / КАТЕГОРИИ"', UI)
+        self.assertIn('"ВЫБЕРИТЕ КАТЕГОРИЮ"', UI)
+        self.assertIn('"ESC - ВЫХОД"', UI)
+        self.assertIn('ALT или /sort', UI)
+        self.assertIn('Выберите предмет, затем выберите категорию.', UI)
+        for old_english in ('"PAPER"', '"PLASTIC"', '"METAL"',
+                            '"01 / MATERIALS"', '"02 / DROP ZONE"',
+                            '"ESC - EXIT"', 'УКАЖИТЕ КОНТЕЙНЕР',
+                            'ПРЕДМЕТ И КОНТЕЙНЕР'):
+            self.assertNotIn(old_english, UI)
 
     def test_click_to_select_and_server_category_validation(self):
         for fragment in (
@@ -93,6 +103,20 @@ class WasteSortingTextDrawTests(unittest.TestCase):
             self.assertIn(fragment, UI)
         self.assertIn('clickedid != Text:INVALID_TEXT_DRAW', UI)
         self.assertIn('if (!SortUI_CanUse(playerid))', UI)
+
+    def test_sixth_correct_item_closes_immediately_and_notifies(self):
+        handler = UI.split("stock SortUI_OnClick(playerid, PlayerText:clickedid)", 1)[1]
+        complete = handler.split(
+            "if (SortUI_Refresh(playerid) == SORT_ITEM_COUNT)", 1)[1].split(
+            'else SortUI_Status(playerid, "ВЕРНО!', 1)[0]
+        self.assertIn("SendClientMessage(playerid, CLEANER_COLOR, message);", complete)
+        self.assertIn("SortUI_Close(playerid);", complete)
+        self.assertIn("return 1;", complete)
+        self.assertLess(complete.index("SendClientMessage(playerid, CLEANER_COLOR, message);"),
+                        complete.index("SortUI_Close(playerid);"))
+        self.assertNotIn("SortUI_Status(playerid", complete)
+        self.assertIn("gSortOpen[playerid] = false;", UI)
+        self.assertIn("CancelSelectTextDraw(playerid)", UI)
 
     def test_no_unbacked_rewards_or_unlimited_remote_access(self):
         self.assertIn("(!gCleanerDuty[playerid] && !gTruckOnShift[playerid])", UI)
