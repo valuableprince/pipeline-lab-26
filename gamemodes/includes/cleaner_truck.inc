@@ -9,6 +9,8 @@
 #define TRUCK_DLG_ORDERS (6681)
 #define TRUCK_DLG_INFO (6682)
 #define TRUCK_ORDER_THRESHOLD (60)
+#define TRUCK_BASE_RATE (10)
+#define TRUCK_OVERFLOW_RATE (20)
 #define TRUCK_MAP_SLOT (74)
 #define TRUCK_MAP_COLOR (0xF1A554FF)
 
@@ -70,14 +72,21 @@ stock Truck_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     return 1;
 }
 
+// Предварительная стоимость заказа, фактическая выплата — после реализации рейса.
+stock Truck_EstimatedPay(slot)
+{
+    return gCleanerDumpBin[slot] * TRUCK_BASE_RATE +
+        gCleanerDumpOverflow[slot] * TRUCK_OVERFLOW_RATE;
+}
+
 stock Truck_ShowOrders(playerid)
 {
     if (!gTruckOnShift[playerid])
         return SendClientMessage(playerid, COLOR_RED, "Сначала устройтесь водителем мусоровоза.");
     if (!CleanerDump_IsReady())
         return SendClientMessage(playerid, COLOR_RED, "База контейнеров недоступна.");
-    new body[2300], line[110], location[48], total;
-    body[0] = EOS;
+    new body[2300], line[130], location[48], total;
+    format(body, sizeof(body), "Контейнер\tМесто\tЗаполнение\tОплата\n");
     gTruckDialogCount[playerid] = 0;
     for (new i = 0; i < gCleanerDumpCount; i++)
     {
@@ -86,14 +95,14 @@ stock Truck_ShowOrders(playerid)
         if (total < TRUCK_ORDER_THRESHOLD) continue;
         Truck_LocationName(gCleanerDumpPos[i][0], gCleanerDumpPos[i][1],
             location, sizeof(location));
-        format(line, sizeof(line), "Контейнер #%d - %s - %d/100\n",
-            gCleanerDumpId[i], location, total);
+        format(line, sizeof(line), "#%d\t%s\t%d/100\t$%d\n",
+            gCleanerDumpId[i], location, total, Truck_EstimatedPay(i));
         strcat(body, line, sizeof(body));
         gTruckDialogContainer[playerid][gTruckDialogCount[playerid]++] = gCleanerDumpId[i];
     }
     if (!gTruckDialogCount[playerid])
         return SendClientMessage(playerid, COLOR_GREY, "Активных заказов пока нет.");
-    return ShowPlayerDialog(playerid, TRUCK_DLG_ORDERS, DIALOG_STYLE_LIST,
+    return ShowPlayerDialog(playerid, TRUCK_DLG_ORDERS, DIALOG_STYLE_TABLIST_HEADERS,
         "Активные заказы", body, "На карту", "Назад");
 }
 
