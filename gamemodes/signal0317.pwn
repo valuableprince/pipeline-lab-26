@@ -184,6 +184,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "db_world.inc"
 #include "cleaner_container.inc"
 #include "cleaner_truck.inc"
+#include "waste_sort.inc"
 #include "cleaner_editor.inc"
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
@@ -748,6 +749,7 @@ public OnGameModeInit()
     Cleaner_Init();
     CleanerDump_Init();
     Truck_Init();
+    SortUI_Init();
     Race_Init();
     Admin_Init();
     AdminVeh_Init();
@@ -774,6 +776,7 @@ public OnGameModeExit()
     AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
+    SortUI_Shutdown();
     Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
@@ -801,6 +804,7 @@ public OnPlayerConnect(playerid)
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
+    SortUI_Reset(playerid);
     Race_OnConnect(playerid);
     Radio_OnConnect(playerid);
     Leader_OnConnect(playerid);
@@ -864,6 +868,7 @@ public OnPlayerDisconnect(playerid, reason)
     StudioUI_Reset(playerid);
     Story_OnDisconnect(playerid);
     Cleaner_OnDisconnect(playerid);
+    SortUI_Reset(playerid);
     Truck_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
     AdminTP_Reset(playerid);
@@ -971,6 +976,7 @@ public OnPlayerSpawn(playerid)
     // re-create their checkpoints only after a player has joined the event.
     DisablePlayerCheckpoint(playerid);
     DisablePlayerRaceCheckpoint(playerid);
+    SortUI_Reset(playerid);
     Cleaner_OnSpawn(playerid);
     Truck_Reset(playerid);
     SetPlayerInterior(playerid, 0);
@@ -991,6 +997,7 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    SortUI_Reset(playerid);
     if (Race_OnDeath(playerid)) return 1;
     if (gAuthState[playerid] == AUTH_READY)
     {
@@ -1019,10 +1026,21 @@ public Auth_DeathRespawn(playerid, token)
 
 public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
+    if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
     return 1;
+}
+
+public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
+{
+    return SortUI_OnClick(playerid, playertextid);
+}
+
+public OnPlayerClickTextDraw(playerid, Text:clickedid)
+{
+    return SortUI_OnCancel(playerid, clickedid);
 }
 
 public OnPlayerEnterRaceCheckpoint(playerid)
