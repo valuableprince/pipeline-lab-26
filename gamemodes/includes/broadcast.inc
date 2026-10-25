@@ -32,7 +32,7 @@ stock bool:Broadcast_IsActive()
 stock bool:Broadcast_IsActiveForPlayer(playerid)
 {
     return Broadcast_IsActive() && playerid >= 0 && playerid < MAX_PLAYERS &&
-        gBroadcastPlaying[playerid];
+        gBroadcastAttempted[playerid];
 }
 
 stock bool:Broadcast_AllowedUrl(const url[])
@@ -119,12 +119,12 @@ stock Broadcast_Apply(playerid)
 
 stock Broadcast_Restore(playerid)
 {
-    if (!gBroadcastPlaying[playerid])
+    if (!gBroadcastAttempted[playerid])
     {
-        gBroadcastAttempted[playerid] = false;
         gBroadcastPreviousRadio[playerid] = -1;
         return 0;
     }
+    new bool:wasPlaying = gBroadcastPlaying[playerid];
     gBroadcastPlaying[playerid] = false;
     gBroadcastAttempted[playerid] = false;
     if (!IsPlayerConnected(playerid))
@@ -132,7 +132,7 @@ stock Broadcast_Restore(playerid)
         gBroadcastPreviousRadio[playerid] = -1;
         return 0;
     }
-    StopAudioStreamForPlayer(playerid);
+    if (wasPlaying) StopAudioStreamForPlayer(playerid);
     if (gAuthState[playerid] != AUTH_READY)
     {
         gBroadcastPreviousRadio[playerid] = -1;
