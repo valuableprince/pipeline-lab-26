@@ -26,6 +26,11 @@ stock bool:AdminTools2_ParseTwo(const params[], &first, &second)
 stock bool:AdminTools2_CanMove(playerid, target)
 {
     if (!AdminTools_CanEditPlayer(playerid, target)) return false;
+    if (AdminPunish_IsJailed(target))
+    {
+        SendClientMessage(playerid, ADMIN_ERROR, "Нельзя перемещать заключённого.");
+        return false;
+    }
     if (gStoryStage[target] < STORY_DONE)
     {
         SendClientMessage(playerid, ADMIN_ERROR,
