@@ -14,7 +14,8 @@
 #define TRUCK_PHASE_THROW_UP (4)
 #define TRUCK_PHASE_THROW_IN (5)
 #define TRUCK_PHASE_LOWER (6)
-#define TRUCK_HIGH_CLEARANCE (4.0)
+#define TRUCK_HIGH_CLEARANCE (3.0)
+#define TRUCK_REAR_LOAD_OFFSET (4.5)
 #define TRUCK_LOAD_MAX_DRIFT_SQ (36.0)
 #define TRUCK_LOAD_BAG_RADIUS_SQ (10.0)
 #define TRUCK_LOAD_REAR_RADIUS_SQ (16.0)
@@ -193,6 +194,7 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
     if (overflow) gCleanerDumpOverflow[slot] -= amount;
     else gCleanerDumpBin[slot] -= amount;
     gTruckCargo[bay] += amount;
+    Truck_UpdateCargoLabel(bay);
     CleanerDump_Refresh(slot);
     return true;
 }
@@ -216,12 +218,12 @@ stock TruckLoad_Bin(playerid)
         return SendClientMessage(playerid, COLOR_GREY, "Сначала завершите текущую погрузку.");
     if (!Truck_CanDock(playerid) || !gTruckDockReady[playerid])
         return SendClientMessage(playerid, COLOR_RED,
-            "Остановитесь задним бортом к контейнеру и подтвердите /truckpark.");
+            "Остановитесь задом к контейнеру и нажмите левый ALT для парковки.");
     new slot = Truck_FindContainer(gTruckReservedId[playerid]);
     if (slot < 0) return SendClientMessage(playerid, COLOR_RED, "Контейнер недоступен.");
     if (gCleanerDumpOverflow[slot] > 0)
         return SendClientMessage(playerid, COLOR_RED,
-            "Сначала соберите все мешки с площадки: /truckbag, /truckthrow. Затем контейнер.");
+            "Сначала все мешки: выйдите, ALT у мешка, ALT у кузова. Затем ALT в кабине.");
     if (gCleanerDumpBin[slot] <= 0 ||
         gCleanerDumpObject[slot] == INVALID_OBJECT_ID ||
         !IsValidObject(gCleanerDumpObject[slot]))
@@ -266,7 +268,7 @@ stock TruckLoad_Bag(playerid)
         GetPlayerVirtualWorld(playerid) != 0 || GetPlayerInterior(playerid) != 0 ||
         !TruckLoad_Parked(playerid) || TruckLoad_CurrentBusy(playerid))
         return SendClientMessage(playerid, COLOR_RED,
-            "Сначала припаркуйте мусоровоз, выйдите и подойдите к мешку.");
+            "Припаркуйтесь через ALT, выйдите и нажмите ALT возле мешка.");
     new slot = Truck_FindContainer(gTruckReservedId[playerid]);
     if (slot < 0 || gCleanerDumpOverflow[slot] <= 0)
         return SendClientMessage(playerid, COLOR_GREY, "Мешков возле контейнера нет.");
@@ -295,7 +297,7 @@ stock TruckLoad_Bag(playerid)
         ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.1,
             false, false, false, false, 1100, SYNC_ALL);
         return SendClientMessage(playerid, CLEANER_COLOR,
-            "Мешок в руке. Подойдите к заднему борту и используйте /truckthrow.");
+            "Мешок в руке. Подойдите к заднему борту и нажмите левый ALT.");
     }
     return SendClientMessage(playerid, COLOR_GREY, "Подойдите к видимому мешку.");
 }
@@ -367,8 +369,10 @@ public TruckLoad_Step(playerid, epoch)
         GetVehiclePos(gTruckFleet[bay], x, y, z);
         new Float:angle;
         GetVehicleZAngle(gTruckFleet[bay], angle);
-        x += floatsin(angle, degrees) * 3.2;
-        y -= floatcos(angle, degrees) * 3.2;
+        // Keep the solid dumpster behind the vehicle's rear collider.
+        // Lowering the height is safe only if it no longer crosses the body.
+        x += floatsin(angle, degrees) * TRUCK_REAR_LOAD_OFFSET;
+        y -= floatcos(angle, degrees) * TRUCK_REAR_LOAD_OFFSET;
         // Tip only after reaching safe altitude, above the vehicle collider.
         new travelMs = MoveObject(gCleanerDumpObject[slot], x, y,
             gTruckLoadHighZ[playerid], 1.6, 110.0, 0.0,
@@ -472,6 +476,7 @@ stock TruckLoad_OnVehicleDestroyed(vehicleid)
 stock TruckLoad_HandleKey(playerid)
 {
     if (!gTruckOnShift[playerid] || !gTruckReservedId[playerid]) return 0;
+    if (gTruckLoadPhase[playerid] != TRUCK_PHASE_IDLE) return 1;
     if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
     {
         if (!gTruckDockReady[playerid])
