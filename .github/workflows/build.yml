@@ -121,3 +121,33 @@ jobs:
           path: build/compiler.log
           if-no-files-found: ignore
           retention-days: 3
+
+  mariadb-v12:
+    name: MariaDB 10.11 migration + rollback
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: ci-only-db-password
+          MARIADB_DATABASE: tarkenso_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install MariaDB client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+      - name: Verify v11 to v12 migration and rollback
+        env:
+          MYSQL_PWD: ci-only-db-password
+        run: bash tests/integration_db_optimization_012.sh
