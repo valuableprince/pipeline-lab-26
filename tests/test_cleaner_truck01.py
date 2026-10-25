@@ -18,7 +18,7 @@ class TruckStageOneTests(unittest.TestCase):
     def test_rank_and_specialization(self):
         self.assertIn("if (Cleaner_Rank(playerid) < 2)", TRUCK)
         self.assertIn("if (xp >= 20) return 2;", JOB)
-        self.assertIn("gTruckOnShift[playerid] = true;", TRUCK)
+        self.assertIn("Truck_StartShift(playerid)", TRUCK)
         self.assertIn("Cleaner_OnKeyStateChange(playerid, KEY_WALK, KEY:0)", TRUCK)
 
     def test_order_data_and_location(self):
