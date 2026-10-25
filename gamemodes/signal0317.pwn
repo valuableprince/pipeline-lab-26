@@ -160,6 +160,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "admin_system.inc"
+#include "broadcast_state.inc"
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "economy.inc"
