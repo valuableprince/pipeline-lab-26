@@ -28,6 +28,15 @@ class TruckStageOneTests(unittest.TestCase):
         self.assertIn("gCleanerDumpId[i] != id", TRUCK)
         self.assertIn("TRUCK_MAP_SLOT (74)", TRUCK)
 
+    def test_order_table_and_estimated_pay(self):
+        self.assertIn("DIALOG_STYLE_TABLIST_HEADERS", TRUCK)
+        self.assertIn('Контейнер\\tМесто\\tЗаполнение\\tОплата\\n', TRUCK)
+        self.assertIn('TRUCK_BASE_RATE (10)', TRUCK)
+        self.assertIn('TRUCK_OVERFLOW_RATE (20)', TRUCK)
+        self.assertIn("Truck_EstimatedPay(i)", TRUCK)
+        self.assertIn("gCleanerDumpBin[slot] * TRUCK_BASE_RATE", TRUCK)
+        self.assertIn("gCleanerDumpOverflow[slot] * TRUCK_OVERFLOW_RATE", TRUCK)
+
     def test_encoding(self):
         self.assertEqual(TRUCK, TRUCK.encode("cp1251").decode("cp1251"))
 
