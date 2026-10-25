@@ -41,7 +41,7 @@ new const Float:gSortItemRot[SORT_ITEM_COUNT][4] =
     {-10.0, 0.0, 22.0, 1.00}  // metal wrench
 };
 new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2};
-new const gSortCategoryNames[SORT_CATEGORY_COUNT][12] = {"PAPER", "PLASTIC", "METAL"};
+new const gSortCategoryNames[SORT_CATEGORY_COUNT][12] = {"БУМАГА", "ПЛАСТИК", "МЕТАЛЛ"};
 
 new PlayerText:gSortDraws[MAX_PLAYERS][SORT_TD_TOTAL];
 new bool:gSortOpen[MAX_PLAYERS];
@@ -53,7 +53,7 @@ new Text3D:gSortStationLabel = Text3D:INVALID_3DTEXT_ID;
 stock SortUI_Init()
 {
     gSortStationLabel = Create3DTextLabel(
-        "{F1C263}WASTE SORTING\n{FFFFFF}ALT or /sort",
+        "{F1C263}СОРТИРОВКА ОТХОДОВ\n{FFFFFF}ALT или /sort",
         SORT_COLOR_GOLD, SORT_STATION_X, SORT_STATION_Y,
         SORT_STATION_Z + 1.1, 12.0, 0, false);
     return 1;
@@ -85,7 +85,7 @@ stock bool:SortUI_CanUse(playerid)
 
 // Cyrillic strings compile from UTF-8 sources to CP1251 in the build;
 // rustext v2.0.11 nomemhack handles TextDraw RPC conversion on the server.
-// Category names remain English pending client visual validation.
+// All visible category and status labels use Cyrillic (CP1251 in the build).
 // The server still validates every item and category click.
 // Font 4 treats TextSize as width/height. Unlike font-1 dummy text with
 // near-zero LetterSize Y, this renders a real filled rectangle in stock GTA.
@@ -208,11 +208,11 @@ stock SortUI_Open(playerid)
     SortUI_Rect(playerid, 4, 102.0, 153.0, 214.0, 177.0, 0x10161DF0);
     SortUI_Rect(playerid, 5, 324.0, 153.0, 214.0, 177.0, 0x131920F0);
 
-    SortUI_Add(playerid, 6, 111.0, 158.0, "01 / MATERIALS", 185.0, 16.0,
+    SortUI_Add(playerid, 6, 111.0, 158.0, "01 / ПРЕДМЕТЫ", 185.0, 16.0,
         0.26, 1.15, SORT_COLOR_GOLD);
-    SortUI_Add(playerid, 7, 329.0, 174.0, "02 / DROP ZONE", 185.0, 17.0,
+    SortUI_Add(playerid, 7, 329.0, 174.0, "02 / КАТЕГОРИИ", 185.0, 17.0,
         0.26, 1.15, SORT_COLOR_GOLD);
-    SortUI_Add(playerid, 8, 108.0, 348.0, "ВЫБЕРИТЕ ПРЕДМЕТ И КОНТЕЙНЕР", 421.0, 17.0,
+    SortUI_Add(playerid, 8, 108.0, 348.0, "ВЫБЕРИТЕ ПРЕДМЕТ, ЗАТЕМ КАТЕГОРИЮ", 421.0, 17.0,
         0.22, 1.05, SORT_COLOR_TEXT);
     SortUI_Add(playerid, 9, 484.0, 125.0, "0 / 6", 54.0, 19.0,
         0.30, 1.35, SORT_COLOR_GOLD);
@@ -254,9 +254,9 @@ stock SortUI_Open(playerid)
             gSortCategoryNames[category], 201.0, 33.0,
             0.36, 1.52, SORT_COLOR_TEXT, colour, true);
     }
-    SortUI_Add(playerid, 20, 331.0, 157.0, "PAPER  /  PLASTIC  /  METAL", 207.0, 15.0,
+    SortUI_Add(playerid, 20, 331.0, 157.0, "ВЫБЕРИТЕ КАТЕГОРИЮ", 207.0, 15.0,
         0.19, 0.95, SORT_COLOR_MUTED);
-    SortUI_Add(playerid, 21, 328.0, 330.0, "ESC - EXIT", 200.0, 16.0,
+    SortUI_Add(playerid, 21, 328.0, 330.0, "ESC - ВЫХОД", 200.0, 16.0,
         0.22, 1.0, SORT_COLOR_MUTED);
 
     gSortOpen[playerid] = true;
@@ -265,7 +265,7 @@ stock SortUI_Open(playerid)
     SortUI_Refresh(playerid);
     SelectTextDraw(playerid, SORT_COLOR_GOLD);
     SendClientMessage(playerid, 0xFFFFFFFF,
-        "{33CC33}[Сортировка] {FFFFFF}Выберите элемент, затем нажмите на соответствующую кнопку.");
+        "{33CC33}[Сортировка] {FFFFFF}Выберите предмет, затем выберите категорию.");
     return 1;
 }
 
@@ -301,7 +301,7 @@ stock SortUI_OnClick(playerid, PlayerText:clickedid)
             continue;
         if (gSortCompleted[playerid] & (1 << item)) return 1;
         gSortSelection[playerid] = item;
-        SortUI_Status(playerid, "ПРЕДМЕТ ВЫБРАН - УКАЖИТЕ КОНТЕЙНЕР");
+        SortUI_Status(playerid, "ВЫБЕРИТЕ КАТЕГОРИЮ");
         SortUI_Refresh(playerid);
         return 1;
     }
@@ -329,8 +329,12 @@ stock SortUI_OnClick(playerid, PlayerText:clickedid)
             new message[92];
             format(message, sizeof(message),
                 "Сортировка завершена: 6 предметов, ошибок: %d.", gSortErrors[playerid]);
+            // Sixth correctly sorted item: notify in chat, close the TextDraw
+            // and release cursor selection immediately. SortUI_Close clears
+            // gSortOpen before CancelSelectTextDraw to prevent ESC re-entry.
             SendClientMessage(playerid, CLEANER_COLOR, message);
-            SortUI_Status(playerid, "ГОТОВО! 6 / 6 - НАЖМИТЕ X ИЛИ ESC");
+            SortUI_Close(playerid);
+            return 1;
         }
         else SortUI_Status(playerid, "ВЕРНО! ВЫБЕРИТЕ СЛЕДУЮЩИЙ ПРЕДМЕТ");
         return 1;

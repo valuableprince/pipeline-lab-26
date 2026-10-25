@@ -30,8 +30,8 @@ The plugin converts textdraw/game text CP1251 characters at the outgoing RPC lay
 
 3. The installer fetches only the pinned official archive, verifies its SHA-256, extracts rustext.dll (Windows) or rustext.so (Linux) to the server's plugins directory, then appends rustext to the existing pawn.legacy_plugins list in config.json, retaining preexisting entries such as mysql.
 4. Restart the server and check its startup log for rustext v2.0.11 and the absence of load/init errors. Never place this legacy plugin into components.
-5. At the Fort Carson recycling station use /sort or ALT. Check **СОРТИРОВКА ОТХОДОВ** and the Russian status text (correct, error, selection) with a regular game client. PAPER / PLASTIC / METAL remain English as requested.
-6. Verify a second client/installation. If text appears as incorrect symbols, the rustext default SanLtd mapping may not match that client's font resources. Do not declare Cyrillic fixed until on-client UAT.
+5. At the Fort Carson recycling station use /sort or ALT. Check **СОРТИРОВКА ОТХОДОВ** and the Russian category, hint and status text (correct, error, selection) with a regular game client. Category labels are now Russian: БУМАГА / ПЛАСТИК / МЕТАЛЛ.
+6. Completing the sixth item must immediately hide the panel and restore ordinary mouse controls. Success and error count should remain visible in the chat. Verify a second client/installation. If text appears as incorrect symbols, the rustext default SanLtd mapping may not match that client's font resources. Do not declare Cyrillic fixed until on-client UAT.
 
 The GitHub build converts UTF-8 source .pwn/.inc files to CP1251 before Pawn compilation. Do not remove this step. No database changes are necessary.
 
