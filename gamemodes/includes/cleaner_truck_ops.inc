@@ -118,6 +118,21 @@ stock Truck_ReservedByOther(id, playerid)
     return 0;
 }
 
+// Return the live claimant's player ID, or -1 for an unreserved container.
+// The reservation table stores playerid + 1 (zero means no claimant).
+stock Truck_OrderOwner(id)
+{
+    for (new i = 0; i < CLEANER_DUMP_LIMIT; i++)
+    {
+        if (gTruckClaimId[i] != id || !gTruckClaimOwner[i]) continue;
+        new owner = gTruckClaimOwner[i] - 1;
+        if (owner >= 0 && owner < MAX_PLAYERS && IsPlayerConnected(owner) &&
+            gTruckOnShift[owner] && gTruckReservedId[owner] == id)
+            return owner;
+    }
+    return -1;
+}
+
 stock Truck_FindContainer(id)
 {
     if (!CleanerDump_IsReady() || id <= 0) return -1;
