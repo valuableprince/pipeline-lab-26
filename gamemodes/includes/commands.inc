@@ -65,6 +65,12 @@ cmd:guardstatus(playerid, params[])
     return Guard_ShowStatus(playerid);
 }
 
+// Каталог радиостанций для личного прослушивания вне гоночных событий.
+cmd:play(playerid, params[])
+{
+    return Radio_Open(playerid);
+}
+
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
 {
@@ -86,7 +92,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /mn (/mm, /menu), /story, /position, /hudlogo, /report, /admins.");
+            "Игрок: /mn (/mm, /menu), /story, /position, /play, /hudlogo, /report, /admins.");
         return 1;
     }
     if (!strcmp(category, "jobs", true))
