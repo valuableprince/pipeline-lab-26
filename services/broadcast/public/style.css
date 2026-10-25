@@ -1,0 +1,18 @@
+:root { color-scheme: dark; font-family: system-ui, "Segoe UI", sans-serif; background: #111820; color: #eef3f5; }
+body { margin: 0; padding: 48px 18px; }
+main { width: min(100%, 650px); margin: auto; }
+.kicker { letter-spacing: 0.23em; color: #e7be78; font-size: 0.75rem; font-weight: 750; }
+h1 { font-size: clamp(2rem, 7vw, 3.1rem); margin: 12px 0 20px; }
+p { color: #afbac3; line-height: 1.7; }
+.panel { background: #1a242e; border: 1px solid #32414b; border-radius: 16px; padding: 24px; margin-top: 28px; }
+h2 { margin-top: 0; font-size: 1.2rem; }
+label { display: block; margin-bottom: 10px; }
+input { box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid #536471; border-radius: 8px; color: white; background: #101922; }
+button { cursor: pointer; border: none; border-radius: 8px; background: #f0c784; color: #14212b; font-weight: 700; padding: 12px 18px; margin-top: 14px; }
+button:disabled { cursor: not-allowed; opacity: 0.45; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.actions button { margin-top: 4px; }
+code { color: #efcb8d; }
+.status { border-top: 1px solid #32414b; margin-top: 28px; padding: 18px 0; color: #e7be78; }
+.note { font-size: 0.9rem; }
+[hidden] { display: none !important; }
