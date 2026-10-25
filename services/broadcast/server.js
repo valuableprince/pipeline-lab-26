@@ -163,6 +163,8 @@ const server = http.createServer(async (req, res) => {
     return publicFile(res, 'index.html', 'text/html; charset=utf-8');
   if (req.method === 'GET' && url.pathname === '/app.js')
     return publicFile(res, 'app.js', 'application/javascript; charset=utf-8');
+  if (req.method === 'GET' && url.pathname === '/style.css')
+    return publicFile(res, 'style.css', 'text/css; charset=utf-8');
   if (req.method === 'GET' && url.pathname === '/api/status') {
     if (!authToken(req)) return respond(res, 401, 'Unauthorized');
     return respond(res, 200, JSON.stringify({ live: !!publisher }),
