@@ -169,6 +169,8 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
 #include "admin_tools.inc"
+#include "admin_help.inc"
+#include "admin_tools2.inc"
 #include "commands.inc"
 
 stock bool:Auth_SetAccountName(playerid)

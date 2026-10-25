@@ -38,6 +38,8 @@ new gAdminSpecInterior[MAX_PLAYERS];
 new gAdminSpecWorld[MAX_PLAYERS];
 new gAdminEventMode;
 new gAdminWeather;
+new gAdminClockHour;
+new gAdminClockMinute;
 
 new gReportSerial;
 new gReportNumber[ADMIN_REPORT_LIMIT];
@@ -392,6 +394,8 @@ stock Admin_Init()
     gReportSerial = 0;
     gAdminEventMode = 0;
     gAdminWeather = 9;
+    gAdminClockHour = 3;
+    gAdminClockMinute = 17;
     for (new i = 0; i < ADMIN_REPORT_LIMIT; i++) gReportState[i] = 0;
     return 1;
 }
@@ -468,12 +472,7 @@ stock Admin_ApplyEvent(playerid)
 {
     // Единая серверная погода: сохраняется для следующих спавнов.
     SetPlayerWeather(playerid, gAdminWeather);
-    switch (gAdminEventMode)
-    {
-        case 1: SetPlayerTime(playerid, 3, 17);
-        case 2: SetPlayerTime(playerid, 0, 0);
-        default: SetPlayerTime(playerid, 3, 17);
-    }
+    SetPlayerTime(playerid, gAdminClockHour, gAdminClockMinute);
     return 1;
 }
 
@@ -778,10 +777,10 @@ stock Admin_Execute(playerid, const input[])
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)) ||
             !Admin_UnsignedNumber(arg1) ||
             Admin_Next(input, offset, arg2, sizeof(arg2)))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /weather [0-45].");
+            return AdminHelp_Usage(playerid, "weather");
         new weatherid = strval(arg1);
         if (weatherid > 45)
-            return SendClientMessage(playerid, ADMIN_ERROR, "Допустимый ID погоды: от 0 до 45.");
+            return AdminHelp_Usage(playerid, "weather");
         new detail[24], message[64];
         format(detail, sizeof(detail), "%d", weatherid);
         if (!Admin_LogPlayer(playerid, "WEATHER", detail))
@@ -797,23 +796,29 @@ stock Admin_Execute(playerid, const input[])
     {
         if (!Admin_Require(playerid, PERM_EVENT)) return 1;
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /event fog|night|clear");
+            return AdminHelp_Usage(playerid, "event");
         if (!strcmp(arg1, "fog", true))
         {
             gAdminEventMode = 1;
             gAdminWeather = 20;
+            gAdminClockHour = 3;
+            gAdminClockMinute = 17;
         }
         else if (!strcmp(arg1, "night", true))
         {
             gAdminEventMode = 2;
             gAdminWeather = 9;
+            gAdminClockHour = 0;
+            gAdminClockMinute = 0;
         }
         else if (!strcmp(arg1, "clear", true))
         {
             gAdminEventMode = 0;
             gAdminWeather = 9;
+            gAdminClockHour = 3;
+            gAdminClockMinute = 17;
         }
-        else return SendClientMessage(playerid, ADMIN_ERROR, "Сценарий неизвестен.");
+        else return AdminHelp_Usage(playerid, "event");
         for (new i = 0; i < MAX_PLAYERS; i++)
             if (Admin_Ready(i)) Admin_ApplyEvent(i);
         Admin_LogPlayer(playerid, "EVENT", arg1);
@@ -826,7 +831,7 @@ stock Admin_Execute(playerid, const input[])
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)) ||
             !Admin_Next(input, offset, arg2, sizeof(arg2)) ||
             !Admin_UnsignedNumber(arg1) || !Admin_UnsignedNumber(arg2))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /setadmin ID 0-5 или /setevent ID 0|1.");
+            return AdminHelp_FromSlash(playerid, command);
         new target = strval(arg1), value = strval(arg2);
         if (target < 0 || target >= MAX_PLAYERS || !Admin_Ready(target) || target == playerid ||
             Admin_IsFounderName(gAccountName[target]) ||
@@ -866,7 +871,7 @@ stock Admin_Execute(playerid, const input[])
     {
         if (!Admin_Require(playerid, PERM_BAN_PERMANENT)) return 1;
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /unban nick.");
+            return AdminHelp_Usage(playerid, "unban");
         new name[MAX_PLAYER_NAME], path[92];
         if (!Admin_NormalizeName(arg1, name, sizeof(name)))
             return SendClientMessage(playerid, ADMIN_ERROR, "Недопустимое имя.");
@@ -899,7 +904,7 @@ stock Admin_Execute(playerid, const input[])
             strcmp(command, "/gethere", true) && strcmp(command, "/ban", true);
         if (!Admin_Require(playerid, moderation ? PERM_MODERATE : PERM_BAN_DAY)) return 1;
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)) || !Admin_UnsignedNumber(arg1))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Укажите ID игрока.");
+            return AdminHelp_FromSlash(playerid, command);
         new target = strval(arg1);
         if (!Admin_ValidTarget(playerid, target)) return 1;
         if (!strcmp(command, "/goto", true) || !strcmp(command, "/gethere", true))
@@ -926,12 +931,12 @@ stock Admin_Execute(playerid, const input[])
         if (!strcmp(command, "/mute", true) || !strcmp(command, "/ban", true))
         {
             if (!Admin_Next(input, offset, arg2, sizeof(arg2)) || !Admin_UnsignedNumber(arg2))
-                return SendClientMessage(playerid, ADMIN_ERROR, "Укажите срок в минутах.");
+                return AdminHelp_FromSlash(playerid, command);
             minutes = strval(arg2);
             if (minutes < 0 || minutes > 43200)
-                return SendClientMessage(playerid, ADMIN_ERROR, "Недопустимый срок.");
+                return AdminHelp_FromSlash(playerid, command);
             if (!strcmp(command, "/mute", true) && (minutes < 1 || minutes > 1440))
-                return SendClientMessage(playerid, ADMIN_ERROR, "Mute: от 1 до 1440 минут.");
+                return AdminHelp_Usage(playerid, "mute");
             if (!strcmp(command, "/ban", true))
             {
                 if (minutes == 0 && !Admin_Allowed(playerid, PERM_BAN_PERMANENT))
@@ -941,7 +946,7 @@ stock Admin_Execute(playerid, const input[])
             }
         }
         Admin_Remainder(input, offset, reason, sizeof(reason));
-        if (!reason[0]) return SendClientMessage(playerid, ADMIN_ERROR, "Укажите причину действия.");
+        if (!reason[0]) return AdminHelp_FromSlash(playerid, command);
         new detail[170];
         format(detail, sizeof(detail), "%s: %.90s", gAccountName[target], reason);
         if (!strcmp(command, "/mute", true))
