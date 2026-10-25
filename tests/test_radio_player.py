@@ -37,10 +37,12 @@ class RadioPlayerContractTests(unittest.TestCase):
         self.assertIn('"%d\\t%s\\t%s\\n"', RADIO)
         self.assertIn('i + 1, gRadioNames[i], gRadioCountries[i]', RADIO)
         self.assertIn('"—\\tВыключить радио\\t—"', RADIO)
-        self.assertIn("if (listitem == RADIO_STATION_COUNT)", RADIO)
-        countries = re.search(r"new const gRadioCountries\\[\\]\\[\\] =\\s*\\{(.*?)\\};", RADIO, re.DOTALL)
+        countries = re.search(r"new const gRadioCountries\[\]\[\] =\s*\{(.*?)\};", RADIO, re.DOTALL)
         self.assertIsNotNone(countries)
-        self.assertEqual(len(re.findall(r'^\\s*"[^"]+"\\s*,?\\s*
+        country_names = re.findall(r'^\s*"[^"]+"\s*,?\s*$', countries.group(1), re.MULTILINE)
+        self.assertEqual(len(country_names), 10)
+        for country in ("Россия", "Швейцария", "Германия", "Великобритания", "Нидерланды"):
+            self.assertIn(country, countries.group(1))
         self.assertIn("if (!response) return 1;", RADIO)
         self.assertIn("if (listitem == RADIO_STATION_COUNT)", RADIO)
         self.assertIn("return Radio_Play(playerid, listitem);", RADIO)
