@@ -26,6 +26,9 @@ schema structure in a **local exported v11 dump**, not a live production databas
    an indexed equality predicate; the displayed/original username is untouched.
 2. `municipal_truck_deliveries` gets `idx_mtd_account_completed` on
    `(account_id, completed_at, delivery_id)` for efficient future history.
+   MariaDB can automatically remove the now-redundant implicit
+   `fk_mtd_account` index, which the rollback recreates before dropping
+   the composite index. Foreign-key enforcement remains enabled.
 3. `DBPrimary_Init` requires migration 12 for the new Pawn query.
 4. All finance tables, salaries, contracts, and existing indexes are unchanged.
 
@@ -88,7 +91,8 @@ If either `ALTER TABLE` fails, the migration marker is not written, but an
 earlier `ALTER` may have succeeded. The migration is intentionally fail-closed
 rather than guessing a repair. Keep the server stopped, inspect the schema,
 and run `db/migrations/012_safe_optimization_rollback.sql`. It conditionally
-drops only the two v12 indexes and generated column, then removes only
+restores the original FK-supporting index if MariaDB removed it, drops
+the two v12 indexes and generated column, then removes only
 `schema_migrations.version=12`. Data rows are not removed.
 
 For rollback of a successfully deployed server, **restore the pre-v12 AMX before
