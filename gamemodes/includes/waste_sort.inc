@@ -26,19 +26,19 @@
 // Verified stock GTA SA objects. No downloaded models, TXD or client mods.
 // Paper: magazine pile and cardboard box.
 // Plastic: two separate disposable drink cup models (not glass bottles).
-// Metal: juice can and a cog-shaped marker. Verify the marker in-game.
+// Metal: juice can and a stock metal wrench (gear model pending art validation).
 new const gSortItemModels[SORT_ITEM_COUNT] =
 {
-    2852, 1220, 2647, 1484, 2601, 18631
+    2852, 1220, 2647, 2814, 2601, 18633
 };
 new const Float:gSortItemRot[SORT_ITEM_COUNT][4] =
 {
     {-18.0, 0.0, 110.0, 0.95}, // magazines
     {-10.0, 0.0, 25.0, 1.00},  // cardboard
     {-12.0, 0.0, -12.0, 0.80}, // drink cup
-    {-10.0, 0.0, 18.0, 0.80},  // plastic drink object
+    {-10.0, 0.0, 18.0, 0.80},  // takeaway container
     {-18.0, 0.0, -18.0, 0.75},// juice can
-    {-10.0, 0.0, 22.0, 1.00}  // cog marker
+    {-10.0, 0.0, 22.0, 1.00}  // metal wrench
 };
 new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2};
 new const gSortCategoryNames[SORT_CATEGORY_COUNT][12] = {"PAPER", "PLASTIC", "METAL"};
