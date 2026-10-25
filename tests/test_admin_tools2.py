@@ -86,9 +86,10 @@ class AdminTools02Contract(unittest.TestCase):
                       "gAdminChatClearNext = gettime() + 30"):
             self.assertIn(token, MODULE)
         self.assertIn("SetPlayerTime(playerid, gAdminClockHour, gAdminClockMinute)", ADMIN)
-        self.assertIn("gAdminClockHour = 3;", ADMIN)
-        self.assertIn("gAdminClockMinute = 17;", ADMIN)
+        self.assertIn("gAdminClockAuto = true;", ADMIN)
+        self.assertIn("gettime(gAdminClockHour, gAdminClockMinute, second)", ADMIN)
         self.assertIn("gAdminClockHour = 0;", ADMIN)
+        self.assertIn('!strcmp(params, "auto", true)', MODULE)
 
     def test_cp1251_source_compatibility(self):
         for file in (CMDS, MODULE, HELP, ADMIN, GAME):
