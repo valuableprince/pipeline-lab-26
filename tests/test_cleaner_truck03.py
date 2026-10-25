@@ -61,6 +61,35 @@ class JobTruckStageThree(unittest.TestCase):
             self.assertIn(f"cmd:{name}(playerid, params[])", CMDS)
         self.assertIn("TruckLoad_HandleKey(playerid)", TRUCK)
 
+    def test_driver_can_switch_to_other_free_municipal_truck(self):
+        self.assertIn("stock bool:Truck_SelectVehicle(playerid, bay)", OPS)
+        self.assertIn("gTruckBayOwner[bay] != playerid + 1", OPS)
+        self.assertIn("TruckLoad_CurrentBusy(playerid)", OPS)
+        self.assertIn("gTruckBayOwner[oldBay] = 0;", OPS)
+        self.assertIn("gTruckVehicle[playerid] = gTruckFleet[bay];", OPS)
+        self.assertIn("(!ispassenger && !Truck_SelectVehicle(playerid, bay))", OPS)
+        self.assertIn("!Truck_SelectVehicle(playerid, bay)", OPS)
+        self.assertIn("!TruckLoad_CurrentBusy(playerid)", OPS)
+
+    def test_loading_clears_truck_before_crossing_and_returns_high(self):
+        self.assertIn("TRUCK_HIGH_CLEARANCE (5.5)", LOAD)
+        self.assertIn("TRUCK_PHASE_LOWER (6)", LOAD)
+        self.assertIn("gTruckLoadHighZ[playerid] = tz + TRUCK_HIGH_CLEARANCE;", LOAD)
+        self.assertIn("gTruckLoadHighZ[playerid], 1.6, 110.0", LOAD)
+        self.assertIn("gTruckLoadHighZ[playerid],", LOAD)
+        self.assertIn("if (phase == TRUCK_PHASE_LOWER)", LOAD)
+        self.assertNotIn("MoveObject(gCleanerDumpObject[slot], x, y, z + 2.1", LOAD)
+
+    def test_inflight_commit_does_not_recheck_exact_park_position(self):
+        self.assertIn("stock bool:TruckLoad_ValidSession(playerid)", LOAD)
+        self.assertIn("TRUCK_LOAD_MAX_DRIFT_SQ (36.0)", LOAD)
+        commit = LOAD.split("stock bool:TruckLoad_Commit(", 1)[1].split(
+            "stock TruckLoad_FinishIfEmpty(", 1)[0]
+        self.assertIn("!TruckLoad_ValidSession(playerid)", commit)
+        self.assertNotIn("!TruckLoad_Parked(playerid)", commit)
+        self.assertIn("epoch != gTruckLoadEpoch[playerid]", LOAD)
+        self.assertNotIn("Погрузка отменена: данные контейнера изменились.", LOAD)
+
     def test_file_encoding(self):
         for text in (OPS,LOAD,CMDS,MAIN,TRUCK):
             self.assertEqual(text.encode("cp1251").decode("cp1251"), text)
