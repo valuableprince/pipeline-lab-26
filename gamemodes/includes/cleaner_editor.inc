@@ -11,7 +11,6 @@
 #define CLEANER_EDITOR_CONFIRM_DELETE (6344)
 #define CLEANER_EDITOR_NO_OWNER (65535)
 
-new gCleanerEditorOwner = CLEANER_EDITOR_NO_OWNER;
 new gCleanerEditorSlot = -1;
 new bool:gCleanerEditorNew;
 new gCleanerEditorStage; // 0 idle, 1 bin edit, 2 bag edit, 3 waiting
