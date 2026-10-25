@@ -43,6 +43,10 @@ forward TruckLoad_Notice(playerid);
 forward bool:TruckLoad_CurrentBusy(playerid);
 forward TruckLoad_OnTick(playerid);
 forward TruckLoad_OnVehicleDestroyed(vehicleid);
+forward Truck_UpdateCargoLabel(bay);
+
+// Persistence globals/functions must precede truck assignment and cargo checks.
+#include "cleaner_truck_persist.inc"
 
 // These labels follow fleet vehicles, including while moving.
 stock Truck_UpdateCargoLabel(bay)
@@ -314,8 +318,6 @@ stock Truck_FleetBay(vehicleid)
     return -1;
 }
 
-// Durable cargo and one-time delivery payments precede animation handlers.
-#include "cleaner_truck_persist.inc"
 // Loading declarations must precede Tick and vehicle callbacks.
 #include "cleaner_truck_loading.inc"
 
