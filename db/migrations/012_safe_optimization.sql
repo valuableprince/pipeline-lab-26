@@ -51,7 +51,8 @@ BEGIN
         ADD UNIQUE KEY uq_bans_username_key (username_key);
 
     -- Forward-compatible efficient per-player delivery history queries.
-    -- Keep the existing foreign-key-supporting index (no destructive DDL).
+    -- MariaDB may replace the implicit FK index with this composite index;
+    -- the companion rollback explicitly restores fk_mtd_account first.
     ALTER TABLE municipal_truck_deliveries
         ADD INDEX idx_mtd_account_completed (account_id,completed_at,delivery_id);
 
