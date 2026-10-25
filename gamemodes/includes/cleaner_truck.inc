@@ -3,8 +3,8 @@
 #endif
 #define _tarkenso_cleaner_truck_included
 
-// JOB-TRUCK-01: выбор специализации и живой перечень заказов по контейнерам.
-// Рейсы, машины и анимация загрузки будут внедрены отдельными этапами.
+// JOB-TRUCK-01/02: профессия, GPS, служебный Trashmaster, бронь и задняя парковка.
+// Опрокидывание и оплата относятся к JOB-TRUCK-03/04.
 #define TRUCK_DLG_DEPOT (6680)
 #define TRUCK_DLG_ORDERS (6681)
 #define TRUCK_DLG_INFO (6682)
@@ -19,14 +19,12 @@ new gTruckDialogContainer[MAX_PLAYERS][CLEANER_DUMP_LIMIT];
 new gTruckDialogCount[MAX_PLAYERS];
 new bool:gTruckMapMarked[MAX_PLAYERS];
 
+// State and operations are available before the dialog/key handlers below.
+#include "cleaner_truck_ops.inc"
+
 stock Truck_Reset(playerid)
 {
-    gTruckOnShift[playerid] = false;
-    gTruckDialogCount[playerid] = 0;
-    if (IsPlayerConnected(playerid) && gTruckMapMarked[playerid])
-        RemovePlayerMapIcon(playerid, TRUCK_MAP_SLOT);
-    gTruckMapMarked[playerid] = false;
-    return 1;
+    return Truck_StopShift(playerid);
 }
 
 // Координатная классификация: ограниченные области, вне их — общий регион.
@@ -62,8 +60,15 @@ stock Truck_ShowDepot(playerid)
 
 stock Truck_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
-    if (!(newkeys & KEY_WALK) || (oldkeys & KEY_WALK) ||
-        GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
+    if (!(newkeys & KEY_WALK) || (oldkeys & KEY_WALK)) return 0;
+    if (gTruckOnShift[playerid] && GetPlayerState(playerid) == PLAYER_STATE_DRIVER &&
+        GetPlayerVehicleID(playerid) == gTruckVehicle[playerid] &&
+        gTruckReservedId[playerid])
+    {
+        Truck_ParkCommand(playerid);
+        return 1;
+    }
+    if (GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         !Cleaner_NearDepot(playerid)) return 0;
     if (gCleanerLastInteract[playerid] &&
         GetTickCount() - gCleanerLastInteract[playerid] < 750) return 1;
@@ -92,7 +97,7 @@ stock Truck_ShowOrders(playerid)
     {
         if (!gCleanerDumpEnabled[i]) continue;
         total = gCleanerDumpBin[i] + gCleanerDumpOverflow[i];
-        if (total < TRUCK_ORDER_THRESHOLD) continue;
+        if (total < TRUCK_ORDER_THRESHOLD || Truck_ReservedByOther(gCleanerDumpId[i], playerid)) continue;
         Truck_LocationName(gCleanerDumpPos[i][0], gCleanerDumpPos[i][1],
             location, sizeof(location));
         format(line, sizeof(line), "#%d\t%s\t%d/100\t$%d\n",
@@ -103,7 +108,7 @@ stock Truck_ShowOrders(playerid)
     if (!gTruckDialogCount[playerid])
         return SendClientMessage(playerid, COLOR_GREY, "Активных заказов пока нет.");
     return ShowPlayerDialog(playerid, TRUCK_DLG_ORDERS, DIALOG_STYLE_TABLIST_HEADERS,
-        "Активные заказы", body, "На карту", "Назад");
+        "Активные заказы", body, "Принять", "Назад");
 }
 
 stock Truck_OnDialog(playerid, dialogid, response, listitem)
@@ -116,7 +121,7 @@ stock Truck_OnDialog(playerid, dialogid, response, listitem)
         {
             if (listitem == 0)
             {
-                Truck_Reset(playerid);
+                Truck_StopShift(playerid);
                 SendClientMessage(playerid, CLEANER_COLOR, "Смена водителя завершена.");
             }
             return 1;
@@ -148,9 +153,11 @@ stock Truck_OnDialog(playerid, dialogid, response, listitem)
             if (!CleanerDump_IsReady())
                 return SendClientMessage(playerid, COLOR_RED,
                     "База контейнеров недоступна.");
-            gTruckOnShift[playerid] = true;
+            if (!Truck_StartShift(playerid))
+                return SendClientMessage(playerid, COLOR_RED,
+                    "Нет свободного служебного мусоровоза. Попробуйте позднее.");
             SendClientMessage(playerid, CLEANER_COLOR,
-                "Вы назначены водителем. /orders - активные заказы.");
+                "Вы водитель. Trashmaster на стоянке. /orders - заказы, /truckveh - машина.");
         }
         return 1;
     }
@@ -159,21 +166,7 @@ stock Truck_OnDialog(playerid, dialogid, response, listitem)
         if (!response || !gTruckOnShift[playerid]) return 1;
         if (listitem < 0 || listitem >= gTruckDialogCount[playerid]) return 1;
         new id = gTruckDialogContainer[playerid][listitem];
-        for (new i = 0; i < gCleanerDumpCount; i++)
-        {
-            if (gCleanerDumpId[i] != id || !gCleanerDumpEnabled[i]) continue;
-            if (gCleanerDumpBin[i] + gCleanerDumpOverflow[i] < TRUCK_ORDER_THRESHOLD)
-                return SendClientMessage(playerid, COLOR_GREY, "Заказ больше не актуален.");
-            if (gTruckMapMarked[playerid]) RemovePlayerMapIcon(playerid, TRUCK_MAP_SLOT);
-            SetPlayerMapIcon(playerid, TRUCK_MAP_SLOT,
-                gCleanerDumpPos[i][0], gCleanerDumpPos[i][1], gCleanerDumpPos[i][2],
-                0, TRUCK_MAP_COLOR, MAPICON_LOCAL);
-            gTruckMapMarked[playerid] = true;
-            SendClientMessage(playerid, CLEANER_COLOR,
-                "Контейнер отмечен на карте. Перевозка будет доступна в JOB-TRUCK-02.");
-            return 1;
-        }
-        return SendClientMessage(playerid, COLOR_GREY, "Контейнер удалён или недоступен.");
+        return Truck_ClaimOrder(playerid, id);
     }
     return 0;
 }

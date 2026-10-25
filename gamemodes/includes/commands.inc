@@ -164,6 +164,21 @@ cmd:orders(playerid, params[])
     return Truck_ShowOrders(playerid);
 }
 
+cmd:truckpark(playerid, params[])
+{
+    return Truck_ParkCommand(playerid);
+}
+
+cmd:truckcancel(playerid, params[])
+{
+    return Truck_CancelCommand(playerid);
+}
+
+cmd:truckveh(playerid, params[])
+{
+    return Truck_VehicleCommand(playerid);
+}
+
 cmd:hudlogo(playerid, params[])
 {
     if (OrvelarHUD_Toggle(playerid))

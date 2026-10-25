@@ -18,14 +18,14 @@ class TruckStageOneTests(unittest.TestCase):
     def test_rank_and_specialization(self):
         self.assertIn("if (Cleaner_Rank(playerid) < 2)", TRUCK)
         self.assertIn("if (xp >= 20) return 2;", JOB)
-        self.assertIn("gTruckOnShift[playerid] = true;", TRUCK)
+        self.assertIn("Truck_StartShift(playerid)", TRUCK)
         self.assertIn("Cleaner_OnKeyStateChange(playerid, KEY_WALK, KEY:0)", TRUCK)
 
     def test_order_data_and_location(self):
         for token in ("gCleanerDumpId[i]", "gCleanerDumpPos[i][0]", "gCleanerDumpBin[i] + gCleanerDumpOverflow[i]", "Truck_LocationName(", "TRUCK_ORDER_THRESHOLD (60)", "Fort Carson", "Las Payasadas"):
             self.assertIn(token, TRUCK)
         self.assertIn("gTruckDialogContainer[playerid][gTruckDialogCount[playerid]++] = gCleanerDumpId[i];", TRUCK)
-        self.assertIn("gCleanerDumpId[i] != id", TRUCK)
+        self.assertIn("Truck_ClaimOrder(playerid, id)", TRUCK)
         self.assertIn("TRUCK_MAP_SLOT (74)", TRUCK)
 
     def test_order_table_and_estimated_pay(self):
