@@ -27,7 +27,7 @@ class PawnCmdMigrationTests(unittest.TestCase):
         names = re.findall(r"^cmd:([a-z]+)\(playerid, params\[\]\)", COMMANDS, re.MULTILINE)
         expected = set(("help story position hudlogo report admins admin aduty a reports "
                         "accept areply close spec warn mute kick freeze goto gethere "
-                        "ban unban setadmin setevent event alog founder").split())
+                        "ban unban setadmin setevent event weather alog founder").split())
         expected.update(("leaders fmenu leader fstats fchat finvite faccept "
                          "funinvite frank fleave setleader unleader renewleader").split())
         expected.update(("trashdrop trashservice cleanstats guardstatus npcroute studio zoneedit nset tpcor").split())

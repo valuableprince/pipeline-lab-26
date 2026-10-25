@@ -19,7 +19,7 @@ class AuthUiContractTest(unittest.TestCase):
             "DIALOG_STYLE_MSGBOX", "AuthDialog_Intro(", "AuthDialog_Register(",
             "AuthDialog_Confirm(", "AuthDialog_Background(", "AuthDialog_Login(",
             "AuthDialog_Success(", "С возвращением!", "АККАУНТ СОЗДАН",
-            "OPENMP SERVER", "{3B82F6}", "{34D399}", "{EF4444}",
+            "Tarkenso RPG", "{3B82F6}", "{34D399}", "{EF4444}",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, DIALOGS)

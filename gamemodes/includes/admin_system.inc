@@ -37,6 +37,7 @@ new Float:gAdminSpecPos[MAX_PLAYERS][3];
 new gAdminSpecInterior[MAX_PLAYERS];
 new gAdminSpecWorld[MAX_PLAYERS];
 new gAdminEventMode;
+new gAdminWeather;
 
 new gReportSerial;
 new gReportNumber[ADMIN_REPORT_LIMIT];
@@ -390,6 +391,7 @@ stock Admin_Init()
     fcreatedir(BAN_DIRECTORY);
     gReportSerial = 0;
     gAdminEventMode = 0;
+    gAdminWeather = 9;
     for (new i = 0; i < ADMIN_REPORT_LIMIT; i++) gReportState[i] = 0;
     return 1;
 }
@@ -464,23 +466,13 @@ stock Admin_OnDisconnect(playerid)
 
 stock Admin_ApplyEvent(playerid)
 {
+    // Единая серверная погода: сохраняется для следующих спавнов.
+    SetPlayerWeather(playerid, gAdminWeather);
     switch (gAdminEventMode)
     {
-        case 1:
-        {
-            SetPlayerWeather(playerid, 20);
-            SetPlayerTime(playerid, 3, 17);
-        }
-        case 2:
-        {
-            SetPlayerWeather(playerid, 9);
-            SetPlayerTime(playerid, 0, 0);
-        }
-        default:
-        {
-            SetPlayerWeather(playerid, 9);
-            SetPlayerTime(playerid, 3, 17);
-        }
+        case 1: SetPlayerTime(playerid, 3, 17);
+        case 2: SetPlayerTime(playerid, 0, 0);
+        default: SetPlayerTime(playerid, 3, 17);
     }
     return 1;
 }
@@ -653,7 +645,7 @@ stock Admin_Execute(playerid, const input[])
     if (!strcmp(command, "/founder", true))
     {
         if (!Admin_IsFounder(playerid))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Команда зарезервирована для основателя TARKENSO.");
+            return SendClientMessage(playerid, ADMIN_ERROR, "Команда зарезервирована для основателя Tarkenso.");
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)))
         {
             new online, staff, line[120];
@@ -663,7 +655,7 @@ stock Admin_Execute(playerid, const input[])
                 online++;
                 if (gAdminLevel[i] > 0) staff++;
             }
-            format(line, sizeof(line), "TARKENSO | VEYRAN (FOUNDER) | Онлайн: %d | Администрация: %d.", online, staff);
+            format(line, sizeof(line), "Tarkenso RPG | VEYRAN (FOUNDER) | Онлайн: %d | Администрация: %d.", online, staff);
             SendClientMessage(playerid, ADMIN_OK, line);
             return SendClientMessage(playerid, ADMIN_COLOR, "Команда: /founder announce текст (только в Duty).");
         }
@@ -677,7 +669,7 @@ stock Admin_Execute(playerid, const input[])
         if (!Admin_LogPlayer(playerid, "FOUNDER_ANNOUNCE", reason))
             return SendClientMessage(playerid, ADMIN_ERROR, "Журнал недоступен. Объявление отменено.");
         new line[160];
-        format(line, sizeof(line), "[TARKENSO | FOUNDER VEYRAN] %s", reason);
+        format(line, sizeof(line), "[Tarkenso RPG | FOUNDER VEYRAN] %s", reason);
         SendClientMessageToAll(ADMIN_OK, line);
         return 1;
     }
@@ -780,14 +772,47 @@ stock Admin_Execute(playerid, const input[])
         return 1;
     }
 
+    if (!strcmp(command, "/weather", true))
+    {
+        if (!Admin_Require(playerid, PERM_MODERATE)) return 1;
+        if (!Admin_Next(input, offset, arg1, sizeof(arg1)) ||
+            !Admin_UnsignedNumber(arg1) ||
+            Admin_Next(input, offset, arg2, sizeof(arg2)))
+            return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /weather [0-45].");
+        new weatherid = strval(arg1);
+        if (weatherid > 45)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Допустимый ID погоды: от 0 до 45.");
+        new detail[24], message[64];
+        format(detail, sizeof(detail), "%d", weatherid);
+        if (!Admin_LogPlayer(playerid, "WEATHER", detail))
+            return SendClientMessage(playerid, ADMIN_ERROR, "Журнал недоступен. Погода не изменена.");
+        gAdminWeather = weatherid;
+        for (new i = 0; i < MAX_PLAYERS; i++)
+            if (Admin_Ready(i)) Admin_ApplyEvent(i);
+        format(message, sizeof(message), "Погода на сервере изменена: ID %d.", weatherid);
+        return SendClientMessage(playerid, ADMIN_OK, message);
+    }
+
     if (!strcmp(command, "/event", true))
     {
         if (!Admin_Require(playerid, PERM_EVENT)) return 1;
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)))
             return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /event fog|night|clear");
-        if (!strcmp(arg1, "fog", true)) gAdminEventMode = 1;
-        else if (!strcmp(arg1, "night", true)) gAdminEventMode = 2;
-        else if (!strcmp(arg1, "clear", true)) gAdminEventMode = 0;
+        if (!strcmp(arg1, "fog", true))
+        {
+            gAdminEventMode = 1;
+            gAdminWeather = 20;
+        }
+        else if (!strcmp(arg1, "night", true))
+        {
+            gAdminEventMode = 2;
+            gAdminWeather = 9;
+        }
+        else if (!strcmp(arg1, "clear", true))
+        {
+            gAdminEventMode = 0;
+            gAdminWeather = 9;
+        }
         else return SendClientMessage(playerid, ADMIN_ERROR, "Сценарий неизвестен.");
         for (new i = 0; i < MAX_PLAYERS; i++)
             if (Admin_Ready(i)) Admin_ApplyEvent(i);

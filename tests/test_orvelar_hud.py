@@ -23,7 +23,7 @@ class OrvelarHudTest(unittest.TestCase):
 
     def test_three_parts_and_toggle(self):
         for token in (
-            '"O"', '"/"', '"ORVELAR"',
+            '"O"', '"/"', '"Tarkenso"',
             "TextDrawCreate(", "TextDrawShowForPlayer(",
             "TextDrawHideForPlayer(", "TextDrawDestroy(",
             "gOrvelarHudVisible[MAX_PLAYERS]", "OrvelarHUD_Toggle",

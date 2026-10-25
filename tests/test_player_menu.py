@@ -16,6 +16,8 @@ class PlayerMenuContracts(unittest.TestCase):
             self.assertIn(f"cmd:{alias}(playerid, params[])\n{{\n    return PlayerMenu_Open(playerid);", CMDS)
         self.assertNotIn("cmd:level(", CMDS)
         self.assertIn("Статистика персонажа", MENU)
+        self.assertIn('"Статистика персонажа", body, "Назад", "Закрыть"', MENU)
+        self.assertNotIn("TARKENSO | Статистика персонажа", MENU)
 
     def test_player_stats_use_real_sql_account_identity(self):
         self.assertIn("gDBPrimaryAccountId[playerid]", MENU)

@@ -63,7 +63,7 @@ cmd:help(playerid, params[])
     if (isnull(params))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "TARKENSO | /help player, /help jobs, /help race, /help factions.");
+            "Tarkenso RPG | /help player, /help jobs, /help race, /help factions.");
         if (gAdminLevel[playerid] > 0)
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Администрация: /help admin.");
@@ -113,7 +113,7 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, ADMIN_COLOR,
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Прочее: /veh модель [цвета], /veh del ID, /delveh ID, /spec, /goto, /event.");
+            "Прочее: /veh модель [цвета], /delveh ID, /spec, /goto, /weather, /event.");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
@@ -124,7 +124,7 @@ cmd:help(playerid, params[])
         if (!Admin_IsFounder(playerid))
             return SendClientMessage(playerid, ADMIN_ERROR, "Studio доступна только основателю.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "TARKENSO Studio: включите /aduty и откройте /studio.");
+            "Tarkenso Studio: включите /aduty и откройте /studio.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
             "/studio zones|status|help — редактор зон.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
@@ -153,9 +153,9 @@ cmd:cleanstats(playerid, params[])
 cmd:hudlogo(playerid, params[])
 {
     if (OrvelarHUD_Toggle(playerid))
-        SendClientMessage(playerid, COLOR_AMBER, "Логотип ORVELAR включён.");
+        SendClientMessage(playerid, COLOR_AMBER, "Логотип Tarkenso включён.");
     else
-        SendClientMessage(playerid, COLOR_GREY, "Логотип ORVELAR скрыт.");
+        SendClientMessage(playerid, COLOR_GREY, "Логотип Tarkenso скрыт.");
     return 1;
 }
 
@@ -297,6 +297,11 @@ cmd:spec(playerid, params[])
 cmd:event(playerid, params[])
 {
     return Command_ExecuteAdmin(playerid, "event", params);
+}
+
+cmd:weather(playerid, params[])
+{
+    return Command_ExecuteAdmin(playerid, "weather", params);
 }
 
 cmd:unban(playerid, params[])

@@ -12,7 +12,7 @@ stock PlayerMenu_Open(playerid)
 {
     if (gAuthState[playerid] != AUTH_READY) return 1;
     ShowPlayerDialog(playerid, PLAYER_MENU_MAIN, DIALOG_STYLE_LIST,
-        "TARKENSO | Меню персонажа",
+        "Tarkenso RPG | Меню персонажа",
         "1. Статистика персонажа",
         "Открыть", "Закрыть");
     return 1;
@@ -46,7 +46,7 @@ stock PlayerMenu_Statistics(playerid)
         gAccountName[playerid], level, experience, registration,
         gDBPrimaryAccountId[playerid]);
     ShowPlayerDialog(playerid, PLAYER_MENU_STATS, DIALOG_STYLE_MSGBOX,
-        "TARKENSO | Статистика персонажа", body, "Назад", "Закрыть");
+        "Статистика персонажа", body, "Назад", "Закрыть");
     return 1;
 #else
     return SendClientMessage(playerid, COLOR_RED,

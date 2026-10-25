@@ -74,6 +74,12 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
+          python3 -m unittest discover -s tests -p 'test_admin_weather.py' -v
+          python3 -m unittest discover -s tests -p 'test_admin_system.py' -v
+          python3 -m unittest discover -s tests -p 'test_command_router.py' -v
+          python3 -m unittest discover -s tests -p 'test_auth_ui.py' -v
+          python3 -m unittest discover -s tests -p 'test_orvelar_hud.py' -v
+          python3 -m unittest discover -s tests -p 'test_server_console_encoding.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 

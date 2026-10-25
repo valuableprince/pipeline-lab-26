@@ -55,7 +55,7 @@ class AdminContractTests(unittest.TestCase):
         for cmd in ("/report", "/admins", "/aduty", "/admin", "/a", "/reports",
                     "/accept", "/areply", "/close", "/spec", "/warn", "/mute",
                     "/kick", "/freeze", "/goto", "/gethere", "/ban", "/unban",
-                    "/setadmin", "/setevent", "/event", "/alog"):
+                    "/setadmin", "/setevent", "/event", "/weather", "/alog"):
             self.assertIn('"' + cmd + '"', ADMIN)
             self.assertIn("cmd:" + cmd.lstrip("/") + "(", COMMANDS)
         self.assertIn("ADMIN_REPORT_COOLDOWN", ADMIN)
