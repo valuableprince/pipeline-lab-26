@@ -151,7 +151,10 @@ stock bool:TruckPersist_AddCargo(playerid, slot, bool:overflow, amount)
             current - amount, gCleanerDumpId[slot], gCleanerDumpBin[slot],
             gCleanerDumpOverflow[slot]);
     if (!DBPrimary_Execute(sql, affected) || affected != 1)
-        return TruckPersist_Rollback(), false;
+    {
+        TruckPersist_Rollback();
+        return false;
+    }
 
     mysql_format(gDBPrimary, sql, sizeof(sql),
         "UPDATE municipal_truck_cargo SET account_id=%d,cargo_units=cargo_units+%d,pending_pay=pending_pay+%d,pending_xp=pending_xp+%d,revision=revision+1 WHERE bay_id=%d AND revision=%d AND cargo_units=%d AND (account_id IS NULL OR account_id=%d) AND cargo_units+%d<=%d",
@@ -159,9 +162,15 @@ stock bool:TruckPersist_AddCargo(playerid, slot, bool:overflow, amount)
         gTruckCargoRevision[bay], gTruckCargo[bay], gDBPrimaryAccountId[playerid],
         amount, TRUCK_CARGO_CAP);
     if (!DBPrimary_Execute(sql, affected) || affected != 1)
-        return TruckPersist_Rollback(), false;
+    {
+        TruckPersist_Rollback();
+        return false;
+    }
     if (!DBPrimary_Execute("COMMIT", affected))
-        return TruckPersist_Rollback(), false;
+    {
+        TruckPersist_Rollback();
+        return false;
+    }
 
     gTruckCargo[bay] += amount;
     gTruckCargoPay[bay] += pay;
