@@ -174,6 +174,8 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
         return false;
     }
     gTruckLoadError[playerid] = 0;
+    if (bay >= 0 && bay < TRUCK_BAYS && gTruckCargo[bay] >= TRUCK_CARGO_CAP)
+        TruckPersist_ReturnGPS(playerid);
     return true;
 }
 
@@ -458,15 +460,14 @@ stock TruckLoad_HandleKey(playerid)
     if (gTruckLoadPhase[playerid] != TRUCK_PHASE_IDLE) return 1;
     if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
     {
-        // After the last container is emptied the booking is released. At the
-        // municipal yard the same ALT settles cargo and pay exactly once.
-        if (!gTruckReservedId[playerid])
-        {
-            new bay = gTruckBay[playerid];
-            if (bay >= 0 && bay < TRUCK_BAYS && gTruckCargo[bay] > 0)
-                return TruckPersist_Unload(playerid);
-            return 0;
-        }
+        new bay = gTruckBay[playerid];
+        // An in-progress order may be too big for the remaining truck space.
+        // ALT at the yard must unload partial runs without cancelling bookings.
+        if (bay >= 0 && bay < TRUCK_BAYS && gTruckCargo[bay] > 0 &&
+            TruckPersist_NearDepot(playerid) &&
+            (!gTruckReservedId[playerid] || !Truck_CanDock(playerid)))
+            return TruckPersist_Unload(playerid);
+        if (!gTruckReservedId[playerid]) return 0;
         if (!gTruckDockReady[playerid])
             return Truck_ParkCommand(playerid);
         return TruckLoad_Bin(playerid);
