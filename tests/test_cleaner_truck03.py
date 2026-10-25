@@ -72,7 +72,7 @@ class JobTruckStageThree(unittest.TestCase):
         self.assertIn("!TruckLoad_CurrentBusy(playerid)", OPS)
 
     def test_loading_clears_truck_before_crossing_and_returns_high(self):
-        self.assertIn("TRUCK_HIGH_CLEARANCE (5.5)", LOAD)
+        self.assertIn("TRUCK_HIGH_CLEARANCE (4.0)", LOAD)
         self.assertIn("TRUCK_PHASE_LOWER (6)", LOAD)
         self.assertIn("gTruckLoadHighZ[playerid] = tz + TRUCK_HIGH_CLEARANCE;", LOAD)
         self.assertIn("gTruckLoadHighZ[playerid], 1.6, 110.0", LOAD)
