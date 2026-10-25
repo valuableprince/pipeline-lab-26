@@ -181,7 +181,6 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "db_world.inc"
 #include "cleaner_container.inc"
 #include "cleaner_truck.inc"
-#include "cleaner_truck_ops.inc"
 #include "cleaner_editor.inc"
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
