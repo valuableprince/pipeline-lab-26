@@ -101,6 +101,8 @@ cmd:help(playerid, params[])
             "Работы: левый ALT у диспетчера — сборщик или водитель (со 2 ранга).");
         SendClientMessage(playerid, CLEANER_COLOR,
             "/trashdrop — сдать мусор у контейнера, /cleanstats — статистика.");
+        SendClientMessage(playerid, CLEANER_COLOR,
+            "/sort — сортировка отходов у станции на муниципальной базе (во время смены).");
         return 1;
     }
     if (!strcmp(category, "race", true))
@@ -153,6 +155,12 @@ cmd:help(playerid, params[])
 cmd:trashdrop(playerid, params[])
 {
     return Cleaner_Deposit(playerid);
+}
+
+// Native PlayerTextDraw sorting station. Also opens with left ALT nearby.
+cmd:sort(playerid, params[])
+{
+    return SortUI_Command(playerid);
 }
 
 cmd:trashservice(playerid, params[])
