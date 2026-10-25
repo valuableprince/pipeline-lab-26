@@ -34,7 +34,7 @@ class MunicipalAltCargoTests(unittest.TestCase):
         self.assertIn("Truck_UpdateCargoLabel(bay);", PERSIST)
         # SQL success must precede any visible cargo credit.
         self.assertLess(PERSIST.index("if (!DBPrimary_Execute(\"COMMIT\", affected))"), PERSIST.index("gTruckCargo[bay] += amount;"))
-        self.assertLess(LOAD.index("gTruckCargo[bay] += amount;"), PERSIST.index("Truck_UpdateCargoLabel(bay);"))
+        self.assertLess(PERSIST.index("gTruckCargo[bay] += amount;"), PERSIST.index("Truck_UpdateCargoLabel(bay);"))
 
     def test_shorter_lift_and_rear_position(self):
         self.assertIn("TRUCK_HIGH_CLEARANCE (3.0)", LOAD)
