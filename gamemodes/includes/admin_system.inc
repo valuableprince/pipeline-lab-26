@@ -39,6 +39,10 @@ new gAdminSpecWorld[MAX_PLAYERS];
 new gAdminWeather;
 new gAdminClockHour;
 new gAdminClockMinute;
+new bool:gAdminClockAuto;
+new gAdminClockTimer;
+#define ADMIN_CLOCK_SYNC_MS (15000)
+forward Admin_ClockTick();
 
 new gReportSerial;
 new gReportNumber[ADMIN_REPORT_LIMIT];
@@ -391,9 +395,12 @@ stock Admin_Init()
     fcreatedir(ADMIN_DIRECTORY);
     fcreatedir(BAN_DIRECTORY);
     gReportSerial = 0;
-    gAdminWeather = 9;
-    gAdminClockHour = 3;
-    gAdminClockMinute = 17;
+    gAdminWeather = 9; // Default ordinary weather; /weather may override.
+    gAdminClockAuto = true;
+    new second;
+    gettime(gAdminClockHour, gAdminClockMinute, second);
+    gAdminClockTimer = SetTimer("Admin_ClockTick", ADMIN_CLOCK_SYNC_MS, true);
+    if (!gAdminClockTimer) print("[CLOCK] ERROR: real-time synchronization timer unavailable.");
     for (new i = 0; i < ADMIN_REPORT_LIMIT; i++) gReportState[i] = 0;
     return 1;
 }
@@ -466,9 +473,38 @@ stock Admin_OnDisconnect(playerid)
     return 1;
 }
 
+// Server OS local clock is authoritative in auto mode. Never derive time
+// from a player's GTA clock: it can run faster than real-world minutes.
+stock Admin_ClockRefresh()
+{
+    if (gAdminClockAuto)
+    {
+        new second;
+        gettime(gAdminClockHour, gAdminClockMinute, second);
+    }
+    return 1;
+}
+
+public Admin_ClockTick()
+{
+    Admin_ClockRefresh();
+    for (new i = 0; i < MAX_PLAYERS; i++)
+        if (Admin_Ready(i)) SetPlayerTime(i, gAdminClockHour, gAdminClockMinute);
+    return 1;
+}
+
+stock Admin_ClockShutdown()
+{
+    if (gAdminClockTimer) KillTimer(gAdminClockTimer);
+    gAdminClockTimer = 0;
+    return 1;
+}
+
 stock Admin_ApplyEvent(playerid)
 {
-    // Единая серверная погода: сохраняется для следующих спавнов.
+    // Weather is server-wide; on spawn/join apply the current OS time (or
+    // a deliberate admin override) rather than the old scripted 03:17.
+    Admin_ClockRefresh();
     SetPlayerWeather(playerid, gAdminWeather);
     SetPlayerTime(playerid, gAdminClockHour, gAdminClockMinute);
     return 1;
@@ -798,20 +834,22 @@ stock Admin_Execute(playerid, const input[])
         if (!strcmp(arg1, "fog", true))
         {
             gAdminWeather = 20;
+            gAdminClockAuto = false;
             gAdminClockHour = 3;
             gAdminClockMinute = 17;
         }
         else if (!strcmp(arg1, "night", true))
         {
             gAdminWeather = 9;
+            gAdminClockAuto = false;
             gAdminClockHour = 0;
             gAdminClockMinute = 0;
         }
         else if (!strcmp(arg1, "clear", true))
         {
             gAdminWeather = 9;
-            gAdminClockHour = 3;
-            gAdminClockMinute = 17;
+            gAdminClockAuto = true;
+            Admin_ClockRefresh();
         }
         else return AdminHelp_Usage(playerid, "event");
         for (new i = 0; i < MAX_PLAYERS; i++)
