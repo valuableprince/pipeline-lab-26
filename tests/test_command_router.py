@@ -30,7 +30,7 @@ class PawnCmdMigrationTests(unittest.TestCase):
                         "ban unban setadmin setevent event weather alog founder").split())
         expected.update(("leaders fmenu leader fstats fchat finvite faccept "
                          "funinvite frank fleave setleader unleader renewleader").split())
-        expected.update(("trashdrop trashservice cleanstats orders guardstatus npcroute studio zoneedit nset tpcor").split())
+        expected.update(("trashdrop trashservice cleanstats orders truckpark truckcancel truckveh guardstatus npcroute studio zoneedit nset tpcor").split())
         self.assertEqual(set(names), expected)
         self.assertEqual(len(names), len(set(names)))
 
