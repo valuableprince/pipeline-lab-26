@@ -62,17 +62,17 @@ stock Truck_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
     // GTA SA changes the action sent by LALT inside vehicles:
     // KEY_WALK (on foot) vs KEY_FIRE (while driving). Do not trigger on hold.
-    new PLAYER_STATE:state = GetPlayerState(playerid);
-    new KEY:action = (state == PLAYER_STATE_DRIVER) ? KEY_FIRE : KEY_WALK;
+    new PLAYER_STATE:playerState = GetPlayerState(playerid);
+    new KEY:action = (playerState == PLAYER_STATE_DRIVER) ? KEY_FIRE : KEY_WALK;
     if (!(newkeys & action) || (oldkeys & action)) return 0;
     if (gTruckOnShift[playerid] && gTruckReservedId[playerid] &&
-        (state == PLAYER_STATE_DRIVER ||
-         (state == PLAYER_STATE_ONFOOT && !Cleaner_NearDepot(playerid))))
+        (playerState == PLAYER_STATE_DRIVER ||
+         (playerState == PLAYER_STATE_ONFOOT && !Cleaner_NearDepot(playerid))))
     {
         TruckLoad_HandleKey(playerid);
         return 1;
     }
-    if (state != PLAYER_STATE_ONFOOT) return 0;
+    if (playerState != PLAYER_STATE_ONFOOT) return 0;
     if (GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         !Cleaner_NearDepot(playerid)) return 0;
     if (gCleanerLastInteract[playerid] &&
