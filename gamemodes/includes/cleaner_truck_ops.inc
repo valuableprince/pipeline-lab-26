@@ -256,7 +256,22 @@ stock Truck_VehicleCommand(playerid)
 stock Truck_OnStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     #pragma unused oldstate
-    if (newstate != PLAYER_STATE_DRIVER) gTruckDockReady[playerid] = false;
+    if (newstate != PLAYER_STATE_DRIVER)
+    {
+        gTruckDockReady[playerid] = false;
+        return 1;
+    }
+    new vehicleid = GetPlayerVehicleID(playerid);
+    // A municipal truck may only be driven by its assigned employee.
+    for (new owner = 0; owner < MAX_PLAYERS; owner++)
+    {
+        if (gTruckVehicle[owner] != vehicleid) continue;
+        if (owner == playerid && gTruckOnShift[playerid]) return 1;
+        RemovePlayerFromVehicle(playerid);
+        SendClientMessage(playerid, COLOR_RED,
+            "Этот мусоровоз закреплён за другим работником.");
+        return 1;
+    }
     return 1;
 }
 
