@@ -904,6 +904,8 @@ stock Admin_Execute(playerid, const input[])
         if (!Admin_ValidTarget(playerid, target)) return 1;
         if (!strcmp(command, "/goto", true) || !strcmp(command, "/gethere", true))
         {
+            if (AdminPunish_IsJailed(target) || AdminPunish_IsJailed(playerid))
+                return SendClientMessage(playerid, ADMIN_ERROR, "Телепортация в административную тюрьму запрещена.");
             new source = target, destination = playerid;
             if (!strcmp(command, "/gethere", true)) { source = playerid; destination = target; }
             new Float:x, Float:y, Float:z;
