@@ -287,6 +287,9 @@ stock Truck_FleetBay(vehicleid)
     return -1;
 }
 
+// Loading declarations must precede Tick and vehicle callbacks.
+#include "cleaner_truck_loading.inc"
+
 stock Truck_OnStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     #pragma unused oldstate
@@ -375,9 +378,6 @@ public Truck_Tick()
     }
     return 1;
 }
-
-// Load animation system is included after fleet and booking helpers.
-#include "cleaner_truck_loading.inc"
 
 stock Truck_Init()
 {
