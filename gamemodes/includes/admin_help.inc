@@ -76,6 +76,7 @@ new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
     {"setadmin", "/setadmin ID уровень", "Назначить права администратора", "/setadmin 12 2", 3, 5},
     {"setevent", "/setevent ID 0|1", "Управлять ролью Event Team", "/setevent 12 1", 3, 5},
     {"event", "/event fog|night|clear", "Активировать сюжетную атмосферу", "/event fog", 4, 7},
+    {"broadcast", "/broadcast [start|stop|status]", "Прямое голосовое объявление для всех", "/broadcast start", 4, 5},
     {"founder", "/founder [announce текст]", "Инструменты основателя проекта", "/founder announce Сбор", 5, 6},
     {"studio", "/studio [режим]", "Открыть редактор мира", "/studio", 5, 6},
     {"zoneedit", "/zoneedit", "Редактировать игровые зоны", "/zoneedit", 5, 6},
