@@ -165,37 +165,17 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
     // Existing MariaDB v10 CHECK requires a full bin while overflow exists.
     // Never empty a bin before the ground bags have been loaded.
     if (!overflow && gCleanerDumpOverflow[slot] > 0) return false;
-    new query[330], changed;
-    if (overflow)
-        mysql_format(gDBPrimary, query, sizeof(query),
-            "UPDATE cleaner_containers SET overflow_units=%d WHERE container_id=%d AND bin_units=%d AND overflow_units=%d AND enabled=1",
-            current - amount, gCleanerDumpId[slot],
-            gCleanerDumpBin[slot], gCleanerDumpOverflow[slot]);
-    else
-        mysql_format(gDBPrimary, query, sizeof(query),
-            "UPDATE cleaner_containers SET bin_units=%d WHERE container_id=%d AND bin_units=%d AND overflow_units=%d AND enabled=1",
-            current - amount, gCleanerDumpId[slot],
-            gCleanerDumpBin[slot], gCleanerDumpOverflow[slot]);
-    if (!DBPrimary_Execute(query, changed))
+    // Both the bin decrement and truck cargo increase must commit together.
+    if (!TruckPersist_AddCargo(playerid, slot, overflow, amount))
     {
-        gTruckLoadError[playerid] = 2; // SQL error, no local state changed.
-        printf("[TRUCK-LOAD] SQL error container=%d type=%d amount=%d mysql_errno=%d",
-            gCleanerDumpId[slot], _:overflow, amount, mysql_errno(gDBPrimary));
-        return false;
-    }
-    if (changed != 1)
-    {
-        gTruckLoadError[playerid] = 3; // Stale CAS; another process changed row.
-        printf("[TRUCK-LOAD] CAS rejected container=%d type=%d amount=%d affected=%d",
-            gCleanerDumpId[slot], _:overflow, amount, changed);
+        gTruckLoadError[playerid] = 2;
+        printf("[TRUCK-LOAD] Durable transfer failed: container=%d, overflow=%d, units=%d.",
+            gCleanerDumpId[slot], _:overflow, amount);
         return false;
     }
     gTruckLoadError[playerid] = 0;
-    if (overflow) gCleanerDumpOverflow[slot] -= amount;
-    else gCleanerDumpBin[slot] -= amount;
-    gTruckCargo[bay] += amount;
-    Truck_UpdateCargoLabel(bay);
-    CleanerDump_Refresh(slot);
+    if (bay >= 0 && bay < TRUCK_BAYS && gTruckCargo[bay] >= TRUCK_CARGO_CAP)
+        TruckPersist_ReturnGPS(playerid);
     return true;
 }
 
@@ -205,8 +185,9 @@ stock TruckLoad_FinishIfEmpty(playerid, slot)
         gTruckReservedId[playerid] != gCleanerDumpId[slot]) return 1;
     if (gCleanerDumpBin[slot] || gCleanerDumpOverflow[slot]) return 1;
     Truck_ReleaseOrder(playerid);
+    TruckPersist_ReturnGPS(playerid);
     SendClientMessage(playerid, CLEANER_COLOR,
-        "Площадка очищена! Груз в кузове; пункт разгрузки появится в следующем этапе.");
+        "Площадка очищена! Вернитесь на базу: левый ALT сдаст груз и начислит зарплату.");
     return 1;
 }
 
@@ -475,15 +456,24 @@ stock TruckLoad_OnVehicleDestroyed(vehicleid)
 
 stock TruckLoad_HandleKey(playerid)
 {
-    if (!gTruckOnShift[playerid] || !gTruckReservedId[playerid]) return 0;
+    if (!gTruckOnShift[playerid]) return 0;
     if (gTruckLoadPhase[playerid] != TRUCK_PHASE_IDLE) return 1;
     if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
     {
+        new bay = gTruckBay[playerid];
+        // An in-progress order may be too big for the remaining truck space.
+        // ALT at the yard must unload partial runs without cancelling bookings.
+        if (bay >= 0 && bay < TRUCK_BAYS && gTruckCargo[bay] > 0 &&
+            TruckPersist_NearDepot(playerid) &&
+            (!gTruckReservedId[playerid] || !Truck_CanDock(playerid)))
+            return TruckPersist_Unload(playerid);
+        if (!gTruckReservedId[playerid]) return 0;
         if (!gTruckDockReady[playerid])
             return Truck_ParkCommand(playerid);
         return TruckLoad_Bin(playerid);
     }
-    if (GetPlayerState(playerid) == PLAYER_STATE_ONFOOT)
+    if (GetPlayerState(playerid) == PLAYER_STATE_ONFOOT &&
+        gTruckReservedId[playerid])
     {
         if (gTruckHeldUnits[playerid]) return TruckLoad_Throw(playerid);
         return TruckLoad_Bag(playerid);

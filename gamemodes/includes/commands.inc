@@ -189,6 +189,11 @@ cmd:truckcargo(playerid, params[])
     return TruckLoad_Notice(playerid);
 }
 
+cmd:truckunload(playerid, params[])
+{
+    return TruckPersist_Unload(playerid);
+}
+
 cmd:truckcancel(playerid, params[])
 {
     return Truck_CancelCommand(playerid);

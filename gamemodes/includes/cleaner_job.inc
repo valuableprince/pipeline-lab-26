@@ -202,7 +202,8 @@ stock Cleaner_WorkerRemove(playerid)
 
 stock Cleaner_Rank(playerid)
 {
-    new xp = gCleanerXP[playerid];
+    // Rank progression is shared: collection XP + delivered driver XP.
+    new xp = gCleanerXP[playerid] + gTruckDriverXP[playerid];
     if (xp >= 300) return 5;
     if (xp >= 140) return 4;
     if (xp >= 60) return 3;

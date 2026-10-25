@@ -37,7 +37,8 @@ class TruckStageTwoTests(unittest.TestCase):
         self.assertIn("gTruckSpawnPositions[i][2], gTruckSpawnPositions[i][3]", OPS)
         self.assertNotIn("CLEANER_DEPOT_Z + 0.6", OPS)
         self.assertIn("for (new i = 0; i < TRUCK_BAYS; i++)", OPS)
-        self.assertIn("if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay])) continue;", OPS)
+        self.assertIn("if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay]) ||", OPS)
+        self.assertIn("!TruckPersist_CargoAllowed(playerid, bay)) continue;", OPS)
 
     def test_unique_claims_by_immutable_container_id(self):
         self.assertIn("gTruckClaimOwner[free] = playerid + 1;", OPS)

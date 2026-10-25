@@ -43,6 +43,10 @@ forward TruckLoad_Notice(playerid);
 forward bool:TruckLoad_CurrentBusy(playerid);
 forward TruckLoad_OnTick(playerid);
 forward TruckLoad_OnVehicleDestroyed(vehicleid);
+forward Truck_UpdateCargoLabel(bay);
+
+// Persistence globals/functions must precede truck assignment and cargo checks.
+#include "cleaner_truck_persist.inc"
 
 // These labels follow fleet vehicles, including while moving.
 stock Truck_UpdateCargoLabel(bay)
@@ -106,21 +110,33 @@ stock Truck_StopShift(playerid)
     gTruckOnShift[playerid] = false;
     gTruckDialogCount[playerid] = 0;
     if (IsPlayerConnected(playerid))
+    {
         RemovePlayerMapIcon(playerid, TRUCK_VEHICLE_MAP_SLOT);
+        RemovePlayerMapIcon(playerid, TRUCK_UNLOAD_MAP_SLOT);
+    }
     return 1;
 }
 
 stock bool:Truck_AssignVehicle(playerid)
 {
-    if (!Cleaner_NearDepot(playerid) || gCleanerDataError[playerid] ||
+    if (!gTruckPersistenceReady || !Cleaner_NearDepot(playerid) ||
+        gCleanerDataError[playerid] ||
         gTruckVehicle[playerid] != INVALID_VEHICLE_ID) return false;
-    for (new bay = 0; bay < TRUCK_BAYS; bay++)
+    // Recover the player's own persisted cargo first, even if another
+    // empty bay has a smaller index.
+    for (new pass = 0; pass < 2; pass++)
     {
-        if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay])) continue;
-        gTruckBayOwner[bay] = playerid + 1;
-        gTruckVehicle[playerid] = gTruckFleet[bay];
-        gTruckBay[playerid] = bay;
-        return true;
+        for (new bay = 0; bay < TRUCK_BAYS; bay++)
+        {
+            if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay]) ||
+                !TruckPersist_CargoAllowed(playerid, bay)) continue;
+            if (pass == 0 && gTruckCargo[bay] == 0) continue;
+            if (pass == 1 && gTruckCargo[bay] > 0) continue;
+            gTruckBayOwner[bay] = playerid + 1;
+            gTruckVehicle[playerid] = gTruckFleet[bay];
+            gTruckBay[playerid] = bay;
+            return true;
+        }
     }
     return false;
 }
@@ -132,6 +148,8 @@ stock bool:Truck_StartShift(playerid)
         !Cleaner_NearDepot(playerid)) return false;
     if (!Truck_AssignVehicle(playerid)) return false;
     gTruckOnShift[playerid] = true;
+    new bay = gTruckBay[playerid];
+    if (gTruckCargo[bay] > 0) TruckPersist_ReturnGPS(playerid);
     return true;
 }
 
@@ -318,6 +336,7 @@ stock Truck_FleetBay(vehicleid)
 stock bool:Truck_SelectVehicle(playerid, bay)
 {
     if (!gTruckOnShift[playerid] || bay < 0 || bay >= TRUCK_BAYS ||
+        !TruckPersist_CargoAllowed(playerid, bay) ||
         !IsValidVehicle(gTruckFleet[bay]) ||
         (gTruckBayOwner[bay] && gTruckBayOwner[bay] != playerid + 1) ||
         TruckLoad_CurrentBusy(playerid)) return false;
@@ -439,7 +458,7 @@ public Truck_Tick()
         if (!gTruckDockHint[playerid] && !gTruckDockReady[playerid])
         {
             SendClientMessage(playerid, CLEANER_COLOR,
-                "Мусоровоз стоит правильно! Левый ALT или /truckpark.");
+                "Мусоровоз стоит правильно! Нажмите левый ALT для парковки.");
             gTruckDockHint[playerid] = true;
         }
     }
@@ -448,10 +467,11 @@ public Truck_Tick()
 
 stock Truck_Init()
 {
+    // Restore cargo before labels/vehicles; require the v11 migration.
+    TruckPersist_Init();
     for (new i = 0; i < TRUCK_BAYS; i++)
     {
         gTruckBayOwner[i] = 0;
-        gTruckCargo[i] = 0;
         gTruckCargoLabel[i] = Text3D:INVALID_3DTEXT_ID;
         gTruckFleet[i] = CreateVehicle(TRUCK_VEHICLE_MODEL,
             gTruckSpawnPositions[i][0], gTruckSpawnPositions[i][1],
@@ -501,6 +521,7 @@ stock Truck_Shutdown()
     gTruckTimer = 0;
     for (new i = 0; i < MAX_PLAYERS; i++)
         Truck_StopShift(i);
+    TruckPersist_Shutdown();
     for (new bay = 0; bay < TRUCK_BAYS; bay++)
     {
         if (gTruckCargoLabel[bay] != Text3D:INVALID_3DTEXT_ID)

@@ -65,10 +65,14 @@ stock Truck_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     new PLAYER_STATE:playerState = GetPlayerState(playerid);
     new KEY:action = (playerState == PLAYER_STATE_DRIVER) ? KEY_FIRE : KEY_WALK;
     if (!(newkeys & action) || (oldkeys & action)) return 0;
-    if (gTruckOnShift[playerid] && gTruckReservedId[playerid] &&
-        (playerState == PLAYER_STATE_DRIVER ||
-         (playerState == PLAYER_STATE_ONFOOT &&
-          (gTruckHeldUnits[playerid] || !Cleaner_NearDepot(playerid)))))
+    if (gTruckOnShift[playerid] &&
+        ((gTruckReservedId[playerid] &&
+          (playerState == PLAYER_STATE_DRIVER ||
+           (playerState == PLAYER_STATE_ONFOOT &&
+            (gTruckHeldUnits[playerid] || !Cleaner_NearDepot(playerid))))) ||
+         (playerState == PLAYER_STATE_DRIVER && !gTruckReservedId[playerid] &&
+          gTruckBay[playerid] >= 0 &&
+          gTruckCargo[gTruckBay[playerid]] > 0)))
     {
         TruckLoad_HandleKey(playerid);
         return 1;
@@ -171,6 +175,9 @@ stock Truck_OnDialog(playerid, dialogid, response, listitem)
             if (!CleanerDump_IsReady())
                 return SendClientMessage(playerid, COLOR_RED,
                     "База контейнеров недоступна.");
+            if (!gTruckPersistenceReady)
+                return SendClientMessage(playerid, COLOR_RED,
+                    "Профессия недоступна: требуется миграция MariaDB v11 и перезапуск сервера.");
             if (!Truck_StartShift(playerid))
                 return SendClientMessage(playerid, COLOR_RED,
                     "Нет свободного служебного мусоровоза. Попробуйте позднее.");
