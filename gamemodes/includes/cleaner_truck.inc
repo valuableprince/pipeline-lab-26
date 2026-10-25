@@ -90,18 +90,30 @@ stock Truck_ShowOrders(playerid)
         return SendClientMessage(playerid, COLOR_RED, "Сначала устройтесь водителем мусоровоза.");
     if (!CleanerDump_IsReady())
         return SendClientMessage(playerid, COLOR_RED, "База контейнеров недоступна.");
-    new body[2300], line[130], location[48], total;
+    new body[2300], line[165], location[48], containerLabel[80];
+    new ownerName[MAX_PLAYER_NAME], total;
     format(body, sizeof(body), "Контейнер\tМесто\tЗаполнение\tОплата\n");
     gTruckDialogCount[playerid] = 0;
     for (new i = 0; i < gCleanerDumpCount; i++)
     {
         if (!gCleanerDumpEnabled[i]) continue;
         total = gCleanerDumpBin[i] + gCleanerDumpOverflow[i];
-        if (total < TRUCK_ORDER_THRESHOLD || Truck_ReservedByOther(gCleanerDumpId[i], playerid)) continue;
+        if (total < TRUCK_ORDER_THRESHOLD) continue;
+        new owner = Truck_OrderOwner(gCleanerDumpId[i]);
+        if (owner >= 0)
+        {
+            GetPlayerName(owner, ownerName, sizeof(ownerName));
+            format(containerLabel, sizeof(containerLabel), "#%d {FFD700}%s(%d){FFFFFF}",
+                gCleanerDumpId[i], ownerName, owner);
+        }
+        else
+            format(containerLabel, sizeof(containerLabel), "#%d", gCleanerDumpId[i]);
         Truck_LocationName(gCleanerDumpPos[i][0], gCleanerDumpPos[i][1],
             location, sizeof(location));
-        format(line, sizeof(line), "#%d\t%s\t%d/100\t$%d\n",
-            gCleanerDumpId[i], location, total, Truck_EstimatedPay(i));
+        format(line, sizeof(line), "%s\t%s\t%d/100\t$%d\n",
+            containerLabel, location, total, Truck_EstimatedPay(i));
+        // Only map rows actually sent to the dialog: no stale listitem indices.
+        if (strlen(body) + strlen(line) >= sizeof(body)) break;
         strcat(body, line, sizeof(body));
         gTruckDialogContainer[playerid][gTruckDialogCount[playerid]++] = gCleanerDumpId[i];
     }
