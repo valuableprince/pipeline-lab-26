@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 TRUCK = (ROOT / "gamemodes/includes/cleaner_truck.inc").read_text("utf-8")
 LOAD = (ROOT / "gamemodes/includes/cleaner_truck_loading.inc").read_text("utf-8")
+PERSIST = (ROOT / "gamemodes/includes/cleaner_truck_persist.inc").read_text("utf-8")
 OPS = (ROOT / "gamemodes/includes/cleaner_truck_ops.inc").read_text("utf-8")
 DUMP = (ROOT / "gamemodes/includes/cleaner_container.inc").read_text("utf-8")
 MIGRATION_V10 = (ROOT / "db/migrations/010_cleaner_container_editor.sql").read_text("utf-8")
@@ -22,7 +23,7 @@ class TruckLoadHotfix(unittest.TestCase):
         self.assertLess(LOAD.index("Сначала все мешки: выйдите, ALT у мешка, ALT у кузова."),
                         LOAD.index("gTruckLoadPhase[playerid] = TRUCK_PHASE_LIFT;"))
         self.assertIn("if (!overflow && gCleanerDumpOverflow[slot] > 0) return false;", LOAD)
-        self.assertIn("gCleanerDumpOverflow[slot] -= amount;", LOAD)
+        self.assertIn("gCleanerDumpOverflow[slot] -= amount;", PERSIST)
         self.assertIn("gTruckLoadBinUnits[playerid]", LOAD)
 
     def test_no_schema_v11_migration_needed(self):
@@ -40,8 +41,8 @@ class TruckLoadHotfix(unittest.TestCase):
     def test_lower_lift_and_database_diagnostics(self):
         self.assertIn("#define TRUCK_HIGH_CLEARANCE (3.0)", LOAD)
         self.assertIn("gTruckLoadError[playerid] = 2;", LOAD)
-        self.assertIn("gTruckLoadError[playerid] = 3;", LOAD)
-        self.assertIn("mysql_errno(gDBPrimary)", LOAD)
+        self.assertIn("TruckPersist_Rollback()", PERSIST)
+        self.assertIn("mysql_errno(gDBPrimary)", PERSIST)
         self.assertIn("TruckLoad_Reset(playerid);", LOAD)
 
     def test_pawn_encoding(self):
