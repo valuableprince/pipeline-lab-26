@@ -177,6 +177,15 @@ stock AdminTools2_SetSkin(playerid, const params[])
 stock AdminTools2_SetTime(playerid, const params[])
 {
     if (!Admin_Require(playerid, PERM_BAN_DAY)) return 1;
+    // /settime auto restores real server time without a gamemode restart.
+    if (!strcmp(params, "auto", true))
+    {
+        if (!Admin_LogPlayer(playerid, "SETTIME", "auto"))
+            return SendClientMessage(playerid, ADMIN_ERROR, "Журнал недоступен. Действие отменено.");
+        gAdminClockAuto = true;
+        Admin_ClockTick();
+        return SendClientMessage(playerid, ADMIN_OK, "Время синхронизируется с часами сервера.");
+    }
     new hour, minute;
     if (!AdminTools2_ParseTwo(params, hour, minute) || hour > 23 || minute > 59)
         return AdminHelp_Usage(playerid, "settime");
@@ -184,6 +193,7 @@ stock AdminTools2_SetTime(playerid, const params[])
     format(detail, sizeof(detail), "%02d:%02d", hour, minute);
     if (!Admin_LogPlayer(playerid, "SETTIME", detail))
         return SendClientMessage(playerid, ADMIN_ERROR, "Журнал недоступен. Действие отменено.");
+    gAdminClockAuto = false;
     gAdminClockHour = hour;
     gAdminClockMinute = minute;
     for (new i = 0; i < MAX_PLAYERS; i++)
