@@ -86,6 +86,20 @@ stock bool:SortUI_CanUse(playerid)
 // Shared creator: all TextDraw strings use ASCII because GTA fonts do not
 // reliably render Cyrillic. Selection rectangles and colours are authoritative
 // client-side presentation only; the server validates every category click.
+// Font 4 treats TextSize as width/height. Unlike font-1 dummy text with
+// near-zero LetterSize Y, this renders a real filled rectangle in stock GTA.
+stock SortUI_Rect(playerid, slot, Float:x, Float:y,
+    Float:width, Float:height, colour)
+{
+    new PlayerText:td = CreatePlayerTextDraw(playerid, x, y, "LD_SPAC:white");
+    gSortDraws[playerid][slot] = td;
+    PlayerTextDrawFont(playerid, td, TEXT_DRAW_FONT_SPRITE);
+    PlayerTextDrawAlignment(playerid, td, TEXT_DRAW_ALIGN_LEFT);
+    PlayerTextDrawTextSize(playerid, td, width, height);
+    PlayerTextDrawColour(playerid, td, colour);
+    return 1;
+}
+
 stock SortUI_Add(playerid, slot, Float:x, Float:y, const label[],
     Float:width, Float:height, Float:letterX, Float:letterY,
     colour, boxColour = 0, bool:selectable = false)
@@ -180,27 +194,20 @@ stock SortUI_Open(playerid)
     gSortErrors[playerid] = 0;
 
     // Panel and title, viewport 640 x 448.
-    SortUI_Add(playerid, 0, 84.0, 82.0, "_", 472.0, 291.0,
-        0.01, 0.01, 0x00000000, 0x1A1D22E8);
-    SortUI_Add(playerid, 1, 90.0, 88.0, "_", 460.0, 56.0,
-        0.01, 0.01, 0x00000000, 0x20242AEF);
+    // Sprite-backed panels: real 472x291 and 460x56 fills, not one-pixel
+    // font-1 box strips. Keep all background draws before interactive items.
+    SortUI_Rect(playerid, 0, 84.0, 82.0, 472.0, 291.0, 0x171B21F5);
+    SortUI_Rect(playerid, 1, 90.0, 88.0, 460.0, 56.0, 0x242930FA);
     SortUI_Add(playerid, 2, 108.0, 96.0, "WASTE SORTING", 265.0, 29.0,
         0.47, 1.95, SORT_COLOR_GOLD);
     SortUI_Add(playerid, 3, 109.0, 122.0, "TARKENSO / RECYCLING STATION", 300.0, 19.0,
         0.20, 0.95, SORT_COLOR_MUTED);
-    SortUI_Add(playerid, 4, 102.0, 153.0, "_", 214.0, 177.0,
-        0.01, 0.01, 0x00000000, 0x171B20E8);
+    // Independent dark zones for six selectable objects and three bins.
+    // The large rubbish-bag 3D preview was removed at player request.
+    SortUI_Rect(playerid, 4, 102.0, 153.0, 214.0, 177.0, 0x10161DF0);
+    SortUI_Rect(playerid, 5, 324.0, 153.0, 214.0, 177.0, 0x131920F0);
 
-    // Game-native object preview. Model 1265 is a GTA rubbish bag; an opened
-    // bag textured illustration would require an additional TXD asset.
-    new PlayerText:bag = CreatePlayerTextDraw(playerid, 131.0, 173.0, "_");
-    gSortDraws[playerid][5] = bag;
-    PlayerTextDrawFont(playerid, bag, TEXT_DRAW_FONT_MODEL_PREVIEW);
-    PlayerTextDrawTextSize(playerid, bag, 154.0, 138.0);
-    PlayerTextDrawSetPreviewModel(playerid, bag, 1265);
-    PlayerTextDrawSetPreviewRot(playerid, bag, -12.0, 0.0, 30.0, 1.0);
-
-    SortUI_Add(playerid, 6, 111.0, 158.0, "01 / MIXED BAG", 185.0, 16.0,
+    SortUI_Add(playerid, 6, 111.0, 158.0, "01 / MATERIALS", 185.0, 16.0,
         0.26, 1.15, SORT_COLOR_GOLD);
     SortUI_Add(playerid, 7, 329.0, 174.0, "02 / DROP ZONE", 185.0, 17.0,
         0.26, 1.15, SORT_COLOR_GOLD);

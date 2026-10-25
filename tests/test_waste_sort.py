@@ -30,21 +30,42 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         self.assertIn('#define SORT_ITEM_COUNT (6)', UI)
         self.assertIn('#define SORT_CATEGORY_COUNT (3)', UI)
         self.assertIn('TEXT_DRAW_FONT_MODEL_PREVIEW', UI)
-        self.assertIn('PlayerTextDrawSetPreviewModel(playerid, bag, 1265)', UI)
+        self.assertNotIn('PlayerTextDrawSetPreviewModel(playerid, bag, 1265)', UI)
+        self.assertNotIn('new PlayerText:bag', UI)
+        self.assertIn('"01 / MATERIALS"', UI)
 
     def test_no_object_captions_and_dark_ui(self):
         self.assertIn("#define SORT_TD_TOTAL (22)", UI)
         self.assertNotIn("SORT_TD_LABEL_START", UI)
         self.assertNotIn("gSortItemNames", UI)
-        self.assertIn("0x1A1D22E8", UI)
-        self.assertIn("0x20242AEF", UI)
-        self.assertIn("0x171B20E8", UI)
+        self.assertIn("0x171B21F5", UI)
+        self.assertIn("0x242930FA", UI)
+        self.assertIn("0x10161DF0", UI)
+        self.assertIn("0x131920F0", UI)
         self.assertIn("PlayerTextDrawSetPreviewModel(playerid, preview, gSortItemModels[item]);", UI)
         self.assertIn("PlayerTextDrawSetSelectable(playerid, preview, true);", UI)
         self.assertIn("gSortItemRot[item][0]", UI)
         self.assertIn("2814", UI)
         self.assertIn("18633", UI)
         self.assertIn("[Сортировка]", UI)
+
+    def test_sprite_panels_have_actual_pixel_dimensions_and_no_bag(self):
+        self.assertIn('CreatePlayerTextDraw(playerid, x, y, "LD_SPAC:white")', UI)
+        self.assertIn('PlayerTextDrawFont(playerid, td, TEXT_DRAW_FONT_SPRITE);', UI)
+        self.assertIn('PlayerTextDrawTextSize(playerid, td, width, height);', UI)
+        self.assertIn('PlayerTextDrawColour(playerid, td, colour);', UI)
+        for panel in (
+            'SortUI_Rect(playerid, 0, 84.0, 82.0, 472.0, 291.0,',
+            'SortUI_Rect(playerid, 1, 90.0, 88.0, 460.0, 56.0,',
+            'SortUI_Rect(playerid, 4, 102.0, 153.0, 214.0, 177.0,',
+            'SortUI_Rect(playerid, 5, 324.0, 153.0, 214.0, 177.0,',
+        ):
+            self.assertIn(panel, UI)
+        self.assertNotIn('new PlayerText:bag', UI)
+        self.assertNotIn('PlayerTextDrawSetPreviewModel(playerid, bag', UI)
+        self.assertLess(UI.index('SortUI_Rect(playerid, 5,'),
+                        UI.index('for (new item = 0; item < SORT_ITEM_COUNT; item++)',
+                                 UI.index('stock SortUI_Open(playerid)')))
 
     def test_click_to_select_and_server_category_validation(self):
         for fragment in (
