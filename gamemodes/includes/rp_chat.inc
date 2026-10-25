@@ -22,6 +22,16 @@ new gRPActionSerial[MAX_PLAYERS];
 
 forward RP_ActionExpire(playerid, serial);
 
+stock RP_Init()
+{
+    for (new i = 0; i < MAX_PLAYERS; i++)
+    {
+        gRPActionLabel[i] = Text3D:INVALID_3DTEXT_ID;
+        gRPActionSerial[i] = 0;
+    }
+    return 1;
+}
+
 stock RP_Reset(playerid)
 {
     // Keep the serial monotonic so callbacks from previous sessions cannot clear a new label.
@@ -128,7 +138,7 @@ stock RP_Command(playerid, type, const params[])
         }
         return 1;
     }
-    new speech[RP_TEXT_MAX + 1], action[RP_TEXT_MAX + 1];
+    new speech[RP_TEXT_MAX + 1], action[RP_TEXT_MAX + 1], tail[RP_TEXT_MAX + 1];
     if (type == 3)
     {
         new split = -1;
@@ -138,9 +148,11 @@ stock RP_Command(playerid, type, const params[])
         }
         if (split < 1 || !input[split + 1])
             return SendClientMessage(playerid, COLOR_AMBER, "Пример: /todo Привет!*протянув руку");
+        new originalLength = strlen(input);
+        strmid(tail, input, split + 1, originalLength, sizeof(tail));
         input[split] = EOS;
         if (!RP_ReadText(input, speech, sizeof(speech)) ||
-            !RP_ReadText(input[split + 1], action, sizeof(action)))
+            !RP_ReadText(tail, action, sizeof(action)))
             return SendClientMessage(playerid, COLOR_AMBER, "Пример: /todo Привет!*протянув руку");
     }
     if (!RP_CanSpeak(playerid)) return 1;
@@ -160,8 +172,10 @@ stock RP_Command(playerid, type, const params[])
         case 2:
         {
             new bool:success = random(2) == 1;
-            format(line, sizeof(line), "* %s пытается %s — %s", nickname, input,
-                success ? ("удачно") : ("неудачно"));
+            if (success)
+                format(line, sizeof(line), "* %s пытается %s — удачно", nickname, input);
+            else
+                format(line, sizeof(line), "* %s пытается %s — неудачно", nickname, input);
             return RP_SendLocal(playerid, success ? RP_COLOR_SUCCESS : RP_COLOR_FAILURE,
                 line, RP_RADIUS_ACTION);
         }
