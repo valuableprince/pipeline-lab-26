@@ -86,10 +86,6 @@ stock Radio_Open(playerid)
 stock Radio_Play(playerid, station)
 {
     if (station < 0 || station >= RADIO_STATION_COUNT) return 1;
-    if (gRadioStation[playerid] == station)
-        return SendClientMessage(playerid, RADIO_COLOR,
-            "Эта радиостанция уже выбрана. Если нет звука, откройте /play и выберите её снова.");
-
     Radio_Stop(playerid);
     if (!PlayAudioStreamForPlayer(playerid, gRadioUrls[station]))
         return SendClientMessage(playerid, COLOR_RED,
@@ -107,7 +103,8 @@ stock Radio_OnDialog(playerid, dialogid, response, listitem)
 {
     if (dialogid != RADIO_DIALOG_LIST) return 0;
     if (gAuthState[playerid] != AUTH_READY ||
-        AdminPunish_IsJailed(playerid) || Race_IsParticipant(playerid))
+        AdminPunish_IsJailed(playerid) ||
+        GetPlayerVirtualWorld(playerid) == RACE_WORLD_ID)
         return 1;
     if (!response) return 1;
     if (listitem == RADIO_STATION_COUNT)
