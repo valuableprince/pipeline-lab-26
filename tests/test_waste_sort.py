@@ -42,7 +42,7 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         models = UI.split("new const gSortItemModels[SORT_ITEM_COUNT] =", 1)[1]
         models = models.split("};", 1)[0]
         for model in expected:
-            self.assertRegex(models, rf"\\b{model}\\b")
+            self.assertIn(str(model), models)
         self.assertEqual(len(expected), len(set(expected)))
         self.assertIn("TEXT_DRAW_FONT_MODEL_PREVIEW", UI)
         self.assertIn("gSortDraws[playerid][SORT_TD_ITEM_START + item] = preview;", UI)
