@@ -15,6 +15,12 @@ public OnPlayerCommandReceived(playerid, cmd[], params[], flags)
         SendClientMessage(playerid, COLOR_RED, "Сначала завершите регистрацию или войдите в аккаунт.");
         return 0;
     }
+    if (AdminPunish_IsJailed(playerid) &&
+        strcmp(cmd, "help", true) && strcmp(cmd, "report", true))
+    {
+        SendClientMessage(playerid, ADMIN_ERROR, "Вы отбываете административное наказание. Команды заблокированы.");
+        return 0;
+    }
     if (Race_IsParticipant(playerid) && strcmp(cmd, "race", true) &&
         strcmp(cmd, "raceaudio", true) && strcmp(cmd, "help", true))
     {
@@ -375,6 +381,46 @@ cmd:setvw(playerid, params[])
 cmd:setint(playerid, params[])
 {
     return AdminTools2_SetDimension(playerid, params, false);
+}
+
+cmd:ajail(playerid, params[])
+{
+    return AdminPunish_Jail(playerid, params);
+}
+
+cmd:unjail(playerid, params[])
+{
+    return AdminPunish_Unjail(playerid, params);
+}
+
+cmd:jailinfo(playerid, params[])
+{
+    return AdminPunish_JailInfo(playerid, params);
+}
+
+cmd:warns(playerid, params[])
+{
+    return AdminPunish_Warns(playerid, params);
+}
+
+cmd:unwarn(playerid, params[])
+{
+    return AdminPunish_Unwarn(playerid, params);
+}
+
+cmd:anote(playerid, params[])
+{
+    return AdminPunish_ANote(playerid, params);
+}
+
+cmd:anotes(playerid, params[])
+{
+    return AdminPunish_ANotes(playerid, params);
+}
+
+cmd:offlineban(playerid, params[])
+{
+    return AdminPunish_OfflineBan(playerid, params);
 }
 
 cmd:unban(playerid, params[])

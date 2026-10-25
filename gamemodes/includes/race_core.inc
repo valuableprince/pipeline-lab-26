@@ -159,6 +159,8 @@ stock Race_Join(playerid)
     if (gAuthState[playerid] != AUTH_READY || !gAccountSpawned[playerid] ||
         gAccountDead[playerid] || GetPlayerState(playerid) != PLAYER_STATE_ONFOOT)
         return SendClientMessage(playerid, COLOR_RED, "Для участия нужно быть живым и выйти из транспорта.");
+    if (AdminPunish_IsJailed(playerid))
+        return SendClientMessage(playerid, ADMIN_ERROR, "Во время наказания гонки недоступны.");
     if (gRaceJoined[playerid])
         return SendClientMessage(playerid, COLOR_GREY, "Вы уже зарегистрированы. Выход: /race leave.");
     if (!gRaceMapReady)

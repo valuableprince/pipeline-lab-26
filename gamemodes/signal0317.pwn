@@ -171,6 +171,7 @@ forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Floa
 #include "admin_tools.inc"
 #include "admin_help.inc"
 #include "admin_tools2.inc"
+#include "admin_punish.inc"
 #include "commands.inc"
 
 stock bool:Auth_SetAccountName(playerid)
@@ -571,7 +572,7 @@ stock Auth_EnterWorld(playerid)
     gAuthState[playerid] = AUTH_READY;
     gAuthDialogOpen[playerid] = false;
     AuthCamera_Stop(playerid);
-    if (!Admin_OnReady(playerid) ||
+    if (!Admin_OnReady(playerid) || !AdminPunish_Load(playerid) ||
         (gAccountLegacy[playerid] && !Auth_SaveAccount(playerid)))
     {
         gAuthState[playerid] = AUTH_NONE;
@@ -721,6 +722,7 @@ public OnGameModeInit()
     Race_Init();
     Admin_Init();
     AdminVeh_Init();
+    gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
     Economy_Init();
     Leader_Init();
@@ -734,6 +736,8 @@ public OnGameModeExit()
     if (gAccountAutosaveTimer) KillTimer(gAccountAutosaveTimer);
     gAccountAutosaveTimer = 0;
     Guard_Shutdown();
+    if (gAdminJailTimer) KillTimer(gAdminJailTimer);
+    gAdminJailTimer = 0;
     PayDay_Shutdown();
     Auth_Autosave();
     AdminVeh_Shutdown();
@@ -751,6 +755,7 @@ public OnPlayerConnect(playerid)
 {
     Guard_OnConnect(playerid);
     Admin_OnConnect(playerid);
+    AdminPunish_Reset(playerid);
     AdminVeh_Reset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
@@ -818,6 +823,7 @@ public OnPlayerDisconnect(playerid, reason)
     Admin_UI_OnDisconnect(playerid);
     AdminTP_Reset(playerid);
     AdminVeh_Reset(playerid);
+    AdminPunish_Reset(playerid);
     Admin_OnDisconnect(playerid);
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
@@ -918,7 +924,7 @@ public OnPlayerSpawn(playerid)
     OrvelarHUD_Show(playerid);
     Race_OnSpawn(playerid);
     Admin_ApplyEvent(playerid);
-    Story_OnSpawn(playerid);
+    if (!AdminPunish_OnSpawn(playerid)) Story_OnSpawn(playerid);
     return 1;
 }
 
