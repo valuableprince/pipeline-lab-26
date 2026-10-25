@@ -1,6 +1,6 @@
 # RADIO-01 — игровое радио TARKENSO
 
-Команда `/play` открывает табличный диалог со станциями и разделом управления.
+Команда `/play` открывает единый обычный список радиостанций без деления на категории.
 После выбора станция включается индивидуально у игрока вызовом
 `PlayAudioStreamForPlayer`; второй выбор заменяет текущий поток.
 Нижняя строка «Выключить радио» вызывает `Radio_Stop`.
@@ -8,18 +8,18 @@
 
 ## Станции и прямые потоки
 
-| Раздел | Станция | Поток |
-| --- | --- | --- |
-| Россия | Европа Плюс | `https://europaplus.hostingradio.ru:8030/ep128` |
-| Россия | Ретро FM (СПб) | `https://emgspb.hostingradio.ru/retrofmspb128.mp3` |
-| Россия | Радио Рекорд | `https://radiorecord.hostingradio.ru/rr_main96.aacp` |
-| Классика | Радио Орфей | `http://orfeyfm.hostingradio.ru:8034/orfeyfm128.mp3` |
-| Классика | Radio Swiss Classic | `https://stream.srg-ssr.ch/srgssr/rsc_de/mp3/128` |
-| Классика | MDR Klassik | `https://mdr-284350-0.sslcast.mdr.de/mdr/284350/0/mp3/high/stream.mp3` |
-| Зарубежное | ANTENNE BAYERN | `https://stream.antenne.de/antenne/stream/mp3` |
-| Зарубежное | Heart 80s | `https://media-ssl.musicradio.com/Heart80sMP3` |
-| Зарубежное | NPO Radio 2 | `http://icecast.omroep.nl/radio2-bb-mp3` |
-| Зарубежное | Radio Swiss Pop | `https://stream.srg-ssr.ch/srgssr/rsp/mp3/128` |
+| Станция | Поток |
+| --- | --- |
+| Европа Плюс | `https://europaplus.hostingradio.ru:8030/ep128` |
+| Ретро FM (СПб) | `https://emgspb.hostingradio.ru/retrofmspb128.mp3` |
+| Радио Рекорд | `https://radiorecord.hostingradio.ru/rr_main96.aacp` |
+| Радио Орфей | `http://orfeyfm.hostingradio.ru:8034/orfeyfm128.mp3` |
+| Radio Swiss Classic | `https://stream.srg-ssr.ch/srgssr/rsc_de/mp3/128` |
+| MDR Klassik | `https://mdr-284350-0.sslcast.mdr.de/mdr/284350/0/mp3/high/stream.mp3` |
+| ANTENNE BAYERN | `https://stream.antenne.de/antenne/stream/mp3` |
+| Heart 80s | `https://media-ssl.musicradio.com/Heart80sMP3` |
+| NPO Radio 2 | `http://icecast.omroep.nl/radio2-bb-mp3` |
+| Radio Swiss Pop | `https://stream.srg-ssr.ch/srgssr/rsp/mp3/128` |
 
 **Проверка источников URL (25.10.2026):** пути сопоставлены с опубликованными
 каталогами и официальными страницами вещателей. Прямая попытка загрузки
