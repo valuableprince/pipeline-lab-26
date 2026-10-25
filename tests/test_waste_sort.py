@@ -64,7 +64,8 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         self.assertNotIn('new PlayerText:bag', UI)
         self.assertNotIn('PlayerTextDrawSetPreviewModel(playerid, bag', UI)
         self.assertLess(UI.index('SortUI_Rect(playerid, 5,'),
-                        UI.index('for (new item = 0; item < SORT_ITEM_COUNT; item++)'))
+                        UI.index('for (new item = 0; item < SORT_ITEM_COUNT; item++)',
+                                 UI.index('stock SortUI_Open(playerid)')))
 
     def test_click_to_select_and_server_category_validation(self):
         for fragment in (
