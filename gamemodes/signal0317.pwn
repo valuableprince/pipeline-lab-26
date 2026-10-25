@@ -180,6 +180,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "player_menu.inc"
 #include "db_world.inc"
 #include "cleaner_container.inc"
+#include "cleaner_truck.inc"
 #include "cleaner_editor.inc"
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
@@ -777,6 +778,7 @@ public OnPlayerConnect(playerid)
     StudioUI_Reset(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
+    Truck_Reset(playerid);
     Race_OnConnect(playerid);
     Leader_OnConnect(playerid);
     Leader_UI_Reset(playerid);
@@ -837,6 +839,7 @@ public OnPlayerDisconnect(playerid, reason)
     StudioUI_Reset(playerid);
     Story_OnDisconnect(playerid);
     Cleaner_OnDisconnect(playerid);
+    Truck_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
     AdminTP_Reset(playerid);
     AdminVeh_Reset(playerid);
@@ -939,6 +942,7 @@ public OnPlayerSpawn(playerid)
     gAccountDead[playerid] = false;
     gAuthDeathRespawnPending[playerid] = false;
     Cleaner_OnSpawn(playerid);
+    Truck_Reset(playerid);
     SetPlayerInterior(playerid, 0);
     SetPlayerVirtualWorld(playerid, 0);
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
@@ -988,7 +992,8 @@ public Auth_DeathRespawn(playerid, token)
 public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
-    Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
+    if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
+        Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
     return 1;
 }
 
@@ -1035,6 +1040,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (Truck_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;

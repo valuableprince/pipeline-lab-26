@@ -92,7 +92,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "jobs", true))
     {
         SendClientMessage(playerid, CLEANER_COLOR,
-            "Работы: уборщик — левый ALT рядом с диспетчером (начало / конец смены).");
+            "Работы: левый ALT у диспетчера — сборщик или водитель (со 2 ранга).");
         SendClientMessage(playerid, CLEANER_COLOR,
             "/trashdrop — сдать мусор у контейнера, /cleanstats — статистика.");
         return 1;
@@ -157,6 +157,11 @@ cmd:trashservice(playerid, params[])
 cmd:cleanstats(playerid, params[])
 {
     return Cleaner_Stats(playerid);
+}
+
+cmd:orders(playerid, params[])
+{
+    return Truck_ShowOrders(playerid);
 }
 
 cmd:hudlogo(playerid, params[])
