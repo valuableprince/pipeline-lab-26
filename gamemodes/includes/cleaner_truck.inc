@@ -67,7 +67,8 @@ stock Truck_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     if (!(newkeys & action) || (oldkeys & action)) return 0;
     if (gTruckOnShift[playerid] && gTruckReservedId[playerid] &&
         (playerState == PLAYER_STATE_DRIVER ||
-         (playerState == PLAYER_STATE_ONFOOT && !Cleaner_NearDepot(playerid))))
+         (playerState == PLAYER_STATE_ONFOOT &&
+          (gTruckHeldUnits[playerid] || !Cleaner_NearDepot(playerid)))))
     {
         TruckLoad_HandleKey(playerid);
         return 1;
