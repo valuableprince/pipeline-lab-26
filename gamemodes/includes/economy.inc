@@ -7,10 +7,41 @@
 // Журнал только диагностический: деньги и маркеры записи сохраняются вместе.
 #define ECONOMY_DIRECTORY "signal_economy"
 #define ECONOMY_CLEANER_LIMIT (1000000)
+#define ECONOMY_RECONCILE_INTERVAL_MS (5000)
+
+new gEconomyReconcileTimer;
+forward Economy_ReconcileTick();
 
 stock Economy_Init()
 {
     fcreatedir(ECONOMY_DIRECTORY);
+    gEconomyReconcileTimer = SetTimer("Economy_ReconcileTick",
+        ECONOMY_RECONCILE_INTERVAL_MS, true);
+    if (!gEconomyReconcileTimer)
+        print("[ECONOMY] ERROR: money reconciliation timer unavailable.");
+    return 1;
+}
+
+stock Economy_Shutdown()
+{
+    if (gEconomyReconcileTimer) KillTimer(gEconomyReconcileTimer);
+    gEconomyReconcileTimer = 0;
+    return 1;
+}
+
+// Client cash is never authority: unexpected GTA/client rewards cannot enter
+// the account balance or linger in the client's wallet display.
+public Economy_ReconcileTick()
+{
+    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
+    {
+        if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
+            gAuthState[playerid] != AUTH_READY ||
+            !gAccountSpawned[playerid] || gAccountDead[playerid] ||
+            GetPlayerState(playerid) == PLAYER_STATE_SPECTATING) continue;
+        if (GetPlayerMoney(playerid) != gAccountMoney[playerid])
+            Economy_SyncHUD(playerid);
+    }
     return 1;
 }
 
