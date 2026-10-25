@@ -10,10 +10,11 @@ COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 
 class TruckStageTwoTests(unittest.TestCase):
     def test_integrated_lifecycle(self):
-        for symbol in ('#include "cleaner_truck_ops.inc"', "Truck_Init();",
+        for symbol in ("Truck_Init();",
                        "Truck_Shutdown();", "Truck_OnStateChange(playerid, newstate, oldstate);",
                        "Truck_OnVehicleDeath(vehicleid);", "Truck_Reset(playerid);"):
             self.assertIn(symbol, MAIN)
+        self.assertIn('#include "cleaner_truck_ops.inc"', TRUCK)
         self.assertIn("return Truck_StopShift(playerid);", TRUCK)
 
     def test_dedicated_vehicle_and_ownership(self):
