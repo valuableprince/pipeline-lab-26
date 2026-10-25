@@ -112,11 +112,13 @@ stock Truck_StopShift(playerid)
 
 stock bool:Truck_AssignVehicle(playerid)
 {
-    if (!Cleaner_NearDepot(playerid) || gCleanerDataError[playerid] ||
+    if (!gTruckPersistenceReady || !Cleaner_NearDepot(playerid) ||
+        gCleanerDataError[playerid] ||
         gTruckVehicle[playerid] != INVALID_VEHICLE_ID) return false;
     for (new bay = 0; bay < TRUCK_BAYS; bay++)
     {
-        if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay])) continue;
+        if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay]) ||
+            !TruckPersist_CargoAllowed(playerid, bay)) continue;
         gTruckBayOwner[bay] = playerid + 1;
         gTruckVehicle[playerid] = gTruckFleet[bay];
         gTruckBay[playerid] = bay;
@@ -309,6 +311,8 @@ stock Truck_FleetBay(vehicleid)
     return -1;
 }
 
+// Durable cargo and one-time delivery payments precede animation handlers.
+#include "cleaner_truck_persist.inc"
 // Loading declarations must precede Tick and vehicle callbacks.
 #include "cleaner_truck_loading.inc"
 
@@ -318,6 +322,7 @@ stock Truck_FleetBay(vehicleid)
 stock bool:Truck_SelectVehicle(playerid, bay)
 {
     if (!gTruckOnShift[playerid] || bay < 0 || bay >= TRUCK_BAYS ||
+        !TruckPersist_CargoAllowed(playerid, bay) ||
         !IsValidVehicle(gTruckFleet[bay]) ||
         (gTruckBayOwner[bay] && gTruckBayOwner[bay] != playerid + 1) ||
         TruckLoad_CurrentBusy(playerid)) return false;
@@ -448,10 +453,11 @@ public Truck_Tick()
 
 stock Truck_Init()
 {
+    // Restore cargo before labels/vehicles; require the v11 migration.
+    TruckPersist_Init();
     for (new i = 0; i < TRUCK_BAYS; i++)
     {
         gTruckBayOwner[i] = 0;
-        gTruckCargo[i] = 0;
         gTruckCargoLabel[i] = Text3D:INVALID_3DTEXT_ID;
         gTruckFleet[i] = CreateVehicle(TRUCK_VEHICLE_MODEL,
             gTruckSpawnPositions[i][0], gTruckSpawnPositions[i][1],
@@ -501,6 +507,7 @@ stock Truck_Shutdown()
     gTruckTimer = 0;
     for (new i = 0; i < MAX_PLAYERS; i++)
         Truck_StopShift(i);
+    TruckPersist_Shutdown();
     for (new bay = 0; bay < TRUCK_BAYS; bay++)
     {
         if (gTruckCargoLabel[bay] != Text3D:INVALID_3DTEXT_ID)
