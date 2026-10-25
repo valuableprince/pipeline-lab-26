@@ -38,7 +38,7 @@ class TruckLoadHotfix(unittest.TestCase):
         self.assertNotIn("контейнер, затем /truckbag", OPS)
 
     def test_lower_lift_and_database_diagnostics(self):
-        self.assertIn("#define TRUCK_HIGH_CLEARANCE (4.0)", LOAD)
+        self.assertIn("#define TRUCK_HIGH_CLEARANCE (3.0)", LOAD)
         self.assertIn("gTruckLoadError[playerid] = 2;", LOAD)
         self.assertIn("gTruckLoadError[playerid] = 3;", LOAD)
         self.assertIn("mysql_errno(gDBPrimary)", LOAD)
