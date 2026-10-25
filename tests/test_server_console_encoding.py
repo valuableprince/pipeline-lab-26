@@ -37,7 +37,7 @@ class ServerConsoleEncodingTest(unittest.TestCase):
         cleaner = (INCLUDES / "cleaner_job.inc").read_text(encoding="utf-8")
         studio = (INCLUDES / "studio_system.inc").read_text(encoding="utf-8")
         for marker in (
-            "[TARKENSO / SIGNAL 03:17] Starting game mode",
+            "[Tarkenso RPG / SIGNAL 03:17] Starting game mode",
             "[DB-PRIMARY] MySQL unavailable",
         ):
             self.assertIn(marker, main)

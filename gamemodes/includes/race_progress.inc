@@ -315,7 +315,7 @@ stock RaceProgress_Leaders(playerid)
     if (!gRaceTopCount)
         return SendClientMessage(playerid, COLOR_GREY,
             "Пока нет зафиксированных рекордов трассы.");
-    SendClientMessage(playerid, RACE_PROGRESS_COLOR, "TARKENSO | Топ-10: лучшие времена трассы.");
+    SendClientMessage(playerid, RACE_PROGRESS_COLOR, "Tarkenso RPG | Топ-10: лучшие времена трассы.");
     new message[96];
     for (new i = 0; i < gRaceTopCount; i++)
     {

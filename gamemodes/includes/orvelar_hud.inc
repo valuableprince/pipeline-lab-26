@@ -33,7 +33,7 @@ stock OrvelarHUD_Init()
     TextDrawBackgroundColour(gOrvelarHudStroke, 0x091527FF);
     TextDrawSetProportional(gOrvelarHudStroke, true);
 
-    gOrvelarHudName = TextDrawCreate(457.0, 16.0, "ORVELAR");
+    gOrvelarHudName = TextDrawCreate(457.0, 16.0, "Tarkenso");
     TextDrawFont(gOrvelarHudName, TEXT_DRAW_FONT_2);
     TextDrawLetterSize(gOrvelarHudName, 0.26, 1.08);
     TextDrawColour(gOrvelarHudName, 0xE8F1FFFF);

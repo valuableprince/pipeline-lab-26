@@ -28,7 +28,7 @@ stock Admin_UI_Toggle(playerid)
     if (!Admin_Allowed(playerid, PERM_REPORT)) return 1;
     new title[90], body[510];
     if (Admin_IsFounder(playerid))
-        format(title, sizeof(title), "TARKENSO | VEYRAN · FOUNDER | Duty: %s", gAdminDuty[playerid] ? ("ON") : ("OFF"));
+        format(title, sizeof(title), "Tarkenso RPG | VEYRAN · FOUNDER | Duty: %s", gAdminDuty[playerid] ? ("ON") : ("OFF"));
     else
         format(title, sizeof(title), "ADMIN | Уровень %d | Duty: %s",
             gAdminLevel[playerid], gAdminDuty[playerid] ? ("ON") : ("OFF"));

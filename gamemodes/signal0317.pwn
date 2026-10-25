@@ -688,12 +688,13 @@ stock Auth_BeginAccount(playerid, bool:fromIntro = false)
 
 main()
 {
-    print("[TARKENSO / SIGNAL 03:17] Starting game mode...");
+    print("[Tarkenso RPG / SIGNAL 03:17] Starting game mode...");
 }
 
 public OnGameModeInit()
 {
-    SetGameModeText("СИГНАЛ: 03:17 | RPG");
+    SendRconCommand("hostname Tarkenso RPG");
+    SetGameModeText("RPG | СИГНАЛ: 03:17");
     ShowPlayerMarkers(PLAYER_MARKERS_MODE_OFF);
     ShowNameTags(true);
     DisableInteriorEnterExits();
@@ -721,7 +722,7 @@ public OnGameModeInit()
     Economy_Init();
     Leader_Init();
     OrvelarHUD_Init();
-    print("[TARKENSO / SIGNAL 03:17] Authentication initialized; samp-bcrypt required.");
+    print("[Tarkenso RPG / SIGNAL 03:17] Authentication initialized; samp-bcrypt required.");
     return 1;
 }
 

@@ -214,7 +214,7 @@ stock Story_ShowJournal(playerid)
         "{E6BB79}СИГНАЛ: 03:17 | НОМЕР 17\n{94A3B8}____________________________________\n\n{FFFFFF}Этап расследования: {D5B477}%d/%d\n\n{FFFFFF}Текущая задача:\n{E6BB79}%s\n\n{94A3B8}Точки отмечены на карте. Подойдите пешком\nи нажмите левый ALT для взаимодействия.\nСохранение: автоматически после каждой находки.",
         gStoryStage[playerid], STORY_DONE, objective);
     ShowPlayerDialog(playerid, STORY_DIALOG_JOURNAL, DIALOG_STYLE_MSGBOX,
-        "TARKENSO | Журнал расследования", body, "Понятно", "Закрыть");
+        "Tarkenso RPG | Журнал расследования", body, "Понятно", "Закрыть");
     return 1;
 }
 
