@@ -181,6 +181,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "db_world.inc"
 #include "cleaner_container.inc"
 #include "cleaner_truck.inc"
+#include "cleaner_truck_ops.inc"
 #include "cleaner_editor.inc"
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
@@ -737,6 +738,7 @@ public OnGameModeInit()
     Story_TapeInit();
     Cleaner_Init();
     CleanerDump_Init();
+    Truck_Init();
     Race_Init();
     Admin_Init();
     AdminVeh_Init();
@@ -762,6 +764,7 @@ public OnGameModeExit()
     AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
+    Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
     Studio_Shutdown();
@@ -1019,6 +1022,7 @@ public OnPlayerEnterRaceCheckpoint(playerid)
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     Race_OnStateChange(playerid, newstate, oldstate);
+    Truck_OnStateChange(playerid, newstate, oldstate);
     if (gCleanerDuty[playerid] && gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&
         gCleanerDumpNav[playerid])
     {
@@ -1043,6 +1047,7 @@ public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
 public OnVehicleDeath(vehicleid, killerid)
 {
     #pragma unused killerid
+    Truck_OnVehicleDeath(vehicleid);
     AdminVeh_OnVehicleDeath(vehicleid);
     return 1;
 }
