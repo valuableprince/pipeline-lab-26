@@ -50,17 +50,20 @@ function respond(res, code, text, headers = {}) {
 function validOrigin(req) {
   return req.headers.origin === origin;
 }
-function authToken(req) {
+function sessionId(req) {
   const cookie = req.headers.cookie || '';
   const match = cookie.match(/(?:^|;\s*)broadcast_session=([0-9a-f]{64})(?:;|$)/);
-  if (!match) return false;
+  if (!match) return null;
   const expiry = sessions.get(match[1]);
-  if (!expiry) return false;
+  if (!expiry) return null;
   if (expiry <= Date.now()) {
     sessions.delete(match[1]);
-    return false;
+    return null;
   }
-  return true;
+  return match[1];
+}
+function authToken(req) {
+  return sessionId(req) !== null;
 }
 function secureCompare(value) {
   const a = crypto.createHash('sha256').update(value).digest();
@@ -104,7 +107,7 @@ function shutdownPublisher() {
   if (active.socket.readyState === active.socket.OPEN)
     active.socket.close(1000, 'Broadcast ended');
 }
-function startPublisher(socket) {
+function startPublisher(socket, ownerSession) {
   if (publisher) { socket.close(1013, 'Busy'); return; }
   const target = 'icecast://source:' + encodeURIComponent(sourcePassword) +
     '@' + icecastHost + ':' + icecastPort + mount;
@@ -114,7 +117,7 @@ function startPublisher(socket) {
     '-c:a', 'libmp3lame', '-b:a', '64k', '-content_type', 'audio/mpeg',
     '-f', 'mp3', target
   ], { stdio: ['pipe', 'ignore', 'pipe'], shell: false });
-  const entry = { socket, ffmpeg, bytes: 0, timer: null };
+  const entry = { socket, ffmpeg, ownerSession, bytes: 0, timer: null };
   publisher = entry;
   entry.timer = setTimeout(() => shutdownPublisher(), maxMs);
   ffmpeg.on('error', error => {
@@ -190,14 +193,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/stop') {
-    if (!authToken(req)) return respond(res, 401, 'Unauthorized');
+    const sid = sessionId(req);
+    if (!sid) return respond(res, 401, 'Unauthorized');
+    if (publisher && publisher.ownerSession !== sid)
+      return respond(res, 403, 'This stream belongs to another authenticated session');
     shutdownPublisher();
     return respond(res, 200, 'OK');
   }
   if (req.method === 'POST' && url.pathname === '/api/logout') {
     if (!authToken(req)) return respond(res, 401, 'Unauthorized');
     const match = (req.headers.cookie || '').match(/broadcast_session=([0-9a-f]{64})/);
-    if (match) sessions.delete(match[1]);
+    if (match) {
+      if (publisher && publisher.ownerSession === match[1]) shutdownPublisher();
+      sessions.delete(match[1]);
+    }
     return respond(res, 200, 'OK', {
       'Set-Cookie': 'broadcast_session=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0'
     });
@@ -205,7 +214,8 @@ const server = http.createServer(async (req, res) => {
   return respond(res, 404, 'Not found');
 });
 server.on('upgrade', (req, socket, head) => {
-  if (req.url !== '/ingest' || !validOrigin(req) || !authToken(req)) {
+  const sid = sessionId(req);
+  if (req.url !== '/ingest' || !validOrigin(req) || !sid) {
     socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
     socket.destroy();
     return;
@@ -215,7 +225,7 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
     return;
   }
-  web.handleUpgrade(req, socket, head, ws => startPublisher(ws));
+  web.handleUpgrade(req, socket, head, ws => startPublisher(ws, sid));
 });
 server.listen(listenPort, listenHost, () =>
   console.log('Broadcast gateway listening on ' + listenHost + ':' + listenPort));
