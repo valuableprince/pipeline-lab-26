@@ -29,7 +29,11 @@ class RadioPlayerContractTests(unittest.TestCase):
     def test_dialog_lifecycle(self):
         self.assertIn("cmd:play(playerid, params[])", COMMANDS)
         self.assertIn("return Radio_Open(playerid);", COMMANDS)
-        self.assertIn("DIALOG_STYLE_TABLIST_HEADERS", RADIO)
+        self.assertIn("DIALOG_STYLE_LIST", RADIO)
+        self.assertNotIn("DIALOG_STYLE_TABLIST_HEADERS", RADIO)
+        self.assertNotIn("gRadioCategories", RADIO)
+        self.assertIn('format(row, sizeof(row), "%s\\n", gRadioNames[i]);', RADIO)
+        self.assertNotIn('\\t', RADIO)
         self.assertIn("Выключить радио", RADIO)
         self.assertIn("if (!response) return 1;", RADIO)
         self.assertIn("if (listitem == RADIO_STATION_COUNT)", RADIO)
