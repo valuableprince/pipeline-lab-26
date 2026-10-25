@@ -6,6 +6,7 @@
 // RP-CHAT-01. Local in-character actions and speech, without dialog popups.
 #define RP_TEXT_MAX          (90)
 #define RP_RADIUS_ACTION     (20.0)
+#define RP_RADIUS_SPEECH     (20.0)
 #define RP_RADIUS_WHISPER    (4.0)
 #define RP_RADIUS_LOW        (8.0)
 #define RP_RADIUS_SHOUT      (45.0)

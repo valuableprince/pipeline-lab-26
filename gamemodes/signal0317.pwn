@@ -1295,9 +1295,8 @@ public OnPlayerText(playerid, text[])
         SendClientMessage(playerid, ADMIN_ERROR, "Ваш чат временно заблокирован.");
         return 0;
     }
-    // Собственный формат общего чата: игровой ник(ID): сообщение.
-    // Фигурные скобки нейтрализуем, чтобы игрок не мог подменить цвет
-    // чата через встроенную разметку {RRGGBB} SendClientMessage.
+    // Обычная речь — локальная: радиус 20 м, один виртуальный мир и интерьер.
+    // Формат ник(ID): сообщение сохраняется. Цветовые коды игрока нейтрализуются.
     new nickname[MAX_PLAYER_NAME], message[144], cleanText[116], n;
     GetPlayerName(playerid, nickname, sizeof(nickname));
     while (text[n] != EOS && n < sizeof(cleanText) - 1)
@@ -1309,6 +1308,6 @@ public OnPlayerText(playerid, text[])
     }
     cleanText[n] = EOS;
     format(message, sizeof(message), "%s(%d): %s", nickname, playerid, cleanText);
-    SendClientMessageToAll(COLOR_WHITE, message);
+    RP_SendLocal(playerid, COLOR_WHITE, message, RP_RADIUS_SPEECH);
     return 0;
 }

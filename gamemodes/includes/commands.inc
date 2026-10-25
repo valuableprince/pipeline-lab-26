@@ -99,7 +99,7 @@ cmd:help(playerid, params[])
     {
         SendClientMessage(playerid, RP_COLOR_ACTION, "RP-действия: /me, /do, /try, /todo, /ame (текст над персонажем).");
         SendClientMessage(playerid, RP_COLOR_OOC, "Общение: /b (OOC), /s (крик 45 м), /w (шёпот 4 м), /low (тихо 8 м).");
-        SendClientMessage(playerid, COLOR_GREY, "Пример: /todo Здравствуй!*протягивая руку. Все RP-сообщения локальные (20 м по умолчанию).");
+        SendClientMessage(playerid, COLOR_GREY, "Обычная речь и /me, /do, /try, /todo, /b — локально до 20 м. Пример: /todo Привет!*протянув руку.");
         return 1;
     }
     if (!strcmp(category, "jobs", true))
