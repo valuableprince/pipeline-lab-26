@@ -70,10 +70,10 @@ class WasteSortingTextDrawTests(unittest.TestCase):
 
     def test_catalog_has_30_distinct_models_ten_per_category(self):
         table = re.search(
-            r"new const gSortCatalogModels\\[SORT_CATALOG_COUNT\\] =\\s*\\{(.*?)\\};",
+            r"new const gSortCatalogModels\[SORT_CATALOG_COUNT\] =\s*\{(.*?)\};",
             UI, re.S)
         self.assertIsNotNone(table)
-        rows = re.findall(r"^\\s*(\\d+),?\\s*//\\s*(.+)$", table.group(1), re.M)
+        rows = re.findall(r"^\s*(\d+),?\s*//\s*(.+)$", table.group(1), re.M)
         ids = [int(model) for model, _ in rows]
         self.assertEqual(len(ids), 30)
         self.assertEqual(len(set(ids)), 30)
@@ -84,7 +84,7 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         self.assertEqual(ids[20:], [2601, 18633, 18634, 18635, 18644,
                                     2057, 19581, 19583, 19584, 19586])
         rotations = re.search(
-            r"new const Float:gSortCatalogRot\\[SORT_CATALOG_COUNT\\]\\[4\\] =\\s*\\{(.*?)\\};",
+            r"new const Float:gSortCatalogRot\[SORT_CATALOG_COUNT\]\[4\] =\s*\{(.*?)\};",
             UI, re.S)
         self.assertIsNotNone(rotations)
         self.assertEqual(rotations.group(1).count("//"), 30)
