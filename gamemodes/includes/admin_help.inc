@@ -56,7 +56,7 @@ new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
     {"weather", "/weather 0-45", "Сменить погоду на сервере", "/weather 9", 4, 2},
     {"respawn", "/respawn ID", "Возродить игрока на точке появления", "/respawn 12", 2, 3},
     {"setskin", "/setskin ID skin", "Временно изменить скин персонажа", "/setskin 12 29", 2, 3},
-    {"settime", "/settime часы минуты", "Установить время суток для всех", "/settime 18 30", 4, 3},
+    {"settime", "/settime HH MM | auto", "Время: вручную или часы сервера", "/settime auto", 4, 3},
     {"goto", "/goto ID", "Телепортироваться к игроку", "/goto 12", 2, 3},
     {"gethere", "/gethere ID", "Переместить игрока к себе", "/gethere 12", 2, 3},
     {"ban", "/ban ID минуты причина", "Заблокировать аккаунт игрока", "/ban 12 60 Читы", 3, 3},
