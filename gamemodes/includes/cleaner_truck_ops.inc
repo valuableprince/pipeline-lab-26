@@ -146,8 +146,7 @@ stock Truck_FindContainer(id)
 {
     if (!CleanerDump_IsReady() || id <= 0) return -1;
     for (new i = 0; i < gCleanerDumpCount; i++)
-        if (gCleanerDumpId[i] == id && gCleanerDumpEnabled[i] &&
-            gCleanerDumpBin[i] + gCleanerDumpOverflow[i] >= TRUCK_ORDER_THRESHOLD)
+        if (gCleanerDumpId[i] == id && gCleanerDumpEnabled[i])
             return i;
     return -1;
 }
@@ -172,7 +171,8 @@ stock Truck_ClaimOrder(playerid, id)
         gTruckVehicle[playerid] == INVALID_VEHICLE_ID ||
         !IsValidVehicle(gTruckVehicle[playerid])) return 0;
     new slot = Truck_FindContainer(id);
-    if (slot < 0)
+    if (slot < 0 || (!gTruckReservedId[playerid] &&
+        gCleanerDumpBin[slot] + gCleanerDumpOverflow[slot] < TRUCK_ORDER_THRESHOLD))
         return SendClientMessage(playerid, COLOR_RED, "Заказ недоступен или уже вывезен.");
     if (gTruckReservedId[playerid] && gTruckReservedId[playerid] != id)
         return SendClientMessage(playerid, COLOR_RED,
@@ -346,7 +346,11 @@ public Truck_Tick()
     {
         if (!gTruckOnShift[playerid] || !IsPlayerConnected(playerid)) continue;
         if (gTruckReservedId[playerid] &&
-            Truck_FindContainer(gTruckReservedId[playerid]) < 0)
+            (Truck_FindContainer(gTruckReservedId[playerid]) < 0 ||
+             (gTruckLoadPhase[playerid] == TRUCK_PHASE_IDLE &&
+              !gTruckHeldUnits[playerid] &&
+              gCleanerDumpBin[Truck_FindContainer(gTruckReservedId[playerid])] +
+              gCleanerDumpOverflow[Truck_FindContainer(gTruckReservedId[playerid])] == 0)))
         {
             Truck_ReleaseOrder(playerid);
             SendClientMessage(playerid, COLOR_GREY,
