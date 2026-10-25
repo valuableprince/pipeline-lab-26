@@ -809,7 +809,7 @@ stock Admin_Execute(playerid, const input[])
         }
         else if (!strcmp(arg1, "clear", true))
         {
-                    gAdminWeather = 9;
+            gAdminWeather = 9;
             gAdminClockHour = 3;
             gAdminClockMinute = 17;
         }
