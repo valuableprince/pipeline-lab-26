@@ -22,7 +22,7 @@
 #define CLEANER_ANIM_MS         (3700)
 #define CLEANER_COLLECT_DELAY   (4)
 #define CLEANER_INTERACT_SQ     (10.24)   // левый ALT в радиусе 3,2 м
-#define CLEANER_BAG_MODEL       (1264)    // BlackBag1, модель мусорного мешка
+#define CLEANER_BAG_MODEL       (1265)    // BlackBag2: компактная модель для руки
 #define CLEANER_PAY_PER_UNIT    (25)
 #define CLEANER_MAX_TOTAL       (1000000)
 // Точка диспетчера предоставлена по игровому замеру владельца сервера.
