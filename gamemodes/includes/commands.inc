@@ -78,7 +78,7 @@ cmd:help(playerid, params[])
     if (isnull(params))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Tarkenso RPG | /help player, /help jobs, /help race, /help factions.");
+            "Tarkenso RPG | /help player, /help rp, /help jobs, /help race, /help factions.");
         if (gAdminLevel[playerid] > 0)
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Администрация: /ahelp, /help admin.");
@@ -88,11 +88,18 @@ cmd:help(playerid, params[])
         return 1;
     }
     if (sscanf(params, "s[20]", category))
-        return SendClientMessage(playerid, COLOR_RED, "Использование: /help [player|jobs|race|factions|admin|studio].");
+        return SendClientMessage(playerid, COLOR_RED, "Использование: /help [player|rp|jobs|race|factions|admin|studio].");
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
             "Игрок: /mn (/mm, /menu), /story, /position, /play, /hudlogo, /report, /admins.");
+        return 1;
+    }
+    if (!strcmp(category, "rp", true))
+    {
+        SendClientMessage(playerid, RP_COLOR_ACTION, "RP-действия: /me, /do, /try, /todo, /ame (текст над персонажем).");
+        SendClientMessage(playerid, RP_COLOR_OOC, "Общение: /b (OOC), /s (крик 45 м), /w (шёпот 4 м), /low (тихо 8 м).");
+        SendClientMessage(playerid, COLOR_GREY, "Пример: /todo Здравствуй!*протягивая руку. Все RP-сообщения локальные (20 м по умолчанию).");
         return 1;
     }
     if (!strcmp(category, "jobs", true))
@@ -149,8 +156,19 @@ cmd:help(playerid, params[])
         return 1;
     }
     return SendClientMessage(playerid, COLOR_RED,
-        "Разделы: player, jobs, race, factions, admin, studio.");
+        "Разделы: player, rp, jobs, race, factions, admin, studio.");
 }
+
+// RP-CHAT-01: commands available to every authenticated, spawned player.
+cmd:me(playerid, params[]) { return RP_Command(playerid, 0, params); }
+cmd:do(playerid, params[]) { return RP_Command(playerid, 1, params); }
+cmd:try(playerid, params[]) { return RP_Command(playerid, 2, params); }
+cmd:todo(playerid, params[]) { return RP_Command(playerid, 3, params); }
+cmd:ame(playerid, params[]) { return RP_Command(playerid, 4, params); }
+cmd:b(playerid, params[]) { return RP_Command(playerid, 5, params); }
+cmd:s(playerid, params[]) { return RP_Command(playerid, 6, params); }
+cmd:w(playerid, params[]) { return RP_Command(playerid, 7, params); }
+cmd:low(playerid, params[]) { return RP_Command(playerid, 8, params); }
 
 cmd:trashdrop(playerid, params[])
 {
