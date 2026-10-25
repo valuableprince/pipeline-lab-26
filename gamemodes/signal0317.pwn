@@ -715,6 +715,8 @@ public OnGameModeInit()
 {
     SendRconCommand("hostname Tarkenso RPG");
     SetGameModeText("RPG | СИГНАЛ: 03:17");
+    // GTA SA wheelie/jump/airtime payouts are disabled on this RP server.
+    EnableStuntBonusForAll(false);
     ShowPlayerMarkers(PLAYER_MARKERS_MODE_OFF);
     ShowNameTags(true);
     DisableInteriorEnterExits();
@@ -769,6 +771,8 @@ public OnGameModeExit()
 
 public OnPlayerConnect(playerid)
 {
+    // Also apply at connection: default GTA stunt bonuses are enabled per player.
+    EnableStuntBonusForPlayer(playerid, false);
     Guard_OnConnect(playerid);
     Admin_OnConnect(playerid);
     AdminPunish_Reset(playerid);
