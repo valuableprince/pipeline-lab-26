@@ -26,7 +26,7 @@ class PayDayContract(unittest.TestCase):
         for token in ("ADD COLUMN character_level", "ADD COLUMN character_exp",
                       "ADD COLUMN last_payday_hour", "VALUES (7)"):
             self.assertIn(token, SQL)
-        self.assertIn("WHERE version=10 LIMIT 1", DB)
+        self.assertIn("WHERE version=12 LIMIT 1", DB)
         for column in ("character_level", "character_exp", "last_payday_hour"):
             self.assertIn(column, DB)
             self.assertIn(column, PAYDAY)
