@@ -77,6 +77,9 @@ db < db/migrations/012_safe_optimization_rollback.sql
 [[ "$(scalar "SELECT COUNT(*) FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='municipal_truck_deliveries'
       AND INDEX_NAME='idx_mtd_account_completed'")" == "0" ]]
+[[ "$(scalar "SELECT COUNT(*) FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='municipal_truck_deliveries'
+      AND INDEX_NAME='fk_mtd_account'")" == "1" ]]
 [[ "$(scalar "SELECT username FROM bans WHERE LOWER(username)=LOWER('case_ban')")" == "Case_Ban" ]]
 [[ "$(scalar 'SELECT COUNT(*) FROM accounts')" == "$accounts_before" ]]
 [[ "$(scalar 'SELECT COUNT(*) FROM bans')" == "$bans_before" ]]
