@@ -175,6 +175,9 @@ stock Truck_OnDialog(playerid, dialogid, response, listitem)
             if (!CleanerDump_IsReady())
                 return SendClientMessage(playerid, COLOR_RED,
                     "База контейнеров недоступна.");
+            if (!gTruckPersistenceReady)
+                return SendClientMessage(playerid, COLOR_RED,
+                    "Профессия недоступна: требуется миграция MariaDB v11 и перезапуск сервера.");
             if (!Truck_StartShift(playerid))
                 return SendClientMessage(playerid, COLOR_RED,
                     "Нет свободного служебного мусоровоза. Попробуйте позднее.");
