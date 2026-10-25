@@ -33,8 +33,27 @@ class TruckStageTwoTests(unittest.TestCase):
         self.assertIn("Truck_ReservedByOther(id, playerid)", OPS)
         self.assertIn("gTruckClaimOwner[i] = 0;", OPS)
         self.assertIn("Truck_FindContainer(gTruckReservedId[playerid]) < 0", OPS)
-        self.assertIn("Truck_ReservedByOther(gCleanerDumpId[i], playerid)", TRUCK)
+        # Occupied orders remain visible, but are rejected by the claim guard.
+        self.assertIn("Truck_OrderOwner(gCleanerDumpId[i])", TRUCK)
+        self.assertNotIn("total < TRUCK_ORDER_THRESHOLD || Truck_ReservedByOther", TRUCK)
+        self.assertIn("Truck_ReservedByOther(id, playerid)", OPS)
         self.assertIn("TRUCK_ORDER_THRESHOLD", OPS)
+
+    def test_reserved_orders_identify_driver_in_yellow(self):
+        for symbol in (
+            "stock Truck_OrderOwner(id)",
+            "gTruckClaimOwner[i] - 1",
+            "owner >= 0 && owner < MAX_PLAYERS && IsPlayerConnected(owner)",
+            "gTruckReservedId[owner] == id",
+            "return -1;",
+        ):
+            self.assertIn(symbol, OPS)
+        self.assertIn("GetPlayerName(owner, ownerName, sizeof(ownerName));", TRUCK)
+        self.assertIn("{FFD700}%s(%d){FFFFFF}", TRUCK)
+        self.assertIn('format(containerLabel, sizeof(containerLabel), "#%d"', TRUCK)
+        self.assertIn("if (strlen(body) + strlen(line) >= sizeof(body)) break;", TRUCK)
+        self.assertIn("gTruckDialogContainer[playerid][gTruckDialogCount[playerid]++] = gCleanerDumpId[i];", TRUCK)
+        self.assertIn('DIALOG_STYLE_TABLIST_HEADERS', TRUCK)
 
     def test_reverse_dock_no_loading_yet(self):
         for symbol in ("GetVehicleZAngle(vehicleid, angle)", "GetVehicleVelocity(vehicleid, vx, vy, vz)",
