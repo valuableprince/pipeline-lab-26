@@ -70,7 +70,7 @@ stock AdminTools_Check(playerid, const params[])
         gAccountName[target], target, gCharacterLevel[target], gCharacterEXP[target]);
     SendClientMessage(playerid, ADMIN_COLOR, msg);
     format(msg, sizeof(msg), "Здоровье: %.0f | Броня: %.0f | Деньги: $%d | Админ: %d",
-        health, armour, gAccountSpawned[target] ? GetPlayerMoney(target) : gAccountMoney[target],
+        health, armour, gAccountMoney[target],
         gAdminLevel[target]);
     SendClientMessage(playerid, ADMIN_COLOR, msg);
     format(msg, sizeof(msg), "Организация: %s (ранг %d) | Мир: %d | Интерьер: %d",
