@@ -217,7 +217,7 @@ stock bool:CleanerDump_Load()
             !cache_get_value_name_float(i, "rz", rz) ||
             id < 1 || bin < 0 || bin > CLEANER_DUMP_CAP ||
             overflow < 0 || overflow > CLEANER_DUMP_OVERFLOW_CAP ||
-            world != 0 || interior != 0)
+            (overflow > 0 && bin != CLEANER_DUMP_CAP) || world != 0 || interior != 0)
         {
             cache_delete(c);
             return false;
