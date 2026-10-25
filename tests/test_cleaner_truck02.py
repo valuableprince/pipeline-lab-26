@@ -26,7 +26,7 @@ class TruckStageTwoTests(unittest.TestCase):
         self.assertIn("Truck_ReleaseOrder(playerid);", OPS)
 
     def test_unique_claims_by_immutable_container_id(self):
-        self.assertIn("gTruckClaimOwner[i] = playerid + 1;", OPS)
+        self.assertIn("gTruckClaimOwner[free] = playerid + 1;", OPS)
         self.assertIn("gTruckClaimId[free] = id;", OPS)
         self.assertIn("gTruckReservedId[playerid] = id;", OPS)
         self.assertIn("Truck_ReservedByOther(id, playerid)", OPS)
