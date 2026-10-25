@@ -10,13 +10,6 @@
 #define RADIO_STATION_COUNT   (10)
 #define RADIO_COLOR           (0x8EACBCFF)
 
-new const gRadioCategories[][] =
-{
-    "Россия", "Россия", "Россия",
-    "Классика", "Классика", "Классика",
-    "Зарубежное", "Зарубежное", "Зарубежное", "Зарубежное"
-};
-
 new const gRadioNames[][] =
 {
     "Европа Плюс",
@@ -71,15 +64,15 @@ stock Radio_OnDisconnect(playerid)
 
 stock Radio_Open(playerid)
 {
-    new body[1024], row[112];
-    format(body, sizeof(body), "Раздел\tРадиостанция\n");
+    new body[512], row[64];
+    body[0] = EOS;
     for (new i = 0; i < RADIO_STATION_COUNT; i++)
     {
-        format(row, sizeof(row), "%s\t%s\n", gRadioCategories[i], gRadioNames[i]);
+        format(row, sizeof(row), "%s\n", gRadioNames[i]);
         strcat(body, row, sizeof(body));
     }
-    strcat(body, "Управление\tВыключить радио", sizeof(body));
-    return ShowPlayerDialog(playerid, RADIO_DIALOG_LIST, DIALOG_STYLE_TABLIST_HEADERS,
+    strcat(body, "Выключить радио", sizeof(body));
+    return ShowPlayerDialog(playerid, RADIO_DIALOG_LIST, DIALOG_STYLE_LIST,
         "TARKENSO | Радио", body, "Слушать", "Закрыть");
 }
 
