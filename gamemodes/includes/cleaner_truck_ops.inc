@@ -20,6 +20,7 @@ new gTruckBay[MAX_PLAYERS];
 new gTruckBayOwner[TRUCK_BAYS];
 new gTruckFleet[TRUCK_BAYS];
 new gTruckCargo[TRUCK_BAYS];
+new Text3D:gTruckCargoLabel[TRUCK_BAYS];
 #define TRUCK_CARGO_CAP (200)
 #define TRUCK_VEHICLE_MAP_SLOT (75)
 // Approved Fort Carson municipal truck parking bays: X, Y, Z, heading.
@@ -42,6 +43,21 @@ forward TruckLoad_Notice(playerid);
 forward bool:TruckLoad_CurrentBusy(playerid);
 forward TruckLoad_OnTick(playerid);
 forward TruckLoad_OnVehicleDestroyed(vehicleid);
+
+// These labels follow fleet vehicles, including while moving.
+stock Truck_UpdateCargoLabel(bay)
+{
+    if (bay < 0 || bay >= TRUCK_BAYS ||
+        gTruckCargoLabel[bay] == Text3D:INVALID_3DTEXT_ID) return 0;
+    new title[70];
+    format(title, sizeof(title), "Мусоровоз #%d\nЗагрузка: %d/%d",
+        bay + 1, gTruckCargo[bay], TRUCK_CARGO_CAP);
+    new color = 0x91E7AAFF;
+    if (gTruckCargo[bay] >= TRUCK_CARGO_CAP) color = 0xFF7777FF;
+    else if (gTruckCargo[bay] >= TRUCK_CARGO_CAP * 3 / 4) color = 0xF6D16FFF;
+    Update3DTextLabelText(gTruckCargoLabel[bay], color, title);
+    return 1;
+}
 
 stock Truck_ReleaseOrder(playerid)
 {
@@ -255,9 +271,9 @@ stock Truck_ParkCommand(playerid)
     new slot = Truck_FindContainer(gTruckReservedId[playerid]);
     if (slot >= 0 && gCleanerDumpOverflow[slot] > 0)
         return SendClientMessage(playerid, CLEANER_COLOR,
-            "Парковка подтверждена. СНАЧАЛА мешки: /truckbag, /truckthrow. ПОТОМ /truckload.");
+            "Парковка готова. Выйдите, нажмите ALT у мешка и ALT у кузова. Затем ALT в кабине.");
     return SendClientMessage(playerid, CLEANER_COLOR,
-        "Парковка подтверждена. Мешков нет — загрузите контейнер: ALT или /truckload.");
+        "Парковка готова. Нажмите левый ALT ещё раз для загрузки контейнера.");
 }
 
 stock Truck_CancelCommand(playerid)
@@ -436,6 +452,7 @@ stock Truck_Init()
     {
         gTruckBayOwner[i] = 0;
         gTruckCargo[i] = 0;
+        gTruckCargoLabel[i] = Text3D:INVALID_3DTEXT_ID;
         gTruckFleet[i] = CreateVehicle(TRUCK_VEHICLE_MODEL,
             gTruckSpawnPositions[i][0], gTruckSpawnPositions[i][1],
             gTruckSpawnPositions[i][2], gTruckSpawnPositions[i][3],
@@ -446,6 +463,15 @@ stock Truck_Init()
         {
             SetVehicleVirtualWorld(gTruckFleet[i], 0);
             LinkVehicleToInterior(gTruckFleet[i], 0);
+            gTruckCargoLabel[i] = Create3DTextLabel(
+                "Мусоровоз\nЗагрузка: 0/200", 0x91E7AAFF,
+                0.0, 0.0, 0.0, 35.0, 0, false);
+            if (gTruckCargoLabel[i] != Text3D:INVALID_3DTEXT_ID)
+            {
+                Attach3DTextLabelToVehicle(gTruckCargoLabel[i],
+                    gTruckFleet[i], 0.0, 0.0, 3.6);
+                Truck_UpdateCargoLabel(i);
+            }
         }
     }
     for (new i = 0; i < CLEANER_DUMP_LIMIT; i++)
@@ -477,6 +503,11 @@ stock Truck_Shutdown()
         Truck_StopShift(i);
     for (new bay = 0; bay < TRUCK_BAYS; bay++)
     {
+        if (gTruckCargoLabel[bay] != Text3D:INVALID_3DTEXT_ID)
+        {
+            Delete3DTextLabel(gTruckCargoLabel[bay]);
+            gTruckCargoLabel[bay] = Text3D:INVALID_3DTEXT_ID;
+        }
         if (IsValidVehicle(gTruckFleet[bay])) DestroyVehicle(gTruckFleet[bay]);
         gTruckFleet[bay] = INVALID_VEHICLE_ID;
     }

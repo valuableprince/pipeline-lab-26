@@ -18,8 +18,8 @@ class TruckLoadHotfix(unittest.TestCase):
 
     def test_bin_unloading_rejects_remaining_bags_before_animation(self):
         self.assertIn("if (gCleanerDumpOverflow[slot] > 0)", LOAD)
-        self.assertIn("Сначала соберите все мешки с площадки", LOAD)
-        self.assertLess(LOAD.index("Сначала соберите все мешки с площадки"),
+        self.assertIn("Сначала все мешки: выйдите, ALT у мешка, ALT у кузова.", LOAD)
+        self.assertLess(LOAD.index("Сначала все мешки: выйдите, ALT у мешка, ALT у кузова."),
                         LOAD.index("gTruckLoadPhase[playerid] = TRUCK_PHASE_LIFT;"))
         self.assertIn("if (!overflow && gCleanerDumpOverflow[slot] > 0) return false;", LOAD)
         self.assertIn("gCleanerDumpOverflow[slot] -= amount;", LOAD)
@@ -33,12 +33,12 @@ class TruckLoadHotfix(unittest.TestCase):
         self.assertFalse((ROOT / "db/migrations/011_truck_container_independent_overflow.sql").exists())
 
     def test_drivers_are_told_the_correct_order(self):
-        self.assertIn("СНАЧАЛА мешки: /truckbag, /truckthrow. ПОТОМ /truckload.", OPS)
+        self.assertIn("Парковка готова. Выйдите, нажмите ALT у мешка и ALT у кузова.", OPS)
         self.assertIn("Порядок: сначала все мешки с площадки, затем выгрузка контейнера.", OPS)
         self.assertNotIn("контейнер, затем /truckbag", OPS)
 
     def test_lower_lift_and_database_diagnostics(self):
-        self.assertIn("#define TRUCK_HIGH_CLEARANCE (4.0)", LOAD)
+        self.assertIn("#define TRUCK_HIGH_CLEARANCE (3.0)", LOAD)
         self.assertIn("gTruckLoadError[playerid] = 2;", LOAD)
         self.assertIn("gTruckLoadError[playerid] = 3;", LOAD)
         self.assertIn("mysql_errno(gDBPrimary)", LOAD)
