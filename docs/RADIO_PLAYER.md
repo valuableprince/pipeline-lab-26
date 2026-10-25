@@ -1,6 +1,6 @@
 # RADIO-01 — игровое радио TARKENSO
 
-Команда `/play` открывает единый обычный список радиостанций без деления на категории.
+Команда `/play` открывает единый диалог `DIALOG_STYLE_TABLIST_HEADERS` с тремя столбцами: **№**, **Радиостанция**, **Страна** (страна происхождения радиостанции). Станции не разделяются по категориям.
 После выбора станция включается индивидуально у игрока вызовом
 `PlayAudioStreamForPlayer`; второй выбор заменяет текущий поток.
 Нижняя строка «Выключить радио» вызывает `Radio_Stop`.
@@ -8,18 +8,18 @@
 
 ## Станции и прямые потоки
 
-| Станция | Поток |
-| --- | --- |
-| Европа Плюс | `https://europaplus.hostingradio.ru:8030/ep128` |
-| Ретро FM (СПб) | `https://emgspb.hostingradio.ru/retrofmspb128.mp3` |
-| Радио Рекорд | `https://radiorecord.hostingradio.ru/rr_main96.aacp` |
-| Радио Орфей | `http://orfeyfm.hostingradio.ru:8034/orfeyfm128.mp3` |
-| Radio Swiss Classic | `https://stream.srg-ssr.ch/srgssr/rsc_de/mp3/128` |
-| MDR Klassik | `https://mdr-284350-0.sslcast.mdr.de/mdr/284350/0/mp3/high/stream.mp3` |
-| ANTENNE BAYERN | `https://stream.antenne.de/antenne/stream/mp3` |
-| Heart 80s | `https://media-ssl.musicradio.com/Heart80sMP3` |
-| NPO Radio 2 | `http://icecast.omroep.nl/radio2-bb-mp3` |
-| Radio Swiss Pop | `https://stream.srg-ssr.ch/srgssr/rsp/mp3/128` |
+| № | Радиостанция | Страна | Поток |
+| ---: | --- | --- | --- |
+| 1 | `https://europaplus.hostingradio.ru:8030/ep128` | | Россия | undefined
+| 2 | `https://emgspb.hostingradio.ru/retrofmspb128.mp3` | | Россия | undefined
+| 3 | `https://radiorecord.hostingradio.ru/rr_main96.aacp` | | Россия | undefined
+| 4 | `http://orfeyfm.hostingradio.ru:8034/orfeyfm128.mp3` | | Россия | undefined
+| 5 | `https://stream.srg-ssr.ch/srgssr/rsc_de/mp3/128` | | Швейцария | undefined
+| 6 | `https://mdr-284350-0.sslcast.mdr.de/mdr/284350/0/mp3/high/stream.mp3` | | Германия | undefined
+| 7 | `https://stream.antenne.de/antenne/stream/mp3` | | Германия | undefined
+| 8 | `https://media-ssl.musicradio.com/Heart80sMP3` | | Великобритания | undefined
+| 9 | `http://icecast.omroep.nl/radio2-bb-mp3` | | Нидерланды | undefined
+| 10 | `https://stream.srg-ssr.ch/srgssr/rsp/mp3/128` | | Швейцария | undefined
 
 **Проверка источников URL (25.10.2026):** пути сопоставлены с опубликованными
 каталогами и официальными страницами вещателей. Прямая попытка загрузки
@@ -55,7 +55,7 @@ open.mp обязательна**, включая формат AAC (Record), се
 ## Ручная проверка (UAT)
 
 1. Авторизоваться, выполнить `/play`, увидеть десять радиостанций и
-   «Выключить радио» в конце списка.
+   «Выключить радио» в конце списка. Убедиться, что заголовок содержит «№», «Радиостанция» и «Страна», а номера идут от 1 до 10.
 2. Поочерёдно выбрать каждую станцию, проверить фактический звук и отсутствие
    ошибок в клиенте (особенно AAC у Radio Record).
 3. Переключить станции без перезахода, затем повторно выбрать ту же станцию.
