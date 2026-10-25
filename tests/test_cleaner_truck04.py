@@ -59,6 +59,15 @@ class TruckStageFour(unittest.TestCase):
         self.assertIn("TRUCK_CARGO_CAP (200)", OPS)
         self.assertIn("gTruckCargoRevision[bay]++", PERSIST)
 
+    def test_recover_own_truck_and_partial_run_alt_unload(self):
+        self.assertIn("for (new pass = 0; pass < 2; pass++)", OPS)
+        self.assertIn("if (pass == 0 && gTruckCargo[bay] == 0) continue;", OPS)
+        self.assertIn("if (gTruckCargo[bay] > 0) TruckPersist_ReturnGPS(playerid);", OPS)
+        self.assertIn("TruckPersist_NearDepot(playerid)", LOAD)
+        self.assertIn("(!gTruckReservedId[playerid] || !Truck_CanDock(playerid))", LOAD)
+        self.assertIn("if (gTruckCargo[bay] >= TRUCK_CARGO_CAP)", LOAD)
+        self.assertIn("return TruckPersist_Unload(playerid);", LOAD)
+
     def test_temporary_yard_and_return_navigation(self):
         self.assertIn("TRUCK_UNLOAD_RADIUS_SQ (64.0)", PERSIST)
         self.assertIn("TruckPersist_ReturnGPS(playerid);", LOAD)
