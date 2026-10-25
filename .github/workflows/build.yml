@@ -7,6 +7,7 @@ on:
       - "gamemodes/**"
       - "tests/**"
       - "tools/check_pawn_output.py"
+      - "tools/install_rustext.py"
       - ".github/workflows/build.yml"
   pull_request:
     branches: [main]
@@ -91,6 +92,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_truck_alt_cargo_labels.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_truck04.py' -v
           python3 -m unittest discover -s tests -p 'test_waste_sort.py' -v
+          python3 -m unittest discover -s tests -p 'test_rustext_installer.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 
