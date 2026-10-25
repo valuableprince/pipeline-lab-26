@@ -36,7 +36,6 @@ new gAdminSpectate[MAX_PLAYERS];
 new Float:gAdminSpecPos[MAX_PLAYERS][3];
 new gAdminSpecInterior[MAX_PLAYERS];
 new gAdminSpecWorld[MAX_PLAYERS];
-new gAdminEventMode;
 new gAdminWeather;
 new gAdminClockHour;
 new gAdminClockMinute;
@@ -392,7 +391,6 @@ stock Admin_Init()
     fcreatedir(ADMIN_DIRECTORY);
     fcreatedir(BAN_DIRECTORY);
     gReportSerial = 0;
-    gAdminEventMode = 0;
     gAdminWeather = 9;
     gAdminClockHour = 3;
     gAdminClockMinute = 17;
@@ -799,22 +797,19 @@ stock Admin_Execute(playerid, const input[])
             return AdminHelp_Usage(playerid, "event");
         if (!strcmp(arg1, "fog", true))
         {
-            gAdminEventMode = 1;
             gAdminWeather = 20;
             gAdminClockHour = 3;
             gAdminClockMinute = 17;
         }
         else if (!strcmp(arg1, "night", true))
         {
-            gAdminEventMode = 2;
             gAdminWeather = 9;
             gAdminClockHour = 0;
             gAdminClockMinute = 0;
         }
         else if (!strcmp(arg1, "clear", true))
         {
-            gAdminEventMode = 0;
-            gAdminWeather = 9;
+                    gAdminWeather = 9;
             gAdminClockHour = 3;
             gAdminClockMinute = 17;
         }
