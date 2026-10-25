@@ -82,6 +82,8 @@ new bool:gAccountLegacy[MAX_PLAYERS];
 new bool:gAccountSpawned[MAX_PLAYERS];
 new bool:gAccountDead[MAX_PLAYERS];
 new gAccountAutosaveTimer;
+new gCleanerDumpNavTick[MAX_PLAYERS];
+new gCleanerEditorOwner = 65535;
 new bool:gAuthJustRegistered[MAX_PLAYERS];
 new bool:gAuthDialogOpen[MAX_PLAYERS];
 new gLockName[AUTH_LOCK_SLOTS][MAX_PLAYER_NAME];
@@ -107,13 +109,19 @@ forward bool:Economy_CleanerInitialize(playerid, earned);
 forward AdminTP_Reset(playerid);
 forward AdminTP_Info(playerid);
 forward CleanerDump_GetBin();
+forward CleanerDump_NavReset(playerid);
+forward CleanerDump_NavClear(playerid);
+forward CleanerDump_Navigate(playerid, count);
+forward CleanerEditor_List(playerid);
+forward CleanerEditor_OnDialog(playerid, dialogid, response, listitem);
+forward CleanerEditor_OnEdit(playerid, playerobject, objectid, EDIT_RESPONSE:response, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:rz);
 forward CleanerDump_GetOverflow();
 forward CleanerDump_GetBinCap();
 forward CleanerDump_GetOverflowCap();
 forward bool:CleanerDump_IsReady();
 forward bool:CleanerDump_Near(playerid);
-forward bool:CleanerDump_CanAccept(count);
-forward bool:CleanerDump_Stage(count);
+forward bool:CleanerDump_CanAccept(playerid, count);
+forward bool:CleanerDump_Stage(playerid, count);
 forward bool:CleanerDump_Commit();
 forward CleanerDump_Rollback();
 forward CleanerDump_Init();
@@ -170,6 +178,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "player_menu.inc"
 #include "db_world.inc"
 #include "cleaner_container.inc"
+#include "cleaner_editor.inc"
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
 #include "admin_tools.inc"
@@ -761,6 +770,7 @@ public OnPlayerConnect(playerid)
     Admin_OnConnect(playerid);
     AdminPunish_Reset(playerid);
     AdminVeh_Reset(playerid);
+    CleanerDump_NavReset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
     Story_OnConnect(playerid);
@@ -820,6 +830,7 @@ public OnPlayerDisconnect(playerid, reason)
     DBShadow_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Race_OnDisconnect(playerid);
+    if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
     StudioUI_Reset(playerid);
     Story_OnDisconnect(playerid);
@@ -927,6 +938,7 @@ public OnPlayerSpawn(playerid)
     TogglePlayerControllable(playerid, !gAdminFrozen[playerid]);
     OrvelarHUD_Show(playerid);
     Race_OnSpawn(playerid);
+    CleanerDump_NavClear(playerid);
     Admin_ApplyEvent(playerid);
     if (!AdminPunish_OnSpawn(playerid)) Story_OnSpawn(playerid);
     return 1;
@@ -965,6 +977,13 @@ public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstat
     return 1;
 }
 
+public OnPlayerEditObject(playerid, playerobject, objectid, EDIT_RESPONSE:response,
+    Float:fX, Float:fY, Float:fZ, Float:fRotX, Float:fRotY, Float:fRotZ)
+{
+    return CleanerEditor_OnEdit(playerid, playerobject, objectid, response,
+        fX, fY, fZ, fRotX, fRotY, fRotZ);
+}
+
 public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
 {
     return AdminTP_OnClickMap(playerid, fX, fY, fZ);
@@ -982,6 +1001,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
+    if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;

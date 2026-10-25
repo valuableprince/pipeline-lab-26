@@ -426,7 +426,7 @@ stock Studio_Open(playerid)
 {
     if (!Studio_Require(playerid)) return 1;
     ShowPlayerDialog(playerid, STUDIO_DIALOG_MAIN, DIALOG_STYLE_LIST, "Tarkenso Studio",
-        "Зоны / контрольные точки\nСостояние Studio",
+        "Зоны / контрольные точки\nМусорные контейнеры\nСостояние Studio",
         "Открыть", "Закрыть");
     return 1;
 }
@@ -450,18 +450,20 @@ stock Studio_Command(playerid, const params[])
         if (!tail[0]) return StudioUI_ZoneList(playerid);
         return StudioZone_Command(playerid, tail);
     }
+    if (!strcmp(action, "containers", true) || !strcmp(action, "bins", true))
+        return CleanerEditor_List(playerid);
     if (!strcmp(action, "status", true))
         return StudioZone_Status(playerid);
     if (!strcmp(action, "help", true))
     {
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "Studio: /studio zones — редактор зон и контрольных точек.");
+            "Studio: /studio zones — зоны; /studio containers — контейнеры.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
             "/studio status — состояние зон; /zoneedit — прямые команды.");
         return 1;
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
-        "Использование: /studio zones|status|help.");
+        "Использование: /studio zones|containers|status|help.");
 }
 
 stock Studio_OnDialog(playerid, dialogid, response, listitem)
@@ -471,7 +473,8 @@ stock Studio_OnDialog(playerid, dialogid, response, listitem)
     switch (listitem)
     {
         case 0: StudioUI_ZoneList(playerid);
-        case 1: StudioZone_Status(playerid);
+        case 1: CleanerEditor_List(playerid);
+        case 2: StudioZone_Status(playerid);
     }
     return 1;
 }
@@ -491,6 +494,7 @@ stock Studio_Init()
 stock Studio_OnDisconnect(playerid)
 {
     if (gStudioZoneOwner == playerid) StudioZone_Cancel();
+    if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     for (new slot = 0; slot < STUDIO_ZONE_COUNT; slot++)
         gStudioZoneInside[playerid][slot] = false;
     return 1;
@@ -501,5 +505,6 @@ stock Studio_Shutdown()
     if (gStudioZoneTimer) KillTimer(gStudioZoneTimer);
     gStudioZoneTimer = 0;
     StudioZone_Cancel();
+    CleanerEditor_Cancel();
     return 1;
 }
