@@ -8,6 +8,7 @@ LOAD=(ROOT/"gamemodes/includes/cleaner_truck_loading.inc").read_text("utf-8")
 CMDS=(ROOT/"gamemodes/includes/commands.inc").read_text("utf-8")
 MAIN=(ROOT/"gamemodes/signal0317.pwn").read_text("utf-8")
 TRUCK=(ROOT/"gamemodes/includes/cleaner_truck.inc").read_text("utf-8")
+PERSIST=(ROOT/"gamemodes/includes/cleaner_truck_persist.inc").read_text("utf-8")
 
 class JobTruckStageThree(unittest.TestCase):
     def test_permanent_fleet_bays(self):
@@ -41,10 +42,11 @@ class JobTruckStageThree(unittest.TestCase):
 
     def test_authoritative_transfer_and_no_early_payment(self):
         for token in ("TruckPersist_AddCargo(playerid, slot, overflow, amount)",
-                      "gCleanerDumpBin[slot] -= amount",
-                      "gCleanerDumpOverflow[slot] -= amount",
                       "gCleanerDumpStaged", "TruckLoad_Parked(playerid)"):
             self.assertIn(token, LOAD)
+        for token in ("gCleanerDumpBin[slot] -= amount",
+                      "gCleanerDumpOverflow[slot] -= amount"):
+            self.assertIn(token, PERSIST)
         self.assertNotIn("GivePlayerMoney(", LOAD)
         self.assertNotIn("Economy_Credit(", LOAD)
         self.assertNotIn("Economy_Debit(", LOAD)
