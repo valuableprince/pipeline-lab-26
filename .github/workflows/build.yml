@@ -82,6 +82,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_standard_rewards_audit.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_weather.py' -v
           python3 -m unittest discover -s tests -p 'test_rp_commands.py' -v
+          python3 -m unittest discover -s tests -p 'test_local_chat.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_tools.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_tools2.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_punish.py' -v
