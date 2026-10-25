@@ -191,6 +191,7 @@ stock bool:TruckPersist_NearDepot(playerid)
         return false;
     new bay = gTruckBay[playerid];
     if (bay < 0 || bay >= TRUCK_BAYS ||
+        gTruckBayOwner[bay] != playerid + 1 ||
         gTruckVehicle[playerid] != gTruckFleet[bay] ||
         GetPlayerVehicleID(playerid) != gTruckFleet[bay] ||
         !IsValidVehicle(gTruckFleet[bay])) return false;
