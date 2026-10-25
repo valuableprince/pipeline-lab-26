@@ -71,6 +71,11 @@ cmd:play(playerid, params[])
     return Radio_Open(playerid);
 }
 
+cmd:broadcast(playerid, params[])
+{
+    return Broadcast_Command(playerid, params);
+}
+
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
 {
@@ -127,6 +132,9 @@ cmd:help(playerid, params[])
             "Администрация: /ahelp [страница|команда] — синтаксис, назначение, пример.");
         SendClientMessage(playerid, ADMIN_COLOR,
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
+        if (gAdminLevel[playerid] >= 5)
+            SendClientMessage(playerid, ADMIN_COLOR,
+                "Голосовые объявления: /broadcast [start|stop|status] (в Duty).");
         SendClientMessage(playerid, ADMIN_COLOR,
             "Транспорт: /veh del ID, /delveh ID. Инструменты: /unmute, /history, /respawn, /setskin, /settime, /clearchat, /setvw, /setint.");
         if (Admin_IsFounder(playerid))
