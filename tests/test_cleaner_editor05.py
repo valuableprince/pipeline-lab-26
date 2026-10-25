@@ -39,7 +39,7 @@ class CleanerEditor05(unittest.TestCase):
                      "GetPlayerInterior(playerid) == 0", "gCleanerDumpBin[slot] || gCleanerDumpOverflow[slot]"):
             self.assertIn(term,EDITOR)
         self.assertIn("CleanerEditor_OnEdit(playerid, playerobject, objectid, response,",MAIN)
-        self.assertIn("CleanerEditor_OnDialog(playerid, dialogid, response, listitem)",MAIN)
+        self.assertIn("CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)",MAIN)
         self.assertIn("CleanerEditor_List(playerid)",STUDIO)
         self.assertIn('/studio containers', STUDIO)
 
