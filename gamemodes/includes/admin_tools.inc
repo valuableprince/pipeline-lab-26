@@ -38,26 +38,7 @@ stock bool:AdminTools_CanEditPlayer(playerid, target)
 stock AdminTools_Help(playerid)
 {
     if (!Admin_Require(playerid, PERM_REPORT)) return 1;
-    SendClientMessage(playerid, ADMIN_COLOR,
-        "Администрация: /aduty, /admin, /admins, /a, /reports, /check ID.");
-    if (Admin_Allowed(playerid, PERM_MODERATE))
-    {
-        SendClientMessage(playerid, ADMIN_COLOR,
-            "Уровень 2+: /heal ID, /armour ID 0-100, /fixveh [ID], /flip [ID].");
-        SendClientMessage(playerid, ADMIN_COLOR,
-            "Уровень 2+: /spec, /warn, /mute, /kick, /freeze, /weather ID.");
-    }
-    if (Admin_Allowed(playerid, PERM_BAN_DAY))
-        SendClientMessage(playerid, ADMIN_COLOR, "Уровень 3+: /goto, /gethere, /ban.");
-    if (Admin_Allowed(playerid, PERM_BAN_MONTH))
-        SendClientMessage(playerid, ADMIN_COLOR, "Уровень 4+: /alog.");
-    if (Admin_Allowed(playerid, PERM_MANAGE_STAFF))
-        SendClientMessage(playerid, ADMIN_COLOR, "Уровень 5+: /unban, /setadmin, /setevent.");
-    if (Admin_Allowed(playerid, PERM_EVENT))
-        SendClientMessage(playerid, ADMIN_COLOR, "Event Team: /event fog|night|clear.");
-    if (Admin_IsFounder(playerid))
-        SendClientMessage(playerid, ADMIN_COLOR, "Founder: /founder, /studio, /trashservice.");
-    return 1;
+    return AdminHelp_Open(playerid, "");
 }
 
 stock AdminTools_Check(playerid, const params[])
@@ -65,7 +46,7 @@ stock AdminTools_Check(playerid, const params[])
     if (!Admin_Require(playerid, PERM_REPORT)) return 1;
     new target;
     if (!AdminTools_ReadTarget(params, target))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /check ID.");
+        return AdminHelp_Usage(playerid, "check");
     if (!Admin_Ready(target))
         return SendClientMessage(playerid, ADMIN_ERROR, "Игрок не найден или не авторизован.");
 
@@ -110,20 +91,18 @@ stock AdminTools_ChangeVitals(playerid, const params[], bool:heal)
     new offset, first[24], second[24], extra[12], target, amount = 100;
     if (!Admin_Next(params, offset, first, sizeof(first)) ||
         !Admin_UnsignedNumber(first))
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            heal ? "Использование: /heal ID." : "Использование: /armour ID 0-100.");
+        return AdminHelp_Usage(playerid, heal ? "heal" : "armour");
     target = strval(first);
     if (!heal)
     {
         if (!Admin_Next(params, offset, second, sizeof(second)) ||
             !Admin_UnsignedNumber(second))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /armour ID 0-100.");
+            return AdminHelp_Usage(playerid, "armour");
         amount = strval(second);
     }
     if (Admin_Next(params, offset, extra, sizeof(extra)) ||
         target < 0 || target >= MAX_PLAYERS || amount < 0 || amount > 100)
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            heal ? "Использование: /heal ID." : "Использование: /armour ID 0-100.");
+        return AdminHelp_Usage(playerid, heal ? "heal" : "armour");
     if (!AdminTools_CanEditPlayer(playerid, target)) return 1;
 
     new detail[84];
@@ -184,9 +163,7 @@ stock AdminTools_Vehicle(playerid, const params[], bool:flip)
 
     new vehicleid;
     if (!AdminTools_ReadVehicle(playerid, params, vehicleid))
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            flip ? "Использование: /flip [ID автомобиля]." :
-                "Использование: /fixveh [ID автомобиля].");
+        return AdminHelp_Usage(playerid, flip ? "flip" : "fixveh");
     if (GetVehicleVirtualWorld(vehicleid) != GetPlayerVirtualWorld(playerid))
         return SendClientMessage(playerid, ADMIN_ERROR, "Транспорт находится в другом виртуальном мире.");
 

@@ -43,6 +43,9 @@ stock Command_ExecuteAdmin(playerid, const command[], const params[])
         format(input, sizeof(input), "/%s", command);
     else
         format(input, sizeof(input), "/%s %s", command, params);
+    if (isnull(params) && AdminHelp_RequiresParams(command) &&
+        AdminHelp_Access(playerid, AdminHelp_Find(command)))
+        return AdminHelp_Usage(playerid, command);
     return Admin_Execute(playerid, input);
 }
 
@@ -109,11 +112,11 @@ cmd:help(playerid, params[])
         if (gAdminLevel[playerid] == 0)
             return SendClientMessage(playerid, ADMIN_ERROR, "Раздел доступен только администрации.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Администрация: /aduty, /ahelp, /admin, /check ID, /admins, /reports.");
+            "Администрация: /ahelp [страница|команда] — синтаксис, назначение, пример.");
         SendClientMessage(playerid, ADMIN_COLOR,
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Прочее: /veh del ID, /weather, /event; остальные: /ahelp.");
+            "Транспорт: /veh del ID, /delveh ID. Инструменты: /unmute, /history, /respawn, /setskin, /settime, /clearchat, /setvw, /setint.");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
@@ -215,28 +218,28 @@ cmd:setadmin(playerid, params[])
 {
     new target, level;
     if (sscanf(params, "ii", target, level))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /setadmin ID уровень.");
+        return AdminHelp_Usage(playerid, "setadmin");
     return Command_ExecuteAdmin(playerid, "setadmin", params);
 }
 cmd:setevent(playerid, params[])
 {
     new target, enabled;
     if (sscanf(params, "ii", target, enabled))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /setevent ID 0|1.");
+        return AdminHelp_Usage(playerid, "setevent");
     return Command_ExecuteAdmin(playerid, "setevent", params);
 }
 cmd:ban(playerid, params[])
 {
     new target, minutes;
     if (sscanf(params, "ii", target, minutes))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /ban ID минуты причина.");
+        return AdminHelp_Usage(playerid, "ban");
     return Command_ExecuteAdmin(playerid, "ban", params);
 }
 cmd:mute(playerid, params[])
 {
     new target, minutes;
     if (sscanf(params, "ii", target, minutes))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /mute ID минуты причина.");
+        return AdminHelp_Usage(playerid, "mute");
     return Command_ExecuteAdmin(playerid, "mute", params);
 }
 cmd:report(playerid, params[])
@@ -306,7 +309,7 @@ cmd:weather(playerid, params[])
 
 cmd:ahelp(playerid, params[])
 {
-    return AdminTools_Help(playerid);
+    return AdminHelp_Open(playerid, params);
 }
 
 cmd:check(playerid, params[])
@@ -332,6 +335,46 @@ cmd:fixveh(playerid, params[])
 cmd:flip(playerid, params[])
 {
     return AdminTools_Vehicle(playerid, params, true);
+}
+
+cmd:unmute(playerid, params[])
+{
+    return AdminTools2_Unmute(playerid, params);
+}
+
+cmd:history(playerid, params[])
+{
+    return AdminTools2_History(playerid, params);
+}
+
+cmd:respawn(playerid, params[])
+{
+    return AdminTools2_Respawn(playerid, params);
+}
+
+cmd:setskin(playerid, params[])
+{
+    return AdminTools2_SetSkin(playerid, params);
+}
+
+cmd:settime(playerid, params[])
+{
+    return AdminTools2_SetTime(playerid, params);
+}
+
+cmd:clearchat(playerid, params[])
+{
+    return AdminTools2_ClearChat(playerid, params);
+}
+
+cmd:setvw(playerid, params[])
+{
+    return AdminTools2_SetDimension(playerid, params, true);
+}
+
+cmd:setint(playerid, params[])
+{
+    return AdminTools2_SetDimension(playerid, params, false);
 }
 
 cmd:unban(playerid, params[])

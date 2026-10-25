@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text("utf-8")
 CMDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 TOOLS = (ROOT / "gamemodes/includes/admin_tools.inc").read_text("utf-8")
+HELP = (ROOT / "gamemodes/includes/admin_help.inc").read_text("utf-8")
 ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text("utf-8")
 VEH = (ROOT / "gamemodes/includes/admin_vehicle.inc").read_text("utf-8")
 WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text("utf-8")
@@ -16,7 +17,7 @@ WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text("utf-8")
 class AdminToolsContracts(unittest.TestCase):
     def test_all_six_commands_registered_through_pawncmd(self):
         aliases = {
-            "ahelp": "AdminTools_Help(playerid)",
+            "ahelp": "AdminHelp_Open(playerid, params)",
             "check": "AdminTools_Check(playerid, params)",
             "heal": "AdminTools_ChangeVitals(playerid, params, true)",
             "armour": "AdminTools_ChangeVitals(playerid, params, false)",
@@ -26,7 +27,7 @@ class AdminToolsContracts(unittest.TestCase):
         for name, call in aliases.items():
             self.assertRegex(CMDS, rf"cmd:{name}\(playerid, params\[\]\)\s*\{{\s*return {re.escape(call)};")
         self.assertIn('#include "admin_tools.inc"', MAIN)
-        self.assertIn('#include "admin_tools.inc"\n#include "commands.inc"', MAIN)
+        self.assertIn('#include "admin_tools.inc"\n#include "admin_help.inc"\n#include "admin_tools2.inc"\n#include "commands.inc"', MAIN)
         self.assertIn("'test_admin_tools.py'", WORKFLOW)
 
     def test_permissions_and_rank_safety(self):
@@ -41,7 +42,8 @@ class AdminToolsContracts(unittest.TestCase):
         self.assertIn("target != playerid && !Admin_ValidTarget(playerid, target)", TOOLS)
         self.assertIn("if (Admin_IsFounderName(gAccountName[targetid])) return false;", ADMIN)
         self.assertIn("gAdminLevel[playerid] >= gAdminLevel[targetid]", ADMIN)
-        self.assertIn("Admin_Allowed(playerid, PERM_MODERATE)", TOOLS)
+        self.assertIn("AdminHelp_Access(playerid, index)", HELP)
+        self.assertIn("gAdminLevel[playerid] >= level", HELP)
 
     def test_validation_races_and_vehicle_isolation(self):
         self.assertIn("AdminTools_ReadTarget(params, target)", TOOLS)
