@@ -398,7 +398,7 @@ stock AdminPunish_OfflineBan(playerid, const params[])
     mysql_format(gDBPrimary, q, sizeof(q),
         "INSERT INTO bans (username,banned_until,reason) VALUES (LOWER('%e'),%d,'%e') ON DUPLICATE KEY UPDATE banned_until=VALUES(banned_until),reason=VALUES(reason)",
         name, until, reason);
-    if (!DBPrimary_Execute(q, affected) || affected < 1)
+    if (!DBPrimary_Execute(q, affected))
         return SendClientMessage(playerid, ADMIN_ERROR, "Ошибка MariaDB. Блокировка не применена.");
     return SendClientMessage(playerid, ADMIN_OK, "Оффлайн-аккаунт заблокирован.");
 }
