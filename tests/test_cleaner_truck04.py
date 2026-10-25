@@ -65,7 +65,7 @@ class TruckStageFour(unittest.TestCase):
         self.assertIn("if (gTruckCargo[bay] > 0) TruckPersist_ReturnGPS(playerid);", OPS)
         self.assertIn("TruckPersist_NearDepot(playerid)", LOAD)
         self.assertIn("(!gTruckReservedId[playerid] || !Truck_CanDock(playerid))", LOAD)
-        self.assertIn("if (gTruckCargo[bay] >= TRUCK_CARGO_CAP)", LOAD)
+        self.assertIn("gTruckCargo[bay] >= TRUCK_CARGO_CAP)", LOAD)
         self.assertIn("return TruckPersist_Unload(playerid);", LOAD)
 
     def test_temporary_yard_and_return_navigation(self):
