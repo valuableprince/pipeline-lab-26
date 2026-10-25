@@ -14,7 +14,7 @@ class RolePlayChatTests(unittest.TestCase):
     def test_nine_commands_registered_exactly_once(self):
         for name in ("me", "do", "try", "todo", "ame", "b", "s", "w", "low"):
             self.assertEqual(
-                len(re.findall(rf"^cmd:{name}\\(playerid, params\\[\\]\\)", COMMANDS, re.MULTILINE)),
+                len(re.findall(rf"^cmd:{name}\(playerid, params\[\]\)", COMMANDS, re.MULTILINE)),
                 1, name,
             )
         self.assertIn('!strcmp(category, "rp", true)', COMMANDS)
