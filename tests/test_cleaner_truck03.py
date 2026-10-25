@@ -40,10 +40,9 @@ class JobTruckStageThree(unittest.TestCase):
         self.assertIn("if (!TruckLoad_Commit(playerid, slot, true, units))", LOAD)
 
     def test_authoritative_transfer_and_no_early_payment(self):
-        for token in ("DBPrimary_Execute(query, changed)", "changed != 1",
+        for token in ("TruckPersist_AddCargo(playerid, slot, overflow, amount)",
                       "gCleanerDumpBin[slot] -= amount",
                       "gCleanerDumpOverflow[slot] -= amount",
-                      "gTruckCargo[bay] += amount",
                       "gCleanerDumpStaged", "TruckLoad_Parked(playerid)"):
             self.assertIn(token, LOAD)
         self.assertNotIn("GivePlayerMoney(", LOAD)
