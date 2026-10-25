@@ -759,6 +759,7 @@ public OnGameModeExit()
     gAdminJailTimer = 0;
     PayDay_Shutdown();
     Economy_Shutdown();
+    Admin_ClockShutdown();
     Auth_Autosave();
     AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
@@ -910,8 +911,8 @@ public OnPlayerRequestClass(playerid, classid)
     SetPlayerPos(playerid, spawnX, spawnY, spawnZ);
     SetPlayerCameraPos(playerid, spawnX + 4.0, spawnY + 6.0, spawnZ + 3.0);
     SetPlayerCameraLookAt(playerid, spawnX, spawnY, spawnZ);
-    SetPlayerTime(playerid, 3, 17);
-    SetPlayerWeather(playerid, 9);
+    // Even the class-selection camera uses the live server environment.
+    Admin_ApplyEvent(playerid);
     return 1;
 }
 
@@ -965,8 +966,6 @@ public OnPlayerSpawn(playerid)
     SetPlayerPos(playerid, spawnX, spawnY, spawnZ);
     SetPlayerFacingAngle(playerid, spawnA);
     SetCameraBehindPlayer(playerid);
-    SetPlayerTime(playerid, 3, 17);
-    SetPlayerWeather(playerid, 9);
     TogglePlayerControllable(playerid, !gAdminFrozen[playerid]);
     OrvelarHUD_Show(playerid);
     Race_OnSpawn(playerid);
