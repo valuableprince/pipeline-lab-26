@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 BROADCAST = (ROOT / "gamemodes/includes/broadcast.inc").read_text(encoding="utf-8")
+STATE = (ROOT / "gamemodes/includes/broadcast_state.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8")
 HELP = (ROOT / "gamemodes/includes/admin_help.inc").read_text(encoding="utf-8")
@@ -18,9 +19,11 @@ BROWSER = (ROOT / "services/broadcast/public/app.js").read_text(encoding="utf-8"
 class BroadcastContract(unittest.TestCase):
     def test_pawn_codec(self):
         BROADCAST.encode("cp1251")
+        STATE.encode("cp1251")
 
     def test_compose_main(self):
         self.assertIn('#include "broadcast.inc"', MAIN)
+        self.assertIn('#include "broadcast_state.inc"', MAIN)
         for name in ("Broadcast_OnConnect", "Broadcast_OnDisconnect",
                      "Broadcast_OnReady"):
             self.assertIn(name + "(playerid)", MAIN)
@@ -41,15 +44,15 @@ class BroadcastContract(unittest.TestCase):
         self.assertIn('{"broadcast", "/broadcast [start|stop|status]"', HELP)
 
     def test_fail_closed_config(self):
-        self.assertIn('"broadcast.cfg"', BROADCAST)
+        self.assertIn('"broadcast.cfg"', STATE)
         self.assertIn('"https://audio.tarkenso.ru/"', BROADCAST)
         self.assertIn('if (!gBroadcastUrl[0])', BROADCAST)
         self.assertIn('if (fread(config, extra, sizeof(extra))) valid = false;', BROADCAST)
         self.assertNotIn('PlayAudioStreamForPlayer(playerid, "https://', BROADCAST)
 
     def test_time_limits_and_disconnection(self):
-        self.assertIn("#define BROADCAST_DURATION     (120)", BROADCAST)
-        self.assertIn("#define BROADCAST_COOLDOWN     (300)", BROADCAST)
+        self.assertIn("#define BROADCAST_DURATION     (120)", STATE)
+        self.assertIn("#define BROADCAST_COOLDOWN     (300)", STATE)
         self.assertIn('SetTimer("Broadcast_Tick", BROADCAST_TICK_MS, true)', BROADCAST)
         self.assertIn('gBroadcastEndsAt = gettime() + BROADCAST_DURATION', BROADCAST)
         self.assertIn('gBroadcastOwner == playerid)', BROADCAST)
