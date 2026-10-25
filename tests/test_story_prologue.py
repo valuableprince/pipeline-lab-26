@@ -25,7 +25,7 @@ class Room17Contract(unittest.TestCase):
         self.assertIn("ADD COLUMN story_stage", SQL)
         self.assertIn("VALUES (8)", SQL)
         self.assertNotIn("DROP TABLE", SQL)
-        self.assertIn("WHERE version=8 LIMIT 1", DB)
+        self.assertIn("WHERE version=9 LIMIT 1", DB)
         self.assertIn('"story_stage", storyStage', DB)
         self.assertIn("gStoryStage[playerid] = storyStage", DB)
         self.assertIn("row_version=row_version+1", STORY)
