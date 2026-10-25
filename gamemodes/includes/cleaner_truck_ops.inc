@@ -18,6 +18,10 @@
 new gTruckVehicle[MAX_PLAYERS];
 new gTruckBay[MAX_PLAYERS];
 new gTruckBayOwner[TRUCK_BAYS];
+new gTruckFleet[TRUCK_BAYS];
+new gTruckCargo[TRUCK_BAYS];
+#define TRUCK_CARGO_CAP (200)
+#define TRUCK_VEHICLE_MAP_SLOT (75)
 // Approved Fort Carson municipal truck parking bays: X, Y, Z, heading.
 new Float:gTruckSpawnPositions[TRUCK_BAYS][4] =
 {
@@ -31,9 +35,17 @@ new bool:gTruckDockReady[MAX_PLAYERS];
 new bool:gTruckDockHint[MAX_PLAYERS];
 new gTruckTimer;
 forward Truck_Tick();
+forward TruckLoad_Reset(playerid);
+forward TruckLoad_CanLeaveVehicle(playerid);
+forward TruckLoad_HandleKey(playerid);
+forward TruckLoad_Notice(playerid);
+forward TruckLoad_CurrentBusy(playerid);
+forward TruckLoad_OnTick(playerid);
+forward TruckLoad_OnVehicleDestroyed(vehicleid);
 
 stock Truck_ReleaseOrder(playerid)
 {
+    TruckLoad_Reset(playerid);
     new id = gTruckReservedId[playerid];
     if (id > 0)
     {
@@ -56,53 +68,45 @@ stock Truck_ReleaseOrder(playerid)
     return 1;
 }
 
-stock Truck_DestroyVehicle(playerid)
+// Two persistent fleet vehicles are created at server startup, not on hiring.
+stock Truck_ReturnVehicle(playerid)
 {
-    new vehicleid = gTruckVehicle[playerid];
-    gTruckVehicle[playerid] = INVALID_VEHICLE_ID;
     new bay = gTruckBay[playerid];
+    gTruckVehicle[playerid] = INVALID_VEHICLE_ID;
     gTruckBay[playerid] = -1;
-    if (bay >= 0 && bay < TRUCK_BAYS && gTruckBayOwner[bay] == playerid + 1)
-        gTruckBayOwner[bay] = 0;
-    if (vehicleid != INVALID_VEHICLE_ID && IsValidVehicle(vehicleid))
-        DestroyVehicle(vehicleid);
+    if (bay < 0 || bay >= TRUCK_BAYS ||
+        gTruckBayOwner[bay] != playerid + 1) return 1;
+    gTruckBayOwner[bay] = 0;
+    new vehicleid = gTruckFleet[bay];
+    if (IsValidVehicle(vehicleid))
+        SetVehicleToRespawn(vehicleid);
     return 1;
 }
 
 stock Truck_StopShift(playerid)
 {
     Truck_ReleaseOrder(playerid);
-    Truck_DestroyVehicle(playerid);
+    Truck_ReturnVehicle(playerid);
     gTruckOnShift[playerid] = false;
     gTruckDialogCount[playerid] = 0;
+    if (IsPlayerConnected(playerid))
+        RemovePlayerMapIcon(playerid, TRUCK_VEHICLE_MAP_SLOT);
     return 1;
 }
 
-stock bool:Truck_IssueVehicle(playerid)
+stock bool:Truck_AssignVehicle(playerid)
 {
     if (!Cleaner_NearDepot(playerid) || gCleanerDataError[playerid] ||
         gTruckVehicle[playerid] != INVALID_VEHICLE_ID) return false;
-    new bay = -1;
-    for (new i = 0; i < TRUCK_BAYS; i++)
+    for (new bay = 0; bay < TRUCK_BAYS; bay++)
     {
-        if (gTruckBayOwner[i]) continue;
-        bay = i;
-        break;
+        if (gTruckBayOwner[bay] || !IsValidVehicle(gTruckFleet[bay])) continue;
+        gTruckBayOwner[bay] = playerid + 1;
+        gTruckVehicle[playerid] = gTruckFleet[bay];
+        gTruckBay[playerid] = bay;
+        return true;
     }
-    if (bay < 0) return false;
-
-    // Use precisely configured positions; do not offset the supplied Z value.
-    new vehicleid = CreateVehicle(TRUCK_VEHICLE_MODEL,
-        gTruckSpawnPositions[bay][0], gTruckSpawnPositions[bay][1],
-        gTruckSpawnPositions[bay][2], gTruckSpawnPositions[bay][3],
-        1, 1, -1);
-    if (vehicleid == INVALID_VEHICLE_ID) return false;
-    SetVehicleVirtualWorld(vehicleid, 0);
-    LinkVehicleToInterior(vehicleid, 0);
-    gTruckVehicle[playerid] = vehicleid;
-    gTruckBay[playerid] = bay;
-    gTruckBayOwner[bay] = playerid + 1;
-    return true;
+    return false;
 }
 
 stock bool:Truck_StartShift(playerid)
@@ -110,7 +114,7 @@ stock bool:Truck_StartShift(playerid)
     if (gTruckOnShift[playerid] || gCleanerDuty[playerid] ||
         Cleaner_Rank(playerid) < 2 || !CleanerDump_IsReady() ||
         !Cleaner_NearDepot(playerid)) return false;
-    if (!Truck_IssueVehicle(playerid)) return false;
+    if (!Truck_AssignVehicle(playerid)) return false;
     gTruckOnShift[playerid] = true;
     return true;
 }
@@ -247,7 +251,7 @@ stock Truck_ParkCommand(playerid)
     }
     gTruckDockReady[playerid] = true;
     return SendClientMessage(playerid, CLEANER_COLOR,
-        "Парковка подтверждена. Механизм погрузки появится в JOB-TRUCK-03.");
+        "Парковка подтверждена. /truckload — загрузить контейнер, затем /truckbag.");
 }
 
 stock Truck_CancelCommand(playerid)
@@ -264,54 +268,76 @@ stock Truck_VehicleCommand(playerid)
 {
     if (!gTruckOnShift[playerid])
         return SendClientMessage(playerid, COLOR_RED, "Вы не водитель мусоровоза.");
-    if (gTruckVehicle[playerid] != INVALID_VEHICLE_ID &&
-        IsValidVehicle(gTruckVehicle[playerid]))
-        return SendClientMessage(playerid, COLOR_GREY, "Ваш мусоровоз уже выдан.");
-    if (!Truck_IssueVehicle(playerid))
-        return SendClientMessage(playerid, COLOR_RED,
-            "Подойдите пешком к диспетчеру; нужна свободная стоянка.");
-    return SendClientMessage(playerid, CLEANER_COLOR, "Выдан служебный Trashmaster.");
+    new bay = gTruckBay[playerid];
+    if (bay < 0 || bay >= TRUCK_BAYS ||
+        !IsValidVehicle(gTruckFleet[bay]))
+        return SendClientMessage(playerid, COLOR_RED, "Служебный автомобиль недоступен.");
+    SetPlayerMapIcon(playerid, TRUCK_VEHICLE_MAP_SLOT,
+        gTruckSpawnPositions[bay][0], gTruckSpawnPositions[bay][1],
+        gTruckSpawnPositions[bay][2], 0, 0x6EA8FFFF, MAPICON_LOCAL);
+    return SendClientMessage(playerid, CLEANER_COLOR,
+        "Ваш мусоровоз на муниципальной стоянке, отмечен на карте.");
+}
+
+stock Truck_FleetBay(vehicleid)
+{
+    for (new bay = 0; bay < TRUCK_BAYS; bay++)
+        if (gTruckFleet[bay] == vehicleid && vehicleid != INVALID_VEHICLE_ID)
+            return bay;
+    return -1;
 }
 
 stock Truck_OnStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     #pragma unused oldstate
-    if (newstate != PLAYER_STATE_DRIVER)
+    if (newstate != PLAYER_STATE_DRIVER && newstate != PLAYER_STATE_PASSENGER)
     {
-        gTruckDockReady[playerid] = false;
+        if (!TruckLoad_CanLeaveVehicle(playerid))
+            gTruckDockReady[playerid] = false;
         return 1;
     }
     new vehicleid = GetPlayerVehicleID(playerid);
-    // A municipal truck may only be driven by its assigned employee.
-    for (new owner = 0; owner < MAX_PLAYERS; owner++)
+    new bay = Truck_FleetBay(vehicleid);
+    if (bay < 0) return 1;
+    // All occupants must be municipal workers currently on shift.
+    if (!gCleanerDuty[playerid] && !gTruckOnShift[playerid])
     {
-        if (gTruckVehicle[owner] != vehicleid) continue;
-        if (owner == playerid && gTruckOnShift[playerid]) return 1;
         RemovePlayerFromVehicle(playerid);
         SendClientMessage(playerid, COLOR_RED,
-            "Этот мусоровоз закреплён за другим работником.");
+            "Служебный мусоровоз доступен только работникам муниципальной службы.");
         return 1;
+    }
+    // Driving requires the truck-driver specialization and bay assignment.
+    if (newstate == PLAYER_STATE_DRIVER &&
+        (!gTruckOnShift[playerid] || gTruckBayOwner[bay] != playerid + 1))
+    {
+        RemovePlayerFromVehicle(playerid);
+        SendClientMessage(playerid, COLOR_RED,
+            "Управлять мусоровозом может только назначенный водитель.");
     }
     return 1;
 }
 
 stock Truck_OnVehicleDeath(vehicleid)
 {
-    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
+    new bay = Truck_FleetBay(vehicleid);
+    if (bay < 0) return 0;
+    TruckLoad_OnVehicleDestroyed(vehicleid);
+    new owner = gTruckBayOwner[bay] - 1;
+    if (owner >= 0 && owner < MAX_PLAYERS && gTruckOnShift[owner])
     {
-        if (gTruckVehicle[playerid] != vehicleid) continue;
-        gTruckVehicle[playerid] = INVALID_VEHICLE_ID;
-        new bay = gTruckBay[playerid];
-        gTruckBay[playerid] = -1;
-        if (bay >= 0 && bay < TRUCK_BAYS && gTruckBayOwner[bay] == playerid + 1)
-            gTruckBayOwner[bay] = 0;
-        Truck_ReleaseOrder(playerid);
-        if (IsPlayerConnected(playerid))
-            SendClientMessage(playerid, COLOR_RED,
-                "Мусоровоз уничтожен. Заказ снят. /truckveh у диспетчера.");
-        return 1;
+        Truck_ReleaseOrder(owner);
+        gTruckOnShift[owner] = false;
+        gTruckVehicle[owner] = INVALID_VEHICLE_ID;
+        gTruckBay[owner] = -1;
+        if (IsPlayerConnected(owner))
+            SendClientMessage(owner, COLOR_RED,
+                "Служебный мусоровоз уничтожен. Смена и заказ завершены.");
     }
-    return 0;
+    gTruckBayOwner[bay] = 0;
+    // Parked static fleet vehicle is restored by its native respawn.
+    SetVehicleToRespawn(vehicleid);
+    return 1;
 }
 
 public Truck_Tick()
@@ -327,11 +353,13 @@ public Truck_Tick()
                 "Заказ стал недоступен. Бронь отменена.");
             continue;
         }
+        TruckLoad_OnTick(playerid);
         new bool:canDock = Truck_CanDock(playerid);
         if (!canDock)
         {
             gTruckDockHint[playerid] = false;
-            gTruckDockReady[playerid] = false;
+            if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
+                gTruckDockReady[playerid] = false;
             continue;
         }
         if (!gTruckDockHint[playerid] && !gTruckDockReady[playerid])
@@ -344,9 +372,27 @@ public Truck_Tick()
     return 1;
 }
 
+// Load animation system is included after fleet and booking helpers.
+#include "cleaner_truck_loading.inc"
+
 stock Truck_Init()
 {
-    for (new i = 0; i < TRUCK_BAYS; i++) gTruckBayOwner[i] = 0;
+    for (new i = 0; i < TRUCK_BAYS; i++)
+    {
+        gTruckBayOwner[i] = 0;
+        gTruckCargo[i] = 0;
+        gTruckFleet[i] = CreateVehicle(TRUCK_VEHICLE_MODEL,
+            gTruckSpawnPositions[i][0], gTruckSpawnPositions[i][1],
+            gTruckSpawnPositions[i][2], gTruckSpawnPositions[i][3],
+            1, 1, -1);
+        if (gTruckFleet[i] == INVALID_VEHICLE_ID)
+            printf("[JOB-TRUCK-03] ERROR: cannot create parked truck bay %d", i);
+        else
+        {
+            SetVehicleVirtualWorld(gTruckFleet[i], 0);
+            LinkVehicleToInterior(gTruckFleet[i], 0);
+        }
+    }
     for (new i = 0; i < CLEANER_DUMP_LIMIT; i++)
     {
         gTruckClaimId[i] = 0;
@@ -361,9 +407,10 @@ stock Truck_Init()
         gTruckMapMarked[i] = false;
         gTruckDockReady[i] = false;
         gTruckDockHint[i] = false;
+        TruckLoad_InitPlayer(i);
     }
     gTruckTimer = SetTimer("Truck_Tick", TRUCK_TICK_MS, true);
-    print("[JOB-TRUCK-02] Driver vehicles, reservations and rear-dock checks ready.");
+    print("[JOB-TRUCK-03] Static Trashmaster fleet and loading system online.");
     return 1;
 }
 
@@ -373,5 +420,10 @@ stock Truck_Shutdown()
     gTruckTimer = 0;
     for (new i = 0; i < MAX_PLAYERS; i++)
         Truck_StopShift(i);
+    for (new bay = 0; bay < TRUCK_BAYS; bay++)
+    {
+        if (IsValidVehicle(gTruckFleet[bay])) DestroyVehicle(gTruckFleet[bay]);
+        gTruckFleet[bay] = INVALID_VEHICLE_ID;
+    }
     return 1;
 }
