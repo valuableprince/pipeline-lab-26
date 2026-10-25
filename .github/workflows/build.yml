@@ -82,6 +82,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_admin_tools.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_tools2.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_punish.py' -v
+          python3 -m unittest discover -s tests -p 'test_db_optimization_012.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_editor05.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_truck01.py' -v
           python3 -m unittest discover -s tests -p 'test_cleaner_truck02.py' -v
