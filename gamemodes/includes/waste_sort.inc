@@ -14,7 +14,8 @@
 #define SORT_CATEGORY_COUNT (3)
 #define SORT_TD_ITEM_START (11)
 #define SORT_TD_CATEGORY_START (17)
-#define SORT_TD_TOTAL (22)
+#define SORT_TD_LABEL_START (22)
+#define SORT_TD_TOTAL (28)
 
 #define SORT_COLOR_GOLD (0xF1C263FF)
 #define SORT_COLOR_TEXT (0xEDF4FFFF)
@@ -23,9 +24,25 @@
 #define SORT_COLOR_PLASTIC (0x26475EE8)
 #define SORT_COLOR_METAL (0x44505CE8)
 
+// Verified stock GTA SA objects. No downloaded models, TXD or client mods.
+// Paper: magazine pile and cardboard box.
+// Plastic: two separate disposable drink cup models (not glass bottles).
+// Metal: juice can and metal tins.
 new const gSortItemNames[SORT_ITEM_COUNT][16] =
 {
-    "NEWSPAPER", "CARDBOARD", "BOTTLE", "PLASTIC CUP", "TIN CAN", "METAL CAN"
+    "MAGAZINES", "CARDBOARD", "DRINK CUP", "SLUSH CUP", "JUICE CAN", "METAL TINS"
+};
+new const gSortItemModels[SORT_ITEM_COUNT] =
+{
+    2852, 1220, 2647, 2874, 2601, 2057
+};
+new const Float:gSortItemYaw[SORT_ITEM_COUNT] =
+{
+    -18.0, 24.0, -12.0, 17.0, -20.0, 30.0
+};
+new const Float:gSortItemZoom[SORT_ITEM_COUNT] =
+{
+    0.90, 1.00, 0.75, 0.78, 0.73, 1.00
 };
 new const gSortItemCategory[SORT_ITEM_COUNT] = {0, 0, 1, 1, 2, 2};
 new const gSortCategoryNames[SORT_CATEGORY_COUNT][12] = {"PAPER", "PLASTIC", "METAL"};
@@ -109,10 +126,12 @@ stock SortUI_Refresh(playerid)
     for (new i = 0; i < SORT_ITEM_COUNT; i++)
     {
         new PlayerText:td = gSortDraws[playerid][SORT_TD_ITEM_START + i];
+        new PlayerText:caption = gSortDraws[playerid][SORT_TD_LABEL_START + i];
         if (gSortCompleted[playerid] & (1 << i))
         {
             completed++;
             PlayerTextDrawHide(playerid, td);
+            PlayerTextDrawHide(playerid, caption);
             continue;
         }
         new box = SORT_COLOR_METAL;
@@ -121,6 +140,7 @@ stock SortUI_Refresh(playerid)
         if (gSortSelection[playerid] == i) box = 0xD2A044FF;
         PlayerTextDrawBoxColour(playerid, td, box);
         PlayerTextDrawShow(playerid, td);
+        PlayerTextDrawShow(playerid, caption);
     }
     new progress[32];
     format(progress, sizeof(progress), "%d / %d", completed, SORT_ITEM_COUNT);
@@ -198,17 +218,32 @@ stock SortUI_Open(playerid)
     SortUI_Add(playerid, 10, 522.0, 95.0, "X", 21.0, 26.0,
         0.45, 1.7, SORT_COLOR_GOLD, 0x4B3026E8, true);
 
-    // Six individually selectable material objects in the mouth of the bag.
+    // Six clickable 3D model previews, not text-only placeholders.
+    // Their boxes own the entire hit areas; captions are non-selectable.
+    // This is supported by stock SA-MP/open.mp clients via font 5.
     for (new item = 0; item < SORT_ITEM_COUNT; item++)
     {
-        new Float:x = item % 2 ? 206.0 : 117.0;
-        new Float:y = 199.0 + float(item / 2) * 37.0;
+        new Float:x = item % 2 ? 215.0 : 113.0;
+        new Float:y = 184.0 + float(item / 2) * 47.0;
         new colour = SORT_COLOR_METAL;
         if (gSortItemCategory[item] == 0) colour = SORT_COLOR_PAPER;
         if (gSortItemCategory[item] == 1) colour = SORT_COLOR_PLASTIC;
-        SortUI_Add(playerid, SORT_TD_ITEM_START + item, x, y,
-            gSortItemNames[item], 83.0, 27.0,
-            0.20, 1.15, SORT_COLOR_TEXT, colour, true);
+
+        new PlayerText:preview = CreatePlayerTextDraw(playerid, x, y, "_");
+        gSortDraws[playerid][SORT_TD_ITEM_START + item] = preview;
+        PlayerTextDrawFont(playerid, preview, TEXT_DRAW_FONT_MODEL_PREVIEW);
+        PlayerTextDrawTextSize(playerid, preview, 88.0, 43.0);
+        PlayerTextDrawUseBox(playerid, preview, true);
+        PlayerTextDrawBoxColour(playerid, preview, colour);
+        PlayerTextDrawBackgroundColour(playerid, preview, 0x17222DE8);
+        PlayerTextDrawSetPreviewModel(playerid, preview, gSortItemModels[item]);
+        PlayerTextDrawSetPreviewRot(playerid, preview, -12.0, 0.0,
+            gSortItemYaw[item], gSortItemZoom[item]);
+        PlayerTextDrawSetSelectable(playerid, preview, true);
+
+        SortUI_Add(playerid, SORT_TD_LABEL_START + item, x + 4.0, y + 32.0,
+            gSortItemNames[item], 83.0, 11.0,
+            0.18, 0.85, SORT_COLOR_TEXT);
     }
     for (new category = 0; category < SORT_CATEGORY_COUNT; category++)
     {
