@@ -20,7 +20,7 @@ class CleanerEditor05(unittest.TestCase):
         self.assertIn("FOREIGN KEY (container_id)",SQL)
         self.assertNotIn("DROP TABLE",SQL)
         self.assertIn("VALUES (10)",SQL)
-        self.assertIn("WHERE version=10 LIMIT 1",DB)
+        self.assertIn("WHERE version=12 LIMIT 1",DB)
 
     def test_editor_is_private_and_audited(self):
         for term in ("EditPlayerObject(playerid, gCleanerEditorObject)",

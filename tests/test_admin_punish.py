@@ -20,7 +20,7 @@ class AdminPunishContract(unittest.TestCase):
             self.assertIn(name, P)
         self.assertIn("REFERENCES accounts(account_id)", SQL)
         self.assertIn("INSERT INTO schema_migrations (version) VALUES (9)", SQL)
-        self.assertIn("WHERE version=10 LIMIT 1", DB)
+        self.assertIn("WHERE version=12 LIMIT 1", DB)
         self.assertIn("if (!DBPrimary_Init())", GAME)
 
     def test_commands_and_help(self):

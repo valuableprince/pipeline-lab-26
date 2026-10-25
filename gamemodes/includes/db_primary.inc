@@ -72,9 +72,9 @@
             gDBPrimary = MYSQL_INVALID_HANDLE;
             return 0;
         }
-        print("[DB-PRIMARY] Connected. Checking schema_migrations version 10...");
+        print("[DB-PRIMARY] Connected. Checking schema_migrations version 12...");
         gDBPrimaryReady = true;
-        new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=10 LIMIT 1");
+        new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=12 LIMIT 1");
         if (c == Cache:0)
         {
             printf("[DB-PRIMARY] ERROR: schema query returned invalid cache; MySQL errno=%d.", mysql_errno(gDBPrimary));
@@ -99,13 +99,13 @@
         }
         if (rows != 1)
         {
-            printf("[DB-PRIMARY] ERROR: expected schema version 10, rows found=%d.", rows);
+            printf("[DB-PRIMARY] ERROR: expected schema version 12, rows found=%d.", rows);
             cache_delete(c);
             gDBPrimaryReady = false;
             return 0;
         }
         cache_delete(c);
-        print("[DB-PRIMARY] MySQL schema v10 detected; editor containers and punishments enabled.");
+        print("[DB-PRIMARY] MySQL schema v12 detected; indexed bans and delivery history enabled.");
         return 1;
     }
 
@@ -458,7 +458,7 @@
         if (!DBPrimary_IsReady()) return true;
         new q[150], rows;
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT username FROM bans WHERE LOWER(username)=LOWER('%e') LIMIT 1", name);
+            "SELECT username FROM bans WHERE username_key=LOWER('%e') LIMIT 1", name);
         new Cache:x = mysql_query(gDBPrimary, q);
         if (x == Cache:0 || mysql_errno(gDBPrimary) || !cache_get_row_count(rows))
         {
@@ -474,7 +474,7 @@
         if (!DBPrimary_IsReady()) return false;
         new q[180], affected;
         mysql_format(gDBPrimary, q, sizeof(q),
-            "DELETE FROM bans WHERE LOWER(username)=LOWER('%e')", name);
+            "DELETE FROM bans WHERE username_key=LOWER('%e')", name);
         return DBPrimary_Execute(q, affected) && affected == 1;
     }
 
@@ -483,7 +483,7 @@
         if (!DBPrimary_IsReady()) return true;
         new q[190], rows, until;
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT banned_until FROM bans WHERE LOWER(username)=LOWER('%e') LIMIT 1", gAccountName[playerid]);
+            "SELECT banned_until FROM bans WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
         new Cache:x = mysql_query(gDBPrimary, q);
         if (x == Cache:0 || mysql_errno(gDBPrimary) || !cache_get_row_count(rows))
         {
