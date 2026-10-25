@@ -198,6 +198,8 @@ stock Truck_ClaimOrder(playerid, id)
     new message[108];
     format(message, sizeof(message),
         "Заказ #%d закреплён за вами. Подайте мусоровоз задом к контейнеру.", id);
+    SendClientMessage(playerid, CLEANER_COLOR,
+        "Порядок: сначала все мешки с площадки, затем выгрузка контейнера.");
     return SendClientMessage(playerid, CLEANER_COLOR, message);
 }
 
@@ -250,8 +252,12 @@ stock Truck_ParkCommand(playerid)
             "Поставьте свой Trashmaster задом к контейнеру (3-8 м) и остановитесь.");
     }
     gTruckDockReady[playerid] = true;
+    new slot = Truck_FindContainer(gTruckReservedId[playerid]);
+    if (slot >= 0 && gCleanerDumpOverflow[slot] > 0)
+        return SendClientMessage(playerid, CLEANER_COLOR,
+            "Парковка подтверждена. СНАЧАЛА мешки: /truckbag, /truckthrow. ПОТОМ /truckload.");
     return SendClientMessage(playerid, CLEANER_COLOR,
-        "Парковка подтверждена. /truckload — загрузить контейнер, затем /truckbag.");
+        "Парковка подтверждена. Мешков нет — загрузите контейнер: ALT или /truckload.");
 }
 
 stock Truck_CancelCommand(playerid)

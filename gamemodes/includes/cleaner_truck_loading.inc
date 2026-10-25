@@ -14,7 +14,7 @@
 #define TRUCK_PHASE_THROW_UP (4)
 #define TRUCK_PHASE_THROW_IN (5)
 #define TRUCK_PHASE_LOWER (6)
-#define TRUCK_HIGH_CLEARANCE (5.5)
+#define TRUCK_HIGH_CLEARANCE (4.0)
 #define TRUCK_LOAD_MAX_DRIFT_SQ (36.0)
 #define TRUCK_LOAD_BAG_RADIUS_SQ (10.0)
 #define TRUCK_LOAD_REAR_RADIUS_SQ (16.0)
@@ -29,12 +29,14 @@ new gTruckLoadBinUnits[MAX_PLAYERS];
 new Float:gTruckLoadHighZ[MAX_PLAYERS];
 new Float:gTruckLoadAnchor[MAX_PLAYERS][3];
 new gTruckThrowObject[MAX_PLAYERS];
+new gTruckLoadError[MAX_PLAYERS];
 forward TruckLoad_Step(playerid, epoch);
 
 stock TruckLoad_InitPlayer(playerid)
 {
     gTruckLoadEpoch[playerid]++;
     gTruckLoadPhase[playerid] = TRUCK_PHASE_IDLE;
+    gTruckLoadError[playerid] = 0;
     gTruckLoadSlot[playerid] = -1;
     gTruckCarrySlot[playerid] = -1;
     gTruckCarryIndex[playerid] = -1;
@@ -148,6 +150,7 @@ stock TruckLoad_Notice(playerid)
 // the corresponding static truck's cargo once in this server process.
 stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
 {
+    gTruckLoadError[playerid] = 1; // Invalid ownership/session or container.
     if (!CleanerDump_IsReady() || gCleanerDumpStaged || amount < 1 ||
         slot < 0 || slot >= gCleanerDumpCount ||
         !gCleanerDumpEnabled[slot] ||
@@ -158,6 +161,9 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
         gTruckCargo[bay] + amount > TRUCK_CARGO_CAP) return false;
     new current = overflow ? gCleanerDumpOverflow[slot] : gCleanerDumpBin[slot];
     if (amount > current) return false;
+    // Existing MariaDB v10 CHECK requires a full bin while overflow exists.
+    // Never empty a bin before the ground bags have been loaded.
+    if (!overflow && gCleanerDumpOverflow[slot] > 0) return false;
     new query[330], changed;
     if (overflow)
         mysql_format(gDBPrimary, query, sizeof(query),
@@ -169,7 +175,21 @@ stock bool:TruckLoad_Commit(playerid, slot, bool:overflow, amount)
             "UPDATE cleaner_containers SET bin_units=%d WHERE container_id=%d AND bin_units=%d AND overflow_units=%d AND enabled=1",
             current - amount, gCleanerDumpId[slot],
             gCleanerDumpBin[slot], gCleanerDumpOverflow[slot]);
-    if (!DBPrimary_Execute(query, changed) || changed != 1) return false;
+    if (!DBPrimary_Execute(query, changed))
+    {
+        gTruckLoadError[playerid] = 2; // SQL error, no local state changed.
+        printf("[TRUCK-LOAD] SQL error container=%d type=%d amount=%d mysql_errno=%d",
+            gCleanerDumpId[slot], _:overflow, amount, mysql_errno(gDBPrimary));
+        return false;
+    }
+    if (changed != 1)
+    {
+        gTruckLoadError[playerid] = 3; // Stale CAS; another process changed row.
+        printf("[TRUCK-LOAD] CAS rejected container=%d type=%d amount=%d affected=%d",
+            gCleanerDumpId[slot], _:overflow, amount, changed);
+        return false;
+    }
+    gTruckLoadError[playerid] = 0;
     if (overflow) gCleanerDumpOverflow[slot] -= amount;
     else gCleanerDumpBin[slot] -= amount;
     gTruckCargo[bay] += amount;
@@ -198,7 +218,11 @@ stock TruckLoad_Bin(playerid)
         return SendClientMessage(playerid, COLOR_RED,
             "Остановитесь задним бортом к контейнеру и подтвердите /truckpark.");
     new slot = Truck_FindContainer(gTruckReservedId[playerid]);
-    if (slot < 0 || gCleanerDumpBin[slot] <= 0 ||
+    if (slot < 0) return SendClientMessage(playerid, COLOR_RED, "Контейнер недоступен.");
+    if (gCleanerDumpOverflow[slot] > 0)
+        return SendClientMessage(playerid, COLOR_RED,
+            "Сначала соберите все мешки с площадки: /truckbag, /truckthrow. Затем контейнер.");
+    if (gCleanerDumpBin[slot] <= 0 ||
         gCleanerDumpObject[slot] == INVALID_OBJECT_ID ||
         !IsValidObject(gCleanerDumpObject[slot]))
         return SendClientMessage(playerid, COLOR_GREY, "Контейнер пуст или недоступен.");
@@ -223,7 +247,7 @@ stock TruckLoad_Bin(playerid)
     new objectid = gCleanerDumpObject[slot];
     new travelMs = MoveObject(objectid, gCleanerDumpPos[slot][0],
         gCleanerDumpPos[slot][1], gTruckLoadHighZ[playerid],
-        1.1, 0.0, 0.0, gCleanerDumpPos[slot][3]);
+        1.7, 0.0, 0.0, gCleanerDumpPos[slot][3]);
     if (travelMs <= 0)
     {
         TruckLoad_Reset(playerid);
@@ -358,9 +382,17 @@ public TruckLoad_Step(playerid, epoch)
     {
         if (!TruckLoad_Commit(playerid, slot, false, gTruckLoadBinUnits[playerid]))
         {
+            new error = gTruckLoadError[playerid];
             TruckLoad_Reset(playerid);
-            SendClientMessage(playerid, COLOR_RED,
-                "Погрузка не подтверждена: проверьте заказ и содержимое контейнера.");
+            if (error == 2)
+                SendClientMessage(playerid, COLOR_RED,
+                    "Ошибка БД при выгрузке. Мусор сохранён, сообщите администрации.");
+            else if (error == 3)
+                SendClientMessage(playerid, COLOR_RED,
+                    "Контейнер изменён другим действием. Обновите заказ.");
+            else
+                SendClientMessage(playerid, COLOR_RED,
+                    "Погрузка отменена: автомобиль или заказ больше недоступны.");
             return 1;
         }
         gTruckLoadPhase[playerid] = TRUCK_PHASE_RETURN;
@@ -388,9 +420,6 @@ public TruckLoad_Step(playerid, epoch)
     {
         TruckLoad_Reset(playerid);
         TruckLoad_Notice(playerid);
-        if (gCleanerDumpOverflow[slot] > 0)
-            SendClientMessage(playerid, CLEANER_COLOR,
-                "Контейнер пуст. Выйдите и соберите мешки: /truckbag.");
         TruckLoad_FinishIfEmpty(playerid, slot);
         return 1;
     }
