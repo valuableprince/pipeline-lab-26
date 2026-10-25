@@ -1017,6 +1017,11 @@ public OnPlayerEnterRaceCheckpoint(playerid)
     return 1;
 }
 
+public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
+{
+    return Truck_OnEnterVehicle(playerid, vehicleid, ispassenger);
+}
+
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
     Race_OnStateChange(playerid, newstate, oldstate);

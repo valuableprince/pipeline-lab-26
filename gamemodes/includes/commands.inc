@@ -169,6 +169,26 @@ cmd:truckpark(playerid, params[])
     return Truck_ParkCommand(playerid);
 }
 
+cmd:truckload(playerid, params[])
+{
+    return TruckLoad_Bin(playerid);
+}
+
+cmd:truckbag(playerid, params[])
+{
+    return TruckLoad_Bag(playerid);
+}
+
+cmd:truckthrow(playerid, params[])
+{
+    return TruckLoad_Throw(playerid);
+}
+
+cmd:truckcargo(playerid, params[])
+{
+    return TruckLoad_Notice(playerid);
+}
+
 cmd:truckcancel(playerid, params[])
 {
     return Truck_CancelCommand(playerid);
