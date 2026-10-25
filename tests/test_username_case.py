@@ -11,7 +11,7 @@ class UsernameCase(unittest.TestCase):
         self.assertIn("GENERATED ALWAYS AS (LOWER(username)) STORED",SQL)
         self.assertIn("uq_accounts_username_key UNIQUE",SQL)
         self.assertIn("VALUES (4)",SQL)
-        self.assertIn("WHERE version=4 LIMIT 1",DB)
+        self.assertIn("WHERE version=12 LIMIT 1",DB)
     def test_case_preservation(self):
         self.assertNotIn("if (c >= 'A' && c <= 'Z') c += ('a' - 'A');",GAME)
         self.assertIn("c >= 'A' && c <= 'Z'",GAME)
@@ -19,6 +19,6 @@ class UsernameCase(unittest.TestCase):
         self.assertGreaterEqual(DB.count("username_key=LOWER('%e')"),2)
         self.assertIn("username_key=LOWER('%e')",WORLD)
     def test_bans_not_case_sensitive(self):
-        self.assertIn("LOWER(username)=LOWER('%e')",DB)
+        self.assertIn("FROM bans WHERE username_key=LOWER('%e')",DB)
 if __name__=="__main__":
     unittest.main()
