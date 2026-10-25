@@ -14,6 +14,15 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.STATISTICS
         WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='municipal_truck_deliveries'
           AND INDEX_NAME='idx_mtd_account_completed') THEN
+        -- MariaDB may remove the old auto-created fk_mtd_account index when
+        -- the v12 composite becomes the FK-supporting index. Restore it first.
+        IF NOT EXISTS (SELECT 1 FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA=DATABASE()
+              AND TABLE_NAME='municipal_truck_deliveries'
+              AND INDEX_NAME='fk_mtd_account') THEN
+            ALTER TABLE municipal_truck_deliveries
+                ADD INDEX fk_mtd_account (account_id);
+        END IF;
         ALTER TABLE municipal_truck_deliveries
             DROP INDEX idx_mtd_account_completed;
     END IF;
