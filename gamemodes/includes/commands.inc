@@ -113,7 +113,7 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, ADMIN_COLOR,
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
-            "Прочее: /veh модель [цвета], /delveh ID, /spec, /goto, /weather, /event.");
+            "Прочее: /veh модель [цвета], /veh del ID, /delveh ID, /weather, /event.");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
