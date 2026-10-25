@@ -42,8 +42,8 @@ class WasteSortingTextDrawTests(unittest.TestCase):
         self.assertIn("PlayerTextDrawSetPreviewModel(playerid, preview, gSortItemModels[item]);", UI)
         self.assertIn("PlayerTextDrawSetSelectable(playerid, preview, true);", UI)
         self.assertIn("gSortItemRot[item][0]", UI)
-        self.assertIn("1484", UI)
-        self.assertIn("18631", UI)
+        self.assertIn("2814", UI)
+        self.assertIn("18633", UI)
         self.assertIn("[Сортировка]", UI)
 
     def test_click_to_select_and_server_category_validation(self):
