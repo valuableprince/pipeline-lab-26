@@ -34,7 +34,7 @@ class TruckStageTwoTests(unittest.TestCase):
         self.assertIn("{-233.7885, 1086.0983, 20.2871, 90.8476}", OPS)
         self.assertIn("{-233.7681, 1081.5675, 20.2994, 88.8619}", OPS)
         self.assertIn("gTruckSpawnPositions[bay][0], gTruckSpawnPositions[bay][1]", OPS)
-        self.assertIn("gTruckSpawnPositions[bay][2], gTruckSpawnPositions[bay][3]", OPS)
+        self.assertIn("gTruckSpawnPositions[i][2], gTruckSpawnPositions[i][3]", OPS)
         self.assertNotIn("CLEANER_DEPOT_Z + 0.6", OPS)
         self.assertIn("for (new i = 0; i < TRUCK_BAYS; i++)", OPS)
         self.assertIn("if (bay < 0) return false;", OPS)
