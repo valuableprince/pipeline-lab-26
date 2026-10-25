@@ -69,6 +69,8 @@ new gCharacterLastPaydayHour[MAX_PLAYERS];
 new gStoryStage[MAX_PLAYERS];
 // -1: нужна однократная инициализация исторически оплаченных услуг уборщика.
 new gAccountCleanerPaid[MAX_PLAYERS];
+// Driver career XP is distinct from collector's invariant xp=collected.
+new gTruckDriverXP[MAX_PLAYERS];
 new gAccountTxnSerial[MAX_PLAYERS];
 new gAccountRaceStarts[MAX_PLAYERS];
 new gAccountRaceFinishes[MAX_PLAYERS];
@@ -598,6 +600,13 @@ stock Auth_EnterWorld(playerid)
     }
     Leader_OnReady(playerid);
     Cleaner_OnReady(playerid);
+    if (gTruckPersistenceReady && !TruckPersist_LoadProfile(playerid))
+    {
+        SendClientMessage(playerid, COLOR_RED,
+            "Не удалось прочитать опыт муниципального водителя. Повторите вход.");
+        Kick(playerid);
+        return 0;
+    }
     RaceProgress_OnReady(playerid);
     PayDay_OnReady(playerid);
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
@@ -810,6 +819,7 @@ public OnPlayerConnect(playerid)
     gCharacterLastPaydayHour[playerid] = 0;
     SetPlayerScore(playerid, 0);
     gAccountCleanerPaid[playerid] = 0;
+    gTruckDriverXP[playerid] = 0;
     gAccountTxnSerial[playerid] = 0;
     gAccountRaceStarts[playerid] = 0;
     gAccountRaceFinishes[playerid] = 0;
@@ -874,6 +884,7 @@ public OnPlayerDisconnect(playerid, reason)
     gCharacterEXP[playerid] = 0;
     gCharacterLastPaydayHour[playerid] = 0;
     gAccountCleanerPaid[playerid] = 0;
+    gTruckDriverXP[playerid] = 0;
     gAccountTxnSerial[playerid] = 0;
     gAccountRaceStarts[playerid] = 0;
     gAccountRaceFinishes[playerid] = 0;
