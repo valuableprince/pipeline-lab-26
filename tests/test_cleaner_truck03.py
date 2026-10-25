@@ -25,6 +25,9 @@ class JobTruckStageThree(unittest.TestCase):
         self.assertIn("newstate == PLAYER_STATE_DRIVER", OPS)
         self.assertIn("gTruckBayOwner[bay] != playerid + 1", OPS)
         self.assertIn("RemovePlayerFromVehicle(playerid);", OPS)
+        self.assertIn("stock Truck_OnEnterVehicle(playerid, vehicleid, ispassenger)", OPS)
+        self.assertIn("ClearAnimations(playerid);", OPS)
+        self.assertIn("return Truck_OnEnterVehicle(playerid, vehicleid, ispassenger);", MAIN)
 
     def test_animation_and_anti_replay(self):
         for token in ("MoveObject(", "StopObject(", "SetObjectPos(", "SetObjectRot(",
