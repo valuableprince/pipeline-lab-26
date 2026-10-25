@@ -141,6 +141,10 @@ forward bool:DBWorld_ZoneLoad(slot);
 forward bool:DBWorld_ZoneSave(slot, bool:active, Float:x, Float:y, Float:z, Float:radius, world, interior, mode);
 #endif
 
+forward bool:AdminPunish_IsJailed(playerid);
+forward bool:AdminPunish_Release(playerid, const actor[]);
+forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
+
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "admin_system.inc"
