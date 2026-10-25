@@ -192,6 +192,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_help.inc"
 #include "admin_tools2.inc"
 #include "admin_punish.inc"
+#include "rp_chat.inc"
 #include "commands.inc"
 
 stock bool:Auth_SetAccountName(playerid)
@@ -741,6 +742,7 @@ public OnGameModeInit()
         SendRconCommand("exit");
         return 0;
     }
+    RP_Init();
     Guard_Init();
 
 
@@ -795,6 +797,7 @@ public OnPlayerConnect(playerid)
     DisablePlayerCheckpoint(playerid);
     DisablePlayerRaceCheckpoint(playerid);
     Guard_OnConnect(playerid);
+    RP_Reset(playerid);
     Admin_OnConnect(playerid);
     AdminPunish_Reset(playerid);
     AdminVeh_Reset(playerid);
@@ -856,6 +859,7 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    RP_Reset(playerid);
     Guard_OnDisconnect(playerid);
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
