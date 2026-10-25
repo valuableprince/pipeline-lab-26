@@ -48,6 +48,7 @@ class DatabaseOptimization12(unittest.TestCase):
         self.assertIn("DELETE FROM schema_migrations WHERE version=12", ROLLBACK)
         self.assertIn("DROP COLUMN username_key", ROLLBACK)
         self.assertIn("DROP INDEX idx_mtd_account_completed", ROLLBACK)
+        self.assertIn("ADD INDEX fk_mtd_account (account_id)", ROLLBACK)
 
     def test_pawn_cp1251_compatible(self):
         self.assertEqual(DB, DB.encode("cp1251").decode("cp1251"))
