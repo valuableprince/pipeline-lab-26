@@ -188,10 +188,15 @@ stock TruckLoad_Bin(playerid)
     gTruckLoadBinUnits[playerid] = amount;
     gTruckLoadPhase[playerid] = TRUCK_PHASE_LIFT;
     new objectid = gCleanerDumpObject[slot];
-    MoveObject(objectid, gCleanerDumpPos[slot][0],
+    new travelMs = MoveObject(objectid, gCleanerDumpPos[slot][0],
         gCleanerDumpPos[slot][1], gCleanerDumpPos[slot][2] + 1.45,
         1.1, 0.0, 0.0, gCleanerDumpPos[slot][3]);
-    SetTimerEx("TruckLoad_Step", 2100, false, "ii",
+    if (travelMs <= 0)
+    {
+        TruckLoad_Reset(playerid);
+        return SendClientMessage(playerid, COLOR_RED, "Не удалось поднять контейнер.");
+    }
+    SetTimerEx("TruckLoad_Step", travelMs + 150, false, "ii",
         playerid, gTruckLoadEpoch[playerid]);
     return SendClientMessage(playerid, CLEANER_COLOR,
         "Гидравлический захват поднимает контейнер...");
@@ -268,8 +273,13 @@ stock TruckLoad_Throw(playerid)
     ApplyAnimation(playerid, "BASKETBALL", "BBALL_shoot", 4.1,
         false, false, false, false, 1000, SYNC_ALL);
     gTruckLoadPhase[playerid] = TRUCK_PHASE_THROW_UP;
-    MoveObject(objectid, rearX, rearY, z + 2.5, 3.5);
-    SetTimerEx("TruckLoad_Step", 950, false, "ii",
+    new flightMs = MoveObject(objectid, rearX, rearY, z + 2.5, 3.5);
+    if (flightMs <= 0)
+    {
+        TruckLoad_Reset(playerid);
+        return SendClientMessage(playerid, COLOR_RED, "Не удалось бросить мешок.");
+    }
+    SetTimerEx("TruckLoad_Step", flightMs + 150, false, "ii",
         playerid, gTruckLoadEpoch[playerid]);
     return SendClientMessage(playerid, CLEANER_COLOR, "Мешок летит в кузов...");
 }
@@ -298,10 +308,11 @@ public TruckLoad_Step(playerid, epoch)
         GetVehicleZAngle(gTruckFleet[bay], angle);
         x += floatsin(angle, degrees) * 3.2;
         y -= floatcos(angle, degrees) * 3.2;
-        MoveObject(gCleanerDumpObject[slot], x, y, z + 2.1,
+        new travelMs = MoveObject(gCleanerDumpObject[slot], x, y, z + 2.1,
             1.6, 110.0, 0.0, gCleanerDumpPos[slot][3]);
+        if (travelMs <= 0) { TruckLoad_Reset(playerid); return 1; }
         gTruckLoadPhase[playerid] = TRUCK_PHASE_TIP;
-        SetTimerEx("TruckLoad_Step", 2100, false, "ii", playerid, epoch);
+        SetTimerEx("TruckLoad_Step", travelMs + 350, false, "ii", playerid, epoch);
         return 1;
     }
     if (phase == TRUCK_PHASE_TIP)
@@ -313,10 +324,11 @@ public TruckLoad_Step(playerid, epoch)
             return 1;
         }
         gTruckLoadPhase[playerid] = TRUCK_PHASE_RETURN;
-        MoveObject(gCleanerDumpObject[slot], gCleanerDumpPos[slot][0],
+        new travelMs = MoveObject(gCleanerDumpObject[slot], gCleanerDumpPos[slot][0],
             gCleanerDumpPos[slot][1], gCleanerDumpPos[slot][2] - 0.85,
             2.1, 0.0, 0.0, gCleanerDumpPos[slot][3]);
-        SetTimerEx("TruckLoad_Step", 2300, false, "ii", playerid, epoch);
+        if (travelMs <= 0) { TruckLoad_Reset(playerid); return 1; }
+        SetTimerEx("TruckLoad_Step", travelMs + 150, false, "ii", playerid, epoch);
         return 1;
     }
     if (phase == TRUCK_PHASE_RETURN)
@@ -339,9 +351,10 @@ public TruckLoad_Step(playerid, epoch)
         }
         new Float:x, Float:y, Float:z;
         GetVehiclePos(gTruckFleet[bay], x, y, z);
-        MoveObject(gTruckThrowObject[playerid], x, y, z + 1.25, 3.0);
+        new flightMs = MoveObject(gTruckThrowObject[playerid], x, y, z + 1.25, 3.0);
+        if (flightMs <= 0) { TruckLoad_Reset(playerid); return 1; }
         gTruckLoadPhase[playerid] = TRUCK_PHASE_THROW_IN;
-        SetTimerEx("TruckLoad_Step", 750, false, "ii", playerid, epoch);
+        SetTimerEx("TruckLoad_Step", flightMs + 150, false, "ii", playerid, epoch);
         return 1;
     }
     if (phase == TRUCK_PHASE_THROW_IN)
