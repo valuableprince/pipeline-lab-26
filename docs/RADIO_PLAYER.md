@@ -10,16 +10,16 @@
 
 | № | Радиостанция | Страна | Поток |
 | ---: | --- | --- | --- |
-| 1 | `https://europaplus.hostingradio.ru:8030/ep128` | | Россия | undefined
-| 2 | `https://emgspb.hostingradio.ru/retrofmspb128.mp3` | | Россия | undefined
-| 3 | `https://radiorecord.hostingradio.ru/rr_main96.aacp` | | Россия | undefined
-| 4 | `http://orfeyfm.hostingradio.ru:8034/orfeyfm128.mp3` | | Россия | undefined
-| 5 | `https://stream.srg-ssr.ch/srgssr/rsc_de/mp3/128` | | Швейцария | undefined
-| 6 | `https://mdr-284350-0.sslcast.mdr.de/mdr/284350/0/mp3/high/stream.mp3` | | Германия | undefined
-| 7 | `https://stream.antenne.de/antenne/stream/mp3` | | Германия | undefined
-| 8 | `https://media-ssl.musicradio.com/Heart80sMP3` | | Великобритания | undefined
-| 9 | `http://icecast.omroep.nl/radio2-bb-mp3` | | Нидерланды | undefined
-| 10 | `https://stream.srg-ssr.ch/srgssr/rsp/mp3/128` | | Швейцария | undefined
+| 1 | Европа Плюс | Россия | `https://europaplus.hostingradio.ru:8030/ep128` |
+| 2 | Ретро FM (СПб) | Россия | `https://emgspb.hostingradio.ru/retrofmspb128.mp3` |
+| 3 | Радио Рекорд | Россия | `https://radiorecord.hostingradio.ru/rr_main96.aacp` |
+| 4 | Радио Орфей | Россия | `http://orfeyfm.hostingradio.ru:8034/orfeyfm128.mp3` |
+| 5 | Radio Swiss Classic | Швейцария | `https://stream.srg-ssr.ch/srgssr/rsc_de/mp3/128` |
+| 6 | MDR Klassik | Германия | `https://mdr-284350-0.sslcast.mdr.de/mdr/284350/0/mp3/high/stream.mp3` |
+| 7 | ANTENNE BAYERN | Германия | `https://stream.antenne.de/antenne/stream/mp3` |
+| 8 | Heart 80s | Великобритания | `https://media-ssl.musicradio.com/Heart80sMP3` |
+| 9 | NPO Radio 2 | Нидерланды | `http://icecast.omroep.nl/radio2-bb-mp3` |
+| 10 | Radio Swiss Pop | Швейцария | `https://stream.srg-ssr.ch/srgssr/rsp/mp3/128` |
 
 **Проверка источников URL (25.10.2026):** пути сопоставлены с опубликованными
 каталогами и официальными страницами вещателей. Прямая попытка загрузки
