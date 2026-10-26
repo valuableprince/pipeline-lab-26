@@ -160,7 +160,6 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "admin_system.inc"
-#include "admin_fly.inc"
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
@@ -199,6 +198,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_help.inc"
 #include "admin_tools2.inc"
 #include "admin_punish.inc"
+#include "admin_fly.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
