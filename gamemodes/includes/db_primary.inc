@@ -25,6 +25,11 @@
 
     new MySQL:gDBPrimary = MYSQL_INVALID_HANDLE;
     new bool:gDBPrimaryReady;
+    new bool:gDBPrimaryProbePending;
+    new gDBPrimaryRecoveryTimer;
+    #define DB_PRIMARY_RECOVERY_MS (15000)
+    forward DBPrimary_RecoveryTick();
+    forward DBPrimary_RecoveryResult();
     new gDBPrimaryAccountId[MAX_PLAYERS];
     new gDBPrimaryVersion[MAX_PLAYERS];
     new bool:gDBPrimaryLoaded[MAX_PLAYERS];
@@ -116,6 +121,9 @@
         }
         cache_delete(c);
         print("[DB-PRIMARY] MySQL schema v10 detected; editor containers and punishments enabled.");
+        gDBPrimaryRecoveryTimer = SetTimer("DBPrimary_RecoveryTick", DB_PRIMARY_RECOVERY_MS, true);
+        if (!gDBPrimaryRecoveryTimer)
+            print("[DB-PRIMARY] Recovery watchdog unavailable.");
         return 1;
     }
 
@@ -616,6 +624,29 @@
         // SQL syntax and constraint failures must not disconnect unrelated players.
         return 1;
     }
+    public DBPrimary_RecoveryTick()
+    {
+        if (gDBPrimaryReady || gDBPrimary == MYSQL_INVALID_HANDLE ||
+            gDBPrimaryProbePending) return 1;
+        gDBPrimaryProbePending = true;
+        if (!mysql_tquery(gDBPrimary, "SELECT 1 AS healthy", "DBPrimary_RecoveryResult"))
+            gDBPrimaryProbePending = false;
+        return 1;
+    }
+
+    public DBPrimary_RecoveryResult()
+    {
+        gDBPrimaryProbePending = false;
+        if (gDBPrimaryReady || gDBPrimary == MYSQL_INVALID_HANDLE) return 1;
+        new rows, healthy;
+        if (!cache_get_row_count(rows) || rows != 1 ||
+            !cache_get_value_name_int(0, "healthy", healthy) || healthy != 1)
+            return 1;
+        gDBPrimaryReady = true;
+        print("[DB-PRIMARY] MariaDB recovered. Writes re-enabled.");
+        return 1;
+    }
+
 #else
     stock DBPrimary_Init() { return 1; }
     stock DBPrimary_StartRecoveryMonitor() { return 1; }
