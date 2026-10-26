@@ -225,6 +225,8 @@ stock Bench_Sample(const phase[])
     if (!gBenchActive) return 0;
     new tickrate = GetServerTickRate();
     if (tickrate < gBenchWorstRate) gBenchWorstRate = tickrate;
+    // LOADTEST core measures tickrate every second, not only on CSV samples.
+    if (gLoadMinTickrate < gBenchWorstRate) gBenchWorstRate = gLoadMinTickrate;
     new File:metricsHandle = fopen(gBenchMetricsPath, io_append);
     if (!metricsHandle)
     {
