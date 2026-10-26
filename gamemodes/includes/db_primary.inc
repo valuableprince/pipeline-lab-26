@@ -594,45 +594,26 @@
 
     public OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle)
     {
-        // Never log raw SQL or the database error string, which can reveal
-        // credentials and user data. SQL errors affect only their own query;
-        // network loss activates a fail-closed maintenance state, without
-        // disconnecting every authenticated player.
+        // Do not log the SQL or error text: password hashes may be embedded.
         #pragma unused error, callback, query, handle
-        printf("[DB-PRIMARY] Asynchronous SQL failed: code %d.", errorid);
+        printf("[DB-PRIMARY] Asynchronous SQL failed (code %d).", errorid);
         if (errorid == 2002 || errorid == 2003 || errorid == 2006 ||
             errorid == 2013 || errorid == 2055)
         {
             gDBPrimaryProbePending = false;
             if (!gDBPrimaryDegraded)
             {
-                print("[DB-PRIMARY] Connection lost. Writes are suspended until successful recovery probe.");
+                print("[DB-PRIMARY] Connection lost: writes suspended; attempting asynchronous probes.");
                 for (new i = 0; i < MAX_PLAYERS; i++)
                     if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
                         gAuthState[i] == AUTH_READY)
                         SendClientMessage(i, COLOR_RED,
-                            "Проблема с базой данных: сохранение временно недоступно.");
+                            "Соединение с базой потеряно: сохранение временно недоступно.");
             }
             gDBPrimaryDegraded = true;
             gDBPrimaryReady = false;
         }
-        return 1;
-    }
-H_VERIFYING &&
-                    !strcmp(gDBPrimaryRequestName[i], gAccountName[i], false))
-                {
-                    SendClientMessage(i, COLOR_RED, "MariaDB: вход временно недоступен. Переподключитесь.");
-                    Kick(i);
-                }
-            return 1;
-        }
-        // Unexpected async query failures require operator intervention.
-        // Suspend writes rather than forcing all online players to disconnect.
-        gDBPrimaryReady = false;
-        print("[DB-PRIMARY] Persistence disabled after unexpected async SQL error. Restart after repair.");
-        for (new i = 0; i < MAX_PLAYERS; i++)
-            if (IsPlayerConnected(i) && !IsPlayerNPC(i) && gAuthState[i] == AUTH_READY)
-                SendClientMessage(i, COLOR_RED, "MariaDB: сохранения недоступны. Сообщите администрации.");
+        // SQL syntax and constraint failures must not disconnect unrelated players.
         return 1;
     }
 #else
