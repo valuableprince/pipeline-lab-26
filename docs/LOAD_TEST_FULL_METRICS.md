@@ -32,8 +32,9 @@ auto-stop on sustained low tickrate.
 
 ### What "full" actually does
 
-1. Spawn built-in open.mp NPCs; they are visible in the world and may
-   be visible in the TAB player list depending on client/server behavior.
+1. Spawn built-in open.mp NPCs at the Fort Carson spawn area in virtual
+   world 0; keep them standing there. NPCs may appear in TAB depending
+   on client/server behavior. The legacy npc-only mode still moves NPCs.
 2. For each spawned NPC, invoke the same installed `samp_bcrypt` plugin
    used by TARKENSO with cost 12. This is executed asynchronously using
    the authenticated founder's player ID for the callback, **not** via
