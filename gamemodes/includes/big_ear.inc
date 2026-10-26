@@ -46,8 +46,11 @@ stock Float:Dish_CurrentAngle()
     if (!Dish_Ready()) return 0.0;
     new Float:rx, Float:ry, Float:rz;
     GetObjectRot(gDishObject, rx, ry, rz);
-    while (rz > 180.0) rz -= 360.0;
-    while (rz < -180.0) rz += 360.0;
+    // Do not normalize via unbounded loops: bad rotations can stall the
+    // main server thread, preventing chat messages and driving CPU to 100%.
+    if (rz < -360.0 || rz > 360.0) return gDishDestination;
+    if (rz > 180.0) rz -= 360.0;
+    else if (rz < -180.0) rz += 360.0;
     return rz;
 }
 
@@ -123,11 +126,12 @@ stock Dish_Init()
         return 0;
     }
 
-    gDishAutomatic = true;
+    // Safety: automatic sweeping is temporarily disabled until measured.
+    // Operator may start it explicitly with /dish auto after CPU verification.
+    gDishAutomatic = false;
     gDishMoving = false;
     gDishDirection = 1;
     gDishDestination = 0.0;
-    Dish_AdvanceAutomatic();
     print("[BIG-EAR] Vanilla dish replacement initialized.");
     return 1;
 }
