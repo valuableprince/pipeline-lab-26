@@ -53,7 +53,7 @@ forward Bench_OnLoaded(playerid, token, slot);
 forward Bench_OnVerified(playerid, bool:success, token, slot);
 forward Bench_OnSaved(playerid, token, slot);
 forward Bench_OnActivityRead(playerid, token, slot);
-forward Bench_OnActivityWrite(playerid, token, slot, bool:payday);
+forward Bench_OnActivityWrite(playerid, token, slot, payday);
 
 stock Bench_Bucket(ms, bool:bcryptOperation)
 {
@@ -602,7 +602,7 @@ public Bench_OnActivityRead(playerid, token, slot)
     gBenchStage[slot] = 9;
     gBenchStartedMs[slot] = GetTickCount();
     gBenchPendingSQL++;
-    if (!mysql_tquery(gDBPrimary, query, "Bench_OnActivityWrite", "iiib",
+    if (!mysql_tquery(gDBPrimary, query, "Bench_OnActivityWrite", "iiii",
         playerid, token, slot, payday))
     {
         gBenchPendingSQL--;
@@ -612,7 +612,7 @@ public Bench_OnActivityRead(playerid, token, slot)
     return 1;
 }
 
-public Bench_OnActivityWrite(playerid, token, slot, bool:payday)
+public Bench_OnActivityWrite(playerid, token, slot, payday)
 {
     if (token != gBenchToken) return 1;
     if (gBenchPendingSQL > 0) gBenchPendingSQL--;
