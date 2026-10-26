@@ -27,20 +27,21 @@ class LoadTestIntegration(unittest.TestCase):
         ):
             self.assertIn(expected, GAME)
         self.assertIn("cmd:loadtest(playerid, params[])", COMMANDS)
-        self.assertIn("LoadTest_Command(playerid, params);", COMMANDS)
+        self.assertIn("cmd:load(playerid, params[])", COMMANDS)
+        self.assertEqual(COMMANDS.count("LoadTest_Command(playerid, params);"), 2)
 
     def test_safety_gate_permissions_budgets_and_cleanup(self):
         for expected in (
-            '"load_test.enabled"',
-            "if (!fexist(LOADTEST_ENABLE_FLAG))",
-            "!Admin_IsFounder(playerid) || !gAdminDuty[playerid]",
+            "!Admin_IsFounder(playerid)",
+            "if (!gAdminDuty[playerid])",
+            "!gAdminDuty[gLoadOwner]",
             "#define LOADTEST_MAX_NPCS        (100)",
             "#define LOADTEST_BATCH_NPCS      (4)",
             "#define LOADTEST_MAX_SECONDS     (300)",
             "LOADTEST_MIN_TICKRATE",
             "LOADTEST_BAD_SAMPLES",
             "LoadTest_Stop(\"owner_disconnect\")",
-            "LoadTest_Stop(\"flag_removed\")",
+            "LoadTest_Stop(\"owner_unavailable\")",
             "NPC_Destroy(gLoadNPCIds[i]);",
             "KillTimer(gLoadTimer);",
         ):
@@ -48,7 +49,17 @@ class LoadTestIntegration(unittest.TestCase):
         self.assertNotIn("mysql_query", LOADTEST)
         self.assertNotIn("mysql_tquery", LOADTEST)
         self.assertIn("not a real-player", DOC.lower().replace("**", ""))
-        self.assertIn("scriptfiles/loadtest.csv", DOC)
+        self.assertIn("load_test_01_26.10.2026.csv", DOC)
+        self.assertNotIn("LOADTEST_ENABLE_FLAG", LOADTEST)
+        self.assertIn("LoadTest_CreateReport()", LOADTEST)
+        self.assertIn("getdate(year, month, day)", LOADTEST)
+        self.assertIn("if (fexist(gLoadReportFile)) continue;", LOADTEST)
+        self.assertIn("fwrite(reportHandle, LOADTEST_CSV_HEADER)", LOADTEST)
+        self.assertIn('if (!LoadTest_CreateReport())', LOADTEST)
+        self.assertLess(LOADTEST.index('if (!LoadTest_CreateReport())'),
+                        LOADTEST.index('gLoadRunning = true;'))
+        self.assertIn('if (!strcmp(params, "start", true))', LOADTEST)
+        self.assertIn('LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS', LOADTEST)
 
     def test_no_global_npc_deletion(self):
         self.assertNotIn("NPC_DestroyAll", LOADTEST)
@@ -63,6 +74,18 @@ class LoadTestReport(unittest.TestCase):
             path = Path(tmp) / "loadtest.csv"
             path.write_text("\n".join(lines) + "\n", encoding="utf-8")
             return report.load_samples(path)
+
+    def test_new_header_and_legacy_without_header(self):
+        header = ",".join(report.COLUMNS)
+        row = "100,0,0,8,90,90,0,1000,0,start"
+        with_header = self._read([header, row])
+        without_header = self._read([row])
+        self.assertEqual(with_header, without_header)
+        self.assertEqual(len(with_header), 1)
+
+    def test_header_only_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "no measurements"):
+            self._read([",".join(report.COLUMNS)])
 
     def test_completed_and_incomplete_runs(self):
         rows = self._read([
