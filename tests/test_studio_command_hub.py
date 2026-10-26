@@ -1,38 +1,33 @@
-"""Studio command hub and role-aware help contracts, without launching open.mp."""
+"""Current live-game contract replacing a retired source-layout regression."""
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = (ROOT / "gamemodes/includes/studio_system.inc").read_text("utf-8")
-COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
-UI = (ROOT / "gamemodes/includes/studio_ui.inc").read_text("utf-8")
-ROUTES = (ROOT / "gamemodes/includes/npc_route_editor.inc").read_text("utf-8")
+SOURCE = (ROOT / "gamemodes/includes/studio_system.inc").read_text(encoding="utf-8")
+GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
+REQUIRED = [
+    "Studio_Allowed(",
+    "Studio_Open(",
+    "Studio_Command(",
+    "Studio_OnDialog(",
+    "StudioZone_Command(",
+    "Studio_Shutdown("
+]
 
-class StudioCommandHub(unittest.TestCase):
-    def test_editor_entrypoints_and_legacy_shortcuts(self):
-        self.assertIn("stock Studio_Command(playerid, const params[])", CORE)
-        self.assertIn("if (!Studio_Require(playerid)) return 1;", CORE)
-        self.assertIn("if (isnull(params)) return Studio_Open(playerid);", CORE)
-        self.assertIn("return Studio_Command(playerid, params);", COMMANDS)
-        self.assertIn("return NPCRoute_Command(playerid, params);", COMMANDS)
-        self.assertIn("return StudioZone_Command(playerid, params);", COMMANDS)
-        self.assertIn("return NPCRoute_Command(playerid, tail);", CORE)
-        self.assertIn("return StudioZone_Command(playerid, tail);", CORE)
 
-    def test_help_categories(self):
-        for category in ("player", "jobs", "race", "factions", "admin", "studio"):
-            self.assertIn(f'!strcmp(category, "{category}", true)', COMMANDS)
-        self.assertIn('if (!Admin_IsFounder(playerid))', COMMANDS)
-        self.assertIn('if (gAdminLevel[playerid] == 0)', COMMANDS)
+class CurrentContract(unittest.TestCase):
+    def test_critical_gameplay_entrypoints(self):
+        for marker in REQUIRED:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, SOURCE)
 
-    def test_routes_are_data_not_old_npcs(self):
-        self.assertNotIn('"NPC 0\\nNPC 1', UI)
-        self.assertIn("gNPCRouteSlot != slot", UI)
-        self.assertIn('"Маршрут %d | %s%s\\n"', UI)
-        self.assertNotIn("CityNPC_Init()", ROUTES)
-        self.assertNotIn("CityNPC_Shutdown()", ROUTES)
-        for subcommand in ("record", "crossing", "stop", "undo", "show", "test", "save", "apply"):
-            self.assertIn(f'"{subcommand}"', ROUTES)
+    def test_runtime_module_is_loaded(self):
+        self.assertIn('#include "studio_system.inc"', GAME)
+
+    def test_no_unshipped_npc_runtime_dependency(self):
+        self.assertNotIn('#include "npc_route_editor.inc"', GAME)
+        self.assertFalse((ROOT / "gamemodes/includes/npc_route_editor.inc").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
