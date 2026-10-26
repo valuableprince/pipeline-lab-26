@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PREFIX = ("[TARKENSO]", "{D9AA55}[TARKENSO]", "{D9AA55}[Tarkenso]")
+PREFIX = ("[Tarkenso RPG]", "{D9AA55}[Tarkenso RPG]", "{D9AA55}[Tarkenso]")
 ALLOWED_FUNCTIONS = ("SendClientMessage", "SendClientMessageToAll")
 CALL = re.compile(r"\b(?:SendClientMessage|SendClientMessageToAll)\s*\(")
 LITERAL = re.compile(r'"((?:\\.|[^"\\])*)"')
@@ -97,10 +97,10 @@ def check(changed: dict[str, set[int]], root: Path):
             msg = literals[-1]
             checked += 1
             normalized = ANSI.sub("", msg).lstrip()
-            if TRIGGER.search(msg) and not normalized.startswith("[TARKENSO]"):
+            if TRIGGER.search(msg) and not normalized.startswith("[Tarkenso RPG]"):
                 issues.append(f"{path}:{first}: use unified help, not raw usage: {msg[:90]}")
-            elif not normalized.startswith("[TARKENSO]"):
-                issues.append(f"{path}:{first}: chat string lacks [TARKENSO] prefix: {msg[:90]}")
+            elif not normalized.startswith("[Tarkenso RPG]"):
+                issues.append(f"{path}:{first}: chat string lacks [Tarkenso RPG] prefix: {msg[:90]}")
     return issues, checked, unknown
 
 
