@@ -25,7 +25,7 @@ class StartRegionContract(unittest.TestCase):
         self.assertIn('ACCOUNT_FORMAT       "SIGNAL0317|5"', M)
         self.assertIn("gStartRegion[playerid] = region;", M)
         self.assertIn("gStartRegion[playerid]);", M)
-        self.assertIn('start_region,row_version FROM accounts', S)
+        self.assertIn('start_region,character_level,character_exp,last_payday_hour,story_stage,row_version', S)
         self.assertIn("start_region=%d,mute_until=", S)
         self.assertIn("background,start_region) VALUES", S)
         self.assertIn("DEFAULT 1", Q)

@@ -11,7 +11,7 @@ class UsernameCase(unittest.TestCase):
         self.assertIn("GENERATED ALWAYS AS (LOWER(username)) STORED",SQL)
         self.assertIn("uq_accounts_username_key UNIQUE",SQL)
         self.assertIn("VALUES (4)",SQL)
-        self.assertIn("WHERE version=4 LIMIT 1",DB)
+        self.assertIn("WHERE version=10 LIMIT 1",DB)
     def test_case_preservation(self):
         self.assertNotIn("if (c >= 'A' && c <= 'Z') c += ('a' - 'A');",GAME)
         self.assertIn("c >= 'A' && c <= 'Z'",GAME)

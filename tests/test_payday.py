@@ -16,11 +16,23 @@ class PayDayContract(unittest.TestCase):
     def test_timing_and_no_afk_or_salary(self):
         self.assertIn('SetTimer("PayDay_Tick", 1000, true)', PAYDAY)
         self.assertIn("gettime(hour, minute, second)", PAYDAY)
-        self.assertIn("minute != 0", PAYDAY)
-        self.assertIn("currentHourKey == gPayDayLastHour", PAYDAY)
+        self.assertIn("minute == 0", PAYDAY)
+        self.assertIn("currentHourKey != gPayDayLastHour", PAYDAY)
         self.assertIn("PAYDAY_EXP_PER_HOUR (1)", PAYDAY)
         self.assertNotIn("GivePlayerMoney(", PAYDAY)
         self.assertNotIn("gCleanerDuty", PAYDAY)
+
+    def test_retry_is_per_session_and_preserves_failed_grants(self):
+        for token in ("PAYDAY_RETRY_SECONDS", "gPayDayPendingHour[MAX_PLAYERS]",
+                      "gPayDayPendingThrough[MAX_PLAYERS]",
+                      "gPayDayNextRetry[MAX_PLAYERS]", "PayDay_Reset(playerid)",
+                      "PayDay_Grant(playerid, pending)",
+                      "now + PAYDAY_RETRY_SECONDS"):
+            self.assertIn(token, PAYDAY)
+        self.assertIn("PayDay_Reset(playerid);", GAME)
+        self.assertLess(PAYDAY.index("gPayDayLastHour = currentHourKey;"),
+                        PAYDAY.index("gPayDayPendingHour[playerid] = currentHourKey;"))
+        self.assertIn("if (now < gPayDayNextRetry[playerid]) continue;", PAYDAY)
 
     def test_persistence_and_score(self):
         for token in ("ADD COLUMN character_level", "ADD COLUMN character_exp",

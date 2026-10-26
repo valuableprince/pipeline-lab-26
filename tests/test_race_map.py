@@ -22,7 +22,8 @@ class RaceMapTest(unittest.TestCase):
         return tiles
 
     def test_world_and_lifecycle(self):
-        self.assertIn('#include "race_map.inc"\n#include "race_event.inc"\n#include "race_playlist.inc"\n#include "race_audio.inc"\n#include "race_progress.inc"\n#include "race_core.inc"', MAIN)
+        for module in ("race_map", "race_event", "race_playlist", "race_audio", "race_progress", "race_core"):
+            self.assertIn('#include "' + module + '.inc"', MAIN)
         self.assertIn("SetPlayerVirtualWorld(playerid, RACE_WORLD_ID);", CORE)
         self.assertIn("SetVehicleVirtualWorld(vehicle, RACE_WORLD_ID);", CORE)
         for token in ("RaceMap_Init()", "RaceMap_Load(playerid)",
@@ -69,9 +70,9 @@ class RaceMapTest(unittest.TestCase):
         self.assertIn("gRaceMapReady = RaceMap_Init() != 0;", CORE)
 
     def test_build_stages_map_include(self):
-        for p in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
+        for p in ("tools/build_windows.py", ".github/workflows/build.yml"):
             content = (ROOT / p).read_text(encoding="utf-8")
-            self.assertIn('"race_map.inc"', content)
+            self.assertIn('glob("*.inc")', content)
 
 
 if __name__ == "__main__":

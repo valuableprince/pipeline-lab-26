@@ -12,3 +12,8 @@ secrets/
 workspace/
 build/
 dist/
+config.json
+mysql.ini
+server.cfg
+*.sql.gz
+*.sql.zip

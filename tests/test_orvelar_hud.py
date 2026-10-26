@@ -30,7 +30,8 @@ class OrvelarHudTest(unittest.TestCase):
         ):
             self.assertIn(token, MODULE)
         self.assertIn("cmd:hudlogo(playerid, params[])", COMMANDS)
-        self.assertIn("orvelar_hud.inc", BUILDER)
+        self.assertIn('glob("*.inc")', BUILDER)
+        self.assertIn('#include "orvelar_hud.inc"', SCRIPT)
 
     def test_modern_openmp_colour_names_without_deprecated_aliases(self):
         self.assertEqual(MODULE.count("TextDrawColour("), 3)

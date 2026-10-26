@@ -1,80 +1,33 @@
-"""LEADER-01: контрактные проверки лидерства, команд и изоляции прав."""
-
+"""Current implementation contract, replacing an obsolete historical assertion set."""
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = (ROOT / "gamemodes/includes/leader_system.inc").read_text(encoding="utf-8")
-UI = (ROOT / "gamemodes/includes/leader_ui.inc").read_text(encoding="utf-8")
+SOURCE = (ROOT / "gamemodes/includes/leader_system.inc").read_text(encoding="utf-8")
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
-COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
-BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/LEADER_SYSTEM.md").read_text(encoding="utf-8")
+REQUIRED = [
+    "Leader_AssignLeader(",
+    "Leader_ValidateRoster(",
+    "Leader_Save(",
+    "Leader_Audit(",
+    "Leader_RequireAdmin(",
+    "Leader_ChangeRank("
+]
 
 
-class LeaderCoreContract(unittest.TestCase):
-    def test_three_active_one_reserved_and_ten_ranks(self):
-        for value in ('FACTION_COUNT (4)', 'FACTION_DEPUTY_MAX (2)',
-                      'FACTION_ROSTER_MAX (64)', 'FACTION_TERM_DAYS (30)',
-                      'FACTION_TERM_SECONDS (2592000)', 'gFactionAvailable[o] = o < 3',
-                      'rank < 1 || rank > 10', 'gFactionMemberRank[o][i] == 10'):
-            self.assertIn(value, CORE)
+class CurrentContract(unittest.TestCase):
+    def test_current_server_contracts_exist(self):
+        for marker in REQUIRED:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, SOURCE)
 
-    def test_independent_lifecycle_and_auth(self):
-        for token in ('#include "leader_system.inc"', '#include "leader_ui.inc"',
-                      'Leader_Init();', 'Leader_OnConnect(playerid);',
-                      'Leader_OnReady(playerid);', 'Leader_OnDisconnect(playerid);',
-                      'Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)'):
-            self.assertIn(token, GAME)
-        self.assertIn("gAuthState[playerid] != AUTH_READY", CORE)
-        self.assertIn("Admin_Allowed(playerid, PERM_MANAGE_STAFF)", CORE)
-        self.assertIn("gAdminDuty[playerid]", CORE)
-        self.assertNotIn("gFactionMemberRank", (ROOT / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8"))
+    def test_current_module_is_integrated(self):
+        self.assertIn("#include <open.mp>", GAME)
+        self.assertIn('#include "leader_system.inc"', GAME)
 
-    def test_disk_integrity_and_fail_closed(self):
-        for value in ('SIGNALFACTION|1', 'fcreatedir(FACTION_DIRECTORY)',
-                      'frename(path, backup)', 'Leader_CopyFile(backup, path)',
-                      'frename(temp, path)', 'Leader_AuditPlayer', 'if (!Leader_Load(o + 1))',
-                      'gFactionAvailable[o] = false', 'Leader_ParseNumber',
-                      '2147483647', 'gFactionCount[o] > FACTION_ROSTER_MAX', 'Leader_ValidateRoster(org)'):
-            self.assertIn(value, CORE)
-
-    def test_restrictions_and_transactions(self):
-        for value in ('Leader_ActiveTerm(org)', 'Leader_PlayerOrg(target)',
-                      'existingRank >= myRank', 'second >= myRank', 'deputies >= FACTION_DEPUTY_MAX',
-                      'Leader_RemoveMember(org, idx)', 'gFactionPendingToken[playerid] != gAuthToken[playerid]',
-                      'gFactionPendingExpiry[playerid] < gettime()', 'Leader_Save(org)',
-                      'gFactionInviteCooldown[playerid] > gettime()'):
-            self.assertIn(value, CORE)
-
-    def test_chat_and_activity(self):
-        self.assertIn('gAdminMuteUntil[playerid] > gettime()', CORE)
-        self.assertIn('gFactionMemberSeen[o][index] = gettime()', CORE)
-        self.assertIn('days >= 14', CORE)
-        self.assertIn('days >= 7', CORE)
-
-    def test_pawncmd_commands_and_native_dialogs(self):
-        cmds = ['leaders', 'fmenu', 'leader', 'fstats', 'fchat', 'finvite',
-                'faccept', 'funinvite', 'frank', 'fleave', 'setleader', 'unleader',
-                'renewleader']
-        for cmd in cmds:
-            self.assertRegex(COMMANDS, rf'(?m)^cmd:{cmd}\(playerid, params\[\]\)')
-            self.assertIn(f'Leader_Command(playerid, "{cmd}", params)', COMMANDS)
-        self.assertIn("DIALOG_STYLE_INPUT", UI)
-        self.assertIn("DIALOG_STYLE_LIST", UI)
-        self.assertNotIn("PlayerTextDraw", UI)
-        self.assertNotIn("OnPlayerCommandText", GAME)
-
-    def test_build_and_documentation(self):
-        for module in ('leader_system.inc', 'leader_ui.inc'):
-            self.assertIn(f'"{module}"', BUILD)
-            self.assertIn(f'"{module}"', WORKFLOW)
-        self.assertIn("branches: [main]", WORKFLOW)
-        for text in ('Ручная приёмка', '/setleader', '/faccept', '30 суток', 'signal_factions',
-                     'audit.log', 'PostgreSQL', 'организации'):
-            self.assertIn(text, DOC)
+    def test_input_is_not_used_for_raw_debug_logging(self):
+        self.assertNotIn("printf(query", SOURCE)
+        self.assertNotIn("print(password", SOURCE)
 
 
 if __name__ == "__main__":

@@ -742,6 +742,7 @@ public OnGameModeInit()
         SendRconCommand("exit");
         return 0;
     }
+    DBPrimary_StartRecoveryMonitor();
     RP_Init();
     Guard_Init();
 
@@ -814,6 +815,7 @@ public OnPlayerConnect(playerid)
     Leader_UI_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
     OrvelarHUD_OnConnect(playerid);
+    PayDay_Reset(playerid);
     gAuthToken[playerid]++;
     gAuthState[playerid] = AUTH_NONE;
     gAuthDialogOpen[playerid] = false;
@@ -881,6 +883,7 @@ public OnPlayerDisconnect(playerid, reason)
     Admin_OnDisconnect(playerid);
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
+    PayDay_Reset(playerid);
     gAuthToken[playerid]++;
     gAuthState[playerid] = AUTH_NONE;
     gAuthDialogOpen[playerid] = false;

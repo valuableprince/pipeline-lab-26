@@ -7,10 +7,26 @@
 // EXP needed for next level = current level * 4.
 #define PAYDAY_EXP_PER_HOUR (1)
 #define PAYDAY_COLOR (0xA7D6B5FF)
+#define PAYDAY_RETRY_SECONDS (10)
+#define PAYDAY_GRANTS_PER_TICK (4)
 
 new gPayDayTimer;
 new gPayDayLastHour;
+// Pending hours are scheduled only for authenticated players online at HH:00.
+// A failed database write remains pending rather than being lost for that hour.
+new gPayDayPendingHour[MAX_PLAYERS];
+new gPayDayPendingThrough[MAX_PLAYERS];
+new gPayDayNextRetry[MAX_PLAYERS];
+new gPayDayScanCursor;
 forward PayDay_Tick();
+
+stock PayDay_Reset(playerid)
+{
+    gPayDayPendingHour[playerid] = 0;
+    gPayDayPendingThrough[playerid] = 0;
+    gPayDayNextRetry[playerid] = 0;
+    return 1;
+}
 
 stock PayDay_OnReady(playerid)
 {
@@ -87,26 +103,62 @@ stock PayDay_Grant(playerid, hourKey)
 #endif
 }
 
+// At a real hourly boundary, mark the then-online players as eligible. Failed
+// grants are retried outside :00; later hourly awards queue behind older ones.
 public PayDay_Tick()
 {
     new hour, minute, second;
-    new currentHourKey = gettime(hour, minute, second) / 3600;
-    if (minute != 0 || currentHourKey == gPayDayLastHour) return 1;
-    // Update the process-wide clock before granting to prevent repeated awards.
-    gPayDayLastHour = currentHourKey;
-    printf("[PayDay] Processing %02d:%02d, hour key %d.", hour, second, currentHourKey);
-    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
+    new now = gettime(hour, minute, second);
+    new currentHourKey = now / 3600;
+    if (minute == 0 && currentHourKey != gPayDayLastHour)
     {
-        if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
-            gAuthState[playerid] != AUTH_READY) continue;
-        PayDay_Grant(playerid, currentHourKey);
+        gPayDayLastHour = currentHourKey;
+        printf("[PayDay] Scheduling %02d:%02d, hour key %d.", hour, second, currentHourKey);
+        for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
+        {
+            if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
+                gAuthState[playerid] != AUTH_READY) continue;
+            if (!gPayDayPendingHour[playerid])
+                gPayDayPendingHour[playerid] = currentHourKey;
+            gPayDayPendingThrough[playerid] = currentHourKey;
+        }
     }
+    // A bounded batch distributes the synchronous SQL workload across ticks.
+    new processed;
+    for (new offset = 0; offset < MAX_PLAYERS && processed < PAYDAY_GRANTS_PER_TICK; offset++)
+    {
+        new playerid = (gPayDayScanCursor + offset) % MAX_PLAYERS;
+        new pending = gPayDayPendingHour[playerid];
+        if (!pending) continue;
+        if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
+            gAuthState[playerid] != AUTH_READY)
+        {
+            PayDay_Reset(playerid);
+            continue;
+        }
+        if (now < gPayDayNextRetry[playerid]) continue;
+        processed++;
+        if (gCharacterLastPaydayHour[playerid] >= pending ||
+            PayDay_Grant(playerid, pending))
+        {
+            pending++;
+            if (pending > gPayDayPendingThrough[playerid])
+                PayDay_Reset(playerid);
+            else
+                gPayDayPendingHour[playerid] = pending;
+        }
+        else
+            gPayDayNextRetry[playerid] = now + PAYDAY_RETRY_SECONDS;
+    }
+    gPayDayScanCursor = (gPayDayScanCursor + 1) % MAX_PLAYERS;
     return 1;
 }
 
 stock PayDay_Init()
 {
     gPayDayLastHour = gettime() / 3600;
+    gPayDayScanCursor = 0;
+    for (new i = 0; i < MAX_PLAYERS; i++) PayDay_Reset(i);
     gPayDayTimer = SetTimer("PayDay_Tick", 1000, true);
     print("[PayDay] Hourly EXP scheduler initialized.");
     return 1;
