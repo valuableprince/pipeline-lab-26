@@ -112,7 +112,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 
 
-      - name: Audit full historical regression suite (non-blocking: stale tests)
+      - name: "Audit full historical regression suite (non-blocking, stale tests)"
         continue-on-error: true
         run: |
           python3 -m compileall -q tools tests
