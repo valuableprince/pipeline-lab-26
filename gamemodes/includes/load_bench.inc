@@ -27,6 +27,12 @@ new gBenchCursor;
 new gBenchRunKey[96], gBenchMetricsPath[125], gBenchSummaryPath[125];
 new gBenchLogFailures;
 new gBenchFailureCount;
+// Continuous workload: one outstanding task per virtual account, <=4 per tick.
+// 6 ready, 8 read in flight, 9 write in flight; no real player data touched.
+new gBenchNextAction[LOADTEST_MAX_NPCS];
+new gBenchActions, gBenchReads, gBenchWrites, gBenchPaydayWrites;
+new gBenchActionErrors, gBenchLastPaydayMinute;
+new gBenchContinuousPath[125];
 new bool:gBenchLastReady;
 new gBenchLastVerdict[16], gBenchLastReason[32];
 new gBenchLastTarget, gBenchLastSpawned;
@@ -46,6 +52,8 @@ forward Bench_OnInserted(playerid, token, slot);
 forward Bench_OnLoaded(playerid, token, slot);
 forward Bench_OnVerified(playerid, bool:success, token, slot);
 forward Bench_OnSaved(playerid, token, slot);
+forward Bench_OnActivityRead(playerid, token, slot);
+forward Bench_OnActivityWrite(playerid, token, slot, bool:payday);
 
 stock Bench_Bucket(ms, bool:bcryptOperation)
 {
@@ -175,6 +183,12 @@ stock bool:Bench_Begin(playerid)
     format(gBenchRunKey, sizeof(gBenchRunKey), "%s", gLoadReportDir);
     format(gBenchMetricsPath, sizeof(gBenchMetricsPath), "%s/metrics.csv", gLoadReportDir);
     format(gBenchSummaryPath, sizeof(gBenchSummaryPath), "%s/summary.txt", gLoadReportDir);
+    format(gBenchContinuousPath, sizeof(gBenchContinuousPath), "%s/activity.csv", gLoadReportDir);
+    new File:activity = fopen(gBenchContinuousPath, io_write);
+    if (!activity) return false;
+    new activityHeader = fwrite(activity, "elapsed_sec,reads,writes,payday_writes,action_errors,pending_sql,phase\n");
+    fclose(activity);
+    if (activityHeader <= 0) return false;
     new File:metricsHandle = fopen(gBenchMetricsPath, io_write);
     if (!metricsHandle) return false;
     new written = fwrite(metricsHandle, BENCH_METRICS_HEADER);
@@ -208,6 +222,13 @@ stock bool:Bench_Begin(playerid)
     gBenchVerifySum = 0;
     gBenchBcryptMax = 0;
     gBenchFailureCount = 0;
+    gBenchActions = 0;
+    gBenchReads = 0;
+    gBenchWrites = 0;
+    gBenchPaydayWrites = 0;
+    gBenchActionErrors = 0;
+    gBenchLastPaydayMinute = -1;
+    for (new a = 0; a < LOADTEST_MAX_NPCS; a++) gBenchNextAction[a] = 0;
     gBenchLogFailures = 0;
     gBenchCursor = 0;
     gBenchBaselineRate = GetServerTickRate();
@@ -251,6 +272,17 @@ stock Bench_Sample(const phase[])
     fclose(metricsHandle);
     if (bytesWritten <= 0) gBenchLogFailures++;
     if (!Telemetry_Sample(phase)) gBenchLogFailures++;
+    new File:activityFile = fopen(gBenchContinuousPath, io_append);
+    if (activityFile)
+    {
+        new activityLine[150];
+        format(activityLine, sizeof(activityLine), "%d,%d,%d,%d,%d,%d,%s\n",
+            gettime() - gLoadStartedAt, gBenchReads, gBenchWrites,
+            gBenchPaydayWrites, gBenchActionErrors, gBenchPendingSQL, phase);
+        if (fwrite(activityFile, activityLine) <= 0) gBenchLogFailures++;
+        fclose(activityFile);
+    }
+    else gBenchLogFailures++;
     return bytesWritten > 0;
 }
 
@@ -261,7 +293,8 @@ stock Bench_Finish(const reason[])
     new bool:complete = !strcmp(reason, "complete") &&
         gBenchSaved == gLoadNPCTarget && gLoadNPCCount == gLoadNPCTarget;
     new bool:stable = gBenchWorstRate >= LOADTEST_MIN_TICKRATE &&
-        gBenchSQLFailures == 0 && gBenchFailureCount == 0 && !gBenchLogFailures;
+        gBenchSQLFailures == 0 && gBenchFailureCount == 0 &&
+        gBenchActionErrors == 0 && !gBenchLogFailures;
     new verdict[16];
     if (!stable) format(verdict, sizeof(verdict), "FAIL");
     else if (!complete) format(verdict, sizeof(verdict), "INCOMPLETE");
@@ -303,6 +336,12 @@ stock Bench_Finish(const reason[])
             gBenchPendingSQL, gBenchPendingHash, gBenchLogFailures);
         fwrite(summary, line);
         fwrite(summary, "p95_bucket_upper is a histogram bucket bound, not an exact percentile. 501=SQL>500ms; 1001=bcrypt>1000ms.\n");
+        format(line, sizeof(line),
+            "CONTINUOUS: reads=%d writes=%d payday_like_writes=%d failures=%d pending_sql=%d\n",
+            gBenchReads, gBenchWrites, gBenchPaydayWrites,
+            gBenchActionErrors, gBenchPendingSQL);
+        fwrite(summary, line);
+        fwrite(summary, "PayDay-like is a bounded update on isolated test rows, NOT the real PayDay handler.\n");
         fwrite(summary, "CPU/RAM, true player RTT and network throughput are NOT measured in this mode.\n");
         fwrite(summary, "Synthetic rows persist in loadtest_virtual_accounts until explicitly deleted by run_key; no real accounts are modified.\n");
         fclose(summary);
@@ -358,6 +397,11 @@ stock Bench_Progress(playerid)
         gBenchWorstRate, gBenchPendingSQL);
     SendClientMessage(playerid, ADMIN_COLOR, msg);
     Telemetry_Progress(playerid);
+    format(msg, sizeof(msg),
+        "[LoadBench] Activity read=%d write=%d payday=%d errors=%d pending=%d",
+        gBenchReads, gBenchWrites, gBenchPaydayWrites,
+        gBenchActionErrors, gBenchPendingSQL);
+    SendClientMessage(playerid, ADMIN_COLOR, msg);
     return 1;
 }
 
@@ -392,6 +436,34 @@ stock Bench_Tick()
     }
     gBenchCursor++;
     if (gLoadNPCCount) gBenchCursor %= gLoadNPCCount;
+    // Controlled sustained workload: every completed account performs a
+    // SELECT then UPDATE ~once every 10s, staggered; cap dispatch 4/tick.
+    new nowSec = gettime() - gLoadStartedAt;
+    new dispatched = 0;
+    new paydayWindow = nowSec > 0 && (nowSec % 60) < 5;
+    for (new slot = 0; slot < gLoadNPCCount && dispatched < 4 &&
+         gBenchPendingSQL < BENCH_SQL_LIMIT; slot++)
+    {
+        if (gBenchStage[slot] != 6 || nowSec < gBenchNextAction[slot]) continue;
+        new query[265];
+        mysql_format(gDBPrimary, query, sizeof(query),
+            "SELECT balance FROM loadtest_virtual_accounts WHERE run_key='%e' AND virtual_id=%d LIMIT 1",
+            gBenchRunKey, slot);
+        gBenchStage[slot] = 8;
+        gBenchStartedMs[slot] = GetTickCount();
+        gBenchPendingSQL++;
+        if (!mysql_tquery(gDBPrimary, query, "Bench_OnActivityRead", "iii",
+            gBenchOwner, gBenchToken, slot))
+        {
+            gBenchPendingSQL--;
+            Bench_MarkFailed(slot);
+            return 1;
+        }
+        // A minute-boundary PayDay-like burst is throttled by the same global
+        // SQL in-flight budget; never fires the live economy handler.
+        gBenchNextAction[slot] = nowSec + (paydayWindow ? 1 : 10);
+        dispatched++;
+    }
     if ((gettime() - gLoadStartedAt) % 5 == 0) Bench_Sample("running");
     return 1;
 }
@@ -500,7 +572,61 @@ public Bench_OnSaved(playerid, token, slot)
     if (!ok) return Bench_MarkFailed(slot);
     gBenchStage[slot] = 6;
     gBenchSaved++;
+    gBenchNextAction[slot] = gettime() - gLoadStartedAt + 2 + slot % 8;
     Telemetry_FinishCycle(slot);
+    return 1;
+}
+
+public Bench_OnActivityRead(playerid, token, slot)
+{
+    if (token != gBenchToken) return 1;
+    if (gBenchPendingSQL > 0) gBenchPendingSQL--;
+    if (!Bench_Valid(playerid, token, slot, 8)) return 1;
+    new rows, balance;
+    new bool:ok = cache_get_row_count(rows) && rows == 1 &&
+        cache_get_value_name_int(0, "balance", balance);
+    Bench_RecordSQL(GetTickCount() - gBenchStartedMs[slot], ok);
+    if (!ok)
+    {
+        gBenchActionErrors++;
+        return Bench_MarkFailed(slot);
+    }
+    gBenchReads++;
+    // The virtual action is a synthetic progression update only.
+    new nowSec = gettime() - gLoadStartedAt;
+    new bool:payday = nowSec > 0 && (nowSec % 60) < 5;
+    new query[255];
+    mysql_format(gDBPrimary, query, sizeof(query),
+        "UPDATE loadtest_virtual_accounts SET balance=balance+%d WHERE run_key='%e' AND virtual_id=%d",
+        payday ? 10 : 1, gBenchRunKey, slot);
+    gBenchStage[slot] = 9;
+    gBenchStartedMs[slot] = GetTickCount();
+    gBenchPendingSQL++;
+    if (!mysql_tquery(gDBPrimary, query, "Bench_OnActivityWrite", "iiib",
+        playerid, token, slot, payday))
+    {
+        gBenchPendingSQL--;
+        gBenchActionErrors++;
+        return Bench_MarkFailed(slot);
+    }
+    return 1;
+}
+
+public Bench_OnActivityWrite(playerid, token, slot, bool:payday)
+{
+    if (token != gBenchToken) return 1;
+    if (gBenchPendingSQL > 0) gBenchPendingSQL--;
+    if (!Bench_Valid(playerid, token, slot, 9)) return 1;
+    new bool:ok = cache_affected_rows() == 1;
+    Bench_RecordSQL(GetTickCount() - gBenchStartedMs[slot], ok);
+    if (!ok)
+    {
+        gBenchActionErrors++;
+        return Bench_MarkFailed(slot);
+    }
+    gBenchWrites++;
+    if (payday) gBenchPaydayWrites++;
+    gBenchStage[slot] = 6;
     return 1;
 }
 
