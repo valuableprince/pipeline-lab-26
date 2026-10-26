@@ -44,7 +44,7 @@ class DatabaseRecoveryContracts(unittest.TestCase):
         execute = DB.split("stock bool:DBPrimary_Execute(", 1)[1].split(
             "stock bool:DBPrimary_AccountExists(", 1)[0]
         handler = DB.split("public OnQueryError(", 1)[1].split(
-            "\\n#else", 1)[0]
+            "#else", 1)[0]
         self.assertIn("new code = mysql_errno(gDBPrimary);", execute)
         self.assertIn("DBPrimary_MarkDegraded(code);", execute)
         self.assertIn("DBPrimary_MarkDegraded(errorid);", handler)
