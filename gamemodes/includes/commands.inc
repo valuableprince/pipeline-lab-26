@@ -299,6 +299,11 @@ cmd:zoneedit(playerid, params[])
     return StudioZone_Command(playerid, params);
 }
 
+cmd:fly(playerid, params[])
+{
+    return AdminFly_Command(playerid, params);
+}
+
 cmd:ship(playerid, params[])
 {
     return Ship_Command(playerid, params);

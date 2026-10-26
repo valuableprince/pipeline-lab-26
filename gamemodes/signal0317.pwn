@@ -160,6 +160,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "admin_system.inc"
+#include "admin_fly.inc"
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
@@ -761,6 +762,7 @@ public OnGameModeInit()
     SortUI_Init();
     Race_Init();
     Admin_Init();
+    AdminFly_Init();
     AdminVeh_Init();
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
@@ -786,6 +788,7 @@ public OnGameModeExit()
     Admin_ClockShutdown();
     Auth_Autosave();
     AdminVeh_Shutdown();
+    AdminFly_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
     SortUI_Shutdown();
@@ -811,6 +814,7 @@ public OnPlayerConnect(playerid)
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
     Admin_OnConnect(playerid);
+    AdminFly_Reset(playerid);
     Dish_OnConnect(playerid);
     AdminPunish_Reset(playerid);
     AdminVeh_Reset(playerid);
@@ -872,6 +876,7 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    AdminFly_Reset(playerid);
     RP_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     Guard_OnDisconnect(playerid);
@@ -966,6 +971,7 @@ public OnPlayerRequestSpawn(playerid)
 
 public OnPlayerSpawn(playerid)
 {
+    AdminFly_Reset(playerid);
     if (gAuthState[playerid] != AUTH_READY)
     {
         TogglePlayerControllable(playerid, false);
@@ -1016,6 +1022,7 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    AdminFly_Reset(playerid);
     SortUI_Reset(playerid);
     if (Race_OnDeath(playerid)) return 1;
     if (gAuthState[playerid] == AUTH_READY)
@@ -1081,6 +1088,7 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
     Race_OnStateChange(playerid, newstate, oldstate);
     Truck_OnStateChange(playerid, newstate, oldstate);
     if (gCleanerDuty[playerid] && gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&
