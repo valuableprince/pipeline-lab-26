@@ -97,6 +97,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_rustext_installer.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
+          python3 -m unittest discover -s tests -p 'test_big_ear.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_studio.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_route_lssf.py' -v
 
