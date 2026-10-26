@@ -179,6 +179,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "load_test.inc"
 #include "db_shadow.inc"
 #include "db_primary.inc"
+#include "load_bench.inc"
 #include "loadnet_jobs.inc"
 #include "payday.inc"
 #include "story_prologue.inc"
