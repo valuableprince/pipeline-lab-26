@@ -301,6 +301,11 @@ cmd:ship(playerid, params[])
     return Ship_Command(playerid, params);
 }
 
+cmd:shipsurf(playerid, params[])
+{
+    return ShipSurf_Command(playerid, params);
+}
+
 cmd:story(playerid, params[])
 {
     return Story_Command(playerid);
