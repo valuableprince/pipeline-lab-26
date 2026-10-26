@@ -32,7 +32,7 @@ stock StudioUI_ZoneList(playerid)
         strcat(list, line, sizeof(list));
     }
     ShowPlayerDialog(playerid, STUDIO_UI_ZONES, DIALOG_STYLE_LIST,
-        "Tarkenso Studio | Зоны и контрольные точки",
+        "Tarkenso RPG Studio | Зоны и контрольные точки",
         list, "Выбрать", "Назад");
     return 1;
 }
