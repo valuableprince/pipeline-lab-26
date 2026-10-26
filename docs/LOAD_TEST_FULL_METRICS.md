@@ -56,12 +56,25 @@ succeeded. Run 120–300 seconds for sufficient completion.
 
 ### Files created automatically in scriptfiles
 
+One **dated revision folder** per test (not four loose files):
+
+```text
+scriptfiles/
+  load_tests/
+    2026-10-26_rev01/
+      run.info
+      load_test.csv
+      metrics.csv
+      advanced.csv
+      summary.txt
+    2026-10-26_rev02/
+      ...
 ```
-load_test_01_26.10.2026.csv
-load_test_01_26.10.2026_metrics.csv
-load_test_01_26.10.2026_advanced.csv
-load_test_01_26.10.2026_summary.txt
-```
+
+The directory and `run.info` are created **before** the first NPC.
+`run.info` records the test scenario and revision. Failed or interrupted
+runs retain their reserved folder, so an old run is never overwritten.
+`/load status` and `/load report` show the corresponding location.
 
 After a FULL run ends, `/load report` shows the last test's verdict,
 completed operations, exact SQL P95/P99 and cycle P95 in the **game chat**
@@ -104,7 +117,6 @@ The summary retains the old `p95_bucket_upper` values for backward
 compatibility but **also** appends exact percentile results, full-cycle
 timings, throughput and peak rates. Legacy bucket bounds are estimates.
 The summary has PASS/FAIL/INCOMPLETE:
-The summary has PASS/FAIL/INCOMPLETE:
 
 - PASS: test reached its timeout, all requested NPCs completed
   INSERT, SELECT, bcrypt hash+verify and UPDATE, there were no
@@ -125,8 +137,8 @@ For true player concurrency, use the separate network client harness.
 
 ### Retention and cleanup
 
-Synthetic rows persist under the unique `run_key` matching the NPC CSV
-name to permit inspection. The benchmark deliberately does **not**
+Synthetic rows persist under the unique `run_key` matching the run directory
+name (with `load_tests/` prefix) to permit inspection. The benchmark deliberately does **not**
 automatically DELETE rows on abort while callbacks may be in flight.
 This avoids races and accidental damage to live accounts.
 
@@ -135,7 +147,7 @@ clean an individual run in phpMyAdmin, for example:
 
 ```sql
 DELETE FROM loadtest_virtual_accounts
-WHERE run_key = 'load_test_01_26.10.2026.csv';
+WHERE run_key = 'load_tests/2026-10-26_rev01';
 ```
 
 This only deletes the isolated test rows for the named report. Never

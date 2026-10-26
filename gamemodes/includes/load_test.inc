@@ -36,7 +36,8 @@ new bool:gLoadRunning;
 new bool:gLoadFullScenario;
 new Float:gLoadX, Float:gLoadY, Float:gLoadZ;
 new gLoadWorld;
-new gLoadReportFile[96];
+new gLoadReportDir[96];
+new gLoadReportFile[128];
 
 forward LoadTest_Tick();
 forward bool:Bench_Begin(playerid);
@@ -48,41 +49,72 @@ stock LoadTest_Init()
     gLoadTimer = 0;
     gLoadNPCCount = 0;
     gLoadOwner = INVALID_PLAYER_ID;
+    gLoadReportDir[0] = EOS;
     gLoadReportFile[0] = EOS;
     for (new i = 0; i < LOADTEST_MAX_NPCS; i++)
         gLoadNPCIds[i] = INVALID_NPC_ID;
     return 1;
 }
 
-// Reserve a new file per run. Revisions are daily sequence numbers, not code versions.
-stock bool:LoadTest_CreateReport()
+// Reserve a new directory per test run. Daily revisions are NOT Git versions.
+// Never reuse a folder, even if an earlier run failed during initialization.
+stock bool:LoadTest_CreateReport(bool:fullScenario = false)
 {
     new year, month, day;
-    getdate(year, month, day); // Date from server's configured timezone.
+    getdate(year, month, day); // Server timezone.
+    gLoadReportDir[0] = EOS;
     gLoadReportFile[0] = EOS;
+    fcreatedir("load_tests"); // Existing parent is allowed.
     for (new revision = 1; revision <= LOADTEST_MAX_REVISIONS; revision++)
     {
-        format(gLoadReportFile, sizeof(gLoadReportFile),
-            "load_test_%02d_%02d.%02d.%04d.csv", revision, day, month, year);
-        if (fexist(gLoadReportFile)) continue;
+        format(gLoadReportDir, sizeof(gLoadReportDir),
+            "load_tests/%04d-%02d-%02d_rev%02d",
+            year, month, day, revision);
+        new marker[128];
+        format(marker, sizeof(marker), "%s/run.info", gLoadReportDir);
+        if (fexist(marker)) continue; // Already reserved.
+        if (!fcreatedir(gLoadReportDir)) continue; // Existing folder or I/O error.
 
+        new File:markerHandle = fopen(marker, io_write);
+        if (!markerHandle)
+        {
+            gLoadReportDir[0] = EOS;
+            return false;
+        }
+        new info[160], scenarioName[8];
+        if (fullScenario) format(scenarioName, sizeof(scenarioName), "full");
+        else format(scenarioName, sizeof(scenarioName), "npc");
+        format(info, sizeof(info),
+            "TARKENSO LOADTEST-06\nscenario=%s\ndate=%04d-%02d-%02d\nrevision=%d\n",
+            scenarioName, year, month, day, revision);
+        new markerBytes = fwrite(markerHandle, info);
+        fclose(markerHandle);
+        if (markerBytes <= 0)
+        {
+            gLoadReportDir[0] = EOS;
+            return false;
+        }
+        format(gLoadReportFile, sizeof(gLoadReportFile),
+            "%s/load_test.csv", gLoadReportDir);
         new File:reportHandle = fopen(gLoadReportFile, io_write);
         if (!reportHandle)
         {
             gLoadReportFile[0] = EOS;
+            gLoadReportDir[0] = EOS;
             return false;
         }
         new headerBytes = fwrite(reportHandle, LOADTEST_CSV_HEADER);
         fclose(reportHandle);
         if (headerBytes <= 0)
         {
-            fremove(gLoadReportFile);
+            // Preserve the marker to prevent any accidental revision reuse.
             gLoadReportFile[0] = EOS;
+            gLoadReportDir[0] = EOS;
             return false;
         }
         return true;
     }
-    gLoadReportFile[0] = EOS;
+    gLoadReportDir[0] = EOS;
     return false;
 }
 
@@ -129,10 +161,11 @@ stock LoadTest_Stop(const reason[])
     if (owner != INVALID_PLAYER_ID && IsPlayerConnected(owner))
     {
         new msg[130];
-        format(msg, sizeof(msg), "[LoadTest] Stopped (%s). Report: %s", reason, gLoadReportFile);
+        format(msg, sizeof(msg), "[LoadTest] Stopped (%s). Folder: %s", reason, gLoadReportDir);
         SendClientMessage(owner, ADMIN_COLOR, msg);
     }
     gLoadReportFile[0] = EOS;
+    gLoadReportDir[0] = EOS;
     return 1;
 }
 
@@ -168,7 +201,7 @@ stock LoadTest_Status(playerid)
     SendClientMessage(playerid, ADMIN_COLOR, msg);
     if (gLoadRunning)
     {
-        format(msg, sizeof(msg), "[LoadTest] Report: %s", gLoadReportFile);
+        format(msg, sizeof(msg), "[LoadTest] Folder: %s", gLoadReportDir);
         SendClientMessage(playerid, ADMIN_COLOR, msg);
         if (gLoadFullScenario) Bench_Progress(playerid);
     }
@@ -184,7 +217,7 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Count: 1..100; seconds: 10..300.");
     if (!gAccountSpawned[playerid] || GetPlayerInterior(playerid) != 0)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Spawn outdoors before starting.");
-    if (!LoadTest_CreateReport())
+    if (!LoadTest_CreateReport(fullScenario))
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[LoadTest] Report creation failed (I/O error or 999 daily revisions). Test not started.");
     gLoadOwner = playerid;
@@ -214,6 +247,7 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
     {
         fremove(gLoadReportFile);
         gLoadReportFile[0] = EOS;
+        gLoadReportDir[0] = EOS;
         gLoadOwner = INVALID_PLAYER_ID;
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[LoadTest] Full scenario unavailable: install MySQL migration 013 and verify DB.");
@@ -224,6 +258,7 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
         if (gLoadFullScenario) Bench_Finish("report_failure");
         fremove(gLoadReportFile);
         gLoadReportFile[0] = EOS;
+        gLoadReportDir[0] = EOS;
         gLoadRunning = false;
         gLoadOwner = INVALID_PLAYER_ID;
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Report write failed. Test not started.");
@@ -236,13 +271,14 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
         gLoadRunning = false;
         gLoadOwner = INVALID_PLAYER_ID;
         gLoadReportFile[0] = EOS;
+        gLoadReportDir[0] = EOS;
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Timer creation failed.");
     }
     printf("[LOADTEST] start: run=%d, target=%d NPC, duration=%ds, world=%d, report=%s",
         gLoadRunId, count, duration, gLoadWorld, gLoadReportFile);
     new startMessage[144];
     format(startMessage, sizeof(startMessage),
-        "[LoadTest] Running %d NPC for %d sec. Report: %s", count, duration, gLoadReportFile);
+        "[LoadTest] Running %d NPC for %d sec. Folder: %s", count, duration, gLoadReportDir);
     return SendClientMessage(playerid, ADMIN_COLOR, startMessage);
 }
 
