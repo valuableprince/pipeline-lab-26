@@ -43,3 +43,9 @@ IPL positions corroborated by object catalogs: https://citwiki.com/CITtools/Obje
 6. This is a **13-model assembled ship** (root + 12 components), not a consolidated .dff model or a native vehicle.
 
 The initial source supplied by the user used these models with mostly zero offsets. This version reconstructs offsets from the game's original ship rather than using those placeholders.
+
+## Heading alignment fix
+
+The GTA freighter model's longitudinal bow axis follows **local +X**, whereas navigation bearings in the 32-point route use `0° = north (+Y)`. This caused the model to travel sideways. The cargo preset now adds **+90°** to each model rotation, without changing any waypoint coordinates; the manual `/ship move` direction compensates inversely. The initial parked model also uses `298.07°`, i.e. the first route bearing `208.07° + 90°`.
+
+For a previously saved blueprint, `/ship preset lssf` replaces the route headings with the corrected values (then `/ship save` persists). It does not change a saved parked root's rotation until `/ship run`. `/ship turn` still rotates relative to the current yaw. This 90° correction follows model geometry; visual confirmation in game remains required.
