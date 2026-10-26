@@ -82,11 +82,11 @@ class LoadTestIntegration(unittest.TestCase):
 
     def test_commands_parse_action_separately_from_arguments(self):
         # Regression: /load start 5 120 full previously returned usage.
-        self.assertIn('new split = strfind(params, " ");', LOADTEST)
-        self.assertIn('strmid(action, params, 0, split, sizeof(action));', LOADTEST)
-        self.assertIn('strmid(payload, params, split + 1, strlen(params), sizeof(payload));', LOADTEST)
-        self.assertIn('sscanf(payload, "iis[12]", count, seconds, scenario)', LOADTEST)
-        self.assertIn('sscanf(payload, "ii", count, seconds)', LOADTEST)
+        self.assertIn('new separator = strfind(params, " ");', LOADTEST)
+        self.assertIn('strmid(action, params, 0, separator, sizeof(action));', LOADTEST)
+        self.assertIn('strmid(args, params, separator + 1, strlen(params), sizeof(args));', LOADTEST)
+        self.assertIn('sscanf(args, "iis[12]", count, seconds, scenario)', LOADTEST)
+        self.assertIn('sscanf(args, "ii", count, seconds)', LOADTEST)
         self.assertIn('LoadTest_Start(playerid, count, seconds, true)', LOADTEST)
         self.assertNotIn('sscanf(params, "s[16]", action)', LOADTEST)
         self.assertNotIn('sscanf(params, "s[16]iis[12]"', LOADTEST)
