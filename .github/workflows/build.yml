@@ -116,6 +116,9 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_load_bench.py' -v
 
+      - name: Validate migration version ownership
+        run: python3 -m unittest discover -s tests -p 'test_migration_sequence.py' -v
+
       - name: Compile source
         shell: bash
         run: |
