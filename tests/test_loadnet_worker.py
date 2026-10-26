@@ -29,7 +29,7 @@ class PawnQueueContract(unittest.TestCase):
         self.assertIn("mysql_tquery(gDBPrimary", PAWN)
         self.assertNotIn("mysql_query(gDBPrimary", PAWN)
         self.assertIn("INSERT IGNORE INTO loadtest_jobs", PAWN)
-        self.assertIn("UPDATE loadtest_jobs SET state='STOP_REQUESTED'", PAWN)
+        self.assertIn("state=IF(state='PENDING','STOPPED','STOP_REQUESTED')", PAWN)
         self.assertIn("cache_affected_rows()", PAWN)
         self.assertNotIn("SendRconCommand", PAWN)
         self.assertNotIn("EXEC ", PAWN)
