@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "gamemodes/**"
+      - "db/**"
+      - "config/**"
       - "tests/**"
       - "tools/check_pawn_output.py"
       - "tools/install_rustext.py"
@@ -68,35 +70,10 @@ jobs:
               (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
           PY
 
-      - name: Validate PayDay, character menu and Studio contracts
+      - name: Run complete Python regression suite
         run: |
-          python3 -m unittest discover -s tests -p 'test_payday.py' -v
-          python3 -m unittest discover -s tests -p 'test_story_prologue.py' -v
-          python3 -m unittest discover -s tests -p 'test_death_respawn.py' -v
-          python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
-          python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
-          python3 -m unittest discover -s tests -p 'test_radio_player.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
-          python3 -m unittest discover -s tests -p 'test_stunt_bonus.py' -v
-          python3 -m unittest discover -s tests -p 'test_legacy_race_entries.py' -v
-          python3 -m unittest discover -s tests -p 'test_standard_rewards_audit.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_weather.py' -v
-          python3 -m unittest discover -s tests -p 'test_rp_commands.py' -v
-          python3 -m unittest discover -s tests -p 'test_local_chat.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_tools.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_tools2.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_punish.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_editor05.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck01.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck02.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck03.py' -v
-          python3 -m unittest discover -s tests -p 'test_truck_loading_hotfix.py' -v
-          python3 -m unittest discover -s tests -p 'test_truck_alt_cargo_labels.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck04.py' -v
-          python3 -m unittest discover -s tests -p 'test_waste_sort.py' -v
-          python3 -m unittest discover -s tests -p 'test_rustext_installer.py' -v
-          python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
-          python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
+          python3 -m compileall -q tools tests
+          python3 -m unittest discover -s tests -v
 
       - name: Compile source
         shell: bash
