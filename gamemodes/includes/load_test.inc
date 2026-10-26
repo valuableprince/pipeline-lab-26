@@ -39,6 +39,7 @@ new gLoadWorld;
 new gLoadReportFile[96];
 
 forward LoadTest_Tick();
+forward bool:Bench_Begin(playerid);
 
 stock LoadTest_Init()
 {
