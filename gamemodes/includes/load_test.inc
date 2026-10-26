@@ -202,6 +202,14 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
     gLoadLastTick = GetTickCount();
     gLoadWorld = GetPlayerVirtualWorld(playerid);
     GetPlayerPos(playerid, gLoadX, gLoadY, gLoadZ);
+    // Full-mode pseudo-players stand at the Fort Carson start area in world 0.
+    if (gLoadFullScenario)
+    {
+        gLoadWorld = 0;
+        gLoadX = START_X;
+        gLoadY = START_Y;
+        gLoadZ = START_Z;
+    }
     if (gLoadFullScenario && !Bench_Begin(playerid))
     {
         fremove(gLoadReportFile);
@@ -297,7 +305,7 @@ public LoadTest_Tick()
     }
 
     // Move a bounded group each tick. NPCs outside this test are never touched.
-    if (gLoadNPCCount > 0)
+    if (gLoadNPCCount > 0 && !gLoadFullScenario)
     {
         gLoadMovePhase = !gLoadMovePhase;
         for (new i = 0; i < LOADTEST_MOVE_BATCH; i++)
