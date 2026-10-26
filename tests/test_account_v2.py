@@ -6,7 +6,7 @@ BASE = Path(__file__).resolve().parents[1]
 GAME = (BASE / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 ADMIN = (BASE / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8")
 CLEAN = (BASE / "gamemodes/includes/cleaner_job.inc").read_text(encoding="utf-8")
-DOC = (BASE / "db/README.md").read_text(encoding="utf-8")
+DOC = (BASE / "docs/FILE_AUTH.md").read_text(encoding="utf-8")
 
 
 class AccountV2Contract(unittest.TestCase):

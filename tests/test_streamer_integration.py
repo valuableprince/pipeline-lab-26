@@ -8,7 +8,7 @@ GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 STREAMER = (ROOT / "gamemodes/includes/streamer.inc").read_text(encoding="utf-8")
 RACE_MAP = (ROOT / "gamemodes/includes/race_map.inc").read_text(encoding="utf-8")
 RACE_CORE = (ROOT / "gamemodes/includes/race_core.inc").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/JOB_CLEANER_05.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/STREAMER.md").read_text(encoding="utf-8")
 
 
 class StreamerIntegrationTests(unittest.TestCase):
@@ -19,7 +19,7 @@ class StreamerIntegrationTests(unittest.TestCase):
             self.assertIn(token, STREAMER)
         self.assertIn("Licensed under the Apache License, Version 2.0", STREAMER)
         for path in (ROOT / "tools/build_windows.py",
-                     ROOT / ".github/workflows/build.yml"):
+                     ROOT / ".github/workflows/pawn-build.yml"):
             self.assertIn('"streamer.inc"', path.read_text(encoding="utf-8"))
 
     def test_world_isolation_and_single_registration(self):

@@ -10,7 +10,7 @@ UI = (ROOT / "gamemodes/includes/leader_ui.inc").read_text(encoding="utf-8")
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
 DOC = (ROOT / "docs/LEADER_SYSTEM.md").read_text(encoding="utf-8")
 
 

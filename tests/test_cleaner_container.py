@@ -9,7 +9,7 @@ JOB = (ROOT / "gamemodes/includes/cleaner_job.inc").read_text("utf-8")
 DUMP = (ROOT / "gamemodes/includes/cleaner_container.inc").read_text("utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 SQL = (ROOT / "db/migrations/006_cleaner_container.sql").read_text("utf-8")
-CI = (ROOT / ".github/workflows/build.yml").read_text("utf-8")
+CI = (ROOT / ".github/workflows/pawn-build.yml").read_text("utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text("utf-8")
 
 class CleanerContainerContracts(unittest.TestCase):

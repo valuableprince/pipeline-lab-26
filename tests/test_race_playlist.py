@@ -7,7 +7,7 @@ MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 PLAYLIST = (ROOT / "gamemodes/includes/race_playlist.inc").read_text(encoding="utf-8")
 AUDIO = (ROOT / "gamemodes/includes/race_audio.inc").read_text(encoding="utf-8")
 CORE = (ROOT / "gamemodes/includes/race_core.inc").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/RADIO_PLAYER.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/RACE_PLAYLIST.md").read_text(encoding="utf-8")
 CONFIG = (ROOT / "config/race_playlist.example.cfg").read_text(encoding="utf-8")
 
 
@@ -55,7 +55,7 @@ class RacePlaylistTest(unittest.TestCase):
         self.assertIn("PlayAudioStreamForPlayer(playerid, gRacePlaylistUrls[stage - 1])", AUDIO)
         self.assertNotIn("music.apple.com", PLAYLIST)
         self.assertIn("не означает права", DOC)
-        for file in ("tools/build_windows.py", ".github/workflows/build.yml"):
+        for file in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
             self.assertIn('"race_playlist.inc"', (ROOT / file).read_text(encoding="utf-8"))
 
 

@@ -6,7 +6,7 @@ def source(path):
     return (R / path).read_text(encoding="utf-8")
 D = source("gamemodes/includes/db_world.inc")
 G = source("gamemodes/signal0317.pwn")
-CI = source(".github/workflows/build.yml")
+CI = source(".github/workflows/pawn-build.yml")
 SQL = source("db/migrations/003_world_persistence.sql")
 HOST_SQL = source("db/hosting_from_v1_to_v3.sql")
 class DatabaseWorldTests(unittest.TestCase):

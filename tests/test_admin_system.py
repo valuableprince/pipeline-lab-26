@@ -9,7 +9,7 @@ ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 UI = (ROOT / "gamemodes/includes/admin_ui.inc").read_text(encoding="utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/ADMIN_TOOLS.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/ADMIN_SYSTEM.md").read_text(encoding="utf-8")
 
 
 class AdminContractTests(unittest.TestCase):

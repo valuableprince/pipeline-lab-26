@@ -7,7 +7,7 @@ MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 CORE = (ROOT / "gamemodes/includes/race_core.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-CI = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
 
 
 class RaceCoreIntegrationTest(unittest.TestCase):

@@ -7,7 +7,7 @@ G = (ROOT / "gamemodes/signal0317.pwn").read_text("utf-8")
 D = (ROOT / "gamemodes/includes/db_primary.inc").read_text("utf-8")
 C = (ROOT / "gamemodes/includes/cleaner_job.inc").read_text("utf-8")
 A = (ROOT / "gamemodes/includes/admin_system.inc").read_text("utf-8")
-W = (ROOT / ".github/workflows/build.yml").read_text("utf-8")
+W = (ROOT / ".github/workflows/pawn-build.yml").read_text("utf-8")
 
 class PrimaryDatabase(unittest.TestCase):
     def test_opt_in_and_build(self):

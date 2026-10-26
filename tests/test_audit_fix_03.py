@@ -9,7 +9,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = (ROOT / "gamemodes/includes/leader_system.inc").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/RP_COMMANDS.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/LEADER_SYSTEM.md").read_text(encoding="utf-8")
 
 
 def body(name: str) -> str:
