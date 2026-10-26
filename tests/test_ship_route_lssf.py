@@ -1,7 +1,6 @@
 """Conservative static contracts for LS <-> SF cargo ship draft routes."""
 from pathlib import Path
 import math
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,8 +9,12 @@ DOC = (ROOT / "docs/SHIP_ROUTE_LSSF.md").read_text(encoding="utf-8")
 
 def parse_route():
     section = SOURCE.split("new const Float:gShipPresetLsSf[][4] = {", 1)[1].split("};", 1)[0]
-    lines = re.findall(r"\\{(-?\\d+\\.\\d+), (-?\\d+\\.\\d+), (-?\\d+\\.\\d+), (-?\\d+\\.\\d+)\\}", section)
-    return [tuple(map(float, row)) for row in lines]
+    points = []
+    for line in section.splitlines():
+        line = line.strip().strip(",").strip("{}")
+        if line:
+            points.append(tuple(float(piece.strip()) for piece in line.split(",")))
+    return points
 
 class ShipRouteLssfContracts(unittest.TestCase):
     def test_commands_exist_and_dont_autostart(self):
