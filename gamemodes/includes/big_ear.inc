@@ -164,7 +164,7 @@ stock Dish_Status(playerid)
     return 1;
 }
 
-cmd:dish(playerid, params[])
+stock Dish_Command(playerid, const params[])
 {
     new operation[16];
     if (isnull(params))
