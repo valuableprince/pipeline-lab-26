@@ -43,21 +43,21 @@ stock AdminFly_Command(playerid, const params[])
     {
         AdminFly_Stop(playerid);
         return SendClientMessage(playerid, ADMIN_FLY_COLOR,
-            "[TARKENSO] Полёт выключен. Обычная гравитация восстановлена.");
+            "[Tarkenso RPG] Полёт выключен. Обычная гравитация восстановлена.");
     }
     if (GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         GetPlayerSpecialAction(playerid) == SPECIAL_ACTION_USEJETPACK ||
         Race_IsParticipant(playerid) || AdminPunish_IsJailed(playerid))
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "[TARKENSO] Полёт доступен только пешком, вне гонок, джетпака и наказаний.");
+            "[Tarkenso RPG] Полёт доступен только пешком, вне гонок, джетпака и наказаний.");
     gAdminFlyOldGravity[playerid] = GetPlayerGravity(playerid);
     if (!SetPlayerGravity(playerid, 0.0))
-        return SendClientMessage(playerid, ADMIN_ERROR, "[TARKENSO] Не удалось включить полёт.");
+        return SendClientMessage(playerid, ADMIN_ERROR, "[Tarkenso RPG] Не удалось включить полёт.");
     gAdminFly[playerid] = true;
     SendClientMessage(playerid, ADMIN_FLY_COLOR,
-        "[TARKENSO] Полёт: W/S вперёд-назад, A/D вбок, прыжок вверх, спринт вниз.");
+        "[Tarkenso RPG] Полёт: W/S вперёд-назад, A/D вбок, прыжок вверх, спринт вниз.");
     return SendClientMessage(playerid, ADMIN_FLY_COLOR,
-        "[TARKENSO] Камера задаёт направление. /fly — выключить. Справка: /ahelp fly.");
+        "[Tarkenso RPG] Камера задаёт направление. /fly — выключить. Справка: /ahelp fly.");
 }
 
 public AdminFly_Tick()

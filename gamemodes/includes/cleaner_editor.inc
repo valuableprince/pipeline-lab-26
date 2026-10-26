@@ -70,7 +70,7 @@ stock CleanerEditor_List(playerid)
         strcat(body, line, sizeof(body));
     }
     return ShowPlayerDialog(playerid, CLEANER_EDITOR_LIST, DIALOG_STYLE_LIST,
-        "Tarkenso Studio | Контейнеры", body, "Выбрать", "Закрыть");
+        "Tarkenso RPG Studio | Контейнеры", body, "Выбрать", "Закрыть");
 }
 
 stock CleanerEditor_PreviewBags()
@@ -281,7 +281,7 @@ stock CleanerEditor_OnDialog(playerid, dialogid, response, listitem, const input
         }
         if (listitem == 3)
             return ShowPlayerDialog(playerid, CLEANER_EDITOR_FILL_INPUT, DIALOG_STYLE_INPUT,
-                "Tarkenso Studio | Заполнение контейнера",
+                "Tarkenso RPG Studio | Заполнение контейнера",
                 "Введите от 0 до 100 единиц.\n0-60 внутри; 61-100 снаружи.",
                 "Сохранить", "Отмена");
         if (listitem == 1)

@@ -47,7 +47,7 @@ stock bool:Studio_Require(playerid)
 {
     if (Studio_Allowed(playerid)) return true;
     SendClientMessage(playerid, ADMIN_ERROR,
-        "Tarkenso Studio: требуется подтверждённый аккаунт основателя и /aduty.");
+        "[Tarkenso RPG] Tarkenso RPG Studio: требуется подтверждённый аккаунт основателя и /aduty.");
     return false;
 }
 
@@ -409,7 +409,7 @@ public StudioZone_Poll()
                 gStudioZoneInside[playerid][slot] = true;
                 new message[90];
                 if (gStudioZoneMode[slot] == 1)
-                    format(message, sizeof(message), "Достигнута контрольная точка Tarkenso #%d.", slot);
+                    format(message, sizeof(message), "Достигнута контрольная точка Tarkenso RPG #%d.", slot);
                 else
                     format(message, sizeof(message), "Вы вошли в зону Tarkenso #%d.", slot);
                 SendClientMessage(playerid, STUDIO_ZONE_COLOR, message);
@@ -425,7 +425,7 @@ public StudioZone_Poll()
 stock Studio_Open(playerid)
 {
     if (!Studio_Require(playerid)) return 1;
-    ShowPlayerDialog(playerid, STUDIO_DIALOG_MAIN, DIALOG_STYLE_LIST, "Tarkenso Studio",
+    ShowPlayerDialog(playerid, STUDIO_DIALOG_MAIN, DIALOG_STYLE_LIST, "Tarkenso RPG Studio",
         "Зоны / контрольные точки\nМусорные контейнеры\nСостояние Studio",
         "Открыть", "Закрыть");
     return 1;

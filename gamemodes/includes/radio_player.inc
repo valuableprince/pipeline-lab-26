@@ -89,7 +89,7 @@ stock Radio_Open(playerid)
     }
     strcat(body, "—\tВыключить радио\t—", sizeof(body));
     return ShowPlayerDialog(playerid, RADIO_DIALOG_LIST, DIALOG_STYLE_TABLIST_HEADERS,
-        "TARKENSO | Радио", body, "Слушать", "Закрыть");
+        "Tarkenso RPG | Радио", body, "Слушать", "Закрыть");
 }
 
 stock Radio_Play(playerid, station)

@@ -106,7 +106,7 @@ stock AdminHelp_Print(playerid, index)
         return SendClientMessage(playerid, ADMIN_ERROR, "Команда вам недоступна.");
     gAdminHelpSelected[playerid] = index;
     new title[80], body[520];
-    format(title, sizeof(title), "TARKENSO | Справка: /%s", gAdminHelp[index][ahName]);
+    format(title, sizeof(title), "Tarkenso RPG | Справка: /%s", gAdminHelp[index][ahName]);
     format(body, sizeof(body),
         "{D9AA55}СИНТАКСИС{FFFFFF}\n%s\n\n{D9AA55}ОПИСАНИЕ{FFFFFF}\n%s\n\n{D9AA55}ПРИМЕР ИСПОЛЬЗОВАНИЯ{FFFFFF}\n{B6E4B3}%s\n\n{9FAAB8}Доступ: уровень %d{FFFFFF}",
         gAdminHelp[index][ahUsage], gAdminHelp[index][ahPurpose],
@@ -118,8 +118,8 @@ stock AdminHelp_Print(playerid, index)
 stock AdminHelp_Categories(playerid)
 {
     return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_CATEGORIES, DIALOG_STYLE_LIST,
-        "TARKENSO | Справочник администрации",
-        "Все доступные команды\nОбщие и обращения\nУправление игроками\nМодерация и наказания\nМир и транспорт\nTarkenso Studio",
+        "Tarkenso RPG | Справочник администрации",
+        "Все доступные команды\nОбщие и обращения\nУправление игроками\nМодерация и наказания\nМир и транспорт\nTarkenso RPG Studio",
         "Открыть", "Закрыть");
 }
 
@@ -154,7 +154,7 @@ stock AdminHelp_List(playerid)
         gAdminHelpRow[playerid][gAdminHelpRowCount[playerid]++] = -2;
     }
     new title[100];
-    format(title, sizeof(title), "TARKENSO | Команды (%d) | Страница %d/%d",
+    format(title, sizeof(title), "Tarkenso RPG | Команды (%d) | Страница %d/%d",
         visible, gAdminHelpPage[playerid] + 1,
         (visible + ADMIN_HELP_PAGE_SIZE - 1) / ADMIN_HELP_PAGE_SIZE);
     return ShowPlayerDialog(playerid, ADMIN_HELP_DLG_LIST, DIALOG_STYLE_TABLIST_HEADERS,
@@ -230,7 +230,7 @@ stock AdminHelp_Usage(playerid, const command[])
         return SendClientMessage(playerid, ADMIN_ERROR, "Команда вам недоступна.");
 
     new message[192];
-    format(message, sizeof(message), "{D9AA55}[TARKENSO] {FFFFFF}Синтаксис: {B6E4B3}%s",
+    format(message, sizeof(message), "{D9AA55}[Tarkenso RPG] {FFFFFF}Синтаксис: {B6E4B3}%s",
         gAdminHelp[index][ahUsage]);
     SendClientMessage(playerid, -1, message);
     format(message, sizeof(message), "{9FAAB8}Описание: {FFFFFF}%s",

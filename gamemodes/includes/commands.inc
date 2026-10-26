@@ -164,7 +164,7 @@ cmd:help(playerid, params[])
         if (!Admin_IsFounder(playerid))
             return SendClientMessage(playerid, ADMIN_ERROR, "Studio доступна только основателю.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
-            "Tarkenso Studio: включите /aduty и откройте /studio.");
+            "[Tarkenso RPG] Tarkenso RPG Studio: включите /aduty и откройте /studio.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
             "/studio zones|status|help — редактор зон.");
         SendClientMessage(playerid, STUDIO_ZONE_COLOR,
@@ -255,9 +255,9 @@ cmd:truckveh(playerid, params[])
 cmd:hudlogo(playerid, params[])
 {
     if (OrvelarHUD_Toggle(playerid))
-        SendClientMessage(playerid, COLOR_AMBER, "Логотип Tarkenso включён.");
+        SendClientMessage(playerid, COLOR_AMBER, "[Tarkenso RPG] Логотип Tarkenso RPG включён.");
     else
-        SendClientMessage(playerid, COLOR_GREY, "Логотип Tarkenso скрыт.");
+        SendClientMessage(playerid, COLOR_GREY, "[Tarkenso RPG] Логотип Tarkenso RPG скрыт.");
     return 1;
 }
 

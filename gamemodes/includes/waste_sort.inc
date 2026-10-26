@@ -354,7 +354,7 @@ stock SortUI_Open(playerid)
     SortUI_Rect(playerid, 1, 90.0, 88.0, 460.0, 56.0, 0x242930FA);
     SortUI_Add(playerid, 2, 108.0, 96.0, "СОРТИРОВКА ОТХОДОВ", 265.0, 29.0,
         0.47, 1.95, SORT_COLOR_GOLD);
-    SortUI_Add(playerid, 3, 109.0, 122.0, "TARKENSO / ПЕРЕРАБОТКА", 300.0, 19.0,
+    SortUI_Add(playerid, 3, 109.0, 122.0, "Tarkenso RPG / ПЕРЕРАБОТКА", 300.0, 19.0,
         0.20, 0.95, SORT_COLOR_MUTED);
     // Independent dark zones for six selectable objects and three bins.
     // The large rubbish-bag 3D preview was removed at player request.
