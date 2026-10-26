@@ -718,6 +718,7 @@ stock Admin_Execute(playerid, const input[])
         gAdminDuty[playerid] = !gAdminDuty[playerid];
         if (!gAdminDuty[playerid])
         {
+            AdminFly_Stop(playerid);
             Admin_StopSpectate(playerid);
             AdminTP_Reset(playerid);
         }
