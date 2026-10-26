@@ -30,8 +30,8 @@ class CargoFreighterTests(unittest.TestCase):
     def test_grounded_assembly_offsets_and_bounds(self):
         block = SOURCE.split("stock bool:Ship_CreateCargoAssembly()", 1)[1].split("// SHIP-ROUTE-01", 1)[0]
         rows = re.findall(
-            r"Ship_AddPart\\((\\d+),\\s*(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+),\\s*"
-            r"(-?\\d+\\.\\d+), 0\\.0, 0\\.0, 0\\.0\\)",
+            r"Ship_AddPart\((\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*"
+            r"(-?\d+\.\d+), 0\.0, 0\.0, 0\.0\)",
             block,
         )
         # Match the source with direct substring checks; regex also validates arity and precision.
