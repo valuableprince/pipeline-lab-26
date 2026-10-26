@@ -81,10 +81,12 @@ stock bool:LoadTest_CreateReport(bool:fullScenario = false)
             gLoadReportDir[0] = EOS;
             return false;
         }
-        new info[160];
+        new info[160], scenarioName[8];
+        if (fullScenario) format(scenarioName, sizeof(scenarioName), "full");
+        else format(scenarioName, sizeof(scenarioName), "npc");
         format(info, sizeof(info),
             "TARKENSO LOADTEST-06\nscenario=%s\ndate=%04d-%02d-%02d\nrevision=%d\n",
-            fullScenario ? ("full") : ("npc"), year, month, day, revision);
+            scenarioName, year, month, day, revision);
         new markerBytes = fwrite(markerHandle, info);
         fclose(markerHandle);
         if (markerBytes <= 0)
