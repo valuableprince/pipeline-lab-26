@@ -183,41 +183,38 @@ stock Dish_Status(playerid)
     return 1;
 }
 
-stock bool:Dish_ParseNumber(const params[], number[], capacity)
+// Use the same token reader as the rest of TARKENSO; sscanf("s[16]")
+// rejects extra parameters and cannot read the action from "angle 45".
+stock bool:Dish_ParseNumber(const token[], Float:&result)
 {
-    // Parse the first word and numeric token independently of sscanf's float specifier.
-    new command[16], extra[4];
-    if (capacity < 24) return false;
-    if (!sscanf(params, "s[16]s[24]s[4]", command, number, extra))
-        return false; // More than two arguments.
-    if (sscanf(params, "s[16]s[24]", command, number)) return false;
-    new length = strlen(number), pointCount, digitCount;
-    if (!length) return false;
+    new length = strlen(token), points, digits;
+    if (!length || length > 12) return false;
     for (new i = 0; i < length; i++)
     {
-        if (i == 0 && (number[i] == '-' || number[i] == '+')) continue;
-        if (number[i] == '.')
+        if (i == 0 && (token[i] == '-' || token[i] == '+')) continue;
+        if (token[i] == '.')
         {
-            if (++pointCount > 1) return false;
+            if (++points > 1) return false;
             continue;
         }
-        if (number[i] < '0' || number[i] > '9') return false;
-        digitCount++;
+        if (token[i] < '0' || token[i] > '9') return false;
+        digits++;
     }
-    if (!digitCount) return false;
+    if (!digits) return false;
+    result = floatstr(token);
     return true;
 }
 
 stock Dish_Command(playerid, const params[])
 {
-    new operation[16];
+    new operation[16], token[24], extra[8], offset;
     if (isnull(params))
     {
         Dish_Status(playerid);
         Dish_Usage(playerid);
         return 1;
     }
-    if (sscanf(params, "s[16]", operation))
+    if (!Admin_Next(params, offset, operation, sizeof(operation)))
         return Dish_Usage(playerid);
 
     if (!strcmp(operation, "status", true)) return Dish_Status(playerid);
@@ -241,10 +238,12 @@ stock Dish_Command(playerid, const params[])
         return Dish_Message(playerid, "The Big Ear: автоматическое сканирование включено.");
     }
 
-    new number[24];
-    if (!Dish_ParseNumber(params, number, sizeof(number)))
+    if (!Admin_Next(params, offset, token, sizeof(token)) ||
+        Admin_Next(params, offset, extra, sizeof(extra)))
         return Dish_Message(playerid, "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.", true);
-    new Float:value = floatstr(number);
+    new Float:value;
+    if (!Dish_ParseNumber(token, value))
+        return Dish_Message(playerid, "Некорректное значение угла. Пример: /dish angle -45.", true);
 
     new Float:target;
     if (!strcmp(operation, "angle", true))
