@@ -98,6 +98,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_studio.py' -v
+          python3 -m unittest discover -s tests -p 'test_ship_route_lssf.py' -v
 
       - name: Validate controlled NPC load test
         run: |
