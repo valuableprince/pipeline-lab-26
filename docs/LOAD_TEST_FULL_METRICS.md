@@ -15,6 +15,7 @@ Log in as the authenticated founder, enable `/aduty` and run:
 /load start 5 120 full
 /load status
 /load stop
+/load report
 ```
 
 For a larger run, after validating results:
@@ -58,8 +59,14 @@ succeeded. Run 120–300 seconds for sufficient completion.
 ```
 load_test_01_26.10.2026.csv
 load_test_01_26.10.2026_metrics.csv
+load_test_01_26.10.2026_advanced.csv
 load_test_01_26.10.2026_summary.txt
 ```
+
+After a FULL run ends, `/load report` shows the last test's verdict,
+completed operations, exact SQL P95/P99 and cycle P95 in the **game chat**
+without downloading the CSV. This in-memory view is available until
+server restart or the next FULL run. Files remain saved across restarts.
 
 The date and revision match the core NPC report. Examples only;
 actual date follows the server clock and test sequence.
@@ -74,9 +81,29 @@ The metrics CSV includes:
   delta since the beginning of the run
 - sample phase/reason for stopping
 
-The summary also reports the **p95 histogram bucket upper bounds**
-for SQL and bcrypt. These are estimates, *not* exact 95th percentiles:
-SQL bucket marker 501 means >500ms; bcrypt marker 1001 means >1000ms.
+The **advanced.csv** contains exact nearest-rank percentiles of completed
+observations (no histogram approximation) for:
+- SQL callback duration: P50, P95, P99 (all INSERT/SELECT/UPDATE combined)
+- bcrypt hash duration: P95, P99
+- bcrypt verification duration: P95, P99
+- full synthetic account lifecycle (start hashing to completion of final
+  UPDATE): completed count, average, P95 and P99, in milliseconds
+- cumulative registration and authentication throughput, in 1/100 of an
+  operation per second: `registration_rate_x100=125` means 1.25/s
+- peak one-second registration and authentication completion counts
+
+Percentile estimation uses **nearest rank**, with at most 300 SQL
+observations (3 per 100 NPC), 100 hashes, 100 verifications and 100
+completed synthetic account lifecycles. A value of `-1` means
+**no completed samples**, not a zero-millisecond operation.
+Cumulative throughput is the number of completed operations divided
+by the time since test start; this is not the instant or sustained
+capacity of the real game server. The one-second peak uses server time.
+
+The summary retains the old `p95_bucket_upper` values for backward
+compatibility but **also** appends exact percentile results, full-cycle
+timings, throughput and peak rates. Legacy bucket bounds are estimates.
+The summary has PASS/FAIL/INCOMPLETE:
 The summary has PASS/FAIL/INCOMPLETE:
 
 - PASS: test reached its timeout, all requested NPCs completed
@@ -87,7 +114,14 @@ The summary has PASS/FAIL/INCOMPLETE:
 - INCOMPLETE: stopped early or not all NPCs completed within duration.
 
 This is an operational smoke verdict, **not** a proof of maximum online
-player capacity. For true player concurrency, use LOADNET-03.
+player capacity. **PASS does not currently impose an SQL/bcrypt P95/P99
+threshold**: inspect these values explicitly when comparing runs.
+CPU utilization (%), RAM consumption (MB), real player RTT and network
+throughput cannot be collected by this Pawn module; the final summary
+prints `UNAVAILABLE` for these resource measurements rather than
+inventing values. Read them from the host panel if needed.
+
+For true player concurrency, use the separate network client harness.
 
 ### Retention and cleanup
 
