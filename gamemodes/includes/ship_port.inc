@@ -18,7 +18,6 @@
 
 new bool:gShipPortSaved[2][2];
 new Float:gShipPortCoord[2][2][4];
-new gShipPortDeparture = -1; // -1 disabled, 0 LS outbound, 1 SF outbound
 
 stock ShipPort_Save()
 {
@@ -196,7 +195,7 @@ stock ShipPort_Command(playerid, const params[])
         "[Tarkenso RPG] Использование: /ship port ls|sf berth|exit|depart.");
 }
 
-stock ShipPort_Tick()
+public ShipPort_Tick()
 {
     if (gShipPortDeparture < 0 || !Ship_Ready()) return 0;
     new p = gShipPortDeparture;
