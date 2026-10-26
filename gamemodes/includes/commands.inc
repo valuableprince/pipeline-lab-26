@@ -307,7 +307,8 @@ cmd:ship(playerid, params[])
 // BIG-EAR-02: route /dish through the central Pawn.CMD registry.
 cmd:dish(playerid, params[])
 {
-    SendClientMessage(playerid, 0xB6D9EFFF, "[BIG-EAR] /dish received.");
+    // Diagnostic trace in server console; user receives the normal TARKENSO output.
+    printf("[BIG-EAR] /dish command received (player %d).", playerid);
     return Dish_Command(playerid, params);
 }
 
