@@ -3,10 +3,13 @@
 #endif
 #define _tarkenso_tds_codec
 
-// Version 1: scalar columns followed by CP1251 text encoded as ASCII HEX.
+// Element wire stays compatible with v1; v2 adds a separate groups payload.
 #define TDS_WIRE_MAX (48000)
 new gTDSWire[TDS_WIRE_MAX];
+#define TDS_GROUP_WIRE_MAX (4096)
+new gTDSGroupWire[TDS_GROUP_WIRE_MAX];
 new const E_TDS_ELEMENT:gTDSFields[] = {tdId, tdOrder, tdType, tdX, tdY, tdW, tdH, tdLetterX, tdLetterY, tdColour, tdBoxColour, tdBackground, tdFont, tdAlign, tdOutline, tdShadow, tdBox, tdProportional, tdSelectable, tdSprite, tdModel, tdRotX, tdRotY, tdRotZ, tdZoom, tdVehColour1, tdVehColour2};
+forward bool:TDS_GroupDataValid(const elements[TDS_ELEMENTS][E_TDS_ELEMENT], const groups[TDS_GROUPS][E_TDS_GROUP], nextId, expected);
 
 stock bool:TDS_FloatField(E_TDS_ELEMENT:field)
 {
@@ -66,7 +69,7 @@ stock bool:TDS_Unhex(const source[], dest[], capacity)
 
 stock bool:TDS_DataValid(const data[E_TDS_ELEMENT])
 {
-    if (data[tdId] <= 0 || data[tdId] >= 2147483646 || data[tdOrder] < 0 ||
+    if (data[tdId] <= 0 || data[tdId] >= 2147483646 || data[tdOrder] < 0 || data[tdGroup] < 0 ||
         data[tdType] < TDS_TEXT_TYPE || data[tdType] > TDS_MODEL_TYPE ||
         !TDS_InRange(data[tdX],0.0,640.0) || !TDS_InRange(data[tdY],0.0,448.0) ||
         !TDS_InRange(data[tdW],0.1,640.0) || !TDS_InRange(data[tdH],0.1,448.0) ||
@@ -100,8 +103,10 @@ stock TDS_Order(session, slots[])
 
 stock bool:TDS_ProjectValid(session)
 {
-    if (!gTDS[session][tsProject] || !TDS_ValidName(gTDS[session][tsName]) ||
+    if (session < 0 || session >= TDS_SESSIONS || !gTDS[session][tsUsed] ||
+        !gTDS[session][tsProject] || !TDS_ValidName(gTDS[session][tsName]) ||
         gTDS[session][tsFormat] != TDS_FORMAT || gTDS[session][tsInterface] < 0 || gTDS[session][tsInterface] > 1 ||
+        gTDS[session][tsNextId] < 1 || gTDS[session][tsNextId] > 2147483646 ||
         (gTDS[session][tsDescription][0] && !TDS_SafeText(gTDS[session][tsDescription],TDS_DESCRIPTION-1))) return false;
     new count;
     for (new i; i < TDS_ELEMENTS; i++)
@@ -113,7 +118,33 @@ stock bool:TDS_ProjectValid(session)
              gTDSElement[session][j][tdOrder] == gTDSElement[session][i][tdOrder])) return false;
         count++;
     }
-    return count == gTDS[session][tsCount];
+    return count == gTDS[session][tsCount] && TDS_GroupDataValid(gTDSElement[session], gTDSGroup[session],
+        gTDS[session][tsNextGroupId], gTDS[session][tsGroupCount]);
+}
+
+stock bool:TDS_GroupDataValid(const elements[TDS_ELEMENTS][E_TDS_ELEMENT],
+    const groups[TDS_GROUPS][E_TDS_GROUP], nextId, expected)
+{
+    if (nextId < 1 || nextId > 2147483646 || expected < 0 || expected > TDS_GROUPS) return false;
+    new count;
+    for (new g; g < TDS_GROUPS; g++)
+    {
+        if (!groups[g][tgId]) continue;
+        if (groups[g][tgId] < 1 || groups[g][tgId] >= nextId || !TDS_ValidName(groups[g][tgName])) return false;
+        for (new j; j < g; j++) if (groups[j][tgId] && (groups[g][tgId] == groups[j][tgId] ||
+            !strcmp(groups[g][tgName], groups[j][tgName], false))) return false;
+        new members;
+        for (new e; e < TDS_ELEMENTS; e++) if (elements[e][tdId] && elements[e][tdGroup] == groups[g][tgId]) members++;
+        if (!members) return false;
+        count++;
+    }
+    for (new e; e < TDS_ELEMENTS; e++) if (elements[e][tdId] && elements[e][tdGroup])
+    {
+        new bool:found;
+        for (new g; g < TDS_GROUPS; g++) if (groups[g][tgId] == elements[e][tdGroup]) { found = true; break; }
+        if (!found) return false;
+    }
+    return count == expected;
 }
 
 stock bool:TDS_Append(dest[], capacity, const text[])
@@ -144,5 +175,25 @@ stock bool:TDS_Encode(session)
         format(part,sizeof(part),"\"%s\"]",hex);
         if (!TDS_Append(gTDSWire,sizeof(gTDSWire),part)) return false;
     }
-    return TDS_Append(gTDSWire,sizeof(gTDSWire),"]");
+    if (!TDS_Append(gTDSWire,sizeof(gTDSWire),"]")) return false;
+    format(gTDSGroupWire, sizeof(gTDSGroupWire), "[");
+    new rows;
+    for (new g; g < TDS_GROUPS; g++)
+    {
+        if (!gTDSGroup[session][g][tgId]) continue;
+        new hex[TDS_NAME*2];
+        if (!TDS_Hex(gTDSGroup[session][g][tgName], hex, sizeof(hex))) return false;
+        format(part, sizeof(part), "%s[%d,\"%s\",[", rows++ ? (",") : (""), gTDSGroup[session][g][tgId], hex);
+        if (!TDS_Append(gTDSGroupWire, sizeof(gTDSGroupWire), part)) return false;
+        new members;
+        for (new i; i < count; i++)
+        {
+            new e = slots[i];
+            if (gTDSElement[session][e][tdGroup] != gTDSGroup[session][g][tgId]) continue;
+            format(part, sizeof(part), "%s%d", members++ ? (",") : (""), gTDSElement[session][e][tdId]);
+            if (!TDS_Append(gTDSGroupWire, sizeof(gTDSGroupWire), part)) return false;
+        }
+        if (!TDS_Append(gTDSGroupWire, sizeof(gTDSGroupWire), "]]")) return false;
+    }
+    return TDS_Append(gTDSGroupWire, sizeof(gTDSGroupWire), "]");
 }

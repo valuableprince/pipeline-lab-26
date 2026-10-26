@@ -151,14 +151,21 @@ stock TDS_RenderStatus(session)
     new PlayerText:td = gTDSTool[session][0];
     if (td == INVALID_PLAYER_TEXT_DRAW) return 0;
     new label[128], slot = gTDS[session][tsSelected];
-    if (TDS_ElementValid(session, slot))
-        format(label, sizeof(label), "%s | ID %d %s | X %.1f Y %.1f | STEP %.1f%s",
+    new group = TDS_GroupSlot(session, gTDS[session][tsSelectedGroup]);
+    if (group >= 0 && TDS_ElementValid(session, slot))
+        format(label, sizeof(label), "%s | G%d %s | SEL %d/%d | STEP %.1f | X %.1f Y %.1f",
+            gTDS[session][tsMode] == TDS_MOVE_MODE ? ("KEYBOARD") : ("MOUSE"),
+            gTDSGroup[session][group][tgId], gTDSGroup[session][group][tgName], TDS_PickCount(session),
+            gTDS[session][tsCount], gTDSSteps[gTDS[session][tsStep]], gTDSElement[session][slot][tdX], gTDSElement[session][slot][tdY]);
+    else if (TDS_ElementValid(session, slot))
+        format(label, sizeof(label), "%s | ID %d %s | X %.1f Y %.1f | STEP %.1f | SEL %d/%d%s",
             gTDS[session][tsMode] == TDS_MOVE_MODE ? ("KEYBOARD") : ("MOUSE"),
             gTDSElement[session][slot][tdId], gTDSTypeLabels[_:gTDSElement[session][slot][tdType]],
             gTDSElement[session][slot][tdX], gTDSElement[session][slot][tdY],
-            gTDSSteps[gTDS[session][tsStep]], gTDS[session][tsMode] == TDS_MOVE_MODE ? ("") : (" | CLICK: MOVE"));
-    else format(label, sizeof(label), "TARKENSO TD STUDIO | %d/%d | STEP %.1f",
-        gTDS[session][tsCount], TDS_ELEMENTS, gTDSSteps[gTDS[session][tsStep]]);
+            gTDSSteps[gTDS[session][tsStep]], TDS_PickCount(session), gTDS[session][tsCount],
+            gTDS[session][tsMode] == TDS_MOVE_MODE ? ("") : (gTDS[session][tsMultiPick] ? (" | MULTI") : (" | CLICK:MOVE")));
+    else format(label, sizeof(label), "TD STUDIO | SEL 0/%d | STEP %.1f%s",
+        gTDS[session][tsCount], gTDSSteps[gTDS[session][tsStep]], gTDS[session][tsMultiPick] ? (" | MULTI") : (""));
     PlayerTextDrawSetString(gTDS[session][tsOwner], td, "%s", label);
     return 1;
 }

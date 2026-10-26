@@ -19,6 +19,7 @@ new gTDSJob[TDS_JOB_LIMIT][E_TDS_JOB];
 stock TDS_ClearProject(session)
 {
     TDSInput_End(session, false);
+    TDS_LayoutReset(session);
     TDS_StopMouse(session);
     for (new i; i < TDS_ELEMENTS; i++)
     {
@@ -71,24 +72,26 @@ stock TDSDB_Expire()
 #if defined TARKENSO_DB_PRIMARY && !defined TDS_TEST_NO_DB
 new const gTDSColumns[][] = {"element_id", "draw_order", "kind", "x", "y", "width", "height", "letter_x", "letter_y", "colour", "box_colour", "background", "font", "alignment", "outline", "shadow", "use_box", "proportional", "selectable", "sprite", "model", "rot_x", "rot_y", "rot_z", "zoom", "vehicle_colour1", "vehicle_colour2"};
 new gTDSJobSerial;
-new gTDSQuery[100000];
+new gTDSQuery[110000];
 new gTDSLoad[TDS_ELEMENTS][E_TDS_ELEMENT];
+new gTDSLoadedGroups[TDS_GROUPS][E_TDS_GROUP];
 new bool:gTDSDBReady;
 forward TDSDB_Ready();
 forward TDSDB_Result(job, serial, playerid, token);
+forward bool:TDSDB_QueryHex(const source[]);
 
 stock TDSDB_Init()
 {
     gTDSDBReady = false;
     if (!DBPrimary_IsReady()) return 0;
-    return mysql_tquery(gDBPrimary,"SELECT version FROM schema_migrations WHERE version=12 LIMIT 1","TDSDB_Ready");
+    return mysql_tquery(gDBPrimary,"SELECT version FROM schema_migrations WHERE version=15 LIMIT 1","TDSDB_Ready");
 }
 
 public TDSDB_Ready()
 {
     new rows;
     gTDSDBReady = cache_get_row_count(rows) != 0 && rows == 1;
-    if (!gTDSDBReady) print("[TDSTUDIO] Apply migration 012; persistent editor operations disabled.");
+    if (!gTDSDBReady) print("[TDSTUDIO] Apply migrations 012 and 015; persistent editor operations disabled.");
     return 1;
 }
 
@@ -98,7 +101,7 @@ stock TDSDB_Begin(playerid, operation, project = 0)
     if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return -1;
     if (!gTDSDBReady || !DBPrimary_IsReady())
     {
-        SendClientMessage(playerid,ADMIN_ERROR,"Хранение TextDraw недоступно. Проверьте БД и миграцию 012.");
+        SendClientMessage(playerid,ADMIN_ERROR,"Хранение TextDraw недоступно. Проверьте БД и миграции 012/015.");
         return -1;
     }
     if (gTDSJobSerial >= 2147483646) return -1;
@@ -145,20 +148,30 @@ stock TDSDB_Save(playerid, bool:asNew = false)
     // R41 has no prepared-statement/bind API. Typed stored-routine parameters;
     // all text is an alphabet-restricted HEX literal, independent of sql_mode.
     mysql_format(gDBPrimary,gTDSQuery,sizeof(gTDSQuery),
-        "/*TDS:%d*/ CALL tds_save(%d,%d,%d,%d,X'%s',X'%s',%d,%d,CONVERT(X'",
+        "/*TDS:%d*/ CALL tds_save_v2(%d,%d,%d,%d,X'%s',X'%s',%d,%d,CONVERT(X'",
         gTDSJob[j][tjSerial],id,TDSHost_Account(playerid),_:TDSHost_Founder(playerid),
         gTDS[s][tsRevision],name,description,gTDS[s][tsInterface],gTDS[s][tsNextId]);
-    new start = strlen(gTDSQuery), length = strlen(gTDSWire);
-    if (start+length*2+32 >= sizeof(gTDSQuery)) return TDSDB_Fail(j,"Проект превышает размер запроса.");
+    if (!TDSDB_QueryHex(gTDSWire)) return TDSDB_Fail(j,"Проект превышает размер запроса.");
+    new tail[64]; format(tail, sizeof(tail), "' USING ascii),%d,CONVERT(X'", gTDS[s][tsNextGroupId]);
+    if (!TDS_Append(gTDSQuery, sizeof(gTDSQuery), tail) || !TDSDB_QueryHex(gTDSGroupWire) ||
+        strlen(gTDSQuery)+32 >= sizeof(gTDSQuery)) return TDSDB_Fail(j,"Группы превышают размер запроса.");
+    strcat(gTDSQuery,"' USING ascii))",sizeof(gTDSQuery));
+    return TDSDB_Submit(j);
+}
+
+stock bool:TDSDB_QueryHex(const source[])
+{
+    new start = strlen(gTDSQuery), length = strlen(source);
+    if (start+length*2+32 >= sizeof(gTDSQuery)) return false;
     new const digits[] = "0123456789ABCDEF";
     for (new i; i < length; i++)
     {
-        gTDSQuery[start++] = digits[(gTDSWire[i] >>> 4) & 15];
-        gTDSQuery[start++] = digits[gTDSWire[i] & 15];
+        if (source[i] < 1 || source[i] > 127) return false;
+        gTDSQuery[start++] = digits[(source[i] >>> 4) & 15];
+        gTDSQuery[start++] = digits[source[i] & 15];
     }
     gTDSQuery[start] = EOS;
-    strcat(gTDSQuery,"' USING ascii))",sizeof(gTDSQuery));
-    return TDSDB_Submit(j);
+    return true;
 }
 
 stock TDSDB_Load(playerid, project)
@@ -168,7 +181,7 @@ stock TDSDB_Load(playerid, project)
     if (project <= 0) return 0;
     new j = TDSDB_Begin(playerid,TDS_DB_LOAD,project);
     if (j < 0) return TDS_Main(playerid);
-    mysql_format(gDBPrimary,gTDSQuery,sizeof(gTDSQuery),"/*TDS:%d*/ CALL tds_load(%d,%d,%d)",
+    mysql_format(gDBPrimary,gTDSQuery,sizeof(gTDSQuery),"/*TDS:%d*/ CALL tds_load_v2(%d,%d,%d)",
         gTDSJob[j][tjSerial],project,TDSHost_Account(playerid),_:TDSHost_Founder(playerid));
     return TDSDB_Submit(j);
 }
@@ -205,15 +218,18 @@ stock bool:TDSDB_ReadHex(row, const column[], dest[], capacity)
 
 stock bool:TDSDB_LoadResult(session, target, rows)
 {
-    new id, creator, revision, version, interfaceType, nextId, count;
+    new id, creator, revision, version, interfaceType, nextId, count, nextGroup, groupCount, groupsRead;
     new name[TDS_NAME], description[TDS_DESCRIPTION], created[20], updated[20];
     if (rows < 1 || rows > TDS_ELEMENTS ||
         !cache_get_value_name_int(0,"project_id",id) || id != target ||
         !cache_get_value_name_int(0,"creator_id",creator) || creator <= 0 ||
         !cache_get_value_name_int(0,"revision",revision) || revision <= 0 ||
-        !cache_get_value_name_int(0,"format_version",version) || version != TDS_FORMAT ||
+        !cache_get_value_name_int(0,"format_version",version) || (version != 1 && version != TDS_FORMAT) ||
         !cache_get_value_name_int(0,"interface_type",interfaceType) || interfaceType < 0 || interfaceType > 1 ||
         !cache_get_value_name_int(0,"next_element_id",nextId) || nextId < 1 || nextId > 2147483646 ||
+        !cache_get_value_name_int(0,"next_group_id",nextGroup) || nextGroup < 1 || nextGroup > 2147483646 ||
+        !cache_get_value_name_int(0,"group_count",groupCount) || groupCount < 0 || groupCount > TDS_GROUPS ||
+        (version == 1 && groupCount != 0) ||
         !cache_get_value_name_int(0,"element_count",count) || count < 0 || count > TDS_ELEMENTS ||
         rows != (count ? count : 1) || !TDSDB_ReadHex(0,"name_hex",name,sizeof(name)) || !TDS_ValidName(name) ||
         !TDSDB_ReadHex(0,"description_hex",description,sizeof(description)) ||
@@ -221,6 +237,8 @@ stock bool:TDSDB_LoadResult(session, target, rows)
         !cache_get_value_name(0,"created_at",created,sizeof(created)) ||
         !cache_get_value_name(0,"updated_at",updated,sizeof(updated))) return false;
     if (creator != TDSHost_Account(gTDS[session][tsOwner]) && !TDSHost_Founder(gTDS[session][tsOwner])) return false;
+    for (new e; e < TDS_ELEMENTS; e++) gTDSLoad[e][tdId] = 0;
+    for (new g; g < TDS_GROUPS; g++) gTDSLoadedGroups[g][tgId] = 0;
     for (new e; e < count; e++)
     {
         for (new E_TDS_ELEMENT:f; f < E_TDS_ELEMENT; f++) gTDSLoad[e][f] = 0;
@@ -237,11 +255,27 @@ stock bool:TDSDB_LoadResult(session, target, rows)
             }
             else if (!cache_get_value_name_int(e,gTDSColumns[i],gTDSLoad[e][field])) return false;
         }
+        if (!cache_get_value_name_int(e,"group_id",gTDSLoad[e][tdGroup]) || gTDSLoad[e][tdGroup] < 0) return false;
+        if (gTDSLoad[e][tdGroup])
+        {
+            if (version == 1) return false;
+            new g = -1, groupName[TDS_NAME];
+            if (!TDSDB_ReadHex(e,"group_name_hex",groupName,sizeof(groupName)) || !TDS_ValidName(groupName)) return false;
+            for (new i; i < groupsRead; i++) if (gTDSLoadedGroups[i][tgId] == gTDSLoad[e][tdGroup]) g = i;
+            if (g < 0)
+            {
+                if (groupsRead >= TDS_GROUPS) return false;
+                g = groupsRead++; gTDSLoadedGroups[g][tgId] = gTDSLoad[e][tdGroup];
+                format(gTDSLoadedGroups[g][tgName],TDS_NAME,"%s",groupName);
+            }
+            else if (strcmp(gTDSLoadedGroups[g][tgName],groupName,false)) return false;
+        }
         if (!TDSDB_ReadHex(e,"content_hex",gTDSLoad[e][tdText],TDS_TEXT) ||
             !TDS_DataValid(gTDSLoad[e]) || gTDSLoad[e][tdId] >= nextId) return false;
         if (e && gTDSLoad[e][tdOrder] <= gTDSLoad[e-1][tdOrder]) return false;
         for (new i; i < e; i++) if (gTDSLoad[i][tdId] == gTDSLoad[e][tdId]) return false;
     }
+    if (groupsRead != groupCount || !TDS_GroupDataValid(gTDSLoad, gTDSLoadedGroups, nextGroup, groupCount)) return false;
     // Allocate off-screen first. Failure preserves the current model AND handles.
     new PlayerText:draws[TDS_ELEMENTS], playerid = gTDS[session][tsOwner];
     for (new i; i < TDS_ELEMENTS; i++) draws[i] = INVALID_PLAYER_TEXT_DRAW;
@@ -258,9 +292,11 @@ stock bool:TDSDB_LoadResult(session, target, rows)
         gTDSDraw[session][e] = draws[e]; PlayerTextDrawShow(playerid,draws[e]);
     }
     gTDS[session][tsProject] = true; gTDS[session][tsProjectId] = id; gTDS[session][tsCreator] = creator;
-    gTDS[session][tsRevision] = revision; gTDS[session][tsFormat] = version; gTDS[session][tsInterface] = interfaceType;
+    gTDS[session][tsRevision] = revision; gTDS[session][tsFormat] = TDS_FORMAT; gTDS[session][tsInterface] = interfaceType;
     gTDS[session][tsNextId] = nextId; gTDS[session][tsCount] = count;
-    gTDS[session][tsSelected] = count ? 0 : -1;
+    gTDS[session][tsNextGroupId] = nextGroup; gTDS[session][tsGroupCount] = groupCount;
+    for (new g; g < groupsRead; g++) for (new E_TDS_GROUP:f; f < E_TDS_GROUP; f++) gTDSGroup[session][g][f] = gTDSLoadedGroups[g][f];
+    if (count) TDS_PickOne(session, 0);
     format(gTDS[session][tsName],TDS_NAME,"%s",name);
     format(gTDS[session][tsDescription],TDS_DESCRIPTION,"%s",description);
     format(gTDS[session][tsCreated],20,"%s",created); format(gTDS[session][tsUpdated],20,"%s",updated);

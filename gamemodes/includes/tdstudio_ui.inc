@@ -83,21 +83,20 @@ stock TDS_EditMenu(playerid)
         gTDS[s][tsName], gTDS[s][tsCount], TDS_ELEMENTS);
     else format(title, sizeof(title), "TARKENSO TextDraw Studio | Этап 2");
     return TDS_Dialog(playerid, TDS_EDIT_MENU, DIALOG_STYLE_LIST, title,
-        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов\nСвойства выбранного элемента\nШаг перемещения\nПредпросмотр\nПеремещение элемента (клавиатура)\nЗакрыть редактор", "Открыть", "Закрыть");
+        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов / слоёв\nСвойства активного элемента\nШаг перемещения\nПредпросмотр\nПеремещение выделения (клавиатура)\nЗакрыть редактор\nСлои\nВыделение\nГруппы\nДублировать активный элемент", "Открыть", "Закрыть");
 }
 
 stock TDS_List(playerid)
 {
     new s = TDS_RequireSession(playerid);
     if (s < 0 || !gTDS[s][tsProject]) return 0;
-    new body[4096], line[96], rows;
-    for (new i; i < TDS_ELEMENTS; i++)
+    new body[4096], line[96], rows, slots[TDS_ELEMENTS], count = TDS_Order(s, slots);
+    for (new layer; layer < count; layer++)
     {
-        if (!TDS_ElementValid(s, i)) continue;
+        new i = slots[layer];
         gTDS[s][tsRows][rows++] = i;
-        format(line, sizeof(line), "ID %d | %s | %.1f, %.1f%s\n", gTDSElement[s][i][tdId],
-            gTDSTypes[_:gTDSElement[s][i][tdType]], gTDSElement[s][i][tdX],
-            gTDSElement[s][i][tdY], gTDS[s][tsSelected] == i ? (" *") : (""));
+        format(line, sizeof(line), "L%d ID%d %s G%d%s\n", layer, gTDSElement[s][i][tdId],
+            gTDSTypes[_:gTDSElement[s][i][tdType]], gTDSElement[s][i][tdGroup], gTDSPicked[s][i] ? (" *") : (""));
         strcat(body, line, sizeof(body));
     }
     gTDS[s][tsRowCount] = rows;
@@ -140,6 +139,8 @@ stock TDS_Props(playerid)
     strcat(body, "На холст: перемещение мышью по кнопкам\n", sizeof(body));
     gTDS[s][tsRows][rows++] = -3;
     strcat(body, "Перемещение элемента (клавиатура)", sizeof(body));
+    gTDS[s][tsRows][rows++] = -4;
+    strcat(body, "\nДублировать активный элемент", sizeof(body));
     gTDS[s][tsRowCount] = rows;
     return TDS_Dialog(playerid, TDS_PROPS, DIALOG_STYLE_LIST, title, body);
 }
@@ -253,6 +254,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         if (dialogid == TDS_MAIN && response) return TDS_ConfirmClose(playerid);
         return TDS_Main(playerid);
     }
+    if (dialogid >= TDS_LAYERS) return TDS_OnLayoutDialog(playerid, dialogid, response, listitem, input);
     if (!response)
     {
         switch (dialogid)
@@ -336,7 +338,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         case TDS_PROJECT_DELETE: return TDSDB_Delete(playerid);
         case TDS_EDIT_MENU:
         {
-            if (listitem < 0 || listitem > 8) return TDS_Main(playerid);
+            if (listitem < 0 || listitem > 12) return TDS_Main(playerid);
             if (listitem == 0) return TDS_Main(playerid);
             if (listitem == 8) return TDS_ConfirmClose(playerid);
             if (!gTDS[s][tsProject])
@@ -353,6 +355,14 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                 case 5: return TDS_StepMenu(playerid);
                 case 6: return TDS_SetMode(playerid, TDS_PREVIEW_MODE);
                 case 7: return TDSInput_Start(playerid);
+                case 9: return TDS_LayersMenu(playerid);
+                case 10: return TDS_SelectionMenu(playerid);
+                case 11: return TDS_GroupList(playerid);
+                case 12:
+                {
+                    if (TDS_Duplicate(playerid) < 0) SendClientMessage(playerid, ADMIN_ERROR, "Копия не создана: выберите элемент, проверьте лимит и ресурсы.");
+                    return TDS_EditMenu(playerid);
+                }
             }
         }
         case TDS_NEW:
@@ -376,7 +386,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
             if (listitem < 0 || listitem >= gTDS[s][tsRowCount]) return TDS_List(playerid);
             new slot = gTDS[s][tsRows][listitem];
             if (!TDS_ElementValid(s, slot)) return TDS_List(playerid);
-            gTDS[s][tsSelected] = slot;
+            TDS_Select(playerid, slot);
             return TDS_Props(playerid);
         }
         case TDS_PROPS:
@@ -387,6 +397,11 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                 "TD Studio | Удалить элемент?", "Выбранный элемент будет удалён из проекта.", "Удалить");
             if (field == -2) return TDS_SetMode(playerid, TDS_EDIT_MODE);
             if (field == -3) return TDSInput_Start(playerid);
+            if (field == -4)
+            {
+                if (TDS_Duplicate(playerid) < 0) SendClientMessage(playerid, ADMIN_ERROR, "Копия не создана: лимит или нехватка хэндлов.");
+                return TDS_Props(playerid);
+            }
             if (field < 0 || field > _:TDS_VEH_COLOURS) return TDS_Props(playerid);
             return TDS_Input(playerid, E_TDS_FIELD:field);
         }
@@ -463,8 +478,7 @@ stock TDS_OnClick(playerid, PlayerText:clicked)
     {
         if (!TDS_ElementValid(s, e) || clicked != gTDSDraw[s][e]) continue;
         if (!TDS_Action(s)) return 1;
-        gTDS[s][tsSelected] = e;
-        TDS_RenderStatus(s);
+        TDS_Select(playerid, e, gTDS[s][tsMultiPick]);
         return 1;
     }
     // Consume unknown handles while this editor owns selection; never route them to sorting.

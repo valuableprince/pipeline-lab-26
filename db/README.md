@@ -27,3 +27,5 @@
 ## TextDraw Studio, migration 012
 
 Apply `migrations/012_tdstudio_projects.sql` once after 011, using MySQL 8.0.16+ and a migration account with CREATE ROUTINE. Runtime uses the existing R41 connection, EXECUTE on the four `tds_*` routines and CRUD on the two new tables. The routine security model is INVOKER. No existing game table is altered. See `docs/TEXTDRAW_STUDIO_STAGE2.md` for CP1251 transport, installation and testing.
+
+TextDraw Studio stage 3.1 adds `migrations/015_tdstudio_groups.sql` after 012 (013/014 are reserved for LoadTest/LoadNet in current main). Apply once with the migration account, then grant the existing runtime user CRUD on `tdstudio_groups`/`tdstudio_group_members` and EXECUTE on `tds_save_v2`/`tds_load_v2`. It adds project-scoped groups, membership and `next_group_id`; format-1 records and original routines are preserved. No dependency on LoadTest/LoadNet migrations is introduced. See `docs/TEXTDRAW_STUDIO_STAGE31.md` for installation, compatibility, real MySQL checks and manual GTA acceptance.

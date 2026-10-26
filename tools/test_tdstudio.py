@@ -21,7 +21,7 @@ from check_pawn_output import analyze_pawn_output
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(server: Path, prefix: list[str], output: Path, harness="tdstudio_harness.pwn", mysql_config=None, mysql_plugin=None, restart=False) -> None:
+def run(server: Path, prefix: list[str], output: Path, harness="tdstudio_harness.pwn", mysql_config=None, mysql_plugin=None, restart=False, export_profile="stage2") -> None:
     server = server.resolve()
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="tdstudio-test-") as temporary:
@@ -92,7 +92,7 @@ def run(server: Path, prefix: list[str], output: Path, harness="tdstudio_harness
             raise RuntimeError(f"Editor logic tests failed:\n{log}")
         if harness != "tdstudio_harness.pwn":
             from test_tdstudio_stage2 import compile_exports
-            compile_exports(work / "scriptfiles/tdstudio_exports", output, server, prefix)
+            compile_exports(work / "scriptfiles/tdstudio_exports", output, server, prefix, export_profile)
         print(f"TD Studio: {marker[1]} Pawn assertions passed (mocked players/UI; no GTA visual test).")
 
 

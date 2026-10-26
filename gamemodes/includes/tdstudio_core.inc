@@ -60,6 +60,7 @@ stock TDS_Close(playerid, bool:connected = true)
     if (connected && dialog != 0 && GetPlayerDialogID(playerid) == dialog)
         HidePlayerDialog(playerid);
     TDS_RenderDestroy(session);
+    TDS_LayoutReset(session);
     for (new i; i < TDS_ELEMENTS; i++) gTDSElement[session][i][tdId] = 0;
     gTDS[session][tsUsed] = false;
     gTDS[session][tsProject] = false;
@@ -120,6 +121,7 @@ stock TDS_Allocate(playerid)
         gTDS[s][tsStep] = 2; // 1.0
         gTDSPlayerSlot[playerid] = s + 1;
         for (new i; i < TDS_ELEMENTS; i++) gTDSElement[s][i][tdId] = 0;
+        TDS_LayoutReset(s);
         TDS_RenderInit(s);
         if (!TDS_RenderTools(s)) { TDS_Close(playerid); return -1; }
         return s;
@@ -146,16 +148,20 @@ stock TDS_AddElement(playerid, E_TDS_TYPE:type)
     for (new i; i < TDS_ELEMENTS; i++)
     {
         if (gTDSElement[s][i][tdId]) continue;
+        new slots[TDS_ELEMENTS], orders[TDS_ELEMENTS], count = TDS_Order(s, slots);
+        TDS_SaveOrders(s, orders);
         TDS_DefaultElement(s, i, type, gTDS[s][tsNextId]);
+        slots[count] = i; TDS_Reindex(s, slots, count+1);
         if (!TDS_RenderRebuild(s))
         {
             TDS_RenderDestroyElement(s, i);
             gTDSElement[s][i][tdId] = 0;
+            TDS_RestoreOrders(s, orders);
             return -1;
         }
         gTDS[s][tsNextId]++;
         gTDS[s][tsCount]++;
-        gTDS[s][tsSelected] = i;
+        TDS_PickOne(s, i);
         TDS_RenderStatus(s);
         gTDS[s][tsDirty] = true;
         return i;
@@ -168,9 +174,16 @@ stock bool:TDS_DeleteElement(playerid, slot)
     new s = TDS_RequireSession(playerid);
     if (!TDS_ElementValid(s, slot) || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return false;
     TDS_RenderDestroyElement(s, slot);
+    new group = gTDSElement[s][slot][tdGroup];
     gTDSElement[s][slot][tdId] = 0;
+    gTDSPicked[s][slot] = false;
+    TDS_GroupPrune(s, group);
     gTDS[s][tsCount]--;
-    if (gTDS[s][tsSelected] == slot) gTDS[s][tsSelected] = -1;
+    if (gTDS[s][tsSelected] == slot)
+    {
+        gTDS[s][tsSelected] = -1;
+        for (new e; e < TDS_ELEMENTS; e++) if (gTDSPicked[s][e] && TDS_ElementValid(s, e)) { gTDS[s][tsSelected] = e; break; }
+    }
     TDS_RenderStatus(s);
     gTDS[s][tsDirty] = true;
     return true;
@@ -180,16 +193,23 @@ stock bool:TDS_Move(playerid, Float:dx, Float:dy)
 {
     new s = TDS_RequireSession(playerid);
     if (s < 0 || gTDS[s][tsBusy]) return false;
-    new slot = gTDS[s][tsSelected];
-    if (!TDS_ElementValid(s, slot)) return false;
     if (gTDS[s][tsMode] == TDS_MOVE_MODE && !TDSInput_Target(s)) return false;
-    new Float:x = gTDSElement[s][slot][tdX] + dx;
-    new Float:y = gTDSElement[s][slot][tdY] + dy;
-    if (!TDS_InRange(x, 0.0, 640.0) || !TDS_InRange(y, 0.0, 448.0)) return false;
-    if (x == gTDSElement[s][slot][tdX] && y == gTDSElement[s][slot][tdY]) return true;
-    gTDSElement[s][slot][tdX] = x;
-    gTDSElement[s][slot][tdY] = y;
-    if (!TDS_RenderPosition(s, slot)) { TDS_Close(playerid); return false; }
+    if (!TDS_InRange(dx, -640.0, 640.0) || !TDS_InRange(dy, -448.0, 448.0)) return false;
+    new slots[TDS_ELEMENTS], count = TDS_Targets(s, slots), bool:changed;
+    if (!count) return false;
+    // Validate the whole set (including native resources) before any write.
+    for (new i; i < count; i++)
+    {
+        new e = slots[i];
+        new Float:x = gTDSElement[s][e][tdX] + dx, Float:y = gTDSElement[s][e][tdY] + dy;
+        if (!TDS_InRange(x, 0.0, 640.0) || !TDS_InRange(y, 0.0, 448.0)) return false;
+        if (!IsValidPlayerTextDraw(playerid, gTDSDraw[s][e])) { TDS_Close(playerid); return false; }
+        if (x != gTDSElement[s][e][tdX] || y != gTDSElement[s][e][tdY]) changed = true;
+    }
+    if (!changed) return true;
+    for (new i; i < count; i++)
+    { gTDSElement[s][slots[i]][tdX] += dx; gTDSElement[s][slots[i]][tdY] += dy; }
+    for (new i; i < count; i++) if (!TDS_RenderPosition(s, slots[i])) { TDS_Close(playerid); return false; }
     TDS_RenderStatus(s);
     if (gTDS[s][tsMode] != TDS_MOVE_MODE) gTDS[s][tsDirty] = true;
     return true;

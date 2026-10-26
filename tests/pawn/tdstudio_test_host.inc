@@ -25,7 +25,7 @@ new tDialog[MAX_PLAYERS], tCreate, tDestroy, tBadHandle, tCancel, tFailAfter = -
 new Float:tX[MAX_PLAYERS][256], Float:tY[MAX_PLAYERS][256];
 new Float:tW[MAX_PLAYERS][256], Float:tH[MAX_PLAYERS][256];
 new tFont[MAX_PLAYERS][256], tTouches[MAX_PLAYERS][256];
-new tFailures, tChecks;
+new tFailures, tChecks, tDialogOverflow;
 
 stock bool:Admin_Ready(playerid) { return tConnected[playerid] && gAuthState[playerid] == AUTH_READY; }
 stock bool:Studio_Allowed(playerid) { return Admin_Ready(playerid) && tFounder[playerid]; }
@@ -58,7 +58,10 @@ stock MockHideDialog(playerid) { tDialog[playerid] = INVALID_DIALOG_ID; return 1
 stock MockDialogId(playerid) { return tDialog[playerid]; }
 stock bool:MockDialog(playerid, dialogid, DIALOG_STYLE:style, const title[], const body[], const accept[], const cancel[], OPEN_MP_TAGS:...)
 {
-    #pragma unused style, title, body, accept, cancel
+    #pragma unused style, body, accept, cancel
+    new length;
+    while (length <= 4096 && getarg(7, length) != EOS) length++;
+    if (length > 4095 || strlen(title) > 63) tDialogOverflow++;
     tDialog[playerid] = dialogid; return true; }
 stock MockSelect(playerid, colour) {
     #pragma unused playerid, colour

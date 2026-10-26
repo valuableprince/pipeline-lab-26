@@ -1,5 +1,6 @@
 #include "tdstudio_test_host.inc"
 #include "tdstudio_movement.inc"
+#include "tdstudio_layers.inc"
 
 main() {}
 public OnGameModeInit()
@@ -160,8 +161,10 @@ public TDS_RunTests()
     TDS_Shutdown();
     Check(tCreate - tDestroy == 1 && MockValid(0, foreign), "shutdown destroys every owned handle");
     RunMovementTests();
+    RunLayerTests();
     Check(tCreate - tDestroy == 1 && MockValid(0, foreign), "movement cleanup preserves foreign handles");
     Check(tBadHandle == 0, "no invalid native handle access");
+    Check(!tDialogOverflow, "native dialog body/caption limits respected");
     printf("TDS TEST RESULT: checks=%d failures=%d", tChecks, tFailures);
     return 1;
 }

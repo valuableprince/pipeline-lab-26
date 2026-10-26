@@ -9,12 +9,13 @@
 #define TDS_TEXT (128)
 #define TDS_NAME (33)
 #define TDS_DESCRIPTION (129)
-#define TDS_FORMAT (1)
+#define TDS_FORMAT (2)
+#define TDS_GROUPS (16)
 #define TDS_PROJECT_PAGE (20)
 #define TDS_TOOLS (9)
 #define TDS_COLOR (0xF1C263FF)
 #define TDS_FIRST_DIALOG (7100)
-#define TDS_LAST_DIALOG (7117)
+#define TDS_LAST_DIALOG (7125)
 #define TDS_MAIN (7100)
 #define TDS_NEW (7101)
 #define TDS_ADD (7102)
@@ -33,6 +34,14 @@
 #define TDS_DESC_DIALOG (7115)
 #define TDS_PROJECT_DELETE (7116)
 #define TDS_DISCARD (7117)
+#define TDS_LAYERS (7118)
+#define TDS_SELECTION (7119)
+#define TDS_PICK_LIST (7120)
+#define TDS_GROUP_LIST (7121)
+#define TDS_GROUP_MENU (7122)
+#define TDS_GROUP_NAME (7123)
+#define TDS_GROUP_DELETE (7124)
+#define TDS_GROUP_MEMBERS (7125)
 
 enum E_TDS_TYPE { TDS_TEXT_TYPE, TDS_RECT_TYPE, TDS_SPRITE_TYPE, TDS_MODEL_TYPE };
 enum E_TDS_MODE { TDS_MENU_MODE, TDS_EDIT_MODE, TDS_PREVIEW_MODE, TDS_MOVE_MODE };
@@ -52,8 +61,9 @@ enum E_TDS_ELEMENT
     tdFont, tdAlign, tdOutline, tdShadow,
     bool:tdBox, bool:tdProportional, bool:tdSelectable,
     tdSprite, tdModel, Float:tdRotX, Float:tdRotY, Float:tdRotZ, Float:tdZoom,
-    tdVehColour1, tdVehColour2, tdText[TDS_TEXT]
+    tdVehColour1, tdVehColour2, tdGroup, tdText[TDS_TEXT]
 };
+enum E_TDS_GROUP { tgId, tgName[TDS_NAME] };
 enum E_TDS_SESSION
 {
     bool:tsUsed, tsOwner, tsToken, tsAccount,
@@ -66,13 +76,20 @@ enum E_TDS_SESSION
     tsLease, tsBusy, tsPage, tsProjectRows[TDS_PROJECT_PAGE], tsProjectRowCount,
     bool:tsMore, tsPending, tsPendingProject,
     // Transient move transaction; tdX/tdY remain the only working coordinates.
-    tsMoveSlot, tsMoveId, Float:tsMoveX, Float:tsMoveY,
-    tsMoveTick, KEY:tsMoveKeys, bool:tsMoveReady, bool:tsMoveFreeze
+    tsMoveSlot, tsMoveId,
+    tsMoveTick, KEY:tsMoveKeys, bool:tsMoveReady, bool:tsMoveFreeze,
+    tsNextGroupId, tsGroupCount, tsGroupFocus, tsSelectedGroup,
+    bool:tsMultiPick, bool:tsRenameGroup, tsMoveCount
 };
 
 // Pool allocation avoids a large element array for every possible player.
 new gTDS[TDS_SESSIONS][E_TDS_SESSION];
 new gTDSElement[TDS_SESSIONS][TDS_ELEMENTS][E_TDS_ELEMENT];
+new gTDSGroup[TDS_SESSIONS][TDS_GROUPS][E_TDS_GROUP];
+// Editor selection and move snapshots never enter the serialized element data.
+new bool:gTDSPicked[TDS_SESSIONS][TDS_ELEMENTS];
+new gTDSMoving[TDS_SESSIONS][TDS_ELEMENTS]; // original ID, zero when excluded
+new Float:gTDSMoveX[TDS_SESSIONS][TDS_ELEMENTS], Float:gTDSMoveY[TDS_SESSIONS][TDS_ELEMENTS];
 new gTDSPlayerSlot[MAX_PLAYERS]; // slot + 1; zero means no session
 new bool:gTDSGranted[MAX_PLAYERS];
 new gTDSGrantToken[MAX_PLAYERS];

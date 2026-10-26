@@ -12,11 +12,18 @@ stock bool:TDSInput_Target(session)
     if (session < 0 || session >= TDS_SESSIONS || !gTDS[session][tsUsed] ||
         gTDS[session][tsMode] != TDS_MOVE_MODE) return false;
     new e = gTDS[session][tsMoveSlot];
-    return TDS_ElementValid(session, e) && gTDS[session][tsSelected] == e &&
-        gTDSElement[session][e][tdId] == gTDS[session][tsMoveId] &&
-        gTDS[session][tsStep] >= 0 && gTDS[session][tsStep] < sizeof(gTDSSteps) &&
-        TDS_InRange(gTDSElement[session][e][tdX], 0.0, 640.0) &&
-        TDS_InRange(gTDSElement[session][e][tdY], 0.0, 448.0);
+    if (!TDS_ElementValid(session, e) || gTDS[session][tsSelected] != e ||
+        gTDSElement[session][e][tdId] != gTDS[session][tsMoveId] ||
+        gTDS[session][tsStep] < 0 || gTDS[session][tsStep] >= sizeof(gTDSSteps)) return false;
+    new count;
+    for (new i; i < TDS_ELEMENTS; i++) if (gTDSMoving[session][i])
+    {
+        if (!TDS_ElementValid(session, i) || gTDSElement[session][i][tdId] != gTDSMoving[session][i] ||
+            !TDS_InRange(gTDSElement[session][i][tdX], 0.0, 640.0) ||
+            !TDS_InRange(gTDSElement[session][i][tdY], 0.0, 448.0)) return false;
+        count++;
+    }
+    return count > 0 && count == gTDS[session][tsMoveCount] && gTDSMoving[session][e] == gTDS[session][tsMoveId];
 }
 
 stock bool:TDSInput_Usable(session)
@@ -34,26 +41,34 @@ stock TDSInput_End(session, bool:accept, bool:connected = true, bool:redraw = tr
 {
     if (session < 0 || session >= TDS_SESSIONS || !gTDS[session][tsUsed] ||
         gTDS[session][tsMode] != TDS_MOVE_MODE) return 0;
-    new e = gTDS[session][tsMoveSlot], p = gTDS[session][tsOwner];
-    new bool:target = TDS_ElementValid(session, e) &&
-        gTDSElement[session][e][tdId] == gTDS[session][tsMoveId];
-    new bool:changed = target && (gTDSElement[session][e][tdX] != gTDS[session][tsMoveX] ||
-        gTDSElement[session][e][tdY] != gTDS[session][tsMoveY]);
-    if (changed && !accept)
+    new p = gTDS[session][tsOwner], bool:changed;
+    // Restore all model coordinates first, then update their existing handles.
+    for (new e; e < TDS_ELEMENTS; e++) if (gTDSMoving[session][e] && TDS_ElementValid(session, e) &&
+        gTDSElement[session][e][tdId] == gTDSMoving[session][e])
     {
-        gTDSElement[session][e][tdX] = gTDS[session][tsMoveX];
-        gTDSElement[session][e][tdY] = gTDS[session][tsMoveY];
+        if (gTDSElement[session][e][tdX] != gTDSMoveX[session][e] ||
+            gTDSElement[session][e][tdY] != gTDSMoveY[session][e]) changed = true;
+        if (!accept)
+        {
+            gTDSElement[session][e][tdX] = gTDSMoveX[session][e];
+            gTDSElement[session][e][tdY] = gTDSMoveY[session][e];
+        }
     }
     if (changed && accept) gTDS[session][tsDirty] = true;
     new bool:release = gTDS[session][tsMoveFreeze];
     gTDS[session][tsMode] = TDS_MENU_MODE;
     gTDS[session][tsMoveSlot] = -1; gTDS[session][tsMoveId] = 0;
-    gTDS[session][tsMoveX] = 0.0; gTDS[session][tsMoveY] = 0.0;
     gTDS[session][tsMoveTick] = 0; gTDS[session][tsMoveKeys] = KEY:0;
     gTDS[session][tsMoveReady] = false; gTDS[session][tsMoveFreeze] = false;
     if (release && connected && IsPlayerConnected(p) && TDS_Session(p) == session &&
         TDSHost_ControlAllowed(p)) TogglePlayerControllable(p, true);
-    if (redraw && connected && changed && !accept) TDS_RenderPosition(session, e);
+    for (new e; e < TDS_ELEMENTS; e++)
+    {
+        if (redraw && connected && changed && !accept && gTDSMoving[session][e] &&
+            TDS_ElementValid(session, e) && gTDSElement[session][e][tdId] == gTDSMoving[session][e]) TDS_RenderPosition(session, e);
+        gTDSMoving[session][e] = 0; gTDSMoveX[session][e] = 0.0; gTDSMoveY[session][e] = 0.0;
+    }
+    gTDS[session][tsMoveCount] = 0;
     return 1;
 }
 
@@ -78,6 +93,9 @@ stock TDSInput_Start(playerid)
     if (!TDS_DataValid(gTDSElement[s][e]) || gTDS[s][tsStep] < 0 || gTDS[s][tsStep] >= sizeof(gTDSSteps)) return 0;
     if (!TDSHost_ControlAllowed(playerid) || !IsPlayerControllable(playerid))
         return SendClientMessage(playerid, ADMIN_ERROR, "Перемещение доступно пешком, вне гонки/тюрьмы и без чужой блокировки управления.");
+    new slots[TDS_ELEMENTS], count = TDS_Targets(s, slots);
+    if (!count) return 0;
+    for (new i; i < count; i++) if (!TDS_DataValid(gTDSElement[s][slots[i]])) return 0;
     new dialog = GetPlayerDialogID(playerid);
     if (dialog != INVALID_DIALOG_ID && dialog != gTDS[s][tsDialog]) return 0;
     // Cursor cancellation can dispatch a callback; relinquish it before freezing.
@@ -90,9 +108,16 @@ stock TDSInput_Start(playerid)
         SendClientMessage(playerid, ADMIN_ERROR, "Не удалось заблокировать персонажа. Режим перемещения не включён.");
         return 0;
     }
+    for (new i; i < TDS_ELEMENTS; i++) gTDSMoving[s][i] = 0;
+    for (new i; i < count; i++)
+    {
+        new target = slots[i];
+        gTDSMoving[s][target] = gTDSElement[s][target][tdId];
+        gTDSMoveX[s][target] = gTDSElement[s][target][tdX]; gTDSMoveY[s][target] = gTDSElement[s][target][tdY];
+    }
+    gTDS[s][tsMoveCount] = count;
     gTDS[s][tsMode] = TDS_MOVE_MODE;
     gTDS[s][tsMoveSlot] = e; gTDS[s][tsMoveId] = gTDSElement[s][e][tdId];
-    gTDS[s][tsMoveX] = gTDSElement[s][e][tdX]; gTDS[s][tsMoveY] = gTDSElement[s][e][tdY];
     gTDS[s][tsMoveTick] = GetTickCount(); gTDS[s][tsMoveKeys] = KEY:0;
     gTDS[s][tsMoveReady] = false; gTDS[s][tsMoveFreeze] = true;
     TDS_RenderStatus(s); TDS_RenderToolsVisible(s, true);
@@ -160,13 +185,8 @@ stock TDSInput_OnUpdate(playerid)
     new Float:dx = float(lr) / 128.0, Float:dy = float(ud) / 128.0;
     new Float:length = floatsqroot(dx * dx + dy * dy);
     if (length > 1.0) { dx /= length; dy /= length; }
-    new e = gTDS[s][tsMoveSlot];
-    new Float:x = gTDSElement[s][e][tdX], Float:y = gTDSElement[s][e][tdY];
-    new Float:nextX = x + dx * scale, Float:nextY = y + dy * scale;
-    if (nextX < 0.0) nextX = 0.0;
-    if (nextX > 640.0) nextX = 640.0;
-    if (nextY < 0.0) nextY = 0.0;
-    if (nextY > 448.0) nextY = 448.0;
-    TDS_Move(playerid, nextX - x, nextY - y);
+    dx *= scale; dy *= scale;
+    TDS_ClampMove(s, dx, dy);
+    TDS_Move(playerid, dx, dy);
     return 1; // never suppress unrelated player synchronization
 }

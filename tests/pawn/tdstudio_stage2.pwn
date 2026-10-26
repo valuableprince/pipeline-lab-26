@@ -227,12 +227,12 @@ public TDS_TestNext()
         case 12:
         {
             Check(gTDS[s][tsRevision] == 3,"conflict resolved by explicit reload");
-            TestSQL("UPDATE tdstudio_projects SET format_version=2 WHERE project_id=(SELECT p.id FROM (SELECT MIN(project_id) id FROM tdstudio_projects) p)");
+            TestSQL("UPDATE tdstudio_projects SET format_version=99 WHERE project_id=(SELECT p.id FROM (SELECT MIN(project_id) id FROM tdstudio_projects) p)");
             TDSDB_Load(0,tProject);
         }
         case 13:
         {
-            Check(gTDS[s][tsProjectId] == tProject && gTDS[s][tsFormat] == 1 && gTDS[s][tsCount] == 4,"unsupported format leaves old project intact");
+            Check(gTDS[s][tsProjectId] == tProject && gTDS[s][tsFormat] == TDS_FORMAT && gTDS[s][tsCount] == 4,"unsupported format leaves old project intact");
             TestSQL("UPDATE tdstudio_projects SET format_version=1,next_element_id=1 WHERE project_id=(SELECT p.id FROM (SELECT MIN(project_id) id FROM tdstudio_projects) p)");
             TDSDB_Load(0,tProject);
         }

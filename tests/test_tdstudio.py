@@ -29,7 +29,14 @@ class TextDrawStudioIntegration(unittest.TestCase):
             self.assertIn(cleanup, body)
 
     def test_reserved_dialog_range_does_not_overlap_host(self):
-        values = set(range(7100, 7118))
+        model = (INC / "tdstudio_model.inc").read_text(encoding="utf-8")
+        first = int(re.search(r"#define TDS_FIRST_DIALOG \((\d+)\)", model)[1])
+        last = int(re.search(r"#define TDS_LAST_DIALOG \((\d+)\)", model)[1])
+        values = set(range(first, last + 1))
+        defined = re.findall(r"^#define (TDS_\w+) \((\d+)\)", model, re.M)
+        actual = [int(value) for name, value in defined if name not in {"TDS_FIRST_DIALOG", "TDS_LAST_DIALOG"} and int(value) in values]
+        self.assertEqual(len(actual), len(set(actual)))
+        self.assertEqual(set(actual), values)
         for path in [ROOT / "gamemodes/signal0317.pwn", *INC.glob("*.inc")]:
             if path.name.startswith("tdstudio"):
                 continue
@@ -54,12 +61,16 @@ class TextDrawStudioIntegration(unittest.TestCase):
         fields = re.findall(r"\b(td\w+)\b", enum)
         wire = codec.split("gTDSFields[] = {", 1)[1].split("};", 1)[0]
         persisted = re.findall(r"\b(td\w+)\b", wire)
-        self.assertEqual(fields[:-1], persisted)
+        self.assertEqual([f for f in fields[:-1] if f != "tdGroup"], persisted)
         self.assertEqual(fields[-1], "tdText")
         self.assertIn(f"<> {len(persisted)+1} THEN", schema)
         self.assertIn("ON DELETE CASCADE", schema)
         self.assertIn("START TRANSACTION;", schema)
         self.assertIn("FOR UPDATE", schema)
+        groups = (ROOT / "db/migrations/015_tdstudio_groups.sql").read_text(encoding="utf-8")
+        self.assertIn("PRIMARY KEY(project_id,element_id)", groups)
+        self.assertIn("REFERENCES tdstudio_elements(project_id,element_id)", groups)
+        self.assertIn("REFERENCES tdstudio_groups(project_id,group_id)", groups)
 
     def test_editor_db_errors_are_intercepted_before_host_failure(self):
         source = (INC / "db_primary.inc").read_text(encoding="utf-8")
@@ -96,6 +107,33 @@ class TextDrawStudioIntegration(unittest.TestCase):
             for function in functions:
                 body = source.split(f"stock {function}(", 1)[1].split("\n}", 1)[0]
                 self.assertIn("TDS_MOVE_MODE", body, function)
+
+    def test_groups_are_editor_data_and_export_stays_flat(self):
+        export = (INC / "tdstudio_export.inc").read_text(encoding="utf-8")
+        self.assertIn("TDS_Order(s,gTDSExportSlots[s])", export)
+        self.assertNotIn("TDS_GROUPS", export)
+        model = (INC / "tdstudio_model.inc").read_text(encoding="utf-8")
+        element = model.split("enum E_TDS_ELEMENT", 1)[1].split("};", 1)[0]
+        self.assertNotIn("Picked", element)
+        self.assertIn("gTDSPicked[TDS_SESSIONS][TDS_ELEMENTS]", model)
+
+    def test_v2_migration_keeps_v1_routines_and_uses_one_transaction(self):
+        sql = (ROOT / "db/migrations/015_tdstudio_groups.sql").read_text(encoding="utf-8")
+        self.assertNotIn("DROP PROCEDURE", sql)
+        self.assertNotIn("DROP TABLE", sql)
+        self.assertIn("CREATE PROCEDURE tds_save_v2(", sql)
+        save = sql.split("CREATE PROCEDURE tds_save_v2(", 1)[1].split("CREATE PROCEDURE tds_load_v2(", 1)[0]
+        self.assertEqual(save.count("START TRANSACTION;"), 1)
+        self.assertEqual(save.count("COMMIT;"), 1)
+        self.assertLess(save.index("INSERT INTO tdstudio_group_members"), save.index("COMMIT;"))
+        self.assertIn("v_format NOT IN (1,2)", save)
+        self.assertIn("ROLLBACK;", save)
+        self.assertIn("v_revision<>p_revision", save)
+
+    def test_layout_runtime_suite_runs_with_existing_harness(self):
+        source = (ROOT / "tests/pawn/tdstudio_harness.pwn").read_text(encoding="utf-8")
+        self.assertIn('#include "tdstudio_layers.inc"', source)
+        self.assertIn("RunLayerTests();", source)
 
 
 if __name__ == "__main__":
