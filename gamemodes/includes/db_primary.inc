@@ -516,13 +516,30 @@
 
     public OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle)
     {
-        // Never log raw SQL (password hash can be present).
-        #pragma unused error, callback, query, handle
-        printf("[DB-PRIMARY] Asynchronous SQL query failed with error %d.", errorid);
+        // Never log raw SQL or driver-provided data: queries may contain hashes.
+        #pragma unused error, query, handle
+        printf("[DB-PRIMARY] Async SQL error %d (callback %.48s).", errorid, callback);
+        if (!strcmp(callback, "DBPrimary_OnAccount"))
+        {
+            // The MySQL error callback does not expose the originating playerid.
+            // Fail closed for pending lookups only; do not kick authenticated users.
+            for (new i = 0; i < MAX_PLAYERS; i++)
+                if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+                    gAuthState[i] == AUTH_VERIFYING &&
+                    !strcmp(gDBPrimaryRequestName[i], gAccountName[i], false))
+                {
+                    SendClientMessage(i, COLOR_RED, "MariaDB: вход временно недоступен. Переподключитесь.");
+                    Kick(i);
+                }
+            return 1;
+        }
+        // Unexpected async query failures require operator intervention.
+        // Suspend writes rather than forcing all online players to disconnect.
         gDBPrimaryReady = false;
+        print("[DB-PRIMARY] Persistence disabled after unexpected async SQL error. Restart after repair.");
         for (new i = 0; i < MAX_PLAYERS; i++)
-            if (IsPlayerConnected(i) && !IsPlayerNPC(i))
-                Kick(i);
+            if (IsPlayerConnected(i) && !IsPlayerNPC(i) && gAuthState[i] == AUTH_READY)
+                SendClientMessage(i, COLOR_RED, "MariaDB: сохранения недоступны. Сообщите администрации.");
         return 1;
     }
 #else
