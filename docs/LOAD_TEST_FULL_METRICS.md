@@ -156,3 +156,47 @@ delete from `accounts` when cleaning benchmark data.
 During initial tests start with five NPCs and inspect tickrate, SQL
 latency and failure counts before increasing load. The external
 Windows Worker is not needed for this full NPC simulation.
+
+## LOADTEST-07: paced spawning and sustained simulation
+
+```text
+/load start 25 180 full
+/load start 25 180 full 1
+/load start 25 180 full 2
+/load start 25 180 full 4
+```
+
+The last argument controls NPC creation rate: **1–4 NPC per second**.
+The default is **1 NPC per second** for both `full` and `npc` scenarios,
+reducing the initial CPU burst. The rate is deliberately capped; it does
+not change the number of concurrent bcrypt tasks (2) or SQL tasks (8).
+
+Once an NPC completes its **synthetic** registration, bcrypt verification
+and first save, the server keeps a low, bounded background workload
+running until the test ends:
+
+- A staggered SQL `SELECT balance` per virtual account approximately
+  every ten seconds.
+- A matching `UPDATE balance=balance+1` on the *same isolated test table*.
+  This is a simulation of ordinary game progression, NOT a call to any
+  live character, wallet, job or economy function.
+- A short window at each 60-second boundary in which updates add ten
+  synthetic units instead of one (PayDay-like **workload shape only**).
+- No more than **four new operations per server tick**, with at most
+  **eight outstanding SQL queries** across the whole benchmark.
+
+An extra `activity.csv` appears in the same run folder as existing
+reports. Its columns are cumulative successful reads, writes, PayDay-like
+writes, errors, outstanding SQL and elapsed time. The `summary.txt`
+includes final counts. SQL operation counts also include activity queries.
+
+**Interpretation:** CPU spikes during creation can be observed in the
+hosting panel, not inside Pawn. This benchmark does not execute actual
+PayDay, player networking, dialog registration, driving or real payments.
+It models a subset of computational/SQL workload safely. For sustained
+SQL percentiles, the advanced report keeps the **first 600 recorded SQL
+callback durations**, not an unbounded population; late-run tail
+percentiles require exporting additional samples/aggregations.
+
+Start with `/load start 5 120 full 1`, examine the CPU panel,
+`activity.csv` and `summary.txt`, then increase gradually.
