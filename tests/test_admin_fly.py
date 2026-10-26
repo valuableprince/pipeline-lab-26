@@ -6,6 +6,7 @@ FLY=(R/"gamemodes/includes/admin_fly.inc").read_text(encoding="utf-8")
 MAIN=(R/"gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 CMD=(R/"gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 ADMIN=(R/"gamemodes/includes/admin_system.inc").read_text(encoding="utf-8")
+HELP=(R/"gamemodes/includes/admin_help.inc").read_text(encoding="utf-8")
 class FlightContracts(unittest.TestCase):
     def test_wiring(self):
         for item in ('#include "admin_fly.inc"','AdminFly_Init();','AdminFly_Shutdown();','AdminFly_Reset(playerid);','AdminFly_Stop(playerid);'):
@@ -19,6 +20,12 @@ class FlightContracts(unittest.TestCase):
         self.assertIn('SetPlayerGravity(playerid, gAdminFlyOldGravity[playerid]);',FLY)
         self.assertIn('GetPlayerGravity(playerid)',FLY)
         self.assertIn('KillTimer(gAdminFlyTimer)',FLY)
+    def test_unified_administrative_help(self):
+        self.assertIn('{"fly", "/fly", "Включить или выключить свободный полёт", "/fly", 4, 2}', HELP)
+        self.assertIn('#define ADMIN_FLY_COLOR ADMIN_COLOR', FLY)
+        self.assertIn('[TARKENSO] Полёт', FLY)
+        self.assertIn('/ahelp fly', FLY)
+
     def test_no_third_party_client_or_hot_callback(self):
         self.assertIn('GetPlayerKeys(playerid, keys, updown, leftright)',FLY)
         self.assertIn('GetPlayerCameraFrontVector(playerid, fx, fy, fz)',FLY)
