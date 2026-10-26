@@ -30,6 +30,7 @@ new gLoadMoveIndex;
 new gLoadMovePhase;
 new gLoadLowTickCount;
 new gLoadCreateFailures;
+new gLoadSpawnRate = 1;
 new gLoadMinTickrate;
 new gLoadWorstTickMs;
 new gLoadLastTick;
@@ -209,13 +210,15 @@ stock LoadTest_Status(playerid)
     return 1;
 }
 
-stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
+stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false, spawnRate = 1)
 {
     if (gLoadRunning)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Already running; /load stop.");
     if (count < 1 || count > LOADTEST_MAX_NPCS ||
         duration < LOADTEST_MIN_SECONDS || duration > LOADTEST_MAX_SECONDS)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Count: 1..100; seconds: 10..300.");
+    if (spawnRate < 1 || spawnRate > LOADTEST_BATCH_NPCS)
+        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Spawn rate: 1..4 NPC/sec.");
     if (!gAccountSpawned[playerid] || GetPlayerInterior(playerid) != 0)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Spawn outdoors before starting.");
     if (!LoadTest_CreateReport(fullScenario))
@@ -225,6 +228,7 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
     gLoadFullScenario = fullScenario;
     gLoadNPCTarget = count;
     gLoadNPCCount = 0;
+    gLoadSpawnRate = spawnRate;
     gLoadDuration = duration;
     gLoadStartedAt = gettime();
     gLoadRunId = gLoadStartedAt;
@@ -280,7 +284,7 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
         gLoadRunId, count, duration, gLoadWorld, gLoadReportFile);
     new startMessage[144];
     format(startMessage, sizeof(startMessage),
-        "[LoadTest] Running %d NPC for %d sec. Folder: %s", count, duration, gLoadReportDir);
+        "[LoadTest] Running %d NPC for %d sec, rate %d/s. Folder: %s", count, duration, gLoadSpawnRate, gLoadReportDir);
     return SendClientMessage(playerid, ADMIN_COLOR, startMessage);
 }
 
@@ -316,7 +320,7 @@ public LoadTest_Tick()
         return 1;
     }
 
-    for (new batch = 0; batch < LOADTEST_BATCH_NPCS &&
+    for (new batch = 0; batch < gLoadSpawnRate &&
          gLoadNPCCount < gLoadNPCTarget; batch++)
     {
         new slot = gLoadNPCCount;
@@ -410,7 +414,15 @@ stock LoadTest_Command(playerid, const params[])
         if (isnull(args))
             return LoadTest_Start(playerid, LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS);
 
-        new count, seconds, scenario[12];
+        new count, seconds, scenario[12], pace;
+        if (!sscanf(args, "iis[12]i", count, seconds, scenario, pace))
+        {
+            if (!strcmp(scenario, "full", true))
+                return LoadTest_Start(playerid, count, seconds, true, pace);
+            if (!strcmp(scenario, "npc", true))
+                return LoadTest_Start(playerid, count, seconds, false, pace);
+            return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Scenario: npc or full.");
+        }
         if (!sscanf(args, "iis[12]", count, seconds, scenario))
         {
             if (!strcmp(scenario, "full", true))
@@ -422,7 +434,7 @@ stock LoadTest_Command(playerid, const params[])
         if (!sscanf(args, "ii", count, seconds))
             return LoadTest_Start(playerid, count, seconds);
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "[LoadTest] Usage: /load start 5 120 full | /load start 5 120 npc.");
+            "[LoadTest] Usage: /load start 25 180 full 1 (rate 1..4 NPC/sec).");
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
         "[LoadTest] /load start [count] [seconds] [npc|full] | status | report | stop.");
