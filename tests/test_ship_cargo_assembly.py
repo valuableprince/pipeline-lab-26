@@ -55,6 +55,16 @@ class CargoFreighterTests(unittest.TestCase):
         self.assertIn("if (gShipModel == SHIP_CARGO_ROOT_ID)", SOURCE)
         self.assertIn("gShipPoint[i][2] = SHIP_CARGO_ROOT_Z;", SOURCE)
 
+    def test_longitudinal_axis_matches_navigation_bearing(self):
+        self.assertIn("#define SHIP_CARGO_HEADING_OFFSET (90.0)", SOURCE)
+        self.assertIn("gShipPoint[i][3] += SHIP_CARGO_HEADING_OFFSET;", SOURCE)
+        self.assertIn("angle -= SHIP_CARGO_HEADING_OFFSET;", SOURCE)
+        self.assertIn("SHIP_CARGO_ROOT_Z, 298.07, SHIP_CARGO_ROOT_ID", SOURCE)
+        # Route's first navigation heading 208.07 => 298.07 model yaw.
+        # Straight north is navigation 0 => model yaw 90.
+        self.assertAlmostEqual((208.07 + 90.0) % 360.0, 298.07)
+        self.assertAlmostEqual((0.0 + 90.0) % 360.0, 90.0)
+
     def test_founder_command_and_backward_compatibility(self):
         self.assertIn("Studio_Require(playerid)", SOURCE)
         self.assertIn('!strcmp(action, "cargo", true)', SOURCE)
