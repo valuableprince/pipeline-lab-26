@@ -110,7 +110,7 @@ stock ShipPort_Status(playerid)
     return SendClientMessage(playerid, SHIP_COLOR, line);
 }
 
-stock ShipPort_Command(playerid, const params[])
+public ShipPort_Command(playerid, const params[])
 {
     if (!Studio_Require(playerid)) return 1;
     new place[12], operation[16];
