@@ -678,7 +678,7 @@ stock Admin_Execute(playerid, const input[])
     if (!strcmp(command, "/founder", true))
     {
         if (!Admin_IsFounder(playerid))
-            return SendClientMessage(playerid, ADMIN_ERROR, "Команда зарезервирована для основателя Tarkenso RPG.");
+            return SendClientMessage(playerid, ADMIN_ERROR, "[Tarkenso RPG] Команда зарезервирована для основателя Tarkenso RPG.");
         if (!Admin_Next(input, offset, arg1, sizeof(arg1)))
         {
             new online, staff, line[120];
