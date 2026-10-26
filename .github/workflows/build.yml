@@ -7,6 +7,7 @@ on:
       - "gamemodes/**"
       - "tests/**"
       - "tools/check_pawn_output.py"
+      - "tools/check_chat_style.py"
       - "tools/install_rustext.py"
       - ".github/workflows/build.yml"
   pull_request:
@@ -55,6 +56,14 @@ jobs:
           echo "PAWN_INCLUDE=$(dirname "$INCLUDE")" >> "$GITHUB_ENV"
           echo "PAWN_LIB=$(dirname "$LIBPAWNC")" >> "$GITHUB_ENV"
 
+      - name: Audit chat style
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          python3 -m unittest discover -s tests -p 'test_chat_style.py' -v
+          python3 tools/check_chat_style.py --base origin/main
+
       - name: Stage source
         run: |
           python3 - <<'PY'
@@ -77,6 +86,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
           python3 -m unittest discover -s tests -p 'test_radio_player.py' -v
           python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
+          python3 -m unittest discover -s tests -p 'test_admin_fly.py' -v
           python3 -m unittest discover -s tests -p 'test_stunt_bonus.py' -v
           python3 -m unittest discover -s tests -p 'test_legacy_race_entries.py' -v
           python3 -m unittest discover -s tests -p 'test_standard_rewards_audit.py' -v
@@ -99,6 +109,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_studio.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_route_lssf.py' -v
+          python3 -m unittest discover -s tests -p 'test_ship_cargo_assembly.py' -v
+          python3 -m unittest discover -s tests -p 'test_ship_surfing.py' -v
 
       - name: Validate controlled NPC load test
         run: |
