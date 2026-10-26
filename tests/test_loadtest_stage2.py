@@ -123,13 +123,13 @@ class LocalDriverSmoke(unittest.TestCase):
             root = Path(tmp)
             binary = root / "fake_rakclient"
             binary.write_text(
-                "#!/usr/bin/env python3\\n"
-                "import time\\n"
-                "print('raknet transport connected', flush=True)\\n"
-                "print('joined game', flush=True)\\n"
-                "print('LT_STATE:authenticated', flush=True)\\n"
-                "print('LT_STATE:spawned', flush=True)\\n"
-                "time.sleep(30)\\n",
+                "#!/usr/bin/env python3\n"
+                "import time\n"
+                "print('raknet transport connected', flush=True)\n"
+                "print('joined game', flush=True)\n"
+                "print('LT_STATE:authenticated', flush=True)\n"
+                "print('LT_STATE:spawned', flush=True)\n"
+                "time.sleep(30)\n",
                 encoding="utf-8",
             )
             binary.chmod(0o755)
