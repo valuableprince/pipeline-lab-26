@@ -34,7 +34,9 @@ class BigEarRotation(unittest.TestCase):
         self.assertIn("stock Dish_Command(playerid, const params[])", DISH)
         self.assertIn("cmd:dish(playerid, params[])", COMMANDS)
         self.assertIn("return Dish_Command(playerid, params);", COMMANDS)
-        self.assertIn("[BIG-EAR] /dish received.", COMMANDS)
+        self.assertIn("Dish_Command(playerid, params)", COMMANDS)
+        self.assertIn("Dish_Usage(playerid)", DISH)
+        self.assertIn("{D9AA55}[TARKENSO]", DISH)
         self.assertIn("Admin_Require(playerid, PERM_MANAGE_STAFF)", DISH)
         for token in ('"auto"', '"stop"', '"status"', '"angle"', '"left"', '"right"'):
             self.assertIn(token, DISH)
