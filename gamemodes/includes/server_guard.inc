@@ -247,7 +247,7 @@ stock Guard_ShowStatus(playerid)
         return 1;
     }
     new line[144];
-    SendClientMessage(playerid, COLOR_AMBER, "Tarkenso Server Guard | диагностика");
+    SendClientMessage(playerid, COLOR_AMBER, "Tarkenso RPG Server Guard | диагностика");
     format(line, sizeof(line), "Таймер: %d мс; максимум: %d мс; задержек: %d.",
         gGuardLastHeartbeatMs, gGuardWorstHeartbeatMs, gGuardDelayedHeartbeatCount);
     SendClientMessage(playerid, COLOR_WHITE, line);
