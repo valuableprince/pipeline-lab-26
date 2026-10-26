@@ -89,8 +89,8 @@ public AdminFly_Tick()
         else if (updown == KEY_DOWN) forwardMove = -1.0;
         if (leftright == KEY_LEFT) sideMove = -1.0;
         else if (leftright == KEY_RIGHT) sideMove = 1.0;
-        if ((keys & KEY_JUMP) != 0) verticalMove = 1.0;
-        else if ((keys & KEY_SPRINT) != 0) verticalMove = -1.0;
+        if ((keys & KEY_JUMP) != KEY:0) verticalMove = 1.0;
+        else if ((keys & KEY_SPRINT) != KEY:0) verticalMove = -1.0;
 
         new Float:scale = floatsqroot(forwardMove * forwardMove + sideMove * sideMove);
         if (scale > 1.0)
