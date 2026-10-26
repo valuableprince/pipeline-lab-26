@@ -5,4 +5,6 @@ username = TARKENSO_DB_USER
 password = CHANGE_ME
 database = TARKENSO_DB_NAME
 server_port = 3306
-# auto_reconnect = true
+# Enable automatic reconnect for the nonblocking recovery probe in
+# db_primary.inc. Existing deployed mysql.ini must also be updated.
+auto_reconnect = true
