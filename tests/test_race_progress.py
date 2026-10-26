@@ -70,8 +70,8 @@ class RaceProgressTest(unittest.TestCase):
         for cmd in ('"stats"', '"top"'):
             self.assertIn(f"!strcmp(params, {cmd}, true)", CORE)
         self.assertIn('#include "race_progress.inc"\n#include "race_core.inc"', AUTH)
-        for build in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
-            self.assertIn('"race_progress.inc"', (ROOT / build).read_text(encoding="utf-8"))
+        for build in ("tools/build_windows.py", ".github/workflows/build.yml"):
+            self.assertIn('glob("*.inc")', (ROOT / build).read_text(encoding="utf-8"))
         PROGRESS.encode("cp1251")
         AUTH.encode("cp1251")
 
