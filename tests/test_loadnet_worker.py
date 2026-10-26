@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PAWN = (ROOT / "gamemodes/includes/loadnet_jobs.inc").read_text(encoding="utf-8")
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
-MIGRATION = (ROOT / "db/migrations/012_loadnet_jobs.sql").read_text(encoding="utf-8")
+MIGRATION = (ROOT / "db/migrations/014_loadnet_jobs.sql").read_text(encoding="utf-8")
 MODULE = ROOT / "tools/loadnet_worker.py"
 spec = importlib.util.spec_from_file_location("loadnet_worker", MODULE)
 worker = importlib.util.module_from_spec(spec)
@@ -39,7 +39,7 @@ class PawnQueueContract(unittest.TestCase):
         self.assertIn("UNIQUE KEY uq_loadtest_one_active (active_slot)", MIGRATION)
         self.assertIn("WHEN state IN ('PENDING','RUNNING','STOP_REQUESTED')", MIGRATION)
         self.assertIn("FOREIGN KEY (account_id) REFERENCES accounts(account_id)", MIGRATION)
-        self.assertIn("VALUES (12)", MIGRATION)
+        self.assertIn("VALUES (14)", MIGRATION)
 
 
 class WorkerTests(unittest.TestCase):
