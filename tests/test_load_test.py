@@ -59,7 +59,7 @@ class LoadTestIntegration(unittest.TestCase):
         self.assertIn('if (!LoadTest_CreateReport(fullScenario))', LOADTEST)
         self.assertLess(LOADTEST.index('if (!LoadTest_CreateReport(fullScenario))'),
                         LOADTEST.index('gLoadRunning = true;'))
-        self.assertIn('if (!strcmp(params, "start", true))', LOADTEST)
+        self.assertIn('if (!strcmp(action, "start", true))', LOADTEST)
         self.assertIn('LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS', LOADTEST)
 
     def test_isolated_report_directory_before_any_npc(self):
@@ -82,11 +82,11 @@ class LoadTestIntegration(unittest.TestCase):
 
     def test_commands_parse_action_separately_from_arguments(self):
         # Regression: /load start 5 120 full previously returned usage.
-        self.assertIn('new split = strfind(params, " ");', LOADTEST)
-        self.assertIn('strmid(action, params, 0, split, sizeof(action));', LOADTEST)
-        self.assertIn('strmid(payload, params, split + 1, strlen(params), sizeof(payload));', LOADTEST)
-        self.assertIn('sscanf(payload, "iis[12]", count, seconds, scenario)', LOADTEST)
-        self.assertIn('sscanf(payload, "ii", count, seconds)', LOADTEST)
+        self.assertIn('new separator = strfind(params, " ");', LOADTEST)
+        self.assertIn('strmid(action, params, 0, separator, sizeof(action));', LOADTEST)
+        self.assertIn('strmid(args, params, separator + 1, strlen(params), sizeof(args));', LOADTEST)
+        self.assertIn('sscanf(args, "iis[12]", count, seconds, scenario)', LOADTEST)
+        self.assertIn('sscanf(args, "ii", count, seconds)', LOADTEST)
         self.assertIn('LoadTest_Start(playerid, count, seconds, true)', LOADTEST)
         self.assertNotIn('sscanf(params, "s[16]", action)', LOADTEST)
         self.assertNotIn('sscanf(params, "s[16]iis[12]"', LOADTEST)
@@ -97,6 +97,17 @@ class LoadTestIntegration(unittest.TestCase):
         self.assertIn('LoadTest_Stop("npc_spawn_failed")', LOADTEST)
         self.assertIn('[LoadTest] Stopped (%s). Folder: %s', LOADTEST)
         self.assertIn('LoadTest_Append(reason);', LOADTEST)
+
+    def test_cli_tokenization_and_npc_pool_recovery(self):
+        self.assertIn('new separator = strfind(params, " ");', LOADTEST)
+        self.assertIn('strmid(action, params, 0, separator, sizeof(action));', LOADTEST)
+        self.assertIn('strmid(args, params, separator + 1, strlen(params), sizeof(args));', LOADTEST)
+        self.assertIn('sscanf(args, "iis[12]", count, seconds, scenario)', LOADTEST)
+        self.assertIn('sscanf(args, "ii", count, seconds)', LOADTEST)
+        self.assertIn('return LoadTest_Start(playerid, count, seconds, true);', LOADTEST)
+        self.assertIn('format(name, sizeof(name), "LT_%d_%d", gLoadRunId, slot)', LOADTEST)
+        self.assertIn('if (gLoadCreateFailures >= 3)', LOADTEST)
+        self.assertIn('Check open.mp NPC capacity', LOADTEST)
 
     def test_no_global_npc_deletion(self):
         self.assertNotIn("NPC_DestroyAll", LOADTEST)

@@ -94,6 +94,20 @@ python3 tools/loadtest_report.py scriptfiles/load_tests/2026-10-26_rev01/load_te
 python3 tools/loadtest_report.py scriptfiles/load_tests/2026-10-26_rev01/load_test.csv --json
 ```
 
+## Troubleshooting first smoke test
+
+- If `/load start 5 120 full` prints syntax help, update `compiled.amx` to
+  a build including this fix, then restart the game server. The command
+  parser now splits `start` from numeric arguments before parsing the mode.
+- If NPCs appear briefly and vanish with `npc_create_failed`, open the
+  run's `load_test.csv` (last `state`) and the host's server log.
+  The Load Tester now logs rejected `NPC_Create` attempts and retries at
+  most three times; it stops honestly if NPC slots remain exhausted.
+  Review server player/NPC capacity and pre-existing NPCs on the host;
+  do not assume that the requested NPC count can be allocated.
+- Begin with `/load start 1 120 full` and then `5 120 full`.
+  The full mode separately requires MySQL migration 013 and working bcrypt.
+
 ## Recommended procedure
 
 1. Verify healthy tickrate and database on the isolated test server.
