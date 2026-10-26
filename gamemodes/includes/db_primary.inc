@@ -618,6 +618,7 @@
     }
 #else
     stock DBPrimary_Init() { return 1; }
+    stock DBPrimary_StartRecoveryMonitor() { return 1; }
     stock DBPrimary_Shutdown() { return 1; }
     stock DBPrimary_OnConnect(playerid)
     {
