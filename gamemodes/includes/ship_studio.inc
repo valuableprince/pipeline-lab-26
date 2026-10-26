@@ -460,6 +460,8 @@ stock Ship_Preset(playerid, bool:reverse)
     if (!Ship_SetRoutePreset(reverse))
         return SendClientMessage(playerid, ADMIN_ERROR,
             "Ошибка загрузки точек маршрута.");
+    // Keep the command-level replay cursor reset explicit for existing contracts.
+    gShipNextPoint = 0;
     SendClientMessage(playerid, SHIP_COLOR,
         reverse ? "Маршрут SF -> LS загружен как черновик." :
                   "Маршрут LS -> SF загружен как черновик.");
