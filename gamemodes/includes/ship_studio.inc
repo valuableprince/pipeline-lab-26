@@ -571,6 +571,13 @@ stock Ship_Command(playerid, const params[])
             "[Tarkenso RPG] Грузовой корабль собран! Маршрут LS -> SF задан, рейс НЕ запущен.");
         return Ship_Status(playerid);
     }
+    if (!strcmp(action, "port", true))
+    {
+        new portParams[64];
+        if (strlen(params) <= 5) return ShipPort_Command(playerid, "");
+        strmid(portParams, params, 5, strlen(params), sizeof(portParams));
+        return ShipPort_Command(playerid, portParams);
+    }
     if (!strcmp(action, "create", true))
     {
         new model;
