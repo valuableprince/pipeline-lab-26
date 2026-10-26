@@ -8,7 +8,7 @@ class ChatStyle(unittest.TestCase):
         diff = ("diff --git a/gamemodes/includes/x.inc b/gamemodes/includes/x.inc\n"
                 "+++ b/gamemodes/includes/x.inc\n"
                 "@@ -1,0 +1,2 @@\n+SendClientMessage(playerid, -1,\n"
-                '+ "[TARKENSO] Готово.");\n')
+                '+ "[Tarkenso RPG] Готово.");\n')
         self.assertEqual(changed_line_numbers(diff)["gamemodes/includes/x.inc"], {1,2})
 
     def test_good_and_bad_calls(self):
@@ -20,9 +20,9 @@ class ChatStyle(unittest.TestCase):
             file = src / "unit.inc"
             path = "gamemodes/includes/unit.inc"
             file.write_text(
-                'SendClientMessage(playerid, ADMIN_OK, "[TARKENSO] Готово.");\n'
+                'SendClientMessage(playerid, ADMIN_OK, "[Tarkenso RPG] Готово.");\n'
                 'SendClientMessage(playerid, ADMIN_ERROR, "Использование: /bad");\n'
-                'SendClientMessage(playerid, -1, "[TARKENSO] Справка: /ahelp");\n',
+                'SendClientMessage(playerid, -1, "[Tarkenso RPG] Справка: /ahelp");\n',
                 encoding="utf-8")
             errors, checked, unknown = check({path: {1,2,3}}, root)
             self.assertEqual(checked, 3)
