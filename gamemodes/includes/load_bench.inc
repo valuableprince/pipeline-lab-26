@@ -28,6 +28,16 @@ new gBenchRunKey[96], gBenchMetricsPath[125], gBenchSummaryPath[125];
 new gBenchLogFailures;
 new gBenchFailureCount;
 
+forward Telemetry_Open();
+forward Telemetry_RecordSQL(ms);
+forward Telemetry_RecordBcrypt(ms, bool:verify);
+forward Telemetry_StartCycle(slot);
+forward Telemetry_FinishCycle(slot);
+forward Telemetry_CountSecond(bool:registration);
+forward Telemetry_Sample(const phase[]);
+forward Telemetry_WriteSummary();
+forward Telemetry_Progress(playerid);
+
 forward Bench_OnHash(playerid, token, slot);
 forward Bench_OnInserted(playerid, token, slot);
 forward Bench_OnLoaded(playerid, token, slot);
@@ -102,6 +112,7 @@ stock Bench_RecordSQL(ms, bool:ok)
     gBenchSQLSum += ms;
     gBenchSQLBuckets[Bench_Bucket(ms, false)]++;
     if (!ok) gBenchSQLFailures++;
+    Telemetry_RecordSQL(ms);
     return 1;
 }
 
@@ -120,6 +131,7 @@ stock Bench_RecordBcrypt(ms, bool:verify)
         gBenchHashSum += ms;
     }
     gBenchBcryptBuckets[Bench_Bucket(ms, true)]++;
+    Telemetry_RecordBcrypt(ms, verify);
     return 1;
 }
 
@@ -165,6 +177,11 @@ stock bool:Bench_Begin(playerid)
     new written = fwrite(metricsHandle, BENCH_METRICS_HEADER);
     fclose(metricsHandle);
     if (written <= 0)
+    {
+        fremove(gBenchMetricsPath);
+        return false;
+    }
+    if (!Telemetry_Open())
     {
         fremove(gBenchMetricsPath);
         return false;
@@ -228,6 +245,7 @@ stock Bench_Sample(const phase[])
     new bytesWritten = fwrite(metricsHandle, line);
     fclose(metricsHandle);
     if (bytesWritten <= 0) gBenchLogFailures++;
+    if (!Telemetry_Sample(phase)) gBenchLogFailures++;
     return bytesWritten > 0;
 }
 
@@ -278,6 +296,7 @@ stock Bench_Finish(const reason[])
         fwrite(summary, "CPU/RAM, true player RTT and network throughput are NOT measured in this mode.\n");
         fwrite(summary, "Synthetic rows persist in loadtest_virtual_accounts until explicitly deleted by run_key; no real accounts are modified.\n");
         fclose(summary);
+        if (!Telemetry_WriteSummary()) gBenchLogFailures++;
     }
     else
     {
@@ -305,6 +324,7 @@ stock Bench_Progress(playerid)
         gBenchHashCount, gBenchVerifyCount, gBenchBcryptMax,
         gBenchWorstRate, gBenchPendingSQL);
     SendClientMessage(playerid, ADMIN_COLOR, msg);
+    Telemetry_Progress(playerid);
     return 1;
 }
 
@@ -331,6 +351,7 @@ stock Bench_Tick()
         new slot = (gBenchCursor + i) % gLoadNPCCount;
         if (gBenchStage[slot] != 0) continue;
         gBenchStage[slot] = 1;
+        Telemetry_StartCycle(slot);
         gBenchStartedMs[slot] = GetTickCount();
         gBenchPendingHash++;
         bcrypt_hash(gBenchOwner, "Bench_OnHash", BENCH_TEST_PASSWORD,
@@ -377,6 +398,7 @@ public Bench_OnInserted(playerid, token, slot)
     Bench_RecordSQL(GetTickCount() - gBenchStartedMs[slot], ok);
     if (!ok) return Bench_MarkFailed(slot);
     gBenchRegistered++;
+    Telemetry_CountSecond(true);
     new q[240];
     mysql_format(gDBPrimary, q, sizeof(q),
         "SELECT password_hash FROM loadtest_virtual_accounts WHERE run_key='%e' AND virtual_id=%d LIMIT 1",
@@ -419,6 +441,7 @@ public Bench_OnVerified(playerid, bool:success, token, slot)
     Bench_RecordBcrypt(GetTickCount() - gBenchStartedMs[slot], true);
     if (!success) return Bench_MarkFailed(slot);
     gBenchAuthenticated++;
+    Telemetry_CountSecond(false);
     new q[250];
     mysql_format(gDBPrimary, q, sizeof(q),
         "UPDATE loadtest_virtual_accounts SET balance=balance+1 WHERE run_key='%e' AND virtual_id=%d",
@@ -444,6 +467,7 @@ public Bench_OnSaved(playerid, token, slot)
     if (!ok) return Bench_MarkFailed(slot);
     gBenchStage[slot] = 6;
     gBenchSaved++;
+    Telemetry_FinishCycle(slot);
     return 1;
 }
 
