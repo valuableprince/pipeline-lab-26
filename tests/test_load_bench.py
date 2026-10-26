@@ -94,7 +94,7 @@ class BenchContracts(unittest.TestCase):
             ROOT / "docs/LOAD_TEST_FULL_METRICS.md").read_text(encoding="utf-8"))
 
     def test_quantiles_are_exact_bounded_nearest_rank(self):
-        self.assertIn('#define TELEMETRY_MAX_SQL (LOADTEST_MAX_NPCS * 3)', TELEMETRY)
+        self.assertIn('#define TELEMETRY_MAX_SQL (LOADTEST_MAX_NPCS * 6)', TELEMETRY)
         self.assertIn('stock Telemetry_Quantile(const values[], count, percentile)', TELEMETRY)
         self.assertIn('sorted[(count * percentile + 99) / 100 - 1]', TELEMETRY)
         self.assertIn('new sorted[TELEMETRY_MAX_SQL]', TELEMETRY)
