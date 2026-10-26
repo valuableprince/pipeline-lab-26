@@ -146,7 +146,7 @@ public ShipSurf_Poll()
 stock ShipSurf_Status(playerid, targetid)
 {
     if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Игрок не подключён.");
+        return SendClientMessage(playerid, ADMIN_ERROR, "[TARKENSO] Игрок не подключён.");
     new line[160];
     format(line, sizeof(line),
         "Surf P%d: watch=%d samples=%d hits=%d entries=%d losses=%d",
@@ -174,30 +174,30 @@ stock ShipSurf_Command(playerid, const params[])
     if (isnull(params) || sscanf(params, "s[16]i", action, targetid))
     {
         SendClientMessage(playerid, SHIPSURF_COLOR,
-            "/shipsurf watch [playerid], off [playerid], status [playerid]");
+            "[TARKENSO] /shipsurf watch [playerid], off [playerid], status [playerid]");
         SendClientMessage(playerid, SHIPSURF_COLOR,
-            "Native-only diagnostic (400ms). Does NOT teleport, freeze or attach players.");
+            "[TARKENSO] Native-only diagnostic (400ms). Does NOT teleport, freeze or attach players.");
         return 1;
     }
     if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Игрок не подключён.");
+        return SendClientMessage(playerid, ADMIN_ERROR, "[TARKENSO] Игрок не подключён.");
     if (!strcmp(action, "status", true))
         return ShipSurf_Status(playerid, targetid);
     if (!strcmp(action, "off", true))
     {
         ShipSurf_Reset(targetid);
         return SendClientMessage(playerid, SHIPSURF_COLOR,
-            "Диагностика игрока выключена, счётчики сброшены.");
+            "[TARKENSO] Диагностика игрока выключена, счётчики сброшены.");
     }
     if (!strcmp(action, "watch", true))
     {
         ShipSurf_Reset(targetid);
         gShipSurfWatch[targetid] = true;
         return SendClientMessage(playerid, SHIPSURF_COLOR,
-            "Диагностика включена. Следите за объектом и переходами surf.");
+            "[TARKENSO] Диагностика включена. Следите за объектом и переходами surf.");
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
-        "Использование: /shipsurf watch|off|status [playerid].");
+        "[TARKENSO] Использование: /shipsurf watch|off|status [playerid].");
 }
 
 stock ShipSurf_Init()
