@@ -337,9 +337,9 @@ stock Ship_Preset(playerid, bool:reverse)
         // Reverse heading must face the next target, not the previous direction.
         if (reverse && j > 0)
         {
-            new Float:dx = gShipPresetLsSf[j - 1][0] - gShipPresetLsSf[j][0];
-            new Float:dy = gShipPresetLsSf[j - 1][1] - gShipPresetLsSf[j][1];
-            gShipPoint[i][3] = floatatan2(-dx, dy, degrees);
+            gShipPoint[i][3] = gShipPresetLsSf[j - 1][3] + 180.0;
+            if (gShipPoint[i][3] >= 360.0)
+                gShipPoint[i][3] -= 360.0;
         }
         else if (reverse)
             gShipPoint[i][3] = gShipPoint[i-1][3];
