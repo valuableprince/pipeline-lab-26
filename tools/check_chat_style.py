@@ -15,10 +15,10 @@ from pathlib import Path
 
 PREFIX = ("[TARKENSO]", "{D9AA55}[TARKENSO]", "{D9AA55}[Tarkenso]")
 ALLOWED_FUNCTIONS = ("SendClientMessage", "SendClientMessageToAll")
-CALL = re.compile(r"\\b(?:SendClientMessage|SendClientMessageToAll)\\s*\\(")
-LITERAL = re.compile(r'"((?:\\\\.|[^"\\\\])*)"')
-TRIGGER = re.compile(r"(?i)(использование\\s*:|синтаксис\\s*:|usage\\s*:)")
-ANSI = re.compile(r"\\{[0-9A-Fa-f]{6}\\}")
+CALL = re.compile(r"\b(?:SendClientMessage|SendClientMessageToAll)\s*\(")
+LITERAL = re.compile(r'"((?:\\.|[^"\\])*)"')
+TRIGGER = re.compile(r"(?i)(использование\s*:|синтаксис\s*:|usage\s*:)")
+ANSI = re.compile(r"\{[0-9A-Fa-f]{6}\}")
 
 
 def changed_line_numbers(diff: str) -> dict[str, set[int]]:
@@ -30,7 +30,7 @@ def changed_line_numbers(diff: str) -> dict[str, set[int]]:
             current = entry[6:]
             continue
         if entry.startswith("@@"):
-            match = re.search(r"\\+(\\d+)(?:,(\\d+))?", entry)
+            match = re.search(r"\+(\d+)(?:,(\d+))?", entry)
             if match:
                 line = int(match.group(1))
             continue
@@ -110,7 +110,7 @@ def main(argv=None):
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     args = parser.parse_args(argv)
     result = subprocess.run(
-        ["git", "diff", "--unified=0", f"{args.base}...HEAD", "--", "gamemodes/"],
+        ["git", "diff", "--unified=0", args.base, "HEAD", "--", "gamemodes/"],
         cwd=args.root, text=True, capture_output=True, check=False,
     )
     if result.returncode:
