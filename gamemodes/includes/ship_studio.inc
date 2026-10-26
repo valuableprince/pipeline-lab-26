@@ -279,6 +279,84 @@ public Ship_Tick()
     return 1;
 }
 
+// SHIP-ROUTE-01: provisional LS Ocean Docks -> SF Easter Basin approach.
+// Verified only against overall GTA SA map / known port areas, NOT in-game.
+// The terminal is an offshore holding point, NOT a pier berthing position.
+// Do NOT run without checking object-envelope clearance, sea bounds and bridges.
+new const Float:gShipPresetLsSf[][4] = {
+    {2640.0, -2740.0, 0.0, 208.07},
+    {2720.0, -2890.0, 0.0, 111.80},
+    {2520.0, -2970.0, 0.0, 88.64},
+    {2100.0, -2960.0, 0.0, 90.00},
+    {1580.0, -2960.0, 0.0, 90.00},
+    {980.0, -2960.0, 0.0, 90.00},
+    {380.0, -2960.0, 0.0, 89.05},
+    {-220.0, -2950.0, 0.0, 90.00},
+    {-820.0, -2950.0, 0.0, 88.18},
+    {-1450.0, -2930.0, 0.0, 85.53},
+    {-2090.0, -2880.0, 0.0, 76.50},
+    {-2590.0, -2760.0, 0.0, 42.71},
+    {-2830.0, -2500.0, 0.0, 13.63},
+    {-2910.0, -2170.0, 0.0, 0.99},
+    {-2920.0, -1590.0, 0.0, 0.00},
+    {-2920.0, -1010.0, 0.0, 0.00},
+    {-2920.0, -430.0, 0.0, 0.00},
+    {-2920.0, 150.0, 0.0, 0.00},
+    {-2920.0, 730.0, 0.0, 359.03},
+    {-2910.0, 1320.0, 0.0, 354.05},
+    {-2860.0, 1800.0, 0.0, 335.70},
+    {-2720.0, 2110.0, 0.0, 292.62},
+    {-2480.0, 2210.0, 0.0, 272.86},
+    {-2080.0, 2230.0, 0.0, 264.43},
+    {-1670.0, 2190.0, 0.0, 244.80},
+    {-1330.0, 2030.0, 0.0, 223.73},
+    {-1110.0, 1800.0, 0.0, 202.17},
+    {-1000.0, 1530.0, 0.0, 190.12},
+    {-950.0, 1250.0, 0.0, 180.00},
+    {-950.0, 990.0, 0.0, 167.47},
+    {-990.0, 810.0, 0.0, 137.73},
+    {-1090.0, 700.0, 0.0, 137.73},
+};
+
+stock Ship_Preset(playerid, bool:reverse)
+{
+    if (!Ship_Ready())
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Сначала создайте или загрузите корабль.");
+    if (gShipRunning)
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Остановите автопилот командой /ship stop.");
+    new count = sizeof(gShipPresetLsSf);
+    if (count > SHIP_MAX_POINTS) return 0;
+    gShipPointCount = count;
+    for (new i = 0; i < count; i++)
+    {
+        new j = reverse ? count - 1 - i : i;
+        for (new k = 0; k < 3; k++)
+            gShipPoint[i][k] = gShipPresetLsSf[j][k];
+        // Reverse heading must face the next target, not the previous direction.
+        if (reverse && j > 0)
+        {
+            new Float:dx = gShipPresetLsSf[j - 1][0] - gShipPresetLsSf[j][0];
+            new Float:dy = gShipPresetLsSf[j - 1][1] - gShipPresetLsSf[j][1];
+            gShipPoint[i][3] = floatatan2(-dx, dy, degrees);
+        }
+        else if (reverse)
+            gShipPoint[i][3] = gShipPoint[i-1][3];
+        else
+            gShipPoint[i][3] = gShipPresetLsSf[j][3];
+    }
+    gShipNextPoint = 0;
+    SendClientMessage(playerid, SHIP_COLOR,
+        reverse ? "Маршрут SF -> LS загружен как черновик." :
+                  "Маршрут LS -> SF загружен как черновик.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "ВНИМАНИЕ: точки НЕ проверены по коллизиям; берег/мосты могут мешать.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "Сначала /ship export и проверка карты. /ship run стартует с первой точки.");
+    return Ship_Status(playerid);
+}
+
 stock Ship_Help(playerid)
 {
     SendClientMessage(playerid, SHIP_COLOR,
@@ -287,6 +365,8 @@ stock Ship_Help(playerid)
         "/ship move [meters], /ship turn [degrees], /ship set [x y z angle], /ship mark.");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship run, /ship stop, /ship undo, /ship save, /ship load, /ship export.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "/ship preset lssf|sfls — готовый черновик морского маршрута (без проверки коллизий).");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
     return 1;
@@ -364,6 +444,17 @@ stock Ship_Command(playerid, const params[])
         Ship_Reset();
         return SendClientMessage(playerid, SHIP_COLOR,
             "Корабль удалён из памяти. Файл сохранения не затронут.");
+    }
+    if (!strcmp(action, "preset", true))
+    {
+        new direction[16];
+        if (sscanf(params, "s[24]s[16]", action, direction))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Использование: /ship preset lssf|sfls.");
+        if (!strcmp(direction, "lssf", true)) return Ship_Preset(playerid, false);
+        if (!strcmp(direction, "sfls", true)) return Ship_Preset(playerid, true);
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Направление: lssf (LS -> SF) или sfls (SF -> LS).");
     }
     if (!Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
         "Нет корабля. /ship create [model] или /ship load.");
