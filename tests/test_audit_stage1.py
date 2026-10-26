@@ -40,6 +40,21 @@ class DatabaseRecoveryContracts(unittest.TestCase):
         self.assertNotIn("Kick(playerid);", error_handler)
         self.assertNotIn('printf("%s", query)', error_handler)
 
+    def test_transport_errors_in_synchronous_writes_are_detected(self):
+        execute = DB.split("stock bool:DBPrimary_Execute(", 1)[1].split(
+            "stock bool:DBPrimary_AccountExists(", 1)[0]
+        handler = DB.split("public OnQueryError(", 1)[1].split(
+            "\\n#else", 1)[0]
+        self.assertIn("new code = mysql_errno(gDBPrimary);", execute)
+        self.assertIn("DBPrimary_MarkDegraded(code);", execute)
+        self.assertIn("DBPrimary_MarkDegraded(errorid);", handler)
+        transport = DB.split("stock bool:DBPrimary_MarkDegraded(", 1)[1].split(
+            "stock bool:DBPrimary_Execute(", 1)[0]
+        for code in ("2002", "2003", "2006", "2013", "2055"):
+            self.assertIn(code, transport)
+        self.assertIn("gDBPrimaryReady = false;", transport)
+        self.assertNotIn("Kick(i)", transport)
+
     def test_connection_errors_pause_writes_and_probe_asynchronously(self):
         for marker in (
             "gDBPrimaryDegraded = true;",
