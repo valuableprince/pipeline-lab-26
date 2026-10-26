@@ -230,13 +230,13 @@ stock AdminHelp_Usage(playerid, const command[])
         return SendClientMessage(playerid, ADMIN_ERROR, "Команда вам недоступна.");
 
     new message[192];
-    format(message, sizeof(message), "{D9AA55}[Tarkenso RPG] {FFFFFF}Синтаксис: {B6E4B3}%s",
+    format(message, sizeof(message), "{9FAAB8}[Tarkenso RPG] {FFFFFF}Синтаксис: {B6E4B3}%s",
         gAdminHelp[index][ahUsage]);
     SendClientMessage(playerid, -1, message);
-    format(message, sizeof(message), "{9FAAB8}Описание: {FFFFFF}%s",
+    format(message, sizeof(message), "{9FAAB8}[Tarkenso RPG] {FFFFFF}Описание: %s",
         gAdminHelp[index][ahPurpose]);
     SendClientMessage(playerid, -1, message);
-    format(message, sizeof(message), "{9FAAB8}Пример: {B6E4B3}%s {9FAAB8}| Подробнее: /ahelp %s",
+    format(message, sizeof(message), "{9FAAB8}[Tarkenso RPG] {FFFFFF}Пример: {B6E4B3}%s {9FAAB8}| Подробнее: /ahelp %s",
         gAdminHelp[index][ahExample], gAdminHelp[index][ahName]);
     return SendClientMessage(playerid, -1, message);
 }
