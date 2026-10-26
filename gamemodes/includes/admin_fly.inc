@@ -6,7 +6,7 @@
 // ADMIN-FLY-01: server-native flight with per-player gravity disabled.
 // The feature is restricted to authorized staff actively on /aduty.
 #define ADMIN_FLY_TICK_MS (100)
-#define ADMIN_FLY_COLOR (0x9BCFF5FF)
+#define ADMIN_FLY_COLOR ADMIN_COLOR
 #define ADMIN_FLY_SPEED (0.24)
 #define ADMIN_FLY_LIFT (0.18)
 
@@ -43,21 +43,21 @@ stock AdminFly_Command(playerid, const params[])
     {
         AdminFly_Stop(playerid);
         return SendClientMessage(playerid, ADMIN_FLY_COLOR,
-            "Полёт выключен. Обычная гравитация восстановлена.");
+            "[TARKENSO] Полёт выключен. Обычная гравитация восстановлена.");
     }
     if (GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         GetPlayerSpecialAction(playerid) == SPECIAL_ACTION_USEJETPACK ||
         Race_IsParticipant(playerid) || AdminPunish_IsJailed(playerid))
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Режим полёта доступен только пешком, вне гонок, джетпака и наказаний.");
+            "[TARKENSO] Полёт доступен только пешком, вне гонок, джетпака и наказаний.");
     gAdminFlyOldGravity[playerid] = GetPlayerGravity(playerid);
     if (!SetPlayerGravity(playerid, 0.0))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Не удалось включить полёт.");
+        return SendClientMessage(playerid, ADMIN_ERROR, "[TARKENSO] Не удалось включить полёт.");
     gAdminFly[playerid] = true;
     SendClientMessage(playerid, ADMIN_FLY_COLOR,
-        "Полёт включён: W/S вперёд-назад, A/D вбок, прыжок вверх, спринт вниз.");
+        "[TARKENSO] Полёт: W/S вперёд-назад, A/D вбок, прыжок вверх, спринт вниз.");
     return SendClientMessage(playerid, ADMIN_FLY_COLOR,
-        "Направление движения зависит от камеры. /fly повторно — выключить.");
+        "[TARKENSO] Камера задаёт направление. /fly — выключить. Справка: /ahelp fly.");
 }
 
 public AdminFly_Tick()
