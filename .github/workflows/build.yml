@@ -106,6 +106,10 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_loadtest_stage2.py' -v
 
+      - name: Validate PC LoadNet worker
+        run: |
+          python3 -m unittest discover -s tests -p 'test_loadnet_worker.py' -v
+
       - name: Compile source
         shell: bash
         run: |
