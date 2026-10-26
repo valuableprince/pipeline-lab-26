@@ -20,22 +20,39 @@ The earlier scriptfiles/load_test.enabled flag is no longer required.
 
 ```
 /aduty
-/loadtest status
-/loadtest start 25 60
-/loadtest start 100 120
-/loadtest stop
+/load start
+/load start 25 60
+/load start 100 120
+/load status
+/load stop
 ```
 
-- Allowed range: **1–100 NPCs**, **10–300 seconds**.
-- The founder must be spawned outdoors before starting.
-- At most four NPCs are spawned per second; movement is also bounded.
-- NPCs are spawned in the founder's virtual world, close to their location.
-  Use an empty test world: this is intentionally visible to clients in
-  that world and may reduce their FPS.
-- At most one run is active. Auto-stop occurs on timeout, owner disconnect,
-  removed flag, failed creation/spawn, or three consecutive tickrate readings
-  below 20. The server stopping also cleans up the probe.
-- Only NPC IDs created by the probe are removed. Other game NPCs are untouched.
+`/loadtest` is also supported as an alias. The shorter `/load start`
+starts a 25-NPC, 60-second run. Valid explicit limits are 1–100 NPCs
+and 10–300 seconds. The founder must be spawned outdoors.
+
+- At most four NPCs spawn per second; movement is also bounded.
+- NPCs appear in the founder's virtual world near the founder.
+- Only one run can be active, with automatic stop on timeout,
+  founder disconnect or permission loss, spawn failure, or low tickrate.
+- Only probe-created NPCs are cleaned up.
+
+## Per-run reports
+
+Every successful start creates its own CSV under `scriptfiles`,
+for example:
+
+```
+load_test_01_26.10.2026.csv
+load_test_02_26.10.2026.csv
+load_test_01_27.10.2026.csv
+```
+
+The date is read from the game server clock, which might have a different
+timezone than the operator. The two-digit revision is the daily run number,
+not the code revision. Revisions run from 01 to 999 (numbers beyond 99
+use three digits). A previously existing file is skipped, never replaced.
+If report creation fails, no NPCs are spawned.
 
 ## Telemetry
 
