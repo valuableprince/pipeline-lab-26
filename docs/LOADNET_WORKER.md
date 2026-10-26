@@ -49,6 +49,7 @@ Login as authenticated founder and enable /aduty, then:
 
     /loadnet start 1 90 register
     /loadnet status
+    /loadnet report
     /loadnet stop
 
 After verifying a real registration and spawn, increase to 5, 10, 25 and 50.
