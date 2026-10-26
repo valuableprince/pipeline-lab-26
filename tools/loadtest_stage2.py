@@ -289,15 +289,18 @@ def run(args: argparse.Namespace) -> int:
                     log = target / f"{nick}.log"
                     env = dict(os.environ)
                     env.pop("TARKENSO_LOAD_PASSWORD", None)
-                    env["RAKCLIENT_LOG"] = str(log.resolve())
+                    env.pop("RAKCLIENT_LOG", None)  # Works across upstream versions.
                     env["RUST_LOG"] = "info"
                     command = [
                         str(args.client_bin.resolve()), "--server", args.server,
                         "--nick", nick, "--scripts-dir", str(scripts.resolve())
                     ]
-                    proc = subprocess.Popen(command, cwd=sandbox, env=env,
-                                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                            stderr=subprocess.DEVNULL)
+                    # Capture stdout for upstream 0.2.0, which lacks RAKCLIENT_LOG.
+                    with log.open("wb") as transcript:
+                        proc = subprocess.Popen(
+                            command, cwd=sandbox, env=env,
+                            stdin=subprocess.DEVNULL, stdout=transcript,
+                            stderr=subprocess.STDOUT)
                     bots.append({"nick": nick, "process": proc, "log": log})
                     print(f"[stage2] launched {len(bots)}/{args.count}: {nick}")
                     next_launch = now + 1.0 / args.rate
