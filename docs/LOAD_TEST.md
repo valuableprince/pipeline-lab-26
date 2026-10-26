@@ -39,24 +39,38 @@ and 10–300 seconds. The founder must be spawned outdoors.
 
 ## Per-run reports
 
-Every successful start creates its own CSV under `scriptfiles`,
-for example:
+Every run first reserves a separate dated directory inside `scriptfiles/load_tests`.
+For example:
 
+```text
+scriptfiles/
+  load_tests/
+    2026-10-26_rev01/
+      run.info
+      load_test.csv
+    2026-10-26_rev02/
+      run.info
+      load_test.csv
+    2026-10-27_rev01/
+      run.info
+      load_test.csv
 ```
-load_test_01_26.10.2026.csv
-load_test_02_26.10.2026.csv
-load_test_01_27.10.2026.csv
-```
+
+`run.info` records the scenario and run revision. In `full` mode, the
+same directory also contains `metrics.csv`, `advanced.csv` and
+`summary.txt`. The folder is created **before any NPC is spawned**.
+Even partially written or aborted directories are reserved, never reused.
 
 The date is read from the game server clock, which might have a different
-timezone than the operator. The two-digit revision is the daily run number,
-not the code revision. Revisions run from 01 to 999 (numbers beyond 99
-use three digits). A previously existing file is skipped, never replaced.
-If report creation fails, no NPCs are spawned.
+timezone than the operator. The revision is the daily test-run number,
+not a Git/software version. Revisions run from 01 through 999 (numbers beyond
+99 use three digits). Previously existing folders are skipped, never replaced.
+If report initialization fails, no NPCs spawn; the reserved directory may remain
+for diagnostics. Older flat CSV files are neither moved nor deleted.
 
 ## Telemetry
 
-New log file per run: `scriptfiles/load_test_01_DD.MM.YYYY.csv` (with CSV header).
+New log file per run: `scriptfiles/load_tests/YYYY-MM-DD_revNN/load_test.csv` (with CSV header).
 
 Each row contains 10 comma-separated columns:
 
@@ -71,13 +85,13 @@ server-reported values, **not** end-to-end network RTT or CPU/RAM metrics.
 `guard_delayed_count` is cumulative since server startup, not per run.
 
 Available `state` examples: `start`, `running`, `complete`,
-`manual`, `low_tickrate`, `owner_disconnect`, `flag_removed`.
+`manual`, `low_tickrate`, `owner_disconnect`, `owner_unavailable`.
 
 To summarize recorded runs:
 
 ```bash
-python3 tools/loadtest_report.py scriptfiles/load_test_01_26.10.2026.csv
-python3 tools/loadtest_report.py scriptfiles/load_test_01_26.10.2026.csv --json
+python3 tools/loadtest_report.py scriptfiles/load_tests/2026-10-26_rev01/load_test.csv
+python3 tools/loadtest_report.py scriptfiles/load_tests/2026-10-26_rev01/load_test.csv --json
 ```
 
 ## Recommended procedure
