@@ -168,6 +168,8 @@ stock Dish_Shutdown()
 
 stock Dish_Status(playerid)
 {
+    // Immediate acknowledgment before reading the rotation or formatting status.
+    Dish_Message(playerid, "Радиотелескоп: запрос состояния принят.");
     if (!Dish_Ready())
         return Dish_Message(playerid, "Радиотелескоп недоступен: объект не создан.", true);
 
