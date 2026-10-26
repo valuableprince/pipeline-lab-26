@@ -183,10 +183,11 @@ stock Dish_Status(playerid)
     return 1;
 }
 
-stock bool:Dish_ParseNumber(const params[], Float:&value)
+stock bool:Dish_ParseNumber(const params[], number[], capacity)
 {
     // Parse the first word and numeric token independently of sscanf's float specifier.
-    new command[16], number[24], extra[4];
+    new command[16], extra[4];
+    if (capacity < 24) return false;
     if (!sscanf(params, "s[16]s[24]s[4]", command, number, extra))
         return false; // More than two arguments.
     if (sscanf(params, "s[16]s[24]", command, number)) return false;
@@ -204,7 +205,6 @@ stock bool:Dish_ParseNumber(const params[], Float:&value)
         digitCount++;
     }
     if (!digitCount) return false;
-    value = floatstr(number);
     return true;
 }
 
@@ -241,8 +241,8 @@ stock Dish_Command(playerid, const params[])
         return Dish_Message(playerid, "The Big Ear: автоматическое сканирование включено.");
     }
 
-    new Float:value;
-    if (!Dish_ParseNumber(params, value))
+    new number[24];
+    if (!Dish_ParseNumber(params, number, sizeof(number)))
         return Dish_Message(playerid, "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.", true);
 
     new Float:target;
