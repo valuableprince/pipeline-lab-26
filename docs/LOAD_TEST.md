@@ -56,7 +56,7 @@ If report creation fails, no NPCs are spawned.
 
 ## Telemetry
 
-Log file: `scriptfiles/loadtest.csv` (append-only, no header).
+New log file per run: `scriptfiles/load_test_01_DD.MM.YYYY.csv` (with CSV header).
 
 Each row contains 10 comma-separated columns:
 
@@ -76,8 +76,8 @@ Available `state` examples: `start`, `running`, `complete`,
 To summarize recorded runs:
 
 ```bash
-python3 tools/loadtest_report.py scriptfiles/loadtest.csv
-python3 tools/loadtest_report.py scriptfiles/loadtest.csv --json
+python3 tools/loadtest_report.py scriptfiles/load_test_01_26.10.2026.csv
+python3 tools/loadtest_report.py scriptfiles/load_test_01_26.10.2026.csv --json
 ```
 
 ## Recommended procedure
@@ -86,7 +86,7 @@ python3 tools/loadtest_report.py scriptfiles/loadtest.csv --json
 2. Start 25 NPCs for 60 seconds, observe logs and in-game movement.
 3. Repeat at 50 and 100 NPCs with 120-second durations.
 4. Collect CSV, server logs, CPU/RAM observations and SQL latencies separately.
-5. Remove `load_test.enabled` after testing.
+5. Read the per-run CSV. Former combined `loadtest.csv` remains readable by the CLI.
 
 **Limitations:** Stage 1 tests server NPC/world processing and associated
 game-loop responsiveness only. It does not load bcrypt, `mysql_tquery`,
