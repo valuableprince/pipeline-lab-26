@@ -30,8 +30,8 @@ new gBenchFailureCount;
 // Continuous workload: one outstanding task per virtual account, <=4 per tick.
 // 6 ready, 8 read in flight, 9 write in flight; no real player data touched.
 new gBenchNextAction[LOADTEST_MAX_NPCS];
-new gBenchActions, gBenchReads, gBenchWrites, gBenchPaydayWrites;
-new gBenchActionErrors, gBenchLastPaydayMinute;
+new gBenchReads, gBenchWrites, gBenchPaydayWrites;
+new gBenchActionErrors;
 new gBenchContinuousPath[125];
 new bool:gBenchLastReady;
 new gBenchLastVerdict[16], gBenchLastReason[32];
@@ -222,12 +222,10 @@ stock bool:Bench_Begin(playerid)
     gBenchVerifySum = 0;
     gBenchBcryptMax = 0;
     gBenchFailureCount = 0;
-    gBenchActions = 0;
     gBenchReads = 0;
     gBenchWrites = 0;
     gBenchPaydayWrites = 0;
     gBenchActionErrors = 0;
-    gBenchLastPaydayMinute = -1;
     for (new a = 0; a < LOADTEST_MAX_NPCS; a++) gBenchNextAction[a] = 0;
     gBenchLogFailures = 0;
     gBenchCursor = 0;
