@@ -70,11 +70,6 @@ jobs:
               (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
           PY
 
-      - name: Run complete Python regression suite
-        run: |
-          python3 -m compileall -q tools tests
-          python3 -m unittest discover -s tests -v
-
       - name: Compile source
         shell: bash
         run: |
@@ -85,6 +80,11 @@ jobs:
           python3 tools/check_pawn_output.py build/compiler.log
           test -s build/compiled.amx
           echo "MySQL-primary AMX: $(stat -c %s build/compiled.amx) bytes"
+
+      - name: Run complete Python regression suite
+        run: |
+          python3 -m compileall -q tools tests
+          python3 -m unittest discover -s tests -v
 
       - name: Upload compiled output
         if: success()
