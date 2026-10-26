@@ -65,6 +65,12 @@ cmd:guardstatus(playerid, params[])
     return Guard_ShowStatus(playerid);
 }
 
+// Both names are available; /load is the short operator command.
+cmd:load(playerid, params[])
+{
+    return LoadTest_Command(playerid, params);
+}
+
 cmd:loadtest(playerid, params[])
 {
     return LoadTest_Command(playerid, params);
