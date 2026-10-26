@@ -77,6 +77,9 @@ class BenchContracts(unittest.TestCase):
         self.assertIn('Telemetry_Sample(phase)', BENCH)
         self.assertIn('Telemetry_WriteSummary()', BENCH)
         self.assertIn('Telemetry_Progress(playerid);', BENCH)
+        self.assertIn('stock Bench_Report(playerid)', BENCH)
+        self.assertIn('if (!strcmp(action, "report", true)) return Bench_Report(playerid);', NPC)
+        self.assertIn('gBenchLastReady = true;', BENCH)
         self.assertIn('Telemetry_Open()', BENCH)
 
     def test_quantiles_are_exact_bounded_nearest_rank(self):
