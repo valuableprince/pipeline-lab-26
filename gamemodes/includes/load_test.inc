@@ -47,7 +47,7 @@ stock LoadTest_Init()
     return 1;
 }
 
-stock LoadTest_Append(const state[])
+stock LoadTest_Append(const phase[])
 {
     // One file write per five seconds. File is diagnostic, not authoritative.
     new File:log = fopen(LOADTEST_REPORT_FILE, io_append);
@@ -56,7 +56,7 @@ stock LoadTest_Append(const state[])
     format(line, sizeof(line), "%d,%d,%d,%d,%d,%d,%d,%d,%d,%s\n",
         gLoadRunId, gettime() - gLoadStartedAt, gLoadNPCCount,
         gLoadNPCTarget, GetServerTickRate(), gLoadMinTickrate,
-        gLoadWorstTickMs, gGuardLastHeartbeatMs, gGuardDelayedHeartbeatCount, state);
+        gLoadWorstTickMs, gGuardLastHeartbeatMs, gGuardDelayedHeartbeatCount, phase);
     new written = fwrite(log, line);
     fclose(log);
     return written > 0;
