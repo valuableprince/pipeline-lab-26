@@ -68,9 +68,7 @@ stock Telemetry_CountSecond(bool:registration)
 stock Telemetry_Open()
 {
     // The legacy report is already reserved; derive a second, uniquely named file.
-    new stem[96];
-    strmid(stem, gLoadReportFile, 0, strlen(gLoadReportFile) - 4, sizeof(stem));
-    format(gTelemetryPath, sizeof(gTelemetryPath), "%s_advanced.csv", stem);
+    format(gTelemetryPath, sizeof(gTelemetryPath), "%s/advanced.csv", gLoadReportDir);
     new File:out = fopen(gTelemetryPath, io_write);
     if (!out) return 0;
     new written = fwrite(out, TELEMETRY_HEADER);
