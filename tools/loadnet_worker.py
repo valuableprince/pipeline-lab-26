@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import argparse
 import csv
-from datetime import datetime
+import ipaddress
 import os
+import re
 from pathlib import Path
 import signal
 import subprocess
@@ -20,6 +21,18 @@ MAX_CLIENTS = 50
 MAX_SECONDS = 600
 MAX_LAUNCH_RATE = 0.5
 DEFAULT_POLL = 2.0
+
+def validate_target(server: str, confirmation: str) -> None:
+    if server != confirmation:
+        raise ValueError("game target confirmation mismatch")
+    if server.count(":") != 1:
+        raise ValueError("target must be host:port")
+    host, port_text = server.split(":")
+    if not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", host):
+        raise ValueError("invalid game host")
+    if not port_text.isascii() or not port_text.isdecimal() or not 1 <= int(port_text) <= 65535:
+        raise ValueError("invalid game port")
+
 
 def validate_job(job: dict) -> tuple[int, int, str, str]:
     count = int(job["target_clients"])
@@ -132,8 +145,18 @@ def connect_db():
     port_raw = os.getenv("TARKENSO_DB_PORT", "3306")
     if not port_raw.isascii() or not port_raw.isdecimal() or not 1 <= int(port_raw) <= 65535:
         raise RuntimeError("Invalid TARKENSO_DB_PORT")
+    host = os.environ["TARKENSO_DB_HOST"]
+    try:
+        loopback = ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        loopback = host.lower() == "localhost"
+    ca = os.environ.get("TARKENSO_DB_SSL_CA")
+    if not loopback and not ca:
+        raise RuntimeError("Remote MySQL requires TARKENSO_DB_SSL_CA with verified TLS; "
+                           "use an SSH tunnel to 127.0.0.1 otherwise")
+    tls = {"ssl_ca": ca, "ssl_verify_cert": True, "ssl_verify_identity": True} if ca else {}
     return pymysql.connect(
-        host=os.environ["TARKENSO_DB_HOST"],
+        host=host,
         port=int(port_raw),
         user=os.environ["TARKENSO_DB_USER"],
         password=os.environ["TARKENSO_DB_PASSWORD"],
@@ -144,6 +167,7 @@ def connect_db():
         read_timeout=5,
         write_timeout=5,
         cursorclass=pymysql.cursors.DictCursor,
+        **tls,
     )
 
 
@@ -271,7 +295,6 @@ def run_job(db, job: dict, args) -> None:
 
 
 def run_loop(args) -> int:
-    import importlib.util
     runner = Path(__file__).resolve().with_name("loadtest_stage2.py")
     if not runner.is_file() or not args.client_bin.is_file():
         raise RuntimeError("loadtest_stage2.py or RakClient binary is missing")
@@ -279,10 +302,7 @@ def run_loop(args) -> int:
         raise RuntimeError("poll must be 0.5..10 seconds")
     if not os.getenv("TARKENSO_LOAD_PASSWORD"):
         raise RuntimeError("Set TARKENSO_LOAD_PASSWORD for test accounts")
-    from loadtest_stage2 import parse_target
-    parse_target(args.server)
-    if args.confirm_target != args.server:
-        raise RuntimeError("game target confirmation mismatch")
+    validate_target(args.server, args.confirm_target)
     args.output.mkdir(parents=True, exist_ok=True)
     print("[loadnet] Worker started. Polling MySQL; Ctrl+C stops the worker.")
     while True:
@@ -320,10 +340,7 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     try:
-        from loadtest_stage2 import parse_target
-        parse_target(args.server)
-        if args.server != args.confirm_target:
-            raise ValueError("game target confirmation mismatch")
+        validate_target(args.server, args.confirm_target)
         if args.dry_run:
             print(f"[loadnet] DRY RUN: target={args.server}, worker={Path(__file__).name}, "
                   f"client={args.client_bin} (no MySQL or network access)")
