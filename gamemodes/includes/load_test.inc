@@ -414,27 +414,43 @@ stock LoadTest_Command(playerid, const params[])
         if (isnull(args))
             return LoadTest_Start(playerid, LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS);
 
-        new count, seconds, scenario[12], pace;
-        if (!sscanf(args, "iis[12]i", count, seconds, scenario, pace))
+        // sscanf s[] consumes the remainder of an input string; a format
+        // like "iis[12]i" therefore swallows "full 1" into the mode.
+        // Split into bounded words before parsing numeric fields.
+        new words[4][16], wordCount, begin = 0;
+        new length = strlen(args);
+        for (new j = 0; j <= length; j++)
         {
-            if (!strcmp(scenario, "full", true))
-                return LoadTest_Start(playerid, count, seconds, true, pace);
-            if (!strcmp(scenario, "npc", true))
-                return LoadTest_Start(playerid, count, seconds, false, pace);
-            return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Scenario: npc or full.");
+            if (args[j] != ' ' && args[j] != EOS) continue;
+            if (j > begin)
+            {
+                if (wordCount >= 4 || j - begin >= sizeof(words[]))
+                    return SendClientMessage(playerid, ADMIN_ERROR,
+                        "[LoadTest] Too many or too long arguments.");
+                strmid(words[wordCount], args, begin, j, sizeof(words[]));
+                wordCount++;
+            }
+            begin = j + 1;
         }
-        if (!sscanf(args, "iis[12]", count, seconds, scenario))
+        if (wordCount < 2 || wordCount > 4)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[LoadTest] Usage: /load start 25 180 full 1.");
+        new count, seconds, pace = 1;
+        if (sscanf(words[0], "i", count) || sscanf(words[1], "i", seconds))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[LoadTest] Count and seconds must be numbers.");
+        if (wordCount == 4 && sscanf(words[3], "i", pace))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[LoadTest] Spawn rate must be numeric (1..4).");
+        new bool:fullMode = false;
+        if (wordCount >= 3)
         {
-            if (!strcmp(scenario, "full", true))
-                return LoadTest_Start(playerid, count, seconds, true);
-            if (!strcmp(scenario, "npc", true))
-                return LoadTest_Start(playerid, count, seconds);
-            return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Scenario: npc or full.");
+            if (!strcmp(words[2], "full", true)) fullMode = true;
+            else if (strcmp(words[2], "npc", true))
+                return SendClientMessage(playerid, ADMIN_ERROR,
+                    "[LoadTest] Scenario: npc or full.");
         }
-        if (!sscanf(args, "ii", count, seconds))
-            return LoadTest_Start(playerid, count, seconds);
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            "[LoadTest] Usage: /load start 25 180 full 1 (rate 1..4 NPC/sec).");
+        return LoadTest_Start(playerid, count, seconds, fullMode, pace);
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
         "[LoadTest] /load start [count] [seconds] [npc|full] | status | report | stop.");
