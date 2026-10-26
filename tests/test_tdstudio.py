@@ -74,6 +74,29 @@ class TextDrawStudioIntegration(unittest.TestCase):
         self.assertIn("python3 tools/test_tdstudio.py", source)
         self.assertIn("test_tdstudio.py", source)
 
+    def test_keyboard_input_does_not_bypass_host_or_sorting(self):
+        body = GAME.split("public OnPlayerKeyStateChange(", 1)[1].split("\n}", 1)[0]
+        self.assertLess(body.index("TDSInput_OnKeys"), body.index("SortUI_OnKeyStateChange"))
+        for name in ("Story_OnKeyStateChange", "Truck_OnKeyStateChange", "Cleaner_OnKeyStateChange"):
+            self.assertIn(name, body)
+        update = GAME.split("public OnPlayerUpdate(", 1)[1].split("\n}", 1)[0]
+        self.assertIn("TDSInput_OnUpdate(playerid)", update)
+        self.assertIn("return 1;", update)
+        state = GAME.split("public OnPlayerStateChange(", 1)[1].split("\n}", 1)[0]
+        self.assertIn("TDS_MOVE_MODE", state)
+        self.assertIn("Race_OnStateChange", state)
+        self.assertIn("Truck_OnStateChange", state)
+
+    def test_movement_cannot_enqueue_or_serialize_an_unconfirmed_position(self):
+        for filename, functions in (
+            ("tdstudio_db.inc", ("TDSDB_Save", "TDSDB_Load", "TDSDB_List", "TDSDB_Delete")),
+            ("tdstudio_export.inc", ("TDS_Export",)),
+        ):
+            source = (INC / filename).read_text(encoding="utf-8")
+            for function in functions:
+                body = source.split(f"stock {function}(", 1)[1].split("\n}", 1)[0]
+                self.assertIn("TDS_MOVE_MODE", body, function)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,9 @@ new gDBPrimaryAccountId[MAX_PLAYERS];
 new bool:gDBPrimaryLoaded[MAX_PLAYERS], bool:gAccountSpawned[MAX_PLAYERS];
 new bool:gAccountDead[MAX_PLAYERS], bool:gSortOpen[MAX_PLAYERS];
 new bool:tConnected[MAX_PLAYERS], bool:tFounder[MAX_PLAYERS];
+new bool:gAdminFrozen[MAX_PLAYERS], bool:tControl[MAX_PLAYERS], bool:tRace[MAX_PLAYERS], bool:tJailed[MAX_PLAYERS];
+new PLAYER_STATE:tState[MAX_PLAYERS], KEY:tKeys[MAX_PLAYERS], tUD[MAX_PLAYERS], tLR[MAX_PLAYERS];
+new tFreeze, tUnfreeze, bool:tFreezeFail;
 new bool:tAudit = true;
 new bool:tExists[MAX_PLAYERS][256], bool:tShown[MAX_PLAYERS][256];
 new bool:tSelectable[MAX_PLAYERS][256];
@@ -30,16 +33,23 @@ stock bool:Admin_LogPlayer(playerid, const action[], const detail[]) {
     #pragma unused playerid, action, detail
     return tAudit; }
 stock bool:Race_IsParticipant(playerid) {
-    #pragma unused playerid
-    return false; }
+    return tRace[playerid]; }
 stock bool:AdminPunish_IsJailed(playerid) {
-    #pragma unused playerid
-    return false; }
+    return tJailed[playerid]; }
 
 stock bool:MockConnected(playerid) { return playerid >= 0 && playerid < MAX_PLAYERS && tConnected[playerid]; }
 stock PLAYER_STATE:MockState(playerid) {
-    #pragma unused playerid
-    return PLAYER_STATE_ONFOOT; }
+    return tState[playerid]; }
+stock bool:MockControl(playerid) { return tControl[playerid]; }
+stock bool:MockToggleControl(playerid, bool:enable)
+{
+    if (tFreezeFail && !enable) return false;
+    tControl[playerid] = enable;
+    if (enable) tUnfreeze++; else tFreeze++;
+    return true;
+}
+stock bool:MockKeys(playerid, &KEY:keys, &ud, &lr)
+{ keys = tKeys[playerid]; ud = tUD[playerid]; lr = tLR[playerid]; return true; }
 stock MockMessage(playerid, colour, const text[]) {
     #pragma unused playerid, colour, text
     return 1; }
@@ -132,6 +142,9 @@ stock MockVeh(playerid, PlayerText:td, a, b)
 
 #define IsPlayerConnected MockConnected
 #define GetPlayerState MockState
+#define IsPlayerControllable MockControl
+#define TogglePlayerControllable MockToggleControl
+#define GetPlayerKeys MockKeys
 #define SendClientMessage MockMessage
 #define GetTickCount MockTick
 #define HidePlayerDialog MockHideDialog
@@ -192,6 +205,8 @@ stock Ready(playerid, bool:founder = false)
     gAuthState[playerid] = AUTH_READY; tFounder[playerid] = founder;
     gDBPrimaryAccountId[playerid] = playerid + 100; gDBPrimaryLoaded[playerid] = true;
     gAccountSpawned[playerid] = true; tDialog[playerid] = INVALID_DIALOG_ID;
+    tState[playerid] = PLAYER_STATE_ONFOOT; tControl[playerid] = true;
+    tKeys[playerid] = KEY:0; tUD[playerid] = 0; tLR[playerid] = 0;
     return 1;
 }
 stock Answer(playerid, dialogid, response, row, const text[] = "")

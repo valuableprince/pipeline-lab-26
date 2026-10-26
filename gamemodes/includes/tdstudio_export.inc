@@ -247,7 +247,7 @@ stock TDSExp_Tick(session)
 stock TDS_Export(playerid)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy] || !TDS_ProjectValid(s)) return 0;
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE || !TDS_ProjectValid(s)) return 0;
     new slug[5], at;
     for (new i; gTDS[s][tsName][i] && at < 4; i++)
     {

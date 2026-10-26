@@ -1044,11 +1044,21 @@ public Auth_DeathRespawn(playerid, token)
 
 public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
-    if (TDS_Active(playerid)) return 1;
+    if (TDS_Active(playerid))
+    {
+        TDSInput_OnKeys(playerid, newkeys);
+        return 1;
+    }
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
+    return 1;
+}
+
+public OnPlayerUpdate(playerid)
+{
+    if (TDS_Active(playerid)) TDSInput_OnUpdate(playerid);
     return 1;
 }
 
@@ -1077,6 +1087,9 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    new studio = TDS_Session(playerid);
+    if (studio >= 0 && gTDS[studio][tsMode] == TDS_MOVE_MODE && newstate != PLAYER_STATE_ONFOOT)
+        TDS_Close(playerid);
     Race_OnStateChange(playerid, newstate, oldstate);
     Truck_OnStateChange(playerid, newstate, oldstate);
     if (gCleanerDuty[playerid] && gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&

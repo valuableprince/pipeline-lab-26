@@ -46,3 +46,11 @@ stock bool:TDSHost_LogGrant(playerid, target, bool:allow)
     format(detail, sizeof(detail), "target=%d account=%d allow=%d", target, TDSHost_Account(target), _:allow);
     return bool:Admin_LogPlayer(playerid, "TDSTUDIO_ACCESS", detail);
 }
+
+// Shared entry/release policy: never undo an admin/race/authentication freeze.
+stock bool:TDSHost_ControlAllowed(playerid)
+{
+    return TDSHost_Ready(playerid) && gAccountSpawned[playerid] && !gAccountDead[playerid] &&
+        GetPlayerState(playerid) == PLAYER_STATE_ONFOOT && !gAdminFrozen[playerid] &&
+        !Race_IsParticipant(playerid) && !AdminPunish_IsJailed(playerid) && !gSortOpen[playerid];
+}

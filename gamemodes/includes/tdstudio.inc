@@ -10,6 +10,7 @@
 #include "tdstudio_codec.inc"
 #include "tdstudio_render.inc"
 #include "tdstudio_core.inc"
+#include "tdstudio_input.inc"
 #include "tdstudio_actions.inc"
 #include "tdstudio_db.inc"
 #include "tdstudio_export.inc"

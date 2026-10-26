@@ -18,6 +18,7 @@ new gTDSJob[TDS_JOB_LIMIT][E_TDS_JOB];
 
 stock TDS_ClearProject(session)
 {
+    TDSInput_End(session, false);
     TDS_StopMouse(session);
     for (new i; i < TDS_ELEMENTS; i++)
     {
@@ -94,7 +95,7 @@ public TDSDB_Ready()
 stock TDSDB_Begin(playerid, operation, project = 0)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy]) return -1;
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return -1;
     if (!gTDSDBReady || !DBPrimary_IsReady())
     {
         SendClientMessage(playerid,ADMIN_ERROR,"Хранение TextDraw недоступно. Проверьте БД и миграцию 012.");
@@ -135,7 +136,7 @@ stock TDSDB_Submit(job)
 stock TDSDB_Save(playerid, bool:asNew = false)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy] || !TDS_Encode(s)) return 0;
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE || !TDS_Encode(s)) return 0;
     new name[TDS_NAME*2], description[TDS_DESCRIPTION*2];
     if (!TDS_Hex(gTDS[s][tsName],name,sizeof(name)) ||
         !TDS_Hex(gTDS[s][tsDescription],description,sizeof(description))) return 0;
@@ -162,6 +163,8 @@ stock TDSDB_Save(playerid, bool:asNew = false)
 
 stock TDSDB_Load(playerid, project)
 {
+    new s = TDS_RequireSession(playerid);
+    if (s < 0 || gTDS[s][tsMode] == TDS_MOVE_MODE) return 0;
     if (project <= 0) return 0;
     new j = TDSDB_Begin(playerid,TDS_DB_LOAD,project);
     if (j < 0) return TDS_Main(playerid);
@@ -173,7 +176,7 @@ stock TDSDB_Load(playerid, project)
 stock TDSDB_List(playerid, page = 0)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || page < 0 || page > 50000 || gTDS[s][tsBusy]) return 0;
+    if (s < 0 || page < 0 || page > 50000 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return 0;
     gTDS[s][tsPage] = page;
     new j = TDSDB_Begin(playerid,TDS_DB_LIST);
     if (j < 0) return TDS_Main(playerid);
@@ -185,7 +188,7 @@ stock TDSDB_List(playerid, page = 0)
 stock TDSDB_Delete(playerid)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsProjectId] <= 0 || gTDS[s][tsBusy]) return 0;
+    if (s < 0 || gTDS[s][tsProjectId] <= 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return 0;
     new j = TDSDB_Begin(playerid,TDS_DB_DELETE,gTDS[s][tsProjectId]);
     if (j < 0) return TDS_Main(playerid);
     mysql_format(gDBPrimary,gTDSQuery,sizeof(gTDSQuery),"/*TDS:%d*/ CALL tds_delete(%d,%d,%d,%d)",

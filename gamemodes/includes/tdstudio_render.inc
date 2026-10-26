@@ -113,6 +113,19 @@ stock bool:TDS_RenderElement(session, slot)
     return TDS_RenderData(gTDS[session][tsOwner],gTDSElement[session][slot],gTDSDraw[session][slot],gTDS[session][tsMode] == TDS_EDIT_MODE);
 }
 
+// Movement changes only the position and the text hitbox/box endpoint.
+stock bool:TDS_RenderPosition(session, slot)
+{
+    if (!TDS_ElementValid(session, slot)) return false;
+    new playerid = gTDS[session][tsOwner], PlayerText:td = gTDSDraw[session][slot];
+    if (td == INVALID_PLAYER_TEXT_DRAW || !IsValidPlayerTextDraw(playerid, td)) return false;
+    PlayerTextDrawHide(playerid, td);
+    PlayerTextDrawSetPos(playerid, td, gTDSElement[session][slot][tdX], gTDSElement[session][slot][tdY]);
+    TDS_RenderSize(playerid, td, gTDSElement[session][slot]);
+    PlayerTextDrawShow(playerid, td);
+    return true;
+}
+
 stock bool:TDS_RenderRebuild(session)
 {
     new slots[TDS_ELEMENTS], count = TDS_Order(session,slots), PlayerText:draws[TDS_ELEMENTS];
@@ -139,10 +152,11 @@ stock TDS_RenderStatus(session)
     if (td == INVALID_PLAYER_TEXT_DRAW) return 0;
     new label[128], slot = gTDS[session][tsSelected];
     if (TDS_ElementValid(session, slot))
-        format(label, sizeof(label), "TDS | ID %d | X %.1f Y %.1f | STEP %.1f | %d/%d",
-            gTDSElement[session][slot][tdId], gTDSElement[session][slot][tdX],
-            gTDSElement[session][slot][tdY], gTDSSteps[gTDS[session][tsStep]],
-            gTDS[session][tsCount], TDS_ELEMENTS);
+        format(label, sizeof(label), "%s | ID %d %s | X %.1f Y %.1f | STEP %.1f%s",
+            gTDS[session][tsMode] == TDS_MOVE_MODE ? ("KEYBOARD") : ("MOUSE"),
+            gTDSElement[session][slot][tdId], gTDSTypeLabels[_:gTDSElement[session][slot][tdType]],
+            gTDSElement[session][slot][tdX], gTDSElement[session][slot][tdY],
+            gTDSSteps[gTDS[session][tsStep]], gTDS[session][tsMode] == TDS_MOVE_MODE ? ("") : (" | CLICK: MOVE"));
     else format(label, sizeof(label), "TARKENSO TD STUDIO | %d/%d | STEP %.1f",
         gTDS[session][tsCount], TDS_ELEMENTS, gTDSSteps[gTDS[session][tsStep]]);
     PlayerTextDrawSetString(gTDS[session][tsOwner], td, "%s", label);
@@ -165,7 +179,7 @@ stock bool:TDS_RenderTools(session)
         PlayerTextDrawUseBox(playerid, td, true);
         PlayerTextDrawBoxColour(playerid, td, 0x111820EE);
         PlayerTextDrawTextSize(playerid, td, i ? x + 72.0 : 635.0, 16.0);
-        PlayerTextDrawSetSelectable(playerid, td, i != 0);
+        PlayerTextDrawSetSelectable(playerid, td, true);
         // Hidden until edit mode; do not consume mouse ownership from another UI.
     }
     return true;
@@ -173,10 +187,21 @@ stock bool:TDS_RenderTools(session)
 
 stock TDS_RenderToolsVisible(session, bool:visible)
 {
+    // Reuse the existing bottom row as one hint strip in keyboard mode.
+    new playerid = gTDS[session][tsOwner], PlayerText:hint = gTDSTool[session][1];
+    new bool:moving = gTDS[session][tsMode] == TDS_MOVE_MODE;
+    if (visible && hint != INVALID_PLAYER_TEXT_DRAW)
+    {
+        PlayerTextDrawHide(playerid, hint);
+        PlayerTextDrawTextSize(playerid, hint, moving ? 635.0 : 77.0, 16.0);
+        PlayerTextDrawSetSelectable(playerid, hint, !moving);
+        PlayerTextDrawSetString(playerid, hint, "%s", moving ?
+            ("MOVE: WASD / ARROWS | ENTER / Y: OK | N: CANCEL | SPACE: STEP | /tdstudio: CANCEL") : ("MENU"));
+    }
     for (new i; i < TDS_TOOLS; i++)
     {
         if (gTDSTool[session][i] == INVALID_PLAYER_TEXT_DRAW) continue;
-        if (visible) PlayerTextDrawShow(gTDS[session][tsOwner], gTDSTool[session][i]);
+        if (visible && (!moving || i < 2)) PlayerTextDrawShow(gTDS[session][tsOwner], gTDSTool[session][i]);
         else PlayerTextDrawHide(gTDS[session][tsOwner], gTDSTool[session][i]);
     }
     return 1;

@@ -83,7 +83,7 @@ stock TDS_EditMenu(playerid)
         gTDS[s][tsName], gTDS[s][tsCount], TDS_ELEMENTS);
     else format(title, sizeof(title), "TARKENSO TextDraw Studio | Этап 2");
     return TDS_Dialog(playerid, TDS_EDIT_MENU, DIALOG_STYLE_LIST, title,
-        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов\nСвойства выбранного элемента\nШаг перемещения\nПредпросмотр\nЗакрыть редактор", "Открыть", "Закрыть");
+        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов\nСвойства выбранного элемента\nШаг перемещения\nПредпросмотр\nПеремещение элемента (клавиатура)\nЗакрыть редактор", "Открыть", "Закрыть");
 }
 
 stock TDS_List(playerid)
@@ -137,7 +137,9 @@ stock TDS_Props(playerid)
     gTDS[s][tsRows][rows++] = -1;
     strcat(body, "Удалить элемент\n", sizeof(body));
     gTDS[s][tsRows][rows++] = -2;
-    strcat(body, "На холст: перемещение мышью по кнопкам", sizeof(body));
+    strcat(body, "На холст: перемещение мышью по кнопкам\n", sizeof(body));
+    gTDS[s][tsRows][rows++] = -3;
+    strcat(body, "Перемещение элемента (клавиатура)", sizeof(body));
     gTDS[s][tsRowCount] = rows;
     return TDS_Dialog(playerid, TDS_PROPS, DIALOG_STYLE_LIST, title, body);
 }
@@ -187,7 +189,13 @@ stock TDS_Input(playerid, E_TDS_FIELD:field)
 
 stock TDS_StepMenu(playerid)
 {
-    return TDS_Dialog(playerid, TDS_STEP, DIALOG_STYLE_LIST, "TD Studio | Шаг перемещения", "0.1\n1.0\n5.0\n10.0");
+    new body[96], line[16];
+    for (new i; i < sizeof(gTDSSteps); i++)
+    {
+        format(line, sizeof(line), "%.1f\n", gTDSSteps[i]);
+        strcat(body, line, sizeof(body));
+    }
+    return TDS_Dialog(playerid, TDS_STEP, DIALOG_STYLE_LIST, "TD Studio | Шаг перемещения", body);
 }
 
 stock TDS_ConfirmClose(playerid)
@@ -220,6 +228,12 @@ stock TDS_Open(playerid)
             return SendClientMessage(playerid, TDS_COLOR, "Завершите текущий интерфейс и выйдите пешком в игровой мир.");
         s = TDS_Allocate(playerid);
         if (s < 0) return SendClientMessage(playerid, ADMIN_ERROR, "Недостаточно ресурсов TextDraw Studio (до 8 сессий).");
+    }
+    if (gTDS[s][tsMode] == TDS_MOVE_MODE)
+    {
+        // Explicit escape hatch when no TextDraw cursor is active (ESC is local).
+        TDSInput_Finish(playerid, false);
+        return 1;
     }
     if (gTDS[s][tsMode] == TDS_PREVIEW_MODE) return TDS_SetMode(playerid, TDS_EDIT_MODE);
     return TDS_Main(playerid);
@@ -322,9 +336,9 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         case TDS_PROJECT_DELETE: return TDSDB_Delete(playerid);
         case TDS_EDIT_MENU:
         {
-            if (listitem < 0 || listitem > 7) return TDS_Main(playerid);
+            if (listitem < 0 || listitem > 8) return TDS_Main(playerid);
             if (listitem == 0) return TDS_Main(playerid);
-            if (listitem == 7) return TDS_ConfirmClose(playerid);
+            if (listitem == 8) return TDS_ConfirmClose(playerid);
             if (!gTDS[s][tsProject])
             {
                 SendClientMessage(playerid, TDS_COLOR, "Сначала создайте проект.");
@@ -338,6 +352,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                 case 4: return TDS_Props(playerid);
                 case 5: return TDS_StepMenu(playerid);
                 case 6: return TDS_SetMode(playerid, TDS_PREVIEW_MODE);
+                case 7: return TDSInput_Start(playerid);
             }
         }
         case TDS_NEW:
@@ -371,6 +386,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
             if (field == -1) return TDS_Dialog(playerid, TDS_DELETE, DIALOG_STYLE_MSGBOX,
                 "TD Studio | Удалить элемент?", "Выбранный элемент будет удалён из проекта.", "Удалить");
             if (field == -2) return TDS_SetMode(playerid, TDS_EDIT_MODE);
+            if (field == -3) return TDSInput_Start(playerid);
             if (field < 0 || field > _:TDS_VEH_COLOURS) return TDS_Props(playerid);
             return TDS_Input(playerid, E_TDS_FIELD:field);
         }
@@ -387,7 +403,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         }
         case TDS_STEP:
         {
-            if (listitem >= 0 && listitem < sizeof(gTDSSteps)) gTDS[s][tsStep] = listitem;
+            TDS_SetStep(playerid, listitem);
             return TDS_SetMode(playerid, TDS_EDIT_MODE);
         }
         case TDS_SPRITES, TDS_MODELS:
@@ -421,15 +437,17 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
 stock TDS_OnClick(playerid, PlayerText:clicked)
 {
     new s = TDS_RequireSession(playerid);
+    if (s >= 0 && gTDS[s][tsMode] == TDS_MOVE_MODE) return 1;
     if (s < 0 || !gTDS[s][tsMouse] || gTDS[s][tsMode] != TDS_EDIT_MODE) return 0;
     if (clicked == INVALID_PLAYER_TEXT_DRAW) return 1;
-    for (new tool = 1; tool < TDS_TOOLS; tool++)
+    for (new tool; tool < TDS_TOOLS; tool++)
     {
         if (clicked != gTDSTool[s][tool]) continue;
         if (!TDS_Action(s)) return 1;
         new Float:step = gTDSSteps[gTDS[s][tsStep]];
         switch (tool)
         {
+            case 0: return TDSInput_Start(playerid);
             case 1: return TDS_Main(playerid);
             case 2: return TDS_List(playerid);
             case 3: TDS_Move(playerid, -step, 0.0);

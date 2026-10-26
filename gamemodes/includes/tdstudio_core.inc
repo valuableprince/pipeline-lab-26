@@ -5,6 +5,8 @@
 
 static gTDSTimer;
 forward TDS_Poll();
+forward bool:TDSInput_Target(session);
+forward bool:TDSInput_Usable(session);
 
 stock bool:TDS_Allowed(playerid)
 {
@@ -49,6 +51,7 @@ stock TDS_Close(playerid, bool:connected = true)
     if (session < 0 || session >= TDS_SESSIONS || !gTDS[session][tsUsed] ||
         gTDS[session][tsOwner] != playerid) return 0;
     TDSExp_Cancel(session);
+    TDSInput_End(session, false, connected, false);
     gTDSPlayerSlot[playerid] = 0;
     new dialog = gTDS[session][tsDialog];
     gTDS[session][tsDialog] = 0;
@@ -114,7 +117,7 @@ stock TDS_Allocate(playerid)
         gTDS[s][tsAccount] = TDSHost_Account(playerid);
         gTDS[s][tsSelected] = -1;
         gTDS[s][tsNextId] = 1;
-        gTDS[s][tsStep] = 1;
+        gTDS[s][tsStep] = 2; // 1.0
         gTDSPlayerSlot[playerid] = s + 1;
         for (new i; i < TDS_ELEMENTS; i++) gTDSElement[s][i][tdId] = 0;
         TDS_RenderInit(s);
@@ -138,7 +141,7 @@ stock bool:TDS_NewProject(playerid, const name[])
 stock TDS_AddElement(playerid, E_TDS_TYPE:type)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy] || !gTDS[s][tsProject] || type < TDS_TEXT_TYPE || type > TDS_MODEL_TYPE ||
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE || !gTDS[s][tsProject] || type < TDS_TEXT_TYPE || type > TDS_MODEL_TYPE ||
         gTDS[s][tsCount] >= TDS_ELEMENTS || gTDS[s][tsNextId] >= 2147483646) return -1;
     for (new i; i < TDS_ELEMENTS; i++)
     {
@@ -163,7 +166,7 @@ stock TDS_AddElement(playerid, E_TDS_TYPE:type)
 stock bool:TDS_DeleteElement(playerid, slot)
 {
     new s = TDS_RequireSession(playerid);
-    if (!TDS_ElementValid(s, slot) || gTDS[s][tsBusy]) return false;
+    if (!TDS_ElementValid(s, slot) || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return false;
     TDS_RenderDestroyElement(s, slot);
     gTDSElement[s][slot][tdId] = 0;
     gTDS[s][tsCount]--;
@@ -178,15 +181,17 @@ stock bool:TDS_Move(playerid, Float:dx, Float:dy)
     new s = TDS_RequireSession(playerid);
     if (s < 0 || gTDS[s][tsBusy]) return false;
     new slot = gTDS[s][tsSelected];
-    if (!TDS_ElementValid(s, slot) || gTDS[s][tsBusy]) return false;
+    if (!TDS_ElementValid(s, slot)) return false;
+    if (gTDS[s][tsMode] == TDS_MOVE_MODE && !TDSInput_Target(s)) return false;
     new Float:x = gTDSElement[s][slot][tdX] + dx;
     new Float:y = gTDSElement[s][slot][tdY] + dy;
     if (!TDS_InRange(x, 0.0, 640.0) || !TDS_InRange(y, 0.0, 448.0)) return false;
+    if (x == gTDSElement[s][slot][tdX] && y == gTDSElement[s][slot][tdY]) return true;
     gTDSElement[s][slot][tdX] = x;
     gTDSElement[s][slot][tdY] = y;
-    if (!TDS_RenderElement(s, slot)) { TDS_Close(playerid); return false; }
+    if (!TDS_RenderPosition(s, slot)) { TDS_Close(playerid); return false; }
     TDS_RenderStatus(s);
-    gTDS[s][tsDirty] = true;
+    if (gTDS[s][tsMode] != TDS_MOVE_MODE) gTDS[s][tsDirty] = true;
     return true;
 }
 
@@ -195,6 +200,7 @@ stock TDS_SetMode(playerid, E_TDS_MODE:mode)
     new s = TDS_RequireSession(playerid);
     if (s < 0 || gTDS[s][tsBusy] || mode < TDS_MENU_MODE || mode > TDS_PREVIEW_MODE) return 0;
     if (mode != TDS_MENU_MODE && !gTDS[s][tsProject]) return 0;
+    TDSInput_End(s, false);
     TDS_StopMouse(s);
     gTDS[s][tsDialog] = 0;
     gTDS[s][tsMode] = mode;
@@ -269,6 +275,11 @@ public TDS_Poll()
         if (!TDS_Allowed(playerid) || TDS_Session(playerid) != s)
         {
             TDS_Close(playerid, IsPlayerConnected(playerid));
+            continue;
+        }
+        if (gTDS[s][tsMode] == TDS_MOVE_MODE && !TDSInput_Usable(s))
+        {
+            TDS_Close(playerid);
             continue;
         }
         TDSExp_Tick(s);

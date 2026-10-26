@@ -26,6 +26,7 @@ def compile_exports(source, output, server, prefix):
     text = '#include <open.mp>\n'
     calls = []
     personal = global_td = empty = cyrillic = False
+    moved_exports = 0
     for file in files:
         data = file.read_bytes()
         content = data.decode("cp1251", errors="strict")
@@ -40,11 +41,19 @@ def compile_exports(source, output, server, prefix):
         global_td |= not bool(is_personal)
         empty |= "// Element ID" not in content
         cyrillic |= 'Привет, \\"Дима\\"! C:\\\\test 100% ~g~текст' in content
+        if 'Привет, \\"Дима\\"! C:\\\\test 100% ~g~текст' in content:
+            positions = [tuple(map(float, pair)) for pair in re.findall(
+                r'(?:CreatePlayerTextDraw\(playerid, |TextDrawCreate\()([0-9.]+), ([0-9.]+),', content)]
+            assert len(positions) == 4, (file.name, positions)
+            assert abs(positions[0][0] - 13.345) < 0.0001 and abs(positions[0][1] - 66.89) < 0.0001, positions
+            assert positions[1:] == [(271.0, 199.0)] * 3, positions
+            moved_exports += 1
         calls.extend([f'{symbol}_Create({"0" if is_personal else ""});',
                       f'{symbol}_Show(0);', f'{symbol}_Hide(0);',
                       f'{symbol}_Hit({"0, PlayerText:INVALID_PLAYER_TEXT_DRAW" if is_personal else "Text:INVALID_TEXT_DRAW"});',
                       f'{symbol}_Destroy({"0" if is_personal else ""});'])
     assert personal and global_td and empty and cyrillic, "missing export fixture coverage"
+    assert moved_exports == 2, "both TextDraw and PlayerTextDraw must export confirmed keyboard coordinates"
     text += '\nmain() {\n' + '\n'.join('    '+line for line in calls) + '\n}\n'
     context = dest / "export_compile.pwn"
     context.write_bytes(text.encode("cp1251"))

@@ -1,4 +1,5 @@
 #include "tdstudio_test_host.inc"
+#include "tdstudio_movement.inc"
 
 main() {}
 public OnGameModeInit()
@@ -104,7 +105,7 @@ public TDS_RunTests()
     Check(gTDS[s][tsSelected] == selected, "unknown handle ignored");
     TDS_OnClick(0, foreign);
     Check(gTDS[s][tsSelected] == selected, "foreign interface handle ignored");
-    for (new stepIndex; stepIndex < 4; stepIndex++)
+    for (new stepIndex; stepIndex < sizeof(gTDSSteps); stepIndex++)
     {
         TDS_StepMenu(0); Answer(0, TDS_STEP, 1, stepIndex);
         tNow += 200;
@@ -158,6 +159,8 @@ public TDS_RunTests()
     Check(TDS_Session(0) >= 0, "disconnect frees session pool slot");
     TDS_Shutdown();
     Check(tCreate - tDestroy == 1 && MockValid(0, foreign), "shutdown destroys every owned handle");
+    RunMovementTests();
+    Check(tCreate - tDestroy == 1 && MockValid(0, foreign), "movement cleanup preserves foreign handles");
     Check(tBadHandle == 0, "no invalid native handle access");
     printf("TDS TEST RESULT: checks=%d failures=%d", tChecks, tFailures);
     return 1;

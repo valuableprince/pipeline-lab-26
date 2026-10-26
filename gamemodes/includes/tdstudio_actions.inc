@@ -19,7 +19,7 @@ stock bool:TDS_FieldAllowed(E_TDS_TYPE:type, E_TDS_FIELD:field)
 stock bool:TDS_ApplyInput(playerid, E_TDS_FIELD:field, const input[])
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy]) return false;
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return false;
     new e = gTDS[s][tsSelected];
     if (!TDS_ElementValid(s, e) || !TDS_FieldAllowed(gTDSElement[s][e][tdType], field)) return false;
     new Float:v[4], number;
@@ -108,7 +108,7 @@ stock bool:TDS_ApplyInput(playerid, E_TDS_FIELD:field, const input[])
 stock bool:TDS_Toggle(playerid, E_TDS_FIELD:field)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy]) return false;
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return false;
     new e = gTDS[s][tsSelected];
     if (!TDS_ElementValid(s, e) || !TDS_FieldAllowed(gTDSElement[s][e][tdType], field)) return false;
     switch (field)

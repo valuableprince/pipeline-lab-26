@@ -35,7 +35,7 @@
 #define TDS_DISCARD (7117)
 
 enum E_TDS_TYPE { TDS_TEXT_TYPE, TDS_RECT_TYPE, TDS_SPRITE_TYPE, TDS_MODEL_TYPE };
-enum E_TDS_MODE { TDS_MENU_MODE, TDS_EDIT_MODE, TDS_PREVIEW_MODE };
+enum E_TDS_MODE { TDS_MENU_MODE, TDS_EDIT_MODE, TDS_PREVIEW_MODE, TDS_MOVE_MODE };
 enum E_TDS_FIELD
 {
     TDS_POSITION, TDS_SIZE, TDS_LETTERS, TDS_CONTENT, TDS_COLOUR,
@@ -64,7 +64,10 @@ enum E_TDS_SESSION
     tsProjectId, tsCreator, tsRevision, tsFormat, tsInterface,
     tsDescription[TDS_DESCRIPTION], tsCreated[20], tsUpdated[20], bool:tsDirty,
     tsLease, tsBusy, tsPage, tsProjectRows[TDS_PROJECT_PAGE], tsProjectRowCount,
-    bool:tsMore, tsPending, tsPendingProject
+    bool:tsMore, tsPending, tsPendingProject,
+    // Transient move transaction; tdX/tdY remain the only working coordinates.
+    tsMoveSlot, tsMoveId, Float:tsMoveX, Float:tsMoveY,
+    tsMoveTick, KEY:tsMoveKeys, bool:tsMoveReady, bool:tsMoveFreeze
 };
 
 // Pool allocation avoids a large element array for every possible player.
@@ -78,8 +81,9 @@ new gTDSOpenTick[MAX_PLAYERS];
 new bool:gTDSOpenLimited[MAX_PLAYERS];
 new gTDSLeaseSerial;
 
-new const Float:gTDSSteps[] = {0.1, 1.0, 5.0, 10.0};
+new const Float:gTDSSteps[] = {0.1, 0.5, 1.0, 5.0, 10.0};
 new const gTDSTypes[][] = {"Текст", "Прямоугольник", "Спрайт", "Модель"};
+new const gTDSTypeLabels[][] = {"TEXT", "RECT", "SPRITE", "MODEL"};
 // Known stock TXD names only; arbitrary client texture references are not accepted.
 new const gTDSSprites[][] =
 {

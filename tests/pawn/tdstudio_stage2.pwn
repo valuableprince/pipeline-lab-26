@@ -45,6 +45,19 @@ stock BuildFixture()
     gTDSElement[s][gTDS[s][tsSelected]][tdModel] = 560;
     TDS_DeleteElement(0,sprite); sprite = TDS_AddElement(0,TDS_SPRITE_TYPE);
     gTDSElement[s][sprite][tdSprite] = 4; TDS_RenderElement(s,sprite);
+    // Exercise the actual controller before serializing/exporting any snapshot.
+    // Input is synthetic; the MySQL/plugin/file paths below are real.
+    for (new e; e < 4; e++)
+    {
+        gTDS[s][tsSelected] = e; TDS_SetStep(0, 2);
+        new Float:x = gTDSElement[s][e][tdX], Float:y = gTDSElement[s][e][tdY];
+        TDSInput_Start(0); tNow += 50; TDSInput_OnUpdate(0); // neutral
+        tNow += 50; tLR[0] = KEY_RIGHT; TDSInput_OnUpdate(0); tLR[0] = 0;
+        tNow += 50; tUD[0] = KEY_UP; TDSInput_OnUpdate(0); tUD[0] = 0;
+        TDSInput_OnKeys(0, KEY_YES);
+        Check(gTDSElement[s][e][tdX] == x + 1.0 && gTDSElement[s][e][tdY] == y - 1.0 &&
+            gTDS[s][tsDirty] && gTDS[s][tsMode] == TDS_EDIT_MODE,"confirmed keyboard positions enter persistence fixture");
+    }
     gTDS[s][tsSelected] = 0;
     Check(TDS_ProjectValid(s),"fixture complete validation");
     return s;
@@ -130,6 +143,11 @@ public TDS_TestNext()
         case 0:
         {
             TDS_Open(0); s = BuildFixture(); Snapshot(s);
+            TDSInput_Start(0);
+            new serial = gTDSJobSerial;
+            Check(!TDSDB_Save(0) && !TDSDB_Load(0,1) && !TDSDB_List(0) && !TDSDB_Delete(0) &&
+                gTDSJobSerial == serial && !gTDS[s][tsBusy],"unconfirmed input sends no DB jobs");
+            TDSInput_Finish(0,false);
             TDSDB_Save(0);
             Check(gTDS[s][tsBusy] > 0,"save is asynchronous");
             Check(!TDS_ApplyInput(0,TDS_POSITION,"111 111"),"editing blocked during save");
