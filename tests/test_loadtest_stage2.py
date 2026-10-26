@@ -116,5 +116,43 @@ class ReportingTests(unittest.TestCase):
             self.assertEqual(row["alive"], 1)
 
 
+class LocalDriverSmoke(unittest.TestCase):
+    def test_one_fake_client_creates_real_reports_and_stops(self):
+        # A fake executable validates runner mechanics; it never opens UDP.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = root / "fake_rakclient"
+            binary.write_text(
+                "#!/usr/bin/env python3\\n"
+                "import time\\n"
+                "print('raknet transport connected', flush=True)\\n"
+                "print('joined game', flush=True)\\n"
+                "print('LT_STATE:authenticated', flush=True)\\n"
+                "print('LT_STATE:spawned', flush=True)\\n"
+                "time.sleep(30)\\n",
+                encoding="utf-8",
+            )
+            binary.chmod(0o755)
+            output = root / "reports"
+            args = stage.parse_args([
+                "--server", "127.0.0.1:7777",
+                "--confirm-target", "127.0.0.1:7777",
+                "--client-bin", str(binary),
+                "--count", "1", "--seconds", "10", "--rate", "1",
+                "--output", str(output),
+            ])
+            with patch.dict(os.environ, {"TARKENSO_LOAD_PASSWORD": "Testing123"}):
+                self.assertEqual(stage.run(args), 0)
+            reports = list(output.glob("load_net_*"))
+            self.assertEqual(len(reports), 1)
+            manifest = json.loads((reports[0] / "manifest.json").read_text())
+            self.assertEqual(manifest["launched_clients"], 1)
+            self.assertEqual(manifest["spawned_clients"], 1)
+            self.assertEqual(manifest["authenticated_clients"], 1)
+            self.assertNotIn("Testing123", json.dumps(manifest))
+            self.assertTrue((reports[0] / "samples.csv").is_file())
+            self.assertTrue((reports[0] / "LT_Bot001.log").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()
