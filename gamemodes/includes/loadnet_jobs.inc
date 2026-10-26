@@ -55,7 +55,7 @@ stock LoadNet_Stop(playerid)
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return SendClientMessage(playerid, ADMIN_ERROR, "[LoadNet] MySQL is unavailable.");
     if (!mysql_tquery(gDBPrimary,
-        "UPDATE loadtest_jobs SET state='STOP_REQUESTED',status_message='Stop requested from game' WHERE state IN ('PENDING','RUNNING')",
+        "UPDATE loadtest_jobs SET finished_at=IF(state='PENDING',NOW(),finished_at),state=IF(state='PENDING','STOPPED','STOP_REQUESTED'),status_message='Stop requested from game' WHERE state IN ('PENDING','RUNNING')",
         "LoadNet_OnStopped", "ii", playerid, gAuthToken[playerid]))
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadNet] Could not request stop.");
     return 1;
@@ -101,7 +101,7 @@ public LoadNet_OnStopped(playerid, authToken)
     if (!IsPlayerConnected(playerid) || gAuthToken[playerid] != authToken ||
         !LoadNet_IsAuthorized(playerid)) return 1;
     if (cache_affected_rows() == 1)
-        SendClientMessage(playerid, ADMIN_COLOR, "[LoadNet] Stop requested. Waiting for PC Worker.");
+        SendClientMessage(playerid, ADMIN_COLOR, "[LoadNet] Stop requested. Queued jobs stop immediately; running jobs via PC Worker.");
     else
         SendClientMessage(playerid, ADMIN_ERROR, "[LoadNet] No running or pending test.");
 #else
