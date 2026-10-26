@@ -12,3 +12,6 @@ secrets/
 workspace/
 build/
 dist/
+
+# Local headless-client load test data (may contain account/connection diagnostics).
+loadtest_results/
