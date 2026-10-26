@@ -49,17 +49,36 @@ class LoadTestIntegration(unittest.TestCase):
         self.assertNotIn("mysql_query", LOADTEST)
         self.assertNotIn("mysql_tquery", LOADTEST)
         self.assertIn("not a real-player", DOC.lower().replace("**", ""))
-        self.assertIn("load_test_01_26.10.2026.csv", DOC)
+        self.assertIn("2026-10-26_rev01", DOC)
         self.assertNotIn("LOADTEST_ENABLE_FLAG", LOADTEST)
-        self.assertIn("LoadTest_CreateReport()", LOADTEST)
+        self.assertIn("LoadTest_CreateReport(bool:fullScenario = false)", LOADTEST)
         self.assertIn("getdate(year, month, day)", LOADTEST)
-        self.assertIn("if (fexist(gLoadReportFile)) continue;", LOADTEST)
+        self.assertIn("if (fexist(marker)) continue;", LOADTEST)
+        self.assertIn("if (!fcreatedir(gLoadReportDir)) continue;", LOADTEST)
         self.assertIn("fwrite(reportHandle, LOADTEST_CSV_HEADER)", LOADTEST)
-        self.assertIn('if (!LoadTest_CreateReport())', LOADTEST)
-        self.assertLess(LOADTEST.index('if (!LoadTest_CreateReport())'),
+        self.assertIn('if (!LoadTest_CreateReport(fullScenario))', LOADTEST)
+        self.assertLess(LOADTEST.index('if (!LoadTest_CreateReport(fullScenario))'),
                         LOADTEST.index('gLoadRunning = true;'))
         self.assertIn('if (!strcmp(params, "start", true))', LOADTEST)
         self.assertIn('LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS', LOADTEST)
+
+    def test_isolated_report_directory_before_any_npc(self):
+        self.assertIn('fcreatedir("load_tests");', LOADTEST)
+        self.assertIn('"load_tests/%04d-%02d-%02d_rev%02d"', LOADTEST)
+        self.assertIn('"%s/run.info", gLoadReportDir', LOADTEST)
+        self.assertIn('"%s/load_test.csv", gLoadReportDir', LOADTEST)
+        self.assertIn('format(info, sizeof(info),', LOADTEST)
+        self.assertIn('scenario=%s', LOADTEST)
+        self.assertIn('revision=%d', LOADTEST)
+        self.assertIn('gLoadReportDir[0] = EOS;', LOADTEST)
+        self.assertIn('Folder: %s", gLoadReportDir', LOADTEST)
+        self.assertIn('gLoadReportFile[128]', LOADTEST)
+        self.assertLess(LOADTEST.index('if (!LoadTest_CreateReport(fullScenario))'),
+                        LOADTEST.index('new npcid = NPC_Create(name);'))
+        self.assertIn('fwrite(reportHandle, LOADTEST_CSV_HEADER)', LOADTEST)
+        self.assertNotIn('fremove(marker);', LOADTEST)
+        self.assertNotIn('fremove(gLoadReportDir)', LOADTEST)
+        self.assertIn('Older flat CSV files are neither moved nor deleted.', DOC)
 
     def test_no_global_npc_deletion(self):
         self.assertNotIn("NPC_DestroyAll", LOADTEST)
