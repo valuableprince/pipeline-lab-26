@@ -31,6 +31,15 @@
     new gDBPrimaryRequestName[MAX_PLAYERS][MAX_PLAYER_NAME];
     // YYYY-MM-DD taken from accounts.created_at, never guessed from login time.
     new gDBPrimaryRegistrationDate[MAX_PLAYERS][11];
+    #define DB_PRIMARY_AUTH_TIMEOUT_MS (30000)
+    #define DB_PRIMARY_RECOVERY_INTERVAL_MS (15000)
+    new bool:gDBPrimaryAuthPending[MAX_PLAYERS];
+    new bool:gDBPrimaryDegraded;
+    new bool:gDBPrimaryProbePending;
+    new gDBPrimaryRecoveryTimer;
+    forward DBPrimary_AccountTimeout(playerid, token);
+    forward DBPrimary_RecoveryTick();
+    forward DBPrimary_ProbeDone();
 
     forward DBPrimary_OnAccount(playerid, token, fromIntro);
     forward OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle);
@@ -47,6 +56,7 @@
         gDBPrimaryLoaded[playerid] = false;
         gDBPrimaryRequestName[playerid][0] = EOS;
         gDBPrimaryRegistrationDate[playerid][0] = EOS;
+        gDBPrimaryAuthPending[playerid] = false;
         return 1;
     }
 
@@ -109,8 +119,70 @@
         return 1;
     }
 
+    // The existing MySQL R41 handle can recover asynchronously when
+    // auto_reconnect is configured; the game thread never opens a replacement
+    // connection from the periodic watchdog.
+    stock DBPrimary_StartRecoveryMonitor()
+    {
+        gDBPrimaryDegraded = false;
+        gDBPrimaryProbePending = false;
+        gDBPrimaryRecoveryTimer = SetTimer("DBPrimary_RecoveryTick",
+            DB_PRIMARY_RECOVERY_INTERVAL_MS, true);
+        if (!gDBPrimaryRecoveryTimer)
+            print("[DB-PRIMARY] WARNING: recovery monitor could not start.");
+        return 1;
+    }
+
+    public DBPrimary_RecoveryTick()
+    {
+        if (!gDBPrimaryDegraded || gDBPrimaryProbePending ||
+            gDBPrimary == MYSQL_INVALID_HANDLE) return 1;
+        // On an outage, the probe is queued instead of synchronously blocking
+        // a game tick. Network-reconnect support depends on mysql.ini.
+        if (mysql_tquery(gDBPrimary,
+            "SELECT version FROM schema_migrations WHERE version=10 LIMIT 1",
+            "DBPrimary_ProbeDone"))
+            gDBPrimaryProbePending = true;
+        return 1;
+    }
+
+    public DBPrimary_ProbeDone()
+    {
+        gDBPrimaryProbePending = false;
+        if (!gDBPrimaryDegraded) return 1;
+        new rows;
+        if (!cache_get_row_count(rows) || rows != 1)
+        {
+            print("[DB-PRIMARY] Recovery probe rejected: missing schema version 10.");
+            return 1;
+        }
+        gDBPrimaryReady = true;
+        gDBPrimaryDegraded = false;
+        print("[DB-PRIMARY] Database connectivity restored; writes are enabled.");
+        for (new i = 0; i < MAX_PLAYERS; i++)
+            if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+                gAuthState[i] == AUTH_READY)
+                SendClientMessage(i, COLOR_AMBER,
+                    "Связь с базой восстановлена. Проверяйте сохранение прогресса.");
+        return 1;
+    }
+
+    public DBPrimary_AccountTimeout(playerid, token)
+    {
+        if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
+            token != gAuthToken[playerid] || !gDBPrimaryAuthPending[playerid])
+            return 1;
+        gDBPrimaryAuthPending[playerid] = false;
+        SendClientMessage(playerid, COLOR_RED,
+            "База данных не ответила при входе. Повторите подключение позднее.");
+        Kick(playerid);
+        return 1;
+    }
+
     stock DBPrimary_Shutdown()
     {
+        if (gDBPrimaryRecoveryTimer) KillTimer(gDBPrimaryRecoveryTimer);
+        gDBPrimaryRecoveryTimer = 0;
         gDBPrimaryReady = false;
         if (gDBPrimary != MYSQL_INVALID_HANDLE)
         {
@@ -162,17 +234,23 @@
         new q[1400];
         mysql_format(gDBPrimary, q, sizeof(q),
             "SELECT account_id,username,password_hash,background,mute_until,balance,health,armour,cleaner_paid,txn_serial,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,start_region,character_level,character_exp,last_payday_hour,story_stage,row_version,DATE(created_at) AS registered_date FROM accounts WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
+        gDBPrimaryAuthPending[playerid] = true;
         if (!mysql_tquery(gDBPrimary, q, "DBPrimary_OnAccount", "iii",
             playerid, gAuthToken[playerid], _:fromIntro))
         {
+            gDBPrimaryAuthPending[playerid] = false;
             Kick(playerid);
             return 0;
         }
+        SetTimerEx("DBPrimary_AccountTimeout", DB_PRIMARY_AUTH_TIMEOUT_MS,
+            false, "ii", playerid, gAuthToken[playerid]);
         return 1;
     }
 
     public DBPrimary_OnAccount(playerid, token, fromIntro)
     {
+        if (IsPlayerConnected(playerid) && token == gAuthToken[playerid])
+            gDBPrimaryAuthPending[playerid] = false;
         if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
             token != gAuthToken[playerid] || gAuthState[playerid] != AUTH_VERIFYING ||
             strcmp(gDBPrimaryRequestName[playerid], gAccountName[playerid], false))
@@ -516,16 +594,31 @@
 
     public OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle)
     {
-        // Never log raw SQL or driver-provided data: queries may contain hashes.
-        #pragma unused error, query, handle
-        printf("[DB-PRIMARY] Async SQL error %d (callback %.48s).", errorid, callback);
-        if (!strcmp(callback, "DBPrimary_OnAccount"))
+        // Never log raw SQL or the database error string, which can reveal
+        // credentials and user data. SQL errors affect only their own query;
+        // network loss activates a fail-closed maintenance state, without
+        // disconnecting every authenticated player.
+        #pragma unused error, callback, query, handle
+        printf("[DB-PRIMARY] Asynchronous SQL failed: code %d.", errorid);
+        if (errorid == 2002 || errorid == 2003 || errorid == 2006 ||
+            errorid == 2013 || errorid == 2055)
         {
-            // The MySQL error callback does not expose the originating playerid.
-            // Fail closed for pending lookups only; do not kick authenticated users.
-            for (new i = 0; i < MAX_PLAYERS; i++)
-                if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
-                    gAuthState[i] == AUTH_VERIFYING &&
+            gDBPrimaryProbePending = false;
+            if (!gDBPrimaryDegraded)
+            {
+                print("[DB-PRIMARY] Connection lost. Writes are suspended until successful recovery probe.");
+                for (new i = 0; i < MAX_PLAYERS; i++)
+                    if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+                        gAuthState[i] == AUTH_READY)
+                        SendClientMessage(i, COLOR_RED,
+                            "Проблема с базой данных: сохранение временно недоступно.");
+            }
+            gDBPrimaryDegraded = true;
+            gDBPrimaryReady = false;
+        }
+        return 1;
+    }
+H_VERIFYING &&
                     !strcmp(gDBPrimaryRequestName[i], gAccountName[i], false))
                 {
                     SendClientMessage(i, COLOR_RED, "MariaDB: вход временно недоступен. Переподключитесь.");
