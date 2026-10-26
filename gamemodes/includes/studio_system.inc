@@ -47,7 +47,7 @@ stock bool:Studio_Require(playerid)
 {
     if (Studio_Allowed(playerid)) return true;
     SendClientMessage(playerid, ADMIN_ERROR,
-        "Tarkenso RPG Studio: требуется подтверждённый аккаунт основателя и /aduty.");
+        "[Tarkenso RPG] Tarkenso RPG Studio: требуется подтверждённый аккаунт основателя и /aduty.");
     return false;
 }
 
