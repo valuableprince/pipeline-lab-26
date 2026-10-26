@@ -163,6 +163,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
+#include "big_ear.inc"
 #include "economy.inc"
 #include "admin_ui.inc"
 #include "leader_system.inc"
@@ -764,6 +765,7 @@ public OnGameModeInit()
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
     Ship_Init();
+    Dish_Init();
     Economy_Init();
     Leader_Init();
     OrvelarHUD_Init();
@@ -790,6 +792,7 @@ public OnGameModeExit()
     Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
+    Dish_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
     DBShadow_Shutdown();
@@ -808,6 +811,7 @@ public OnPlayerConnect(playerid)
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
     Admin_OnConnect(playerid);
+    Dish_OnConnect(playerid);
     AdminPunish_Reset(playerid);
     AdminVeh_Reset(playerid);
     CleanerDump_NavReset(playerid);
@@ -1045,6 +1049,12 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
+    return 1;
+}
+
+public OnObjectMoved(objectid)
+{
+    Dish_OnObjectMoved(objectid);
     return 1;
 }
 

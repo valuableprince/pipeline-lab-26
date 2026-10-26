@@ -157,6 +157,9 @@ cmd:help(playerid, params[])
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
+        if (gAdminLevel[playerid] >= 5)
+            SendClientMessage(playerid, ADMIN_COLOR,
+                "Радиотелескоп The Big Ear: /dish status|auto|stop|angle|left|right (режим /aduty).");
         return 1;
     }
     if (!strcmp(category, "studio", true))
