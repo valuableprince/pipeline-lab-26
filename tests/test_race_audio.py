@@ -7,7 +7,7 @@ AUDIO = (ROOT / "gamemodes/includes/race_audio.inc").read_text(encoding="utf-8")
 CORE = (ROOT / "gamemodes/includes/race_core.inc").read_text(encoding="utf-8")
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/RACE_AUDIO.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/RADIO_PLAYER.md").read_text(encoding="utf-8")
 
 
 class RaceAudioTests(unittest.TestCase):
@@ -48,7 +48,7 @@ class RaceAudioTests(unittest.TestCase):
         self.assertIn('#include "race_audio.inc"\n#include "race_progress.inc"\n#include "race_core.inc"', MAIN)
         self.assertIn("cmd:raceaudio(playerid, params[])", CORE)
         self.assertIn('strcmp(cmd, "raceaudio", true)', COMMANDS)
-        for path in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
+        for path in ("tools/build_windows.py", ".github/workflows/build.yml"):
             c = (ROOT / path).read_text(encoding="utf-8")
             self.assertIn('"race_audio.inc"', c)
         AUDIO.encode("cp1251")

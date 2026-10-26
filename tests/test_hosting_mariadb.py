@@ -5,7 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 INC = (ROOT / "gamemodes/includes/db_shadow.inc").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 INI = (ROOT / "config/mysql.ini.example").read_text(encoding="utf-8")
 
 class HostingReadiness(unittest.TestCase):

@@ -8,9 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/COMMAND_PROCESSOR.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/RP_COMMANDS.md").read_text(encoding="utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 
 
 class PawnCmdMigrationTests(unittest.TestCase):

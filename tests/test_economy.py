@@ -6,7 +6,7 @@ BASE = Path(__file__).resolve().parents[1]
 MAIN = (BASE / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 ECON = (BASE / "gamemodes/includes/economy.inc").read_text(encoding="utf-8")
 CLEAN = (BASE / "gamemodes/includes/cleaner_job.inc").read_text(encoding="utf-8")
-CI = (BASE / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+CI = (BASE / ".github/workflows/build.yml").read_text(encoding="utf-8")
 BUILD = (BASE / "tools/build_windows.py").read_text(encoding="utf-8")
 
 

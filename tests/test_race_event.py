@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EVENT = (ROOT / "gamemodes/includes/race_event.inc").read_text(encoding="utf-8")
 CORE = (ROOT / "gamemodes/includes/race_core.inc").read_text(encoding="utf-8")
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
-DOC = (ROOT / "docs/RACE_EVENT.md").read_text(encoding="utf-8")
+DOC = (ROOT / "docs/LEGACY_RACE_MARKERS_AUDIT.md").read_text(encoding="utf-8")
 
 
 class RaceEventTest(unittest.TestCase):
@@ -52,7 +52,7 @@ class RaceEventTest(unittest.TestCase):
         self.assertIn("RaceEvent_ResetPlayer(playerid);", CORE)
         self.assertIn('#include "race_map.inc"\n#include "race_event.inc"', MAIN)
         self.assertIn("RACE_WORLD_ID", CORE)
-        for p in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
+        for p in ("tools/build_windows.py", ".github/workflows/build.yml"):
             c = (ROOT / p).read_text(encoding="utf-8")
             self.assertIn('"race_event.inc"', c)
         self.assertIn("обязателен UAT", DOC.lower().replace("обязателен uat", "обязателен UAT"))

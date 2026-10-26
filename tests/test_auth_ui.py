@@ -9,7 +9,7 @@ DIALOGS = (ROOT / "gamemodes/includes/auth_dialogs.inc").read_text(encoding="utf
 CAMERA = (ROOT / "gamemodes/includes/auth_camera.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 
 
 class AuthUiContractTest(unittest.TestCase):

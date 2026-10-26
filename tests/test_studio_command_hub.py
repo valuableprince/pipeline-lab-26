@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CORE = (ROOT / "gamemodes/includes/studio_system.inc").read_text("utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 UI = (ROOT / "gamemodes/includes/studio_ui.inc").read_text("utf-8")
-ROUTES = (ROOT / "gamemodes/includes/npc_route_editor.inc").read_text("utf-8")
+ROUTES = (ROOT / "gamemodes/includes/studio_system.inc").read_text("utf-8")
 
 class StudioCommandHub(unittest.TestCase):
     def test_editor_entrypoints_and_legacy_shortcuts(self):

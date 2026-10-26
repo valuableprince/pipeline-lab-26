@@ -5,7 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 INC = (ROOT / "gamemodes/includes/db_shadow.inc").read_text(encoding="utf-8")
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+CI = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 WIN = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
 
 

@@ -11,7 +11,7 @@ from tools.check_pawn_output import analyze_pawn_output, main as verify_compiler
 ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 INC = ROOT / "gamemodes/includes"
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+CI = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 WIN = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
 HUD = (INC / "orvelar_hud.inc").read_text(encoding="utf-8")
 ECONOMY = (INC / "economy.inc").read_text(encoding="utf-8")
