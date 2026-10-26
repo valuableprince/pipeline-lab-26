@@ -119,6 +119,9 @@ jobs:
       - name: Validate migration version ownership
         run: python3 -m unittest discover -s tests -p 'test_migration_sequence.py' -v
 
+      - name: Validate sustained load simulation
+        run: python3 -m unittest discover -s tests -p 'test_load_continuous.py' -v
+
       - name: Compile source
         shell: bash
         run: |
