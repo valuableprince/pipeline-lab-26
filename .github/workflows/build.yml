@@ -98,6 +98,10 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
 
+      - name: Validate controlled NPC load test
+        run: |
+          python3 -m unittest discover -s tests -p 'test_load_test.py' -v
+
       - name: Compile source
         shell: bash
         run: |
