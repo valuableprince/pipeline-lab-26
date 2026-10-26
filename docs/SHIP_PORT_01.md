@@ -6,7 +6,7 @@ This is the **first implementation stage**, not automatic berthing or a round-tr
 Founder in `/aduty`. Keep the freighter stationary while configuring:
 - `/ship port ls berth` — save the **current hull transform** as the Los Santos berth.
 - `/ship port ls exit` — save the hull transform in a tested clear-water exit position.
-- `/ship port ls depart` — only if currently within 8 GTA units of recorded berth. Slowly move to the recorded exit at 1.0 units/sec, then seamlessly continue on the 32-point LS→SF sea route.
+- `/ship port ls depart` — only if currently within 8 GTA units of recorded berth. Slowly move to the recorded exit at 1.0 units/sec, then seamlessly continue on the 36-point LS→SF sea route.
 - `/ship port sf berth|exit|depart` — same for outbound SF→LS.
 - `/ship port` — report configured status.
 - `/ship stop` — immediately cancel the maneuver and stop the root object.
@@ -29,3 +29,5 @@ Exit must be 10–600 units from the berth and within 350 units of the sea-route
 - Original test command `/ship run` can still reposition the vessel at the first waypoint. **Use /ship port ls depart for passengers** instead.
 
 Other ship objects and the pre-existing saved plan remain compatible.
+
+> Route notice: the v2 Los Santos outer-sea corridor is preliminary and still needs full-vessel collision and world-boundary testing before passenger service.
