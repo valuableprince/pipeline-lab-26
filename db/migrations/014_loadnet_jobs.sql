@@ -1,4 +1,4 @@
--- LOADNET-01. Apply once after migration 011 (TARKENSO MySQL).
+-- LOADNET-01. Optional migration 014, apply once after migrations 012 and 013 (TARKENSO MySQL).
 -- Only one queued/running/stopping load test at a time; finished jobs remain as history.
 CREATE TABLE loadtest_jobs (
   job_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -28,4 +28,4 @@ CREATE TABLE loadtest_jobs (
   CONSTRAINT chk_loadtest_seconds CHECK (duration_seconds BETWEEN 10 AND 600)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO schema_migrations (version) VALUES (12);
+INSERT INTO schema_migrations (version) VALUES (14);

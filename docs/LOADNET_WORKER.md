@@ -6,7 +6,7 @@ No executable commands are run by Pawn. Existing /load NPC testing remains indep
 ## Server setup
 
 1. Back up the game database and files.
-2. Apply db/migrations/012_loadnet_jobs.sql in phpMyAdmin. The new table is loadtest_jobs.
+2. The optional Windows Worker feature uses migration **014**. Apply db/migrations/014_loadnet_jobs.sql in phpMyAdmin only after TextDraw Studio migration 012 and synthetic load-test migration 013. The new table is loadtest_jobs.
 3. Install the AMX produced by the verified Github Actions build.
 4. Create a separate MySQL account with SELECT and UPDATE on loadtest_jobs only.
 5. Ensure the worker computer can reach MySQL over a protected connection. Shared game
