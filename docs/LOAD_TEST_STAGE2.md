@@ -11,8 +11,12 @@
 ограничения нагрузки, отчетность и автотесты. Сам клиент RakNet **не написан в
 TARKENSO**: используется отдельный проект
 [Newmcpe/RakClient](https://github.com/Newmcpe/RakClient) (Rust/Luau).
-Он должен быть собран и проверен отдельно. Текущий кандидат:
-upstream commit `6ef94b502d4a3bec3f21c318ced731a0131276f4`.
+В GitHub Releases опубликован бинарник
+[Windows x86_64 v0.2.0](https://github.com/Newmcpe/RakClient/releases/download/0.2.0/rakclient-0.2.0-windows-x86_64.zip)
+(есть также сборка Linux x86_64); можно скачать и распаковать его
+отдельно. Исходники: upstream commit
+`6ef94b502d4a3bec3f21c318ced731a0131276f4`; версия релиза
+может отличаться от текущего main.
 Его README говорит, что он ориентирован на SA-MP 0.3.7/Arizona; **совместимость
 с фактическим open.mp, его версией и модом TARKENSO пока не подтверждена
 живым подключением**. У upstream есть локально-зависимый патч Rust Recast,
@@ -26,8 +30,10 @@ upstream commit `6ef94b502d4a3bec3f21c318ced731a0131276f4`.
 
 1. Убедиться, что игровой сервер принадлежит вам и хостер разрешает
    нагрузочное тестирование. Сделать резервную копию MySQL и игровых данных.
-2. Собрать отдельно RakClient и получить `rakclient.exe`. Предварительно
-   проверить **один клиент** и совместимость его handshake/dialog/spawn.
+2. Скачать RakClient v0.2.0 для Windows с GitHub Releases и извлечь
+   `rakclient.exe` рядом с рабочими инструментами (или отдельно собрать
+   из исходников). Это сторонняя программа: изучите происхождение бинарника.
+   Предварительно проверить **один клиент** и совместимость handshake/dialog/spawn.
 3. В папке репозитория выполнить сухую проверку, которая **не подключается
    к серверу**:
 
@@ -39,7 +45,7 @@ python tools/loadtest_stage2.py --server 127.0.0.1:7777 --confirm-target 127.0.0
    `my-test-host.example:7777` на действительный IP:порт):
 
 ```powershell
-$env:TARKENSO_LOAD_PASSWORD = "ЗДЕСЬ_ТЕСТОВЫЙ_ПАРОЛЬ_ASCII"
+$env:TARKENSO_LOAD_PASSWORD = "ReplaceWithASCII123"
 python tools/loadtest_stage2.py --server my-test-host.example:7777 --confirm-target my-test-host.example:7777 --remote-approved --client-bin "./rakclient.exe" --count 1 --seconds 90 --mode register
 ```
 
@@ -49,7 +55,8 @@ python tools/loadtest_stage2.py --server my-test-host.example:7777 --confirm-tar
 записывается. Временный сценарий удаляется после теста. На Windows права доступа
 к временной папке должны также быть ограничены для других пользователей.
 
-Затем повторный тест уже с существующим тестовым аккаунтом:
+Затем повторный тест уже с существующим тестовым аккаунтом
+(используется тот же префикс ника):
 
 ```powershell
 python tools/loadtest_stage2.py --server my-test-host.example:7777 --confirm-target my-test-host.example:7777 --remote-approved --client-bin "./rakclient.exe" --count 1 --seconds 90 --mode login
