@@ -3,10 +3,8 @@
 #endif
 #define _tarkenso_loadtest_included
 
-// LOADTEST-01: bounded open.mp NPC world-load probe, NOT real network clients.
-// Disabled until scriptfiles/load_test.enabled exists. Founder + /aduty only.
-#define LOADTEST_ENABLE_FLAG     "load_test.enabled"
-#define LOADTEST_REPORT_FILE     "loadtest.csv"
+// LOADTEST-02: bounded open.mp NPC probe, NOT real network clients.
+// Founder + /aduty only. Each run creates its own revisioned CSV report.
 #define LOADTEST_MAX_NPCS        (100)
 #define LOADTEST_BATCH_NPCS      (4)
 #define LOADTEST_MOVE_BATCH     (8)
@@ -15,6 +13,10 @@
 #define LOADTEST_TICK_MS         (1000)
 #define LOADTEST_MIN_TICKRATE    (20)
 #define LOADTEST_BAD_SAMPLES     (3)
+#define LOADTEST_MAX_REVISIONS   (999)
+#define LOADTEST_DEFAULT_NPCS    (25)
+#define LOADTEST_DEFAULT_SECONDS (60)
+#define LOADTEST_CSV_HEADER      "run_id,elapsed_sec,active_npcs,target_npcs,tickrate,min_tickrate,worst_timer_interval_ms,guard_heartbeat_ms,guard_delayed_count,state\n"
 
 new gLoadNPCIds[LOADTEST_MAX_NPCS];
 new gLoadNPCCount;
@@ -33,6 +35,7 @@ new gLoadLastTick;
 new bool:gLoadRunning;
 new Float:gLoadX, Float:gLoadY, Float:gLoadZ;
 new gLoadWorld;
+new gLoadReportFile[96];
 
 forward LoadTest_Tick();
 
@@ -42,24 +45,58 @@ stock LoadTest_Init()
     gLoadTimer = 0;
     gLoadNPCCount = 0;
     gLoadOwner = INVALID_PLAYER_ID;
+    gLoadReportFile[0] = EOS;
     for (new i = 0; i < LOADTEST_MAX_NPCS; i++)
         gLoadNPCIds[i] = INVALID_NPC_ID;
     return 1;
 }
 
+// Reserve a new file per run. Revisions are daily sequence numbers, not code versions.
+stock bool:LoadTest_CreateReport()
+{
+    new year, month, day;
+    getdate(year, month, day); // Date from server's configured timezone.
+    gLoadReportFile[0] = EOS;
+    for (new revision = 1; revision <= LOADTEST_MAX_REVISIONS; revision++)
+    {
+        format(gLoadReportFile, sizeof(gLoadReportFile),
+            "load_test_%02d_%02d.%02d.%04d.csv", revision, day, month, year);
+        if (fexist(gLoadReportFile)) continue;
+
+        new File:reportHandle = fopen(gLoadReportFile, io_write);
+        if (!reportHandle)
+        {
+            gLoadReportFile[0] = EOS;
+            return false;
+        }
+        new headerBytes = fwrite(reportHandle, LOADTEST_CSV_HEADER);
+        fclose(reportHandle);
+        if (headerBytes <= 0)
+        {
+            fremove(gLoadReportFile);
+            gLoadReportFile[0] = EOS;
+            return false;
+        }
+        return true;
+    }
+    gLoadReportFile[0] = EOS;
+    return false;
+}
+
 stock LoadTest_Append(const phase[])
 {
     // One file write per five seconds. File is diagnostic, not authoritative.
-    new File:log = fopen(LOADTEST_REPORT_FILE, io_append);
-    if (!log) return 0;
-    new line[208];
-    format(line, sizeof(line), "%d,%d,%d,%d,%d,%d,%d,%d,%d,%s\n",
+    if (gLoadReportFile[0] == EOS) return 0;
+    new File:reportHandle = fopen(gLoadReportFile, io_append);
+    if (!reportHandle) return 0;
+    new reportRow[208];
+    format(reportRow, sizeof(reportRow), "%d,%d,%d,%d,%d,%d,%d,%d,%d,%s\n",
         gLoadRunId, gettime() - gLoadStartedAt, gLoadNPCCount,
         gLoadNPCTarget, GetServerTickRate(), gLoadMinTickrate,
         gLoadWorstTickMs, gGuardLastHeartbeatMs, gGuardDelayedHeartbeatCount, phase);
-    new written = fwrite(log, line);
-    fclose(log);
-    return written > 0;
+    new recordBytes = fwrite(reportHandle, reportRow);
+    fclose(reportHandle);
+    return recordBytes > 0;
 }
 
 stock LoadTest_Stop(const reason[])
@@ -88,9 +125,10 @@ stock LoadTest_Stop(const reason[])
     if (owner != INVALID_PLAYER_ID && IsPlayerConnected(owner))
     {
         new msg[130];
-        format(msg, sizeof(msg), "[LoadTest] Stopped (%s). CSV: scriptfiles/loadtest.csv", reason);
+        format(msg, sizeof(msg), "[LoadTest] Stopped (%s). Report: %s", reason, gLoadReportFile);
         SendClientMessage(owner, ADMIN_COLOR, msg);
     }
+    gLoadReportFile[0] = EOS;
     return 1;
 }
 
@@ -113,8 +151,8 @@ stock LoadTest_Status(playerid)
     if (!gLoadRunning)
     {
         format(msg, sizeof(msg),
-            "[LoadTest] Idle. Enabled: %d. Max NPC: %d. /loadtest start [count] [seconds]",
-            fexist(LOADTEST_ENABLE_FLAG), LOADTEST_MAX_NPCS);
+            "[LoadTest] Idle. /load start [count] [seconds] (default 25/60); max=%d",
+            LOADTEST_MAX_NPCS);
     }
     else
     {
@@ -123,20 +161,27 @@ stock LoadTest_Status(playerid)
             gLoadNPCCount, gLoadNPCTarget, gettime() - gLoadStartedAt,
             gLoadDuration, GetServerTickRate(), gLoadMinTickrate, gLoadWorstTickMs);
     }
-    return SendClientMessage(playerid, ADMIN_COLOR, msg);
+    SendClientMessage(playerid, ADMIN_COLOR, msg);
+    if (gLoadRunning)
+    {
+        format(msg, sizeof(msg), "[LoadTest] Report: %s", gLoadReportFile);
+        SendClientMessage(playerid, ADMIN_COLOR, msg);
+    }
+    return 1;
 }
 
 stock LoadTest_Start(playerid, count, duration)
 {
     if (gLoadRunning)
-        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Already running; /loadtest stop.");
-    if (!fexist(LOADTEST_ENABLE_FLAG))
-        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Disabled. Create scriptfiles/load_test.enabled on a test server.");
+        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Already running; /load stop.");
     if (count < 1 || count > LOADTEST_MAX_NPCS ||
         duration < LOADTEST_MIN_SECONDS || duration > LOADTEST_MAX_SECONDS)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Count: 1..100; seconds: 10..300.");
     if (!gAccountSpawned[playerid] || GetPlayerInterior(playerid) != 0)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Spawn outdoors before starting.");
+    if (!LoadTest_CreateReport())
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[LoadTest] Report creation failed (I/O error or 999 daily revisions). Test not started.");
     gLoadOwner = playerid;
     gLoadNPCTarget = count;
     gLoadNPCCount = 0;
@@ -152,29 +197,36 @@ stock LoadTest_Start(playerid, count, duration)
     gLoadWorld = GetPlayerVirtualWorld(playerid);
     GetPlayerPos(playerid, gLoadX, gLoadY, gLoadZ);
     gLoadRunning = true;
+    if (!LoadTest_Append("start"))
+    {
+        fremove(gLoadReportFile);
+        gLoadReportFile[0] = EOS;
+        gLoadRunning = false;
+        gLoadOwner = INVALID_PLAYER_ID;
+        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Report write failed. Test not started.");
+    }
     gLoadTimer = SetTimer("LoadTest_Tick", LOADTEST_TICK_MS, true);
     if (!gLoadTimer)
     {
+        LoadTest_Append("timer_failed");
         gLoadRunning = false;
         gLoadOwner = INVALID_PLAYER_ID;
+        gLoadReportFile[0] = EOS;
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Timer creation failed.");
     }
-    printf("[LOADTEST] start: run=%d, target=%d NPC, duration=%ds, world=%d",
-        gLoadRunId, count, duration, gLoadWorld);
-    LoadTest_Append("start");
-    return SendClientMessage(playerid, ADMIN_COLOR,
-        "[LoadTest] NPC stress started; auto-stop enabled. Use /loadtest status or /loadtest stop.");
+    printf("[LOADTEST] start: run=%d, target=%d NPC, duration=%ds, world=%d, report=%s",
+        gLoadRunId, count, duration, gLoadWorld, gLoadReportFile);
+    new startMessage[144];
+    format(startMessage, sizeof(startMessage),
+        "[LoadTest] Running %d NPC for %d sec. Report: %s", count, duration, gLoadReportFile);
+    return SendClientMessage(playerid, ADMIN_COLOR, startMessage);
 }
 
 public LoadTest_Tick()
 {
     if (!gLoadRunning) return 1;
-    if (!fexist(LOADTEST_ENABLE_FLAG))
-    {
-        LoadTest_Stop("flag_removed");
-        return 1;
-    }
-    if (!IsPlayerConnected(gLoadOwner) || !Admin_IsFounder(gLoadOwner))
+    if (!IsPlayerConnected(gLoadOwner) || !Admin_IsFounder(gLoadOwner) ||
+        !gAdminDuty[gLoadOwner])
     {
         LoadTest_Stop("owner_unavailable");
         return 1;
@@ -249,12 +301,12 @@ public LoadTest_Tick()
 
 stock LoadTest_Command(playerid, const params[])
 {
-    if (!Admin_IsFounder(playerid) || !gAdminDuty[playerid])
-        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Founder only; enable /aduty.");
+    if (!Admin_IsFounder(playerid))
+        return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Founder only.");
     new action[16];
     if (isnull(params) || sscanf(params, "s[16]", action))
         return SendClientMessage(playerid, ADMIN_COLOR,
-            "[LoadTest] /loadtest start [1..100] [10..300] | status | stop.");
+            "[LoadTest] /load start [1..100] [10..300] | status | stop (defaults: 25/60).");
     if (!strcmp(action, "status", true)) return LoadTest_Status(playerid);
     if (!strcmp(action, "stop", true))
     {
@@ -264,12 +316,16 @@ stock LoadTest_Command(playerid, const params[])
     }
     if (!strcmp(action, "start", true))
     {
+        if (!gAdminDuty[playerid])
+            return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Enable /aduty first.");
+        if (!strcmp(params, "start", true))
+            return LoadTest_Start(playerid, LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS);
         new count, seconds;
         if (sscanf(params, "s[16]ii", action, count, seconds))
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "[LoadTest] Usage: /loadtest start 50 120");
+                "[LoadTest] Usage: /load start 50 120 or /load start");
         return LoadTest_Start(playerid, count, seconds);
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
-        "[LoadTest] /loadtest start [count] [seconds] | status | stop.");
+        "[LoadTest] /load start [count] [seconds] | status | stop.");
 }
