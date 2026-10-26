@@ -331,8 +331,9 @@ stock LoadTest_Command(playerid, const params[])
     new action[16];
     if (isnull(params) || sscanf(params, "s[16]", action))
         return SendClientMessage(playerid, ADMIN_COLOR,
-            "[LoadTest] /load start [count] [sec] [npc|full] | status | stop (default npc 25/60).");
+            "[LoadTest] /load start [count] [sec] [npc|full] | status | report | stop.");
     if (!strcmp(action, "status", true)) return LoadTest_Status(playerid);
+    if (!strcmp(action, "report", true)) return Bench_Report(playerid);
     if (!strcmp(action, "stop", true))
     {
         if (!gLoadRunning) return LoadTest_Status(playerid);
