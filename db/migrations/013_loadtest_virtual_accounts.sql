@@ -1,6 +1,6 @@
 -- LOADTEST-04: isolated synthetic registration/login/save benchmark records.
 -- This table is deliberately NOT linked to real accounts, money, roles or PayDay.
--- Apply ONCE after migration 012.
+-- Apply ONCE after migration 012 (TextDraw Studio). This is v13.
 CREATE TABLE loadtest_virtual_accounts (
     run_key VARCHAR(96) NOT NULL,
     virtual_id SMALLINT UNSIGNED NOT NULL,
