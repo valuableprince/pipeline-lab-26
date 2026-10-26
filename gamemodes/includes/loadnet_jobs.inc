@@ -119,7 +119,7 @@ public LoadNet_OnStatus(playerid, authToken)
     if (!cache_get_row_count(rows) || rows == 0)
         return SendClientMessage(playerid, ADMIN_COLOR, "[LoadNet] No tests in queue.");
     new job, clients, duration, launched, joined, authed, spawned;
-    new state[24], mode[16], note[121], msg[190];
+    new jobState[24], mode[16], note[121], msg[190];
     if (!cache_get_value_name_int(0, "job_id", job) ||
         !cache_get_value_name_int(0, "target_clients", clients) ||
         !cache_get_value_name_int(0, "duration_seconds", duration) ||
@@ -127,13 +127,13 @@ public LoadNet_OnStatus(playerid, authToken)
         !cache_get_value_name_int(0, "joined_clients", joined) ||
         !cache_get_value_name_int(0, "authenticated_clients", authed) ||
         !cache_get_value_name_int(0, "spawned_clients", spawned) ||
-        !cache_get_value_name(0, "state", state, sizeof(state)) ||
+        !cache_get_value_name(0, "state", jobState, sizeof(jobState)) ||
         !cache_get_value_name(0, "auth_mode", mode, sizeof(mode)) ||
         !cache_get_value_name(0, "status_message", note, sizeof(note)))
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadNet] Malformed job record.");
     format(msg, sizeof(msg),
         "[LoadNet] Job #%d %s (%s); %d/%d launched, %d joined, %d auth, %d spawn; %ds",
-        job, state, mode, launched, clients, joined, authed, spawned, duration);
+        job, jobState, mode, launched, clients, joined, authed, spawned, duration);
     SendClientMessage(playerid, ADMIN_COLOR, msg);
     if (note[0] != EOS)
     {
