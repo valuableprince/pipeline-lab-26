@@ -76,6 +76,11 @@ cmd:loadtest(playerid, params[])
     return LoadTest_Command(playerid, params);
 }
 
+cmd:loadnet(playerid, params[])
+{
+    return LoadNet_Command(playerid, params);
+}
+
 // Каталог радиостанций для личного прослушивания вне гоночных событий.
 cmd:play(playerid, params[])
 {
