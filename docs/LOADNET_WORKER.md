@@ -33,13 +33,14 @@ Set environment variables in PowerShell (do not commit credentials):
     $env:TARKENSO_DB_NAME = "YOUR_DB_NAME"
     $env:TARKENSO_DB_USER = "tarkenso_loadnet"
     $env:TARKENSO_DB_PASSWORD = "YOUR_WORKER_PASSWORD"
+    $env:TARKENSO_DB_SSL_CA = "C:\\path\\to\\trusted-mysql-ca.pem"  # for remote MySQL
     $env:TARKENSO_LOAD_PASSWORD = "SeparateTestAccountPassword123"
 
 Validate locally without connecting:
 
     python tools/loadnet_worker.py --server $env:TARKENSO_GAME_SERVER --confirm-target $env:TARKENSO_GAME_SERVER --client-bin "./rakclient.exe" --dry-run
 
-Run in that same terminal (or double-click the BAT after environment is configured):
+Run in that same PowerShell terminal (Explorer double-click will NOT inherit session-only variables):
 
     .\tools\run_loadnet_worker.bat
 
@@ -70,7 +71,8 @@ can update MySQL, a job may remain RUNNING. First verify NO game test clients
 are still running on the PC, then manually mark the stale job FAILED in SQL.
 Never reset active jobs while another worker or test is running.
 
-Never use the founder account password for test clients. Prefer MySQL TLS
-or SSH tunnel, restrict database access by IP, and do not expose DB credentials.
+Never use the founder account password for test clients. Remote MySQL requires
+TARKENSO_DB_SSL_CA with verified TLS; alternatively use an SSH tunnel and a
+127.0.0.1 MySQL endpoint. Restrict DB by IP and do not expose credentials.
 The database never stores arbitrary executables, target hosts or commands.
 Use only for servers you own and where your provider permits load testing.
