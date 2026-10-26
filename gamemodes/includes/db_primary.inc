@@ -517,7 +517,8 @@
     public OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle)
     {
         // Never log raw SQL (password hash can be present).
-        #pragma unused error, callback, query, handle
+        #pragma unused error, handle
+        if (TDSDB_OnError(callback, query)) return 1;
         printf("[DB-PRIMARY] Asynchronous SQL query failed with error %d.", errorid);
         gDBPrimaryReady = false;
         for (new i = 0; i < MAX_PLAYERS; i++)

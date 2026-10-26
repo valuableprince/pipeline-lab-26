@@ -23,3 +23,7 @@
 * `.ban` может быть выдан на ник без аккаунта, поэтому у таблицы bans нет внешнего ключа на accounts.
 * Для соответствия реальной экономике защита дублей выплат должна переехать в транзакции сервера и использовать уникальные event-id. Этот SQL и импортер не включают переключение игрового хранения.
 * Доступ и TLS к конкретному хостингу проверяются перед подключением; TLS-опции будущего Pawn-компонента и возможности MySQL провайдера требуется согласовать.
+
+## TextDraw Studio, migration 012
+
+Apply `migrations/012_tdstudio_projects.sql` once after 011, using MySQL 8.0.16+ and a migration account with CREATE ROUTINE. Runtime uses the existing R41 connection, EXECUTE on the four `tds_*` routines and CRUD on the two new tables. The routine security model is INVOKER. No existing game table is altered. See `docs/TEXTDRAW_STUDIO_STAGE2.md` for CP1251 transport, installation and testing.

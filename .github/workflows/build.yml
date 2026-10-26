@@ -8,6 +8,7 @@ on:
       - "tests/**"
       - "tools/check_pawn_output.py"
       - "tools/install_rustext.py"
+      - "tools/test_tdstudio.py"
       - ".github/workflows/build.yml"
   pull_request:
     branches: [main]
@@ -34,7 +35,7 @@ jobs:
       - name: Install runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y libc6-i386
+          sudo apt-get install -y libc6-i386 lib32gcc-s1 lib32stdc++6 lib32atomic1
 
       - name: Obtain compiler
         shell: bash
@@ -54,6 +55,7 @@ jobs:
           echo "PAWN_COMPILER=$COMPILER" >> "$GITHUB_ENV"
           echo "PAWN_INCLUDE=$(dirname "$INCLUDE")" >> "$GITHUB_ENV"
           echo "PAWN_LIB=$(dirname "$LIBPAWNC")" >> "$GITHUB_ENV"
+          echo "OMP_SERVER_DIR=$(dirname "$(dirname "$COMPILER")")" >> "$GITHUB_ENV"
 
       - name: Stage source
         run: |
@@ -97,6 +99,12 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_rustext_installer.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
           python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
+          python3 -m unittest discover -s tests -p 'test_tdstudio.py' -v
+
+      - name: Run TextDraw Studio Pawn behavior tests
+        run: |
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 tools/test_tdstudio.py --server "$OMP_SERVER_DIR"
 
       - name: Validate controlled NPC load test
         run: |
@@ -127,6 +135,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: diagnostics
-          path: build/compiler.log
+          path: |
+            build/compiler.log
+            build/tdstudio-test-compile.log
+            build/tdstudio-test-run.log
           if-no-files-found: ignore
           retention-days: 3
