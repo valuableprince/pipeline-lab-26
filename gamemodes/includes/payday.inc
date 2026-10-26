@@ -8,6 +8,7 @@
 #define PAYDAY_EXP_PER_HOUR (1)
 #define PAYDAY_COLOR (0xA7D6B5FF)
 #define PAYDAY_RETRY_SECONDS (10)
+#define PAYDAY_GRANTS_PER_TICK (4)
 
 new gPayDayTimer;
 new gPayDayLastHour;
@@ -16,6 +17,7 @@ new gPayDayLastHour;
 new gPayDayPendingHour[MAX_PLAYERS];
 new gPayDayPendingThrough[MAX_PLAYERS];
 new gPayDayNextRetry[MAX_PLAYERS];
+new gPayDayScanCursor;
 forward PayDay_Tick();
 
 stock PayDay_Reset(playerid)
@@ -121,8 +123,11 @@ public PayDay_Tick()
             gPayDayPendingThrough[playerid] = currentHourKey;
         }
     }
-    for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
+    // A bounded batch distributes the synchronous SQL workload across ticks.
+    new processed;
+    for (new offset = 0; offset < MAX_PLAYERS && processed < PAYDAY_GRANTS_PER_TICK; offset++)
     {
+        new playerid = (gPayDayScanCursor + offset) % MAX_PLAYERS;
         new pending = gPayDayPendingHour[playerid];
         if (!pending) continue;
         if (!IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
@@ -132,6 +137,7 @@ public PayDay_Tick()
             continue;
         }
         if (now < gPayDayNextRetry[playerid]) continue;
+        processed++;
         if (gCharacterLastPaydayHour[playerid] >= pending ||
             PayDay_Grant(playerid, pending))
         {
@@ -144,12 +150,15 @@ public PayDay_Tick()
         else
             gPayDayNextRetry[playerid] = now + PAYDAY_RETRY_SECONDS;
     }
+    gPayDayScanCursor = (gPayDayScanCursor + 1) % MAX_PLAYERS;
     return 1;
 }
 
 stock PayDay_Init()
 {
     gPayDayLastHour = gettime() / 3600;
+    gPayDayScanCursor = 0;
+    for (new i = 0; i < MAX_PLAYERS; i++) PayDay_Reset(i);
     gPayDayTimer = SetTimer("PayDay_Tick", 1000, true);
     print("[PayDay] Hourly EXP scheduler initialized.");
     return 1;
