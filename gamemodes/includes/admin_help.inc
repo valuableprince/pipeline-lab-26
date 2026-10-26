@@ -79,7 +79,6 @@ new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
     {"founder", "/founder [announce текст]", "Инструменты основателя проекта", "/founder announce Сбор", 5, 6},
     {"studio", "/studio [режим]", "Открыть редактор мира", "/studio", 5, 6},
     {"zoneedit", "/zoneedit", "Редактировать игровые зоны", "/zoneedit", 5, 6},
-    {"dish", "/dish status|auto|stop|angle|left|right", "Управлять радиотелескопом The Big Ear", "/dish angle 45", 4, 5},
     {"trashservice", "/trashservice", "Обслужить контейнер мусора", "/trashservice", 6}
 };
 
