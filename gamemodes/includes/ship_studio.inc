@@ -1,0 +1,502 @@
+#if defined _tarkenso_ship_studio_included
+    #endinput
+#endif
+#define _tarkenso_ship_studio_included
+
+// SHIP-STUDIO-01: one editable cargo vessel, composed of ordinary server objects.
+// Standard object attachments are used deliberately: this is NOT a vehicle.
+// This is a development tool. No automatic map collision or passenger guarantee.
+#define SHIP_DIR           "shipstudio"
+#define SHIP_DATA          SHIP_DIR "/cargo_01.dat"
+#define SHIP_EXPORT        SHIP_DIR "/cargo_01_route.inc"
+#define SHIP_MAX_PARTS     (48)
+#define SHIP_MAX_POINTS    (80)
+#define SHIP_COLOR         (0x87D9E5FF)
+#define SHIP_CRUISE_SPEED  (4.0)
+
+new gShipRoot = INVALID_OBJECT_ID;
+new gShipModel;
+new gShipOwner = INVALID_PLAYER_ID;
+new gShipPartCount;
+new gShipPartObject[SHIP_MAX_PARTS];
+new gShipPartModel[SHIP_MAX_PARTS];
+new Float:gShipPartLocal[SHIP_MAX_PARTS][6];
+new gShipPointCount;
+new Float:gShipPoint[SHIP_MAX_POINTS][4];
+new bool:gShipRunning;
+new gShipNextPoint;
+new gShipTimer;
+
+forward Ship_Tick();
+
+stock bool:Ship_ValidCoord(Float:x, Float:y, Float:z)
+{
+    return x >= -3000.0 && x <= 3000.0 &&
+        y >= -3000.0 && y <= 3000.0 && z >= -100.0 && z <= 1000.0;
+}
+
+stock bool:Ship_ValidModel(model)
+{
+    return model >= 600 && model <= 19999;
+}
+
+stock bool:Ship_Ready()
+{
+    return gShipRoot != INVALID_OBJECT_ID && IsValidObject(gShipRoot);
+}
+
+stock Ship_Stop()
+{
+    gShipRunning = false;
+    if (Ship_Ready()) StopObject(gShipRoot);
+    return 1;
+}
+
+stock Ship_Reset()
+{
+    Ship_Stop();
+    for (new i = 0; i < gShipPartCount; i++)
+    {
+        if (IsValidObject(gShipPartObject[i])) DestroyObject(gShipPartObject[i]);
+        gShipPartObject[i] = INVALID_OBJECT_ID;
+    }
+    if (Ship_Ready()) DestroyObject(gShipRoot);
+    gShipRoot = INVALID_OBJECT_ID;
+    gShipModel = 0;
+    gShipPartCount = 0;
+    gShipPointCount = 0;
+    gShipNextPoint = 0;
+    gShipOwner = INVALID_PLAYER_ID;
+    return 1;
+}
+
+stock bool:Ship_Create(Float:x, Float:y, Float:z, Float:angle, model)
+{
+    if (!Ship_ValidModel(model) || !Ship_ValidCoord(x, y, z)) return false;
+    new id = CreateObject(model, x, y, z, 0.0, 0.0, angle, 350.0);
+    if (id == INVALID_OBJECT_ID) return false;
+    gShipRoot = id;
+    gShipModel = model;
+    return true;
+}
+
+stock bool:Ship_AddPart(model, Float:ox, Float:oy, Float:oz,
+    Float:rx, Float:ry, Float:rz)
+{
+    if (!Ship_Ready() || gShipPartCount >= SHIP_MAX_PARTS ||
+        !Ship_ValidModel(model) || floatabs(ox) > 150.0 ||
+        floatabs(oy) > 150.0 || floatabs(oz) > 60.0) return false;
+
+    new Float:x, Float:y, Float:z;
+    GetObjectPos(gShipRoot, x, y, z);
+    new id = CreateObject(model, x, y, z, 0.0, 0.0, 0.0, 350.0);
+    if (id == INVALID_OBJECT_ID) return false;
+    if (!AttachObjectToObject(id, gShipRoot, ox, oy, oz, rx, ry, rz, true))
+    {
+        DestroyObject(id);
+        return false;
+    }
+    new slot = gShipPartCount++;
+    gShipPartObject[slot] = id;
+    gShipPartModel[slot] = model;
+    gShipPartLocal[slot][0] = ox;
+    gShipPartLocal[slot][1] = oy;
+    gShipPartLocal[slot][2] = oz;
+    gShipPartLocal[slot][3] = rx;
+    gShipPartLocal[slot][4] = ry;
+    gShipPartLocal[slot][5] = rz;
+    return true;
+}
+
+stock bool:Ship_Mark()
+{
+    if (!Ship_Ready() || gShipPointCount >= SHIP_MAX_POINTS) return false;
+    new Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:angle;
+    GetObjectPos(gShipRoot, x, y, z);
+    GetObjectRot(gShipRoot, rx, ry, angle);
+    if (!Ship_ValidCoord(x, y, z)) return false;
+    new slot = gShipPointCount++;
+    gShipPoint[slot][0] = x;
+    gShipPoint[slot][1] = y;
+    gShipPoint[slot][2] = z;
+    gShipPoint[slot][3] = angle;
+    return true;
+}
+
+// File is first written to .tmp and published by rename. Existing revision -> .bak.
+stock bool:Ship_Save()
+{
+    if (!Ship_Ready()) return false;
+    new Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:rz;
+    GetObjectPos(gShipRoot, x, y, z);
+    GetObjectRot(gShipRoot, rx, ry, rz);
+    if (!Ship_ValidCoord(x, y, z)) return false;
+
+    new temp[80], backup[80], line[160];
+    format(temp, sizeof(temp), "%s.tmp", SHIP_DATA);
+    format(backup, sizeof(backup), "%s.bak", SHIP_DATA);
+    if (fexist(temp) && !fremove(temp)) return false;
+    new File:file = fopen(temp, io_write);
+    if (!file) return false;
+    new bool:ok = fwrite(file, "TARKENSO_SHIP|1\n") > 0;
+    format(line, sizeof(line), "%d %.5f %.5f %.5f %.5f %d %d\n",
+        gShipModel, x, y, z, rz, gShipPartCount, gShipPointCount);
+    if (fwrite(file, line) <= 0) ok = false;
+    for (new i = 0; i < gShipPartCount; i++)
+    {
+        format(line, sizeof(line), "%d %.5f %.5f %.5f %.5f %.5f %.5f\n",
+            gShipPartModel[i], gShipPartLocal[i][0], gShipPartLocal[i][1],
+            gShipPartLocal[i][2], gShipPartLocal[i][3], gShipPartLocal[i][4],
+            gShipPartLocal[i][5]);
+        if (fwrite(file, line) <= 0) ok = false;
+    }
+    for (new i = 0; i < gShipPointCount; i++)
+    {
+        format(line, sizeof(line), "%.5f %.5f %.5f %.5f\n",
+            gShipPoint[i][0], gShipPoint[i][1],
+            gShipPoint[i][2], gShipPoint[i][3]);
+        if (fwrite(file, line) <= 0) ok = false;
+    }
+    fclose(file);
+    if (!ok) { fremove(temp); return false; }
+    if (fexist(SHIP_DATA))
+    {
+        if (fexist(backup) && !fremove(backup)) { fremove(temp); return false; }
+        if (!frename(SHIP_DATA, backup)) { fremove(temp); return false; }
+    }
+    if (!frename(temp, SHIP_DATA))
+    {
+        if (fexist(backup) && !fexist(SHIP_DATA)) frename(backup, SHIP_DATA);
+        fremove(temp);
+        return false;
+    }
+    return true;
+}
+
+// Loads only into an empty slot, preventing partial file reads from replacing
+// an already active ship. On any invalid record the incomplete ship is removed.
+stock bool:Ship_Load()
+{
+    if (Ship_Ready() || !fexist(SHIP_DATA)) return false;
+    new File:file = fopen(SHIP_DATA, io_read);
+    if (!file) return false;
+    new line[160], header[48], extra[4];
+    new model, partCount, pointCount;
+    new Float:x, Float:y, Float:z, Float:angle;
+    new bool:ok = fread(file, header, sizeof(header)) != 0;
+    Auth_StripLine(header);
+    if (strcmp(header, "TARKENSO_SHIP|1", false)) ok = false;
+    if (ok && !fread(file, line, sizeof(line))) ok = false;
+    if (ok && sscanf(line, "iffffii", model, x, y, z, angle, partCount, pointCount))
+        ok = false;
+    if (ok && (!Ship_ValidModel(model) || !Ship_ValidCoord(x, y, z) ||
+        partCount < 0 || partCount > SHIP_MAX_PARTS ||
+        pointCount < 0 || pointCount > SHIP_MAX_POINTS)) ok = false;
+    if (ok) ok = Ship_Create(x, y, z, angle, model);
+    for (new i = 0; ok && i < partCount; i++)
+    {
+        new piece;
+        new Float:ox, Float:oy, Float:oz, Float:rx, Float:ry, Float:rz;
+        if (!fread(file, line, sizeof(line)) ||
+            sscanf(line, "iffffff", piece, ox, oy, oz, rx, ry, rz) ||
+            !Ship_AddPart(piece, ox, oy, oz, rx, ry, rz)) ok = false;
+    }
+    for (new i = 0; ok && i < pointCount; i++)
+    {
+        new Float:px, Float:py, Float:pz, Float:heading;
+        if (!fread(file, line, sizeof(line)) ||
+            sscanf(line, "ffff", px, py, pz, heading) ||
+            !Ship_ValidCoord(px, py, pz)) { ok = false; continue; }
+        new slot = gShipPointCount++;
+        gShipPoint[slot][0] = px;
+        gShipPoint[slot][1] = py;
+        gShipPoint[slot][2] = pz;
+        gShipPoint[slot][3] = heading;
+    }
+    if (ok && fread(file, extra, sizeof(extra))) ok = false;
+    fclose(file);
+    if (!ok) Ship_Reset();
+    return ok;
+}
+
+stock bool:Ship_Export()
+{
+    if (!Ship_Ready() || gShipPointCount < 2) return false;
+    new File:file = fopen(SHIP_EXPORT, io_write);
+    if (!file) return false;
+    new bool:ok = fwrite(file, "// Generated by TARKENSO Ship Studio. Review before including.\n") > 0;
+    new line[160];
+    if (fwrite(file, "new const Float:gCargoShipRoute[][4] = {\n") <= 0) ok = false;
+    for (new i = 0; i < gShipPointCount; i++)
+    {
+        format(line, sizeof(line), "    {%.5f, %.5f, %.5f, %.5f}%s\n",
+            gShipPoint[i][0], gShipPoint[i][1], gShipPoint[i][2],
+            gShipPoint[i][3], i == gShipPointCount - 1 ? ("") : (","));
+        if (fwrite(file, line) <= 0) ok = false;
+    }
+    if (fwrite(file, "};\n") <= 0) ok = false;
+    fclose(file);
+    if (!ok) fremove(SHIP_EXPORT);
+    return ok;
+}
+
+stock Ship_Advance()
+{
+    if (!gShipRunning || !Ship_Ready()) return 0;
+    while (gShipNextPoint < gShipPointCount)
+    {
+        new i = gShipNextPoint++;
+        new Float:x, Float:y, Float:z;
+        GetObjectPos(gShipRoot, x, y, z);
+        new Float:dx = x - gShipPoint[i][0];
+        new Float:dy = y - gShipPoint[i][1];
+        new Float:dz = z - gShipPoint[i][2];
+        if (dx * dx + dy * dy + dz * dz < 0.16)
+        {
+            SetObjectRot(gShipRoot, 0.0, 0.0, gShipPoint[i][3]);
+            continue;
+        }
+        MoveObject(gShipRoot, gShipPoint[i][0], gShipPoint[i][1],
+            gShipPoint[i][2], SHIP_CRUISE_SPEED,
+            0.0, 0.0, gShipPoint[i][3]);
+        return 1;
+    }
+    gShipRunning = false;
+    return 1;
+}
+
+public Ship_Tick()
+{
+    if (!gShipRunning || !Ship_Ready()) return 1;
+    if (gShipNextPoint < 1) return Ship_Advance();
+    new i = gShipNextPoint - 1;
+    new Float:x, Float:y, Float:z;
+    GetObjectPos(gShipRoot, x, y, z);
+    new Float:dx = x - gShipPoint[i][0];
+    new Float:dy = y - gShipPoint[i][1];
+    new Float:dz = z - gShipPoint[i][2];
+    if (dx * dx + dy * dy + dz * dz <= 0.16) Ship_Advance();
+    return 1;
+}
+
+stock Ship_Help(playerid)
+{
+    SendClientMessage(playerid, SHIP_COLOR,
+        "Ship Studio: /ship create [hull model], /ship add [model dx dy dz rx ry rz].");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "/ship move [meters], /ship turn [degrees], /ship set [x y z angle], /ship mark.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "/ship run, /ship stop, /ship undo, /ship save, /ship load, /ship export.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
+    return 1;
+}
+
+stock Ship_Status(playerid)
+{
+    new line[144], Float:x, Float:y, Float:z;
+    if (!Ship_Ready()) return SendClientMessage(playerid, SHIP_COLOR,
+        "Ship Studio: корабль не загружен. /ship create [model] или /ship load.");
+    GetObjectPos(gShipRoot, x, y, z);
+    format(line, sizeof(line), "Ship | hull %d | parts %d/%d | route %d/%d | %s",
+        gShipModel, gShipPartCount, SHIP_MAX_PARTS, gShipPointCount,
+        SHIP_MAX_POINTS, gShipRunning ? ("AUTO") : ("STOP"));
+    SendClientMessage(playerid, SHIP_COLOR, line);
+    format(line, sizeof(line), "Position: %.2f %.2f %.2f | editor ID %d",
+        x, y, z, gShipOwner);
+    SendClientMessage(playerid, SHIP_COLOR, line);
+    return 1;
+}
+
+stock bool:Ship_Lock(playerid)
+{
+    if (gShipOwner != INVALID_PLAYER_ID && gShipOwner != playerid)
+    {
+        SendClientMessage(playerid, ADMIN_ERROR, "Ship Studio занят другим разработчиком.");
+        return false;
+    }
+    gShipOwner = playerid;
+    return true;
+}
+
+stock Ship_Command(playerid, const params[])
+{
+    if (!Studio_Require(playerid)) return 1;
+    if (isnull(params)) return Ship_Help(playerid);
+    new action[24];
+    if (sscanf(params, "s[24]", action)) return Ship_Help(playerid);
+    if (!strcmp(action, "help", true)) return Ship_Help(playerid);
+    if (!strcmp(action, "status", true)) return Ship_Status(playerid);
+    if (!strcmp(action, "load", true))
+    {
+        if (!Ship_Lock(playerid)) return 1;
+        if (!Ship_Load()) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Загрузка не удалась. Очистите корабль или проверьте cargo_01.dat.");
+        return Ship_Status(playerid);
+    }
+    if (!strcmp(action, "release", true))
+    {
+        if (gShipOwner != playerid) return 1;
+        Ship_Stop();
+        gShipOwner = INVALID_PLAYER_ID;
+        return SendClientMessage(playerid, SHIP_COLOR, "Ship Studio: блокировка снята.");
+    }
+    if (!Ship_Lock(playerid)) return 1;
+    if (!strcmp(action, "create", true))
+    {
+        new model;
+        if (sscanf(params, "s[24]i", action, model) || !Ship_ValidModel(model))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Usage: /ship create [hull model ID].");
+        if (Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Сначала /ship save и /ship clear. На этапе 1 поддерживается одно судно.");
+        if (GetPlayerVirtualWorld(playerid) != 0 || GetPlayerInterior(playerid) != 0)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Создание только в основном мире.");
+        new Float:x, Float:y, Float:z, Float:a;
+        GetPlayerPos(playerid, x, y, z);
+        GetPlayerFacingAngle(playerid, a);
+        if (!Ship_Create(x, y, z, a, model))
+            return SendClientMessage(playerid, ADMIN_ERROR, "Создание объекта не удалось.");
+        return Ship_Status(playerid);
+    }
+    if (!strcmp(action, "clear", true))
+    {
+        Ship_Reset();
+        return SendClientMessage(playerid, SHIP_COLOR,
+            "Корабль удалён из памяти. Файл сохранения не затронут.");
+    }
+    if (!Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
+        "Нет корабля. /ship create [model] или /ship load.");
+    if (!strcmp(action, "stop", true))
+    {
+        Ship_Stop();
+        return SendClientMessage(playerid, SHIP_COLOR, "Корабль остановлен.");
+    }
+    if (!strcmp(action, "save", true))
+    {
+        if (!Ship_Save()) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Не удалось сохранить cargo_01.dat.");
+        return SendClientMessage(playerid, SHIP_COLOR, "Сохранено: shipstudio/cargo_01.dat.");
+    }
+    if (!strcmp(action, "export", true))
+    {
+        if (!Ship_Export()) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Экспорт не удался: нужно минимум две точки маршрута.");
+        return SendClientMessage(playerid, SHIP_COLOR,
+            "Экспорт: shipstudio/cargo_01_route.inc.");
+    }
+    if (!strcmp(action, "add", true))
+    {
+        new model;
+        new Float:dx, Float:dy, Float:dz, Float:rx, Float:ry, Float:rz;
+        if (sscanf(params, "s[24]iffffff", action, model, dx, dy, dz, rx, ry, rz))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Usage: /ship add [model dx dy dz rx ry rz].");
+        if (gShipRunning || !Ship_AddPart(model, dx, dy, dz, rx, ry, rz))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Не удалось добавить часть (модель, лимит или движение).");
+        return Ship_Status(playerid);
+    }
+    if (!strcmp(action, "move", true))
+    {
+        new Float:meters, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:angle;
+        if (sscanf(params, "s[24]f", action, meters) || floatabs(meters) > 100.0 ||
+            floatabs(meters) < 0.01)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Usage: /ship move [-100..100].");
+        if (gShipRunning) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Остановите автопилот: /ship stop.");
+        StopObject(gShipRoot);
+        GetObjectPos(gShipRoot, x, y, z);
+        GetObjectRot(gShipRoot, rx, ry, angle);
+        new Float:tx = x - floatsin(angle, degrees) * meters;
+        new Float:ty = y + floatcos(angle, degrees) * meters;
+        if (!Ship_ValidCoord(tx, ty, z))
+            return SendClientMessage(playerid, ADMIN_ERROR, "За пределами карты.");
+        MoveObject(gShipRoot, tx, ty, z, SHIP_CRUISE_SPEED);
+        return SendClientMessage(playerid, SHIP_COLOR,
+            "Ручной ход начат. /ship stop — остановка; /ship mark — запись.");
+    }
+    if (!strcmp(action, "turn", true))
+    {
+        new Float:degreesValue, Float:rx, Float:ry, Float:angle;
+        if (sscanf(params, "s[24]f", action, degreesValue) ||
+            floatabs(degreesValue) > 180.0)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Usage: /ship turn [-180..180].");
+        if (gShipRunning) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Остановите автопилот.");
+        StopObject(gShipRoot);
+        GetObjectRot(gShipRoot, rx, ry, angle);
+        SetObjectRot(gShipRoot, 0.0, 0.0, angle + degreesValue);
+        return Ship_Status(playerid);
+    }
+    if (!strcmp(action, "set", true))
+    {
+        new Float:x, Float:y, Float:z, Float:angle;
+        if (sscanf(params, "s[24]ffff", action, x, y, z, angle) ||
+            !Ship_ValidCoord(x, y, z))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Usage: /ship set [x y z angle].");
+        Ship_Stop();
+        SetObjectPos(gShipRoot, x, y, z);
+        SetObjectRot(gShipRoot, 0.0, 0.0, angle);
+        return Ship_Status(playerid);
+    }
+    if (!strcmp(action, "mark", true))
+    {
+        if (!Ship_Mark()) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Не удалось записать точку (предел 80 или координаты).");
+        new line[72];
+        format(line, sizeof(line), "Записана точка маршрута #%d.", gShipPointCount);
+        return SendClientMessage(playerid, SHIP_COLOR, line);
+    }
+    if (!strcmp(action, "undo", true))
+    {
+        if (gShipRunning || !gShipPointCount) return 1;
+        gShipPointCount--;
+        return SendClientMessage(playerid, SHIP_COLOR, "Последняя точка удалена.");
+    }
+    if (!strcmp(action, "run", true))
+    {
+        if (gShipPointCount < 2)
+            return SendClientMessage(playerid, ADMIN_ERROR, "Запишите хотя бы две точки.");
+        Ship_Stop();
+        SetObjectPos(gShipRoot, gShipPoint[0][0],
+            gShipPoint[0][1], gShipPoint[0][2]);
+        SetObjectRot(gShipRoot, 0.0, 0.0, gShipPoint[0][3]);
+        gShipNextPoint = 1;
+        gShipRunning = true;
+        Ship_Advance();
+        return SendClientMessage(playerid, SHIP_COLOR,
+            "Пробный рейс запущен. Проверяйте вручную препятствия и палубу.");
+    }
+    return Ship_Help(playerid);
+}
+
+stock Ship_Init()
+{
+    fcreatedir(SHIP_DIR);
+    for (new i = 0; i < SHIP_MAX_PARTS; i++) gShipPartObject[i] = INVALID_OBJECT_ID;
+    if (fexist(SHIP_DATA) && !Ship_Load())
+        print("[Ship Studio] Saved ship failed to load; check data file.");
+    gShipTimer = SetTimer("Ship_Tick", 250, true);
+    print("[Ship Studio] Stage 1 initialized.");
+    return 1;
+}
+
+stock Ship_OnDisconnect(playerid)
+{
+    if (gShipOwner == playerid)
+    {
+        Ship_Stop();
+        gShipOwner = INVALID_PLAYER_ID;
+    }
+    return 1;
+}
+
+stock Ship_Shutdown()
+{
+    if (gShipTimer) KillTimer(gShipTimer);
+    gShipTimer = 0;
+    Ship_Reset();
+    return 1;
+}
