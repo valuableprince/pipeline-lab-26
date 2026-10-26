@@ -83,6 +83,7 @@ jobs:
 
       - name: Run maintained blocking regressions
         run: |
+          python3 -m unittest discover -s tests -p 'test_audit_stage1.py' -v
           python3 -m unittest discover -s tests -p 'test_payday.py' -v
           python3 -m unittest discover -s tests -p 'test_story_prologue.py' -v
           python3 -m unittest discover -s tests -p 'test_death_respawn.py' -v
