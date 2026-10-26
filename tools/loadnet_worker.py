@@ -33,10 +33,8 @@ def validate_job(job: dict) -> tuple[int, int, str, str]:
     return count, seconds, mode, scenario
 
 
-def client_prefix(job_id: int, mode: str) -> str:
-    """Registration jobs use a new prefix; login expects precreated LT_BotNNN."""
-    if mode == "login":
-        return "LT_Bot"
+def client_prefix(job_id: int) -> str:
+    """Stable prefix for a prior registration job or new registration job."""
     if not 1 <= job_id <= 999999:
         raise ValueError("job id exceeds account prefix range")
     return f"LT_R{job_id}"
@@ -68,10 +66,12 @@ def last_sample(output_dir: Path) -> dict[str, int]:
 
 def make_command(
     python: Path, runner: Path, client: Path, server: str,
-    job: dict, output: Path
+    job: dict, output: Path, login_source: int | None = None
 ) -> list[str]:
     count, seconds, mode, scenario = validate_job(job)
-    prefix = client_prefix(int(job["job_id"]), mode)
+    if mode == "login" and login_source is None:
+        raise ValueError("login requires a completed registration job")
+    prefix = client_prefix(int(login_source) if mode == "login" else int(job["job_id"]))
     # Everything executable is fixed on the PC. MySQL stores only scalar job settings.
     return [
         str(python), str(runner), "--server", server,
@@ -210,9 +210,6 @@ def run_job(db, job: dict, args) -> None:
     job_id = int(job["job_id"])
     output = args.output / f"job_{job_id}"
     output.mkdir(parents=True, exist_ok=True)
-    command = make_command(
-        Path(sys.executable), Path(__file__).resolve().with_name("loadtest_stage2.py"),
-        args.client_bin.resolve(), args.server, job, output)
     log_path = output / "worker.log"
     flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     counts = {}
@@ -220,6 +217,19 @@ def run_job(db, job: dict, args) -> None:
     status = "FAILED"
     reason = "Worker could not start"
     try:
+        source_id = None
+        if job["auth_mode"] == "login":
+            prior = select_one(db,
+                "SELECT job_id FROM loadtest_jobs WHERE auth_mode='register' "
+                "AND state='COMPLETE' AND spawned_clients >= %s "
+                "ORDER BY job_id DESC LIMIT 1", (int(job["target_clients"]),))
+            if not prior:
+                raise ValueError("No successful registration run with enough accounts")
+            source_id = int(prior["job_id"])
+        command = make_command(
+            Path(sys.executable),
+            Path(__file__).resolve().with_name("loadtest_stage2.py"),
+            args.client_bin.resolve(), args.server, job, output, source_id)
         with log_path.open("wb") as writer:
             proc = subprocess.Popen(
                 command, stdout=writer, stderr=subprocess.STDOUT,
