@@ -227,14 +227,4 @@ stock Telemetry_Progress(playerid)
     return SendClientMessage(playerid, ADMIN_COLOR, msg);
 }
 
-#else
-stock Telemetry_Open() { return 0; }
-stock Telemetry_RecordSQL(ms) { #pragma unused ms return 1; }
-stock Telemetry_RecordBcrypt(ms, bool:verify) { #pragma unused ms, verify return 1; }
-stock Telemetry_StartCycle(slot) { #pragma unused slot return 1; }
-stock Telemetry_FinishCycle(slot) { #pragma unused slot return 1; }
-stock Telemetry_CountSecond(bool:registration) { #pragma unused registration return 1; }
-stock Telemetry_Sample(const phase[]) { #pragma unused phase return 1; }
-stock Telemetry_WriteSummary() { return 1; }
-stock Telemetry_Progress(playerid) { #pragma unused playerid return 1; }
 #endif
