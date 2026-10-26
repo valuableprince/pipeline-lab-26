@@ -32,6 +32,13 @@ class ChatStyle(unittest.TestCase):
             errors, checked, unknown = check({path: {1,3}}, root)
             self.assertEqual(errors, [])
 
+    def test_admin_help_has_uniform_multiline_brand(self):
+        help_text = (Path(__file__).resolve().parents[1] / "gamemodes/includes/admin_help.inc").read_text(encoding="utf-8")
+        for marker in ("Синтаксис:", "Описание:", "Пример:"):
+            lines = [line for line in help_text.splitlines() if marker in line and 'format(message,' not in line]
+            self.assertTrue(lines, marker)
+            self.assertTrue(any("[Tarkenso RPG]" in line for line in lines), marker)
+
     def test_untouched_legacy_remains_nonblocking(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
