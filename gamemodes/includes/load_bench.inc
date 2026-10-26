@@ -27,6 +27,9 @@ new gBenchCursor;
 new gBenchRunKey[96], gBenchMetricsPath[125], gBenchSummaryPath[125];
 new gBenchLogFailures;
 new gBenchFailureCount;
+new bool:gBenchLastReady;
+new gBenchLastVerdict[16], gBenchLastReason[32];
+new gBenchLastTarget, gBenchLastSpawned;
 
 forward Telemetry_Open();
 forward Telemetry_RecordSQL(ms);
@@ -166,6 +169,7 @@ stock bool:Bench_Begin(playerid)
     if (!ok) return false;
 
     gBenchActive = false;
+    gBenchLastReady = false;
     gBenchRunKey[0] = EOS;
     format(gBenchRunKey, sizeof(gBenchRunKey), "%s", gLoadReportFile);
     new stem[96];
@@ -263,6 +267,11 @@ stock Bench_Finish(const reason[])
     if (!stable) format(verdict, sizeof(verdict), "FAIL");
     else if (!complete) format(verdict, sizeof(verdict), "INCOMPLETE");
     else format(verdict, sizeof(verdict), "PASS");
+    format(gBenchLastVerdict, sizeof(gBenchLastVerdict), "%s", verdict);
+    format(gBenchLastReason, sizeof(gBenchLastReason), "%s", reason);
+    gBenchLastTarget = gLoadNPCTarget;
+    gBenchLastSpawned = gLoadNPCCount;
+    gBenchLastReady = true;
     new File:summary = fopen(gBenchSummaryPath, io_write);
     if (summary)
     {
@@ -308,6 +317,29 @@ stock Bench_Finish(const reason[])
         verdict, gBenchSQLCount, gBenchSQLFailures,
         gBenchHashCount, gBenchVerifyCount, gBenchSaved, gLoadNPCTarget, gBenchSummaryPath);
     gBenchActive = false;
+    return 1;
+}
+
+stock Bench_Report(playerid)
+{
+    if (!gBenchLastReady)
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Load] No completed FULL-mode report in this server session.");
+    new msg[150];
+    format(msg, sizeof(msg),
+        "[Load] Last FULL: %s (%s), NPC %d/%d; reg=%d auth=%d saved=%d",
+        gBenchLastVerdict, gBenchLastReason, gBenchLastSpawned,
+        gBenchLastTarget, gBenchRegistered, gBenchAuthenticated, gBenchSaved);
+    SendClientMessage(playerid, ADMIN_COLOR, msg);
+    format(msg, sizeof(msg),
+        "[Load] SQL n=%d errors=%d avg=%dms max=%dms; tick min=%d",
+        gBenchSQLCount, gBenchSQLFailures,
+        gBenchSQLCount ? gBenchSQLSum / gBenchSQLCount : -1,
+        gBenchSQLMax, gBenchWorstRate);
+    SendClientMessage(playerid, ADMIN_COLOR, msg);
+    Telemetry_Progress(playerid);
+    format(msg, sizeof(msg), "[Load] Full report: %s", gBenchSummaryPath);
+    SendClientMessage(playerid, ADMIN_COLOR, msg);
     return 1;
 }
 
@@ -495,6 +527,11 @@ stock Bench_Progress(playerid)
 {
     #pragma unused playerid
     return 1;
+}
+stock Bench_Report(playerid)
+{
+    return SendClientMessage(playerid, ADMIN_ERROR,
+        "[Load] FULL benchmark requires MySQL build.");
 }
 
 #endif
