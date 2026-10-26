@@ -117,6 +117,7 @@
         }
         cache_delete(c);
         print("[DB-PRIMARY] MySQL schema v10 detected; editor containers and punishments enabled.");
+        DBPrimary_StartRecoveryMonitor();
         return 1;
     }
 
