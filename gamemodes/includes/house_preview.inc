@@ -106,7 +106,7 @@ stock bool:House_Init()
     House_Add(1743, 6004.1, 6003.85, 20.05, 0.0, 0.0, 180.0);
 
     gHouseReady = IsValidDynamicObject(gHouseDoor[0]) &&
-        IsValidDynamicObject(gHouseDoor[1]) && gHouseObjectCount == 25;
+        IsValidDynamicObject(gHouseDoor[1]) && gHouseObjectCount == 26;
     if (!gHouseReady)
     {
         print("[HOUSE] Preview initialization failed; destroying incomplete map.");
