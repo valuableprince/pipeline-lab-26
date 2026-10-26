@@ -110,6 +110,10 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_loadnet_worker.py' -v
 
+      - name: Validate synthetic account benchmark and metrics
+        run: |
+          python3 -m unittest discover -s tests -p 'test_load_bench.py' -v
+
       - name: Compile source
         shell: bash
         run: |
