@@ -40,6 +40,9 @@ class BigEarRotation(unittest.TestCase):
         self.assertIn("Admin_Require(playerid, PERM_MANAGE_STAFF)", DISH)
         for token in ('"auto"', '"stop"', '"status"', '"angle"', '"left"', '"right"'):
             self.assertIn(token, DISH)
+        self.assertIn("stock bool:Dish_ParseNumber(", DISH)
+        self.assertIn("floatstr(number)", DISH)
+        self.assertNotIn('sscanf(params, "s[16]f"', DISH)
         self.assertIn("value < -DISH_ROT_LIMIT || value > DISH_ROT_LIMIT", DISH)
         self.assertIn("value < 1.0 || value > 90.0", DISH)
 
