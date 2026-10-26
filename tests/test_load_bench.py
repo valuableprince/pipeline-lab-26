@@ -82,6 +82,17 @@ class BenchContracts(unittest.TestCase):
         self.assertIn('gBenchLastReady = true;', BENCH)
         self.assertIn('Telemetry_Open()', BENCH)
 
+    def test_full_reports_share_reserved_run_folder(self):
+        self.assertIn('"%s/metrics.csv", gLoadReportDir', BENCH)
+        self.assertIn('"%s/summary.txt", gLoadReportDir', BENCH)
+        self.assertIn('"%s/advanced.csv", gLoadReportDir', TELEMETRY)
+        self.assertIn('format(gBenchRunKey, sizeof(gBenchRunKey), "%s", gLoadReportDir)', BENCH)
+        self.assertNotIn('strmid(stem, gLoadReportFile', BENCH)
+        self.assertNotIn('strmid(stem, gLoadReportFile', TELEMETRY)
+        self.assertIn('WHERE run_key=', BENCH)
+        self.assertIn('load_tests/2026-10-26_rev01', (
+            ROOT / "docs/LOAD_TEST_FULL_METRICS.md").read_text(encoding="utf-8"))
+
     def test_quantiles_are_exact_bounded_nearest_rank(self):
         self.assertIn('#define TELEMETRY_MAX_SQL (LOADTEST_MAX_NPCS * 3)', TELEMETRY)
         self.assertIn('stock Telemetry_Quantile(const values[], count, percentile)', TELEMETRY)
@@ -94,7 +105,7 @@ class BenchContracts(unittest.TestCase):
         self.assertIn('if (count < 1 || count > TELEMETRY_MAX_SQL', TELEMETRY)
 
     def test_advanced_report_quality_and_unavailable_host_metrics(self):
-        self.assertIn('_advanced.csv', TELEMETRY)
+        self.assertIn('advanced.csv', TELEMETRY)
         self.assertIn('TELEMETRY_HEADER', TELEMETRY)
         self.assertIn('registration_rate_x100', TELEMETRY)
         self.assertIn('authentication_rate_x100', TELEMETRY)
