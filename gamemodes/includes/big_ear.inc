@@ -46,8 +46,11 @@ stock Float:Dish_CurrentAngle()
     if (!Dish_Ready()) return 0.0;
     new Float:rx, Float:ry, Float:rz;
     GetObjectRot(gDishObject, rx, ry, rz);
-    while (rz > 180.0) rz -= 360.0;
-    while (rz < -180.0) rz += 360.0;
+    // Do not normalize via unbounded loops: bad rotations can stall the
+    // main server thread, preventing chat messages and driving CPU to 100%.
+    if (rz < -360.0 || rz > 360.0) return gDishDestination;
+    if (rz > 180.0) rz -= 360.0;
+    else if (rz < -180.0) rz += 360.0;
     return rz;
 }
 
@@ -123,11 +126,12 @@ stock Dish_Init()
         return 0;
     }
 
-    gDishAutomatic = true;
+    // Safety: automatic sweeping is temporarily disabled until measured.
+    // Operator may start it explicitly with /dish auto after CPU verification.
+    gDishAutomatic = false;
     gDishMoving = false;
     gDishDirection = 1;
     gDishDestination = 0.0;
-    Dish_AdvanceAutomatic();
     print("[BIG-EAR] Vanilla dish replacement initialized.");
     return 1;
 }
@@ -164,6 +168,8 @@ stock Dish_Shutdown()
 
 stock Dish_Status(playerid)
 {
+    // Immediate acknowledgment before reading the rotation or formatting status.
+    Dish_Message(playerid, "Радиотелескоп: запрос состояния принят.");
     if (!Dish_Ready())
         return Dish_Message(playerid, "Радиотелескоп недоступен: объект не создан.", true);
 
@@ -175,6 +181,31 @@ stock Dish_Status(playerid)
         gDishMoving ? ("движение") : ("остановлен"));
     Dish_Message(playerid, message);
     return 1;
+}
+
+stock bool:Dish_ParseNumber(const params[], number[], capacity)
+{
+    // Parse the first word and numeric token independently of sscanf's float specifier.
+    new command[16], extra[4];
+    if (capacity < 24) return false;
+    if (!sscanf(params, "s[16]s[24]s[4]", command, number, extra))
+        return false; // More than two arguments.
+    if (sscanf(params, "s[16]s[24]", command, number)) return false;
+    new length = strlen(number), pointCount, digitCount;
+    if (!length) return false;
+    for (new i = 0; i < length; i++)
+    {
+        if (i == 0 && (number[i] == '-' || number[i] == '+')) continue;
+        if (number[i] == '.')
+        {
+            if (++pointCount > 1) return false;
+            continue;
+        }
+        if (number[i] < '0' || number[i] > '9') return false;
+        digitCount++;
+    }
+    if (!digitCount) return false;
+    return true;
 }
 
 stock Dish_Command(playerid, const params[])
@@ -210,10 +241,10 @@ stock Dish_Command(playerid, const params[])
         return Dish_Message(playerid, "The Big Ear: автоматическое сканирование включено.");
     }
 
-    new operationCopy[16];
-    new Float:value;
-    if (sscanf(params, "s[16]f", operationCopy, value))
+    new number[24];
+    if (!Dish_ParseNumber(params, number, sizeof(number)))
         return Dish_Message(playerid, "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.", true);
+    new Float:value = floatstr(number);
 
     new Float:target;
     if (!strcmp(operation, "angle", true))
