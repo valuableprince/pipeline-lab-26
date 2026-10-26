@@ -26,6 +26,8 @@ def load_samples(path: Path) -> list[dict]:
         for lineno, raw in enumerate(csv.reader(stream), 1):
             if not raw:
                 continue
+            if lineno == 1 and raw == list(COLUMNS):
+                continue  # New per-run CSV files contain a header.
             if len(raw) != len(COLUMNS):
                 raise ValueError(f"line {lineno}: expected {len(COLUMNS)} columns, got {len(raw)}")
             try:
@@ -73,7 +75,7 @@ def summarize(samples: list[dict]) -> list[dict]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("csv_file", type=Path, help="scriptfiles/loadtest.csv")
+    parser.add_argument("csv_file", type=Path, help="scriptfiles/load_test_01_DD.MM.YYYY.csv (legacy loadtest.csv also supported)")
     parser.add_argument("--json", action="store_true", help="machine-readable JSON")
     args = parser.parse_args(argv)
     try:
