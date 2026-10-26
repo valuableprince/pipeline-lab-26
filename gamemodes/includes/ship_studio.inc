@@ -13,6 +13,10 @@
 #define SHIP_MAX_POINTS    (80)
 #define SHIP_COLOR         (0x87D9E5FF)
 #define SHIP_CRUISE_SPEED  (4.0)
+#define SHIP_CARGO_ROOT_Z   (7.0)
+#define SHIP_CARGO_ROOT_ID  (9585)
+#define SHIP_CARGO_START_X  (2640.0)
+#define SHIP_CARGO_START_Y  (-2740.0)
 
 new gShipRoot = INVALID_OBJECT_ID;
 new gShipModel;
@@ -279,6 +283,104 @@ public Ship_Tick()
     return 1;
 }
 
+// SHIP-ASSEMBLY-01: reconstructed GTA SA San Fierro cargo ship at the LS start.
+// IPL origin: hull 9585 @ -2409.84,1544.95,7.0000, zero rotation.
+// Parts preserve relative *original* object world offsets; rotating only the root
+// applies those offsets in its local frame. Do not add extra free-standing containers
+// to already modelled freight box groups: that would cause clipping/overdraw.
+// The 9585 model is about 230 units long. Dock clearance is unverified.
+stock bool:Ship_CreateCargoAssembly()
+{
+    if (Ship_Ready()) return false;
+    if (!Ship_Create(SHIP_CARGO_START_X, SHIP_CARGO_START_Y,
+        SHIP_CARGO_ROOT_Z, 0.0, SHIP_CARGO_ROOT_ID)) return false;
+    // deck: original IPL world (-2412.12, 1544.95, 17.05)
+    if (!Ship_AddPart(9586, -2.2800, 0.0000,
+        10.0500, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // upper structure alpha: original IPL world (-2411.39, 1544.95, 27.0781)
+    if (!Ship_AddPart(9761, -1.5500, 0.0000,
+        20.0781, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // stern superstructure: original IPL world (-2485.08, 1544.95, 26.1953)
+    if (!Ship_AddPart(9584, -75.2400, 0.0000,
+        19.1953, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // internal section: original IPL world (-2403.51, 1544.95, 8.7188)
+    if (!Ship_AddPart(9590, 6.3300, 0.0000,
+        1.7188, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // cargo container group 1: original IPL world (-2401.14, 1544.94, 23.5938)
+    if (!Ship_AddPart(9587, 8.7000, -0.0100,
+        16.5938, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // inside cargo: original IPL world (-2404.21, 1544.94, 7.5859)
+    if (!Ship_AddPart(9588, 5.6300, -0.0100,
+        0.5859, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // cargo container group 2: original IPL world (-2389.4, 1544.88, 4.03)
+    if (!Ship_AddPart(9589, 20.4400, -0.0700,
+        -2.9700, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // cargo container group 3: original IPL world (-2392.59, 1545.91, 24.8594)
+    if (!Ship_AddPart(9604, 17.2500, 0.9600,
+        17.8594, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // wheelhouse platform: original IPL world (-2473.59, 1543.77, 29.0781)
+    if (!Ship_AddPart(9698, -63.7500, -1.1800,
+        22.0781, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // bridge detail 02: original IPL world (-2470.45, 1551.12, 33.1406)
+    if (!Ship_AddPart(9819, -60.6100, 6.1700,
+        26.1406, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // bridge detail 03: original IPL world (-2474.36, 1547.24, 24.75)
+    if (!Ship_AddPart(9821, -64.5200, 2.2900,
+        17.7500, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    // bridge detail 08: original IPL world (-2470.94, 1550.75, 32.9062)
+    if (!Ship_AddPart(9822, -61.1000, 5.8000,
+        25.9062, 0.0, 0.0, 0.0))
+    {
+        Ship_Reset();
+        return false;
+    }
+    return true;
+}
+
 // SHIP-ROUTE-01: provisional LS Ocean Docks -> SF Easter Basin approach.
 // Verified only against overall GTA SA map / known port areas, NOT in-game.
 // The terminal is an offshore holding point, NOT a pier berthing position.
@@ -318,22 +420,18 @@ new const Float:gShipPresetLsSf[][4] = {
     {-1090.0, 700.0, 0.0, 137.73}
 };
 
-stock Ship_Preset(playerid, bool:reverse)
+stock bool:Ship_SetRoutePreset(bool:reverse)
 {
-    if (!Ship_Ready())
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            "Сначала создайте или загрузите корабль.");
-    if (gShipRunning)
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            "Остановите автопилот командой /ship stop.");
     new count = sizeof(gShipPresetLsSf);
-    if (count > SHIP_MAX_POINTS) return 0;
+    if (count > SHIP_MAX_POINTS) return false;
     gShipPointCount = count;
     for (new i = 0; i < count; i++)
     {
         new j = reverse ? count - 1 - i : i;
         for (new k = 0; k < 3; k++)
             gShipPoint[i][k] = gShipPresetLsSf[j][k];
+        if (gShipModel == SHIP_CARGO_ROOT_ID)
+            gShipPoint[i][2] = SHIP_CARGO_ROOT_Z;
         // Reverse heading must face the next target, not the previous direction.
         if (reverse && j > 0)
         {
@@ -347,6 +445,21 @@ stock Ship_Preset(playerid, bool:reverse)
             gShipPoint[i][3] = gShipPresetLsSf[j][3];
     }
     gShipNextPoint = 0;
+
+    return true;
+}
+
+stock Ship_Preset(playerid, bool:reverse)
+{
+    if (!Ship_Ready())
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Сначала создайте или загрузите корабль.");
+    if (gShipRunning)
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Остановите автопилот командой /ship stop.");
+    if (!Ship_SetRoutePreset(reverse))
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "Ошибка загрузки точек маршрута.");
     SendClientMessage(playerid, SHIP_COLOR,
         reverse ? "Маршрут SF -> LS загружен как черновик." :
                   "Маршрут LS -> SF загружен как черновик.");
@@ -360,7 +473,9 @@ stock Ship_Preset(playerid, bool:reverse)
 stock Ship_Help(playerid)
 {
     SendClientMessage(playerid, SHIP_COLOR,
-        "Ship Studio: /ship create [hull model], /ship add [model dx dy dz rx ry rz].");
+        "Ship Studio: /ship cargo — создать грузовой корабль; /ship create [hull model].");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "/ship add [model dx dy dz rx ry rz] — добавить деталь к корпусу.");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship move [meters], /ship turn [degrees], /ship set [x y z angle], /ship mark.");
     SendClientMessage(playerid, SHIP_COLOR,
@@ -422,6 +537,23 @@ stock Ship_Command(playerid, const params[])
         return SendClientMessage(playerid, SHIP_COLOR, "Ship Studio: блокировка снята.");
     }
     if (!Ship_Lock(playerid)) return 1;
+    if (!strcmp(action, "cargo", true))
+    {
+        if (Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
+            "Корабль уже существует. Для замены сохраните и выполните /ship clear.");
+        if (!Ship_CreateCargoAssembly())
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Не удалось собрать грузовой корабль: проверьте лимит объектов.");
+        if (!Ship_SetRoutePreset(false))
+        {
+            Ship_Reset();
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Ошибка установки маршрута для сборки.");
+        }
+        SendClientMessage(playerid, SHIP_COLOR,
+            "Грузовой корабль собран! Маршрут LS -> SF задан, рейс НЕ запущен.");
+        return Ship_Status(playerid);
+    }
     if (!strcmp(action, "create", true))
     {
         new model;
@@ -567,8 +699,21 @@ stock Ship_Init()
 {
     fcreatedir(SHIP_DIR);
     for (new i = 0; i < SHIP_MAX_PARTS; i++) gShipPartObject[i] = INVALID_OBJECT_ID;
-    if (fexist(SHIP_DATA) && !Ship_Load())
-        print("[Ship Studio] Saved ship failed to load; check data file.");
+    if (fexist(SHIP_DATA))
+    {
+        if (!Ship_Load())
+            print("[Ship Studio] Saved ship failed to load; auto cargo spawn blocked.");
+    }
+    else
+    {
+        if (!Ship_CreateCargoAssembly() || !Ship_SetRoutePreset(false))
+        {
+            Ship_Reset();
+            print("[Ship Studio] Default cargo ship creation FAILED.");
+        }
+        else
+            print("[Ship Studio] GTA SA freighter assembled at LS route start.");
+    }
     gShipTimer = SetTimer("Ship_Tick", 250, true);
     print("[Ship Studio] Stage 1 initialized.");
     return 1;
