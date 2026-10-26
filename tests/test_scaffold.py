@@ -20,12 +20,14 @@ class ScaffoldTest(unittest.TestCase):
             '#include "commands.inc"',
             '#include "Pawn.CMD.inc"',
             '#include "sscanf2.inc"',
-            "ПРОЛОГ: Номер 17",
+            '#include "story_prologue.inc"',
         ):
             with self.subTest(required=required):
                 self.assertIn(required, text)
         auth_dialogs = (ROOT / "gamemodes" / "includes" / "auth_dialogs.inc").read_text(encoding="utf-8")
-        self.assertIn("ПИСЬМО БЕЗ ОТПРАВИТЕЛЯ", auth_dialogs)
+        self.assertIn("Создание личного дела", auth_dialogs)
+        story = (ROOT / "gamemodes/includes/story_prologue.inc").read_text(encoding="utf-8")
+        self.assertIn("ПРОЛОГ ЗАВЕРШЁН", story)
         commands = COMMANDS.read_text(encoding="utf-8")
         for command in ("help", "story", "position"):
             self.assertIn("cmd:" + command + "(", commands)
