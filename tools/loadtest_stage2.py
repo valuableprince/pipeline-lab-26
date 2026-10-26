@@ -51,6 +51,10 @@ function events.onShowDialog(dialogId, style, title, button1, button2, body)
         sampSendDialogResponse(dialogId, 1, 0, "")
         return false
     elseif dialogId == 6101 then
+        if registerSeen then
+            print("LT_FATAL:registration_repeated")
+            return false
+        end
         registerSeen = true
         if mode ~= "register" then
             print("LT_FATAL:account_missing")
@@ -65,6 +69,10 @@ function events.onShowDialog(dialogId, style, title, button1, button2, body)
         sampSendDialogResponse(dialogId, 1, 0, "")
         return false
     elseif dialogId == 6104 then
+        if loginSeen then
+            print("LT_FATAL:login_repeated")
+            return false
+        end
         loginSeen = true
         sampSendDialogResponse(dialogId, 1, 0, secret)
         return false
@@ -317,7 +325,7 @@ def run(args: argparse.Namespace) -> int:
                     if values["failed"] > 0:
                         print("[stage2] abort: one or more clients reported a fatal failure")
                         break
-                    if len(bots) >= 3 and elapsed >= 30 and values["game_joined"] == 0:
+                    if bots and elapsed >= 30 and values["game_joined"] == 0:
                         print("[stage2] abort: no confirmed game joins after 30 seconds")
                         break
                 time.sleep(0.2)
