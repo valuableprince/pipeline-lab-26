@@ -171,11 +171,10 @@ stock bool:Bench_Begin(playerid)
     gBenchActive = false;
     gBenchLastReady = false;
     gBenchRunKey[0] = EOS;
-    format(gBenchRunKey, sizeof(gBenchRunKey), "%s", gLoadReportFile);
-    new stem[96];
-    strmid(stem, gLoadReportFile, 0, strlen(gLoadReportFile) - 4, sizeof(stem));
-    format(gBenchMetricsPath, sizeof(gBenchMetricsPath), "%s_metrics.csv", stem);
-    format(gBenchSummaryPath, sizeof(gBenchSummaryPath), "%s_summary.txt", stem);
+    // The directory identifies a run in MySQL, independent of report filenames.
+    format(gBenchRunKey, sizeof(gBenchRunKey), "%s", gLoadReportDir);
+    format(gBenchMetricsPath, sizeof(gBenchMetricsPath), "%s/metrics.csv", gLoadReportDir);
+    format(gBenchSummaryPath, sizeof(gBenchSummaryPath), "%s/summary.txt", gLoadReportDir);
     new File:metricsHandle = fopen(gBenchMetricsPath, io_write);
     if (!metricsHandle) return false;
     new written = fwrite(metricsHandle, BENCH_METRICS_HEADER);
