@@ -81,8 +81,8 @@ stock bool:House_Init()
 
     // 1502 = Gen_doorINT04; it has collision and a 1.5 m leaf.
     // Rotation is immediate. Correct hinge pivot must be visually tested.
-    gHouseDoor[0] = House_Add(1502, 6000.05, 5995.1812, 20.0, 0.0, 0.0, 90.0);
-    gHouseDoor[1] = House_Add(1502, 6000.8036, 6000.05, 20.0, 0.0, 0.0, 0.0);
+    gHouseDoor[0] = House_Add(1502, 6000.05, 5995.1812, 20.0, 0.0, 0.0, 0.0);
+    gHouseDoor[1] = House_Add(1502, 6000.8036, 6000.05, 20.0, 0.0, 0.0, 90.0);
 
     // Foyer (southeast); furnishing kept outside the direct entrance route.
     House_Add(1417, 6003.6, 5996.5, 20.05, 0.0, 0.0, 180.0); // DYN_CUPBOARD
@@ -207,7 +207,7 @@ stock House_Command(playerid, const params[])
         // Streamer MoveDynamicObject with zero positional delta is unsuitable
         // for rotation-only animation. Direct rotation is deterministic here.
         SetDynamicObjectRot(gHouseDoor[door], 0.0, 0.0,
-            (door == 0 ? 90.0 : 0.0) + (gHouseDoorOpen[door] ? 90.0 : 0.0));
+            (door == 0 ? 0.0 : 90.0) + (gHouseDoorOpen[door] ? 90.0 : 0.0));
         SendClientMessage(playerid, COLOR_AMBER,
             gHouseDoorOpen[door] ? "Door open." : "Door closed.");
         return 1;
