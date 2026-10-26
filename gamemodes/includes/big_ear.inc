@@ -16,6 +16,20 @@
 #define DISH_Z_TRAVEL          (0.01)  // MoveObject requires nonzero travel
 #define DISH_COLOR             (0xB6D9EFFF)
 
+stock Dish_Message(playerid, const message[], bool:error = false)
+{
+    new output[200];
+    format(output, sizeof(output), "{D9AA55}[TARKENSO] {FFFFFF}%s", message);
+    return SendClientMessage(playerid, error ? ADMIN_ERROR : -1, output);
+}
+
+stock Dish_Usage(playerid)
+{
+    Dish_Message(playerid, "Синтаксис: {B6E4B3}/dish status|auto|stop|angle|left|right");
+    Dish_Message(playerid, "{9FAAB8}Пример: {B6E4B3}/dish angle 45 {9FAAB8}| Подробнее: /ahelp dish");
+    return 1;
+}
+
 new gDishObject = INVALID_OBJECT_ID;
 new bool:gDishAutomatic = true;
 new bool:gDishMoving;
@@ -151,8 +165,7 @@ stock Dish_Shutdown()
 stock Dish_Status(playerid)
 {
     if (!Dish_Ready())
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            "Радиотелескоп недоступен: объект не создан.");
+        return Dish_Message(playerid, "Радиотелескоп недоступен: объект не создан.", true);
 
     new message[144];
     format(message, sizeof(message),
@@ -160,7 +173,7 @@ stock Dish_Status(playerid)
         gDishAutomatic ? ("АВТО") : ("РУЧНОЙ"),
         Dish_CurrentAngle(), gDishDestination,
         gDishMoving ? ("движение") : ("остановлен"));
-    SendClientMessage(playerid, DISH_COLOR, message);
+    Dish_Message(playerid, message);
     return 1;
 }
 
@@ -170,12 +183,11 @@ stock Dish_Command(playerid, const params[])
     if (isnull(params))
     {
         Dish_Status(playerid);
-        SendClientMessage(playerid, DISH_COLOR,
-            "/dish status | auto | stop | angle [-140..140] | left [1..90] | right [1..90]");
+        Dish_Usage(playerid);
         return 1;
     }
     if (sscanf(params, "s[16]", operation))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /dish [status|auto|stop|angle|left|right].");
+        return Dish_Usage(playerid);
 
     if (!strcmp(operation, "status", true)) return Dish_Status(playerid);
     if (!Admin_Require(playerid, PERM_MANAGE_STAFF)) return 1;
@@ -187,46 +199,45 @@ stock Dish_Command(playerid, const params[])
         StopObject(gDishObject);
         gDishMoving = false;
         gDishDestination = Dish_CurrentAngle();
-        return SendClientMessage(playerid, DISH_COLOR, "The Big Ear: привод остановлен. Режим ручного управления.");
+        return Dish_Message(playerid, "The Big Ear: привод остановлен. Режим ручного управления.");
     }
     if (!strcmp(operation, "auto", true))
     {
         if (gDishAutomatic) return Dish_Status(playerid);
         gDishAutomatic = true;
         if (!Dish_AdvanceAutomatic())
-            return SendClientMessage(playerid, ADMIN_ERROR, "Не удалось запустить автоматический режим.");
-        return SendClientMessage(playerid, DISH_COLOR, "The Big Ear: автоматическое сканирование включено.");
+            return Dish_Message(playerid, "Не удалось запустить автоматический режим.", true);
+        return Dish_Message(playerid, "The Big Ear: автоматическое сканирование включено.");
     }
 
     new operationCopy[16];
     new Float:value;
     if (sscanf(params, "s[16]f", operationCopy, value))
-        return SendClientMessage(playerid, ADMIN_ERROR,
-            "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.");
+        return Dish_Message(playerid, "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.", true);
 
     new Float:target;
     if (!strcmp(operation, "angle", true))
     {
         if (value < -DISH_ROT_LIMIT || value > DISH_ROT_LIMIT)
-            return SendClientMessage(playerid, ADMIN_ERROR, "Допустимый угол: от -140 до 140 градусов.");
+            return Dish_Message(playerid, "Допустимый угол: от -140 до 140 градусов.", true);
         target = value;
     }
     else if (!strcmp(operation, "left", true) || !strcmp(operation, "right", true))
     {
         if (value < 1.0 || value > 90.0)
-            return SendClientMessage(playerid, ADMIN_ERROR, "Шаг ручного поворота: от 1 до 90 градусов.");
+            return Dish_Message(playerid, "Шаг ручного поворота: от 1 до 90 градусов.", true);
         target = Dish_CurrentAngle() +
             (!strcmp(operation, "left", true) ? -value : value);
         if (target < -DISH_ROT_LIMIT || target > DISH_ROT_LIMIT)
-            return SendClientMessage(playerid, ADMIN_ERROR, "Достигнут предел поворота (+/-140 градусов).");
+            return Dish_Message(playerid, "Достигнут предел поворота (+/-140 градусов).", true);
     }
     else
-        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /dish [status|auto|stop|angle|left|right].");
+        return Dish_Usage(playerid);
 
     gDishAutomatic = false;
     if (!Dish_MoveTo(target))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Не удалось повернуть антенну.");
+        return Dish_Message(playerid, "Не удалось повернуть антенну.", true);
     new message[100];
     format(message, sizeof(message), "The Big Ear: поворот к %.1f градуса.", target);
-    return SendClientMessage(playerid, DISH_COLOR, message);
+    return Dish_Message(playerid, message);
 }
