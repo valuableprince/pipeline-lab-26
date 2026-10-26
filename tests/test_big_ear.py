@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 DISH = (ROOT / "gamemodes/includes/big_ear.inc").read_text(encoding="utf-8")
+COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 
 
 class BigEarRotation(unittest.TestCase):
@@ -30,7 +31,10 @@ class BigEarRotation(unittest.TestCase):
         self.assertNotIn("SetTimer(", DISH)
 
     def test_manual_permissions(self):
-        self.assertIn("cmd:dish(playerid, params[])", DISH)
+        self.assertIn("stock Dish_Command(playerid, const params[])", DISH)
+        self.assertIn("cmd:dish(playerid, params[])", COMMANDS)
+        self.assertIn("return Dish_Command(playerid, params);", COMMANDS)
+        self.assertIn("[BIG-EAR] /dish received.", COMMANDS)
         self.assertIn("Admin_Require(playerid, PERM_MANAGE_STAFF)", DISH)
         for token in ('"auto"', '"stop"', '"status"', '"angle"', '"left"', '"right"'):
             self.assertIn(token, DISH)
