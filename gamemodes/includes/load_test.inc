@@ -33,15 +33,18 @@ new gLoadMinTickrate;
 new gLoadWorstTickMs;
 new gLoadLastTick;
 new bool:gLoadRunning;
+new bool:gLoadFullScenario;
 new Float:gLoadX, Float:gLoadY, Float:gLoadZ;
 new gLoadWorld;
 new gLoadReportFile[96];
 
 forward LoadTest_Tick();
+forward bool:Bench_Begin(playerid);
 
 stock LoadTest_Init()
 {
     gLoadRunning = false;
+    gLoadFullScenario = false;
     gLoadTimer = 0;
     gLoadNPCCount = 0;
     gLoadOwner = INVALID_PLAYER_ID;
@@ -104,6 +107,7 @@ stock LoadTest_Stop(const reason[])
     if (!gLoadRunning) return 0;
     new owner = gLoadOwner;
     LoadTest_Append(reason);
+    if (gLoadFullScenario) Bench_Finish(reason);
     printf("[LOADTEST] stop: reason=%s, run=%d, spawned=%d/%d, min_tickrate=%d, worst_timer_delay=%dms",
         reason, gLoadRunId, gLoadNPCCount, gLoadNPCTarget,
         gLoadMinTickrate, gLoadWorstTickMs);
@@ -166,11 +170,12 @@ stock LoadTest_Status(playerid)
     {
         format(msg, sizeof(msg), "[LoadTest] Report: %s", gLoadReportFile);
         SendClientMessage(playerid, ADMIN_COLOR, msg);
+        if (gLoadFullScenario) Bench_Progress(playerid);
     }
     return 1;
 }
 
-stock LoadTest_Start(playerid, count, duration)
+stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
 {
     if (gLoadRunning)
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Already running; /load stop.");
@@ -183,6 +188,7 @@ stock LoadTest_Start(playerid, count, duration)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[LoadTest] Report creation failed (I/O error or 999 daily revisions). Test not started.");
     gLoadOwner = playerid;
+    gLoadFullScenario = fullScenario;
     gLoadNPCTarget = count;
     gLoadNPCCount = 0;
     gLoadDuration = duration;
@@ -196,9 +202,26 @@ stock LoadTest_Start(playerid, count, duration)
     gLoadLastTick = GetTickCount();
     gLoadWorld = GetPlayerVirtualWorld(playerid);
     GetPlayerPos(playerid, gLoadX, gLoadY, gLoadZ);
+    // Full-mode pseudo-players stand at the Fort Carson start area in world 0.
+    if (gLoadFullScenario)
+    {
+        gLoadWorld = 0;
+        gLoadX = START_X;
+        gLoadY = START_Y;
+        gLoadZ = START_Z;
+    }
+    if (gLoadFullScenario && !Bench_Begin(playerid))
+    {
+        fremove(gLoadReportFile);
+        gLoadReportFile[0] = EOS;
+        gLoadOwner = INVALID_PLAYER_ID;
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[LoadTest] Full scenario unavailable: install MySQL migration 013 and verify DB.");
+    }
     gLoadRunning = true;
     if (!LoadTest_Append("start"))
     {
+        if (gLoadFullScenario) Bench_Finish("report_failure");
         fremove(gLoadReportFile);
         gLoadReportFile[0] = EOS;
         gLoadRunning = false;
@@ -209,6 +232,7 @@ stock LoadTest_Start(playerid, count, duration)
     if (!gLoadTimer)
     {
         LoadTest_Append("timer_failed");
+        if (gLoadFullScenario) Bench_Finish("timer_failed");
         gLoadRunning = false;
         gLoadOwner = INVALID_PLAYER_ID;
         gLoadReportFile[0] = EOS;
@@ -281,7 +305,7 @@ public LoadTest_Tick()
     }
 
     // Move a bounded group each tick. NPCs outside this test are never touched.
-    if (gLoadNPCCount > 0)
+    if (gLoadNPCCount > 0 && !gLoadFullScenario)
     {
         gLoadMovePhase = !gLoadMovePhase;
         for (new i = 0; i < LOADTEST_MOVE_BATCH; i++)
@@ -295,6 +319,7 @@ public LoadTest_Tick()
                 y + (gLoadMovePhase ? 1.5 : -1.5), gLoadZ, NPC_MOVE_TYPE_WALK);
         }
     }
+    if (gLoadFullScenario) Bench_Tick();
     if ((gettime() - gLoadStartedAt) % 5 == 0) LoadTest_Append("running");
     return 1;
 }
@@ -306,7 +331,7 @@ stock LoadTest_Command(playerid, const params[])
     new action[16];
     if (isnull(params) || sscanf(params, "s[16]", action))
         return SendClientMessage(playerid, ADMIN_COLOR,
-            "[LoadTest] /load start [1..100] [10..300] | status | stop (defaults: 25/60).");
+            "[LoadTest] /load start [count] [sec] [npc|full] | status | stop (default npc 25/60).");
     if (!strcmp(action, "status", true)) return LoadTest_Status(playerid);
     if (!strcmp(action, "stop", true))
     {
@@ -320,10 +345,16 @@ stock LoadTest_Command(playerid, const params[])
             return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Enable /aduty first.");
         if (!strcmp(params, "start", true))
             return LoadTest_Start(playerid, LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS);
-        new count, seconds;
+        new count, seconds, scenario[12];
+        if (!sscanf(params, "s[16]iis[12]", action, count, seconds, scenario))
+        {
+            if (!strcmp(scenario, "full", true)) return LoadTest_Start(playerid, count, seconds, true);
+            if (!strcmp(scenario, "npc", true)) return LoadTest_Start(playerid, count, seconds);
+            return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Scenario: npc or full.");
+        }
         if (sscanf(params, "s[16]ii", action, count, seconds))
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "[LoadTest] Usage: /load start 50 120 or /load start");
+                "[LoadTest] Usage: /load start 50 120 full | /load start 50 120 npc");
         return LoadTest_Start(playerid, count, seconds);
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
