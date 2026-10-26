@@ -163,6 +163,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
+#include "ship_port.inc"
 #include "ship_passenger_sync.inc"
 #include "economy.inc"
 #include "admin_ui.inc"
@@ -767,6 +768,7 @@ public OnGameModeInit()
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
     Ship_Init();
+    ShipPort_Init();
     ShipSurf_Init();
     Economy_Init();
     Leader_Init();
