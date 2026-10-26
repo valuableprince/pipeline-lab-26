@@ -203,6 +203,29 @@
         return 1;
     }
 
+    // Distinguish transient transport failures from SQL/constraint errors.
+    // Both the synchronous economy path and async callbacks use this guard.
+    stock bool:DBPrimary_MarkDegraded(code)
+    {
+        if (code != 2002 && code != 2003 && code != 2006 &&
+            code != 2013 && code != 2055)
+            return false;
+
+        gDBPrimaryProbePending = false;
+        if (!gDBPrimaryDegraded)
+        {
+            print("[DB-PRIMARY] Database transport unavailable: writes paused; recovery monitor active.");
+            for (new i = 0; i < MAX_PLAYERS; i++)
+                if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+                    gAuthState[i] == AUTH_READY)
+                    SendClientMessage(i, COLOR_RED,
+                        "Нет связи с базой данных: сохранение временно недоступно.");
+        }
+        gDBPrimaryDegraded = true;
+        gDBPrimaryReady = false;
+        return true;
+    }
+
     // Synchronous writes preserve the old bool/rollback economy contract.
     // This blocks the server tick: use only for closed beta until async redesign.
     stock bool:DBPrimary_Execute(const query[], &affected)
@@ -210,9 +233,11 @@
         affected = 0;
         if (!DBPrimary_IsReady()) return false;
         new Cache:c = mysql_query(gDBPrimary, query);
-        if (c == Cache:0 || mysql_errno(gDBPrimary))
+        new code = mysql_errno(gDBPrimary);
+        if (c == Cache:0 || code)
         {
             if (c != Cache:0) cache_delete(c);
+            DBPrimary_MarkDegraded(code);
             print("[DB-PRIMARY] Operation not persisted due to SQL error.");
             return false;
         }
@@ -608,22 +633,7 @@
         // Do not log the SQL or error text: password hashes may be embedded.
         #pragma unused error, callback, query, handle
         printf("[DB-PRIMARY] Asynchronous SQL failed (code %d).", errorid);
-        if (errorid == 2002 || errorid == 2003 || errorid == 2006 ||
-            errorid == 2013 || errorid == 2055)
-        {
-            gDBPrimaryProbePending = false;
-            if (!gDBPrimaryDegraded)
-            {
-                print("[DB-PRIMARY] Connection lost: writes suspended; attempting asynchronous probes.");
-                for (new i = 0; i < MAX_PLAYERS; i++)
-                    if (IsPlayerConnected(i) && !IsPlayerNPC(i) &&
-                        gAuthState[i] == AUTH_READY)
-                        SendClientMessage(i, COLOR_RED,
-                            "Соединение с базой потеряно: сохранение временно недоступно.");
-            }
-            gDBPrimaryDegraded = true;
-            gDBPrimaryReady = false;
-        }
+        DBPrimary_MarkDegraded(errorid);
         // SQL syntax and constraint failures must not disconnect unrelated players.
         return 1;
     }
