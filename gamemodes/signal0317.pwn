@@ -163,6 +163,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
+#include "ship_passenger_sync.inc"
 #include "economy.inc"
 #include "admin_ui.inc"
 #include "leader_system.inc"
@@ -764,6 +765,7 @@ public OnGameModeInit()
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
     Ship_Init();
+    ShipSurf_Init();
     Economy_Init();
     Leader_Init();
     OrvelarHUD_Init();
@@ -790,6 +792,7 @@ public OnGameModeExit()
     Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
+    ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
     DBShadow_Shutdown();
@@ -813,6 +816,7 @@ public OnPlayerConnect(playerid)
     CleanerDump_NavReset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
+    ShipSurf_Reset(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
@@ -880,6 +884,7 @@ public OnPlayerDisconnect(playerid, reason)
     if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
     Ship_OnDisconnect(playerid);
+    ShipSurf_Reset(playerid);
     StudioUI_Reset(playerid);
     Story_OnDisconnect(playerid);
     Cleaner_OnDisconnect(playerid);
