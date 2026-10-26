@@ -742,6 +742,7 @@ public OnGameModeInit()
         SendRconCommand("exit");
         return 0;
     }
+    DBPrimary_StartRecoveryMonitor();
     RP_Init();
     Guard_Init();
 
