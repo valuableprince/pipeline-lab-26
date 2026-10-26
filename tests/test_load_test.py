@@ -80,6 +80,24 @@ class LoadTestIntegration(unittest.TestCase):
         self.assertNotIn('fremove(gLoadReportDir)', LOADTEST)
         self.assertIn('Older flat CSV files are neither moved nor deleted.', DOC)
 
+    def test_commands_parse_action_separately_from_arguments(self):
+        # Regression: /load start 5 120 full previously returned usage.
+        self.assertIn('new split = strfind(params, " ");', LOADTEST)
+        self.assertIn('strmid(action, params, 0, split, sizeof(action));', LOADTEST)
+        self.assertIn('strmid(payload, params, split + 1, strlen(params), sizeof(payload));', LOADTEST)
+        self.assertIn('sscanf(payload, "iis[12]", count, seconds, scenario)', LOADTEST)
+        self.assertIn('sscanf(payload, "ii", count, seconds)', LOADTEST)
+        self.assertIn('LoadTest_Start(playerid, count, seconds, true)', LOADTEST)
+        self.assertNotIn('sscanf(params, "s[16]", action)', LOADTEST)
+        self.assertNotIn('sscanf(params, "s[16]iis[12]"', LOADTEST)
+
+    def test_early_stop_diagnostics_are_already_recorded(self):
+        self.assertIn('LoadTest_Stop("low_tickrate")', LOADTEST)
+        self.assertIn('LoadTest_Stop("npc_create_failed")', LOADTEST)
+        self.assertIn('LoadTest_Stop("npc_spawn_failed")', LOADTEST)
+        self.assertIn('[LoadTest] Stopped (%s). Folder: %s', LOADTEST)
+        self.assertIn('LoadTest_Append(reason);', LOADTEST)
+
     def test_no_global_npc_deletion(self):
         self.assertNotIn("NPC_DestroyAll", LOADTEST)
         self.assertIn("NPC_Create(name)", LOADTEST)

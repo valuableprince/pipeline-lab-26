@@ -364,10 +364,17 @@ stock LoadTest_Command(playerid, const params[])
 {
     if (!Admin_IsFounder(playerid))
         return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Founder only.");
-    new action[16];
-    if (isnull(params) || sscanf(params, "s[16]", action))
+    if (isnull(params))
         return SendClientMessage(playerid, ADMIN_COLOR,
             "[LoadTest] /load start [count] [sec] [npc|full] | status | report | stop.");
+    // sscanf2's trailing s[...] field consumes the remaining input, so it
+    // cannot safely be used as a standalone leading command parser.
+    new action[16];
+    new split = strfind(params, " ");
+    if (split == -1)
+        format(action, sizeof(action), "%s", params);
+    else
+        strmid(action, params, 0, split, sizeof(action));
     if (!strcmp(action, "status", true)) return LoadTest_Status(playerid);
     if (!strcmp(action, "report", true)) return Bench_Report(playerid);
     if (!strcmp(action, "stop", true))
@@ -382,16 +389,21 @@ stock LoadTest_Command(playerid, const params[])
             return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Enable /aduty first.");
         if (!strcmp(params, "start", true))
             return LoadTest_Start(playerid, LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS);
+        if (split == -1)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[LoadTest] Usage: /load start 5 120 full (or /load start).");
         new count, seconds, scenario[12];
-        if (!sscanf(params, "s[16]iis[12]", action, count, seconds, scenario))
+        new payload[64];
+        strmid(payload, params, split + 1, strlen(params), sizeof(payload));
+        if (!sscanf(payload, "iis[12]", count, seconds, scenario))
         {
             if (!strcmp(scenario, "full", true)) return LoadTest_Start(playerid, count, seconds, true);
             if (!strcmp(scenario, "npc", true)) return LoadTest_Start(playerid, count, seconds);
             return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Scenario: npc or full.");
         }
-        if (sscanf(params, "s[16]ii", action, count, seconds))
+        if (sscanf(payload, "ii", count, seconds))
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "[LoadTest] Usage: /load start 50 120 full | /load start 50 120 npc");
+                "[LoadTest] Usage: /load start 5 120 full | /load start 5 120 npc");
         return LoadTest_Start(playerid, count, seconds);
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
