@@ -244,6 +244,7 @@ stock Dish_Command(playerid, const params[])
     new number[24];
     if (!Dish_ParseNumber(params, number, sizeof(number)))
         return Dish_Message(playerid, "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.", true);
+    new Float:value = floatstr(number);
 
     new Float:target;
     if (!strcmp(operation, "angle", true))
