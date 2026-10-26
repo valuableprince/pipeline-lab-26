@@ -7,6 +7,7 @@ GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 NPC = (ROOT / "gamemodes/includes/load_test.inc").read_text(encoding="utf-8")
 BENCH = (ROOT / "gamemodes/includes/load_bench.inc").read_text(encoding="utf-8")
 MIGRATION = (ROOT / "db/migrations/013_loadtest_virtual_accounts.sql").read_text(encoding="utf-8")
+TELEMETRY = (ROOT / "gamemodes/includes/load_telemetry.inc").read_text(encoding="utf-8")
 
 
 class BenchContracts(unittest.TestCase):
@@ -64,6 +65,43 @@ class BenchContracts(unittest.TestCase):
             self.assertIn(fragment, BENCH)
         self.assertIn("mysql_query(gDBPrimary,", BENCH)
         self.assertIn("version=13 LIMIT 1", BENCH)
+
+    def test_exact_latency_telemetry_connected_to_real_operations(self):
+        self.assertIn('#include "load_telemetry.inc"', GAME)
+        self.assertIn('Telemetry_RecordSQL(ms);', BENCH)
+        self.assertIn('Telemetry_RecordBcrypt(ms, verify);', BENCH)
+        self.assertIn('Telemetry_StartCycle(slot);', BENCH)
+        self.assertIn('Telemetry_FinishCycle(slot);', BENCH)
+        self.assertIn('Telemetry_CountSecond(true);', BENCH)
+        self.assertIn('Telemetry_CountSecond(false);', BENCH)
+        self.assertIn('Telemetry_Sample(phase)', BENCH)
+        self.assertIn('Telemetry_WriteSummary()', BENCH)
+        self.assertIn('Telemetry_Progress(playerid);', BENCH)
+        self.assertIn('Telemetry_Open()', BENCH)
+
+    def test_quantiles_are_exact_bounded_nearest_rank(self):
+        self.assertIn('#define TELEMETRY_MAX_SQL (LOADTEST_MAX_NPCS * 3)', TELEMETRY)
+        self.assertIn('stock Telemetry_Quantile(const values[], count, percentile)', TELEMETRY)
+        self.assertIn('sorted[(count * percentile + 99) / 100 - 1]', TELEMETRY)
+        self.assertIn('new sorted[TELEMETRY_MAX_SQL]', TELEMETRY)
+        self.assertIn('Telemetry_Quantile(gTelemetrySQL, gTelemetrySQLCount, 99)', TELEMETRY)
+        self.assertIn('Telemetry_Quantile(gTelemetryHash, gTelemetryHashCount, 99)', TELEMETRY)
+        self.assertIn('Telemetry_Quantile(gTelemetryVerify, gTelemetryVerifyCount, 99)', TELEMETRY)
+        self.assertIn('Telemetry_Quantile(gTelemetryCycle, gTelemetryCycleCount, 99)', TELEMETRY)
+        self.assertIn('if (count < 1 || count > TELEMETRY_MAX_SQL', TELEMETRY)
+
+    def test_advanced_report_quality_and_unavailable_host_metrics(self):
+        self.assertIn('_advanced.csv', TELEMETRY)
+        self.assertIn('TELEMETRY_HEADER', TELEMETRY)
+        self.assertIn('registration_rate_x100', TELEMETRY)
+        self.assertIn('authentication_rate_x100', TELEMETRY)
+        self.assertIn('peak_registrations_1s', TELEMETRY)
+        self.assertIn('gTelemetryCycleCount', TELEMETRY)
+        self.assertIn('gTelemetryRegPerSecond', TELEMETRY)
+        self.assertIn('gTelemetryAuthPerSecond', TELEMETRY)
+        self.assertIn('CPU_PERCENT=UNAVAILABLE', TELEMETRY)
+        self.assertIn('RAM_MB=UNAVAILABLE', TELEMETRY)
+        self.assertNotIn('UPDATE accounts ', TELEMETRY)
 
 if __name__ == "__main__":
     unittest.main()
