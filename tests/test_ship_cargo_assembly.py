@@ -59,10 +59,10 @@ class CargoFreighterTests(unittest.TestCase):
         self.assertIn("#define SHIP_CARGO_HEADING_OFFSET (90.0)", SOURCE)
         self.assertIn("gShipPoint[i][3] += SHIP_CARGO_HEADING_OFFSET;", SOURCE)
         self.assertIn("angle -= SHIP_CARGO_HEADING_OFFSET;", SOURCE)
-        self.assertIn("SHIP_CARGO_ROOT_Z, 298.07, SHIP_CARGO_ROOT_ID", SOURCE)
-        # Route's first navigation heading 208.07 => 298.07 model yaw.
+        self.assertIn("SHIP_CARGO_ROOT_Z, 330.95, SHIP_CARGO_ROOT_ID", SOURCE)
+        # Revised initial heading 240.95 => 330.95 model yaw.
         # Straight north is navigation 0 => model yaw 90.
-        self.assertAlmostEqual((208.07 + 90.0) % 360.0, 298.07)
+        self.assertAlmostEqual((240.95 + 90.0) % 360.0, 330.95)
         self.assertAlmostEqual((0.0 + 90.0) % 360.0, 90.0)
 
     def test_founder_command_and_backward_compatibility(self):
