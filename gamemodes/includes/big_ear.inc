@@ -185,7 +185,7 @@ stock Dish_Status(playerid)
 
 // Use the same token reader as the rest of TARKENSO; sscanf("s[16]")
 // rejects extra parameters and cannot read the action from "angle 45".
-stock bool:Dish_ParseNumber(const token[], Float:&result)
+stock bool:Dish_ParseNumber(const token[])
 {
     new length = strlen(token), points, digits;
     if (!length || length > 12) return false;
@@ -201,7 +201,6 @@ stock bool:Dish_ParseNumber(const token[], Float:&result)
         digits++;
     }
     if (!digits) return false;
-    result = floatstr(token);
     return true;
 }
 
@@ -241,9 +240,9 @@ stock Dish_Command(playerid, const params[])
     if (!Admin_Next(params, offset, token, sizeof(token)) ||
         Admin_Next(params, offset, extra, sizeof(extra)))
         return Dish_Message(playerid, "Укажите угол: /dish angle 45, /dish left 10 или /dish right 10.", true);
-    new Float:value;
-    if (!Dish_ParseNumber(token, value))
+    if (!Dish_ParseNumber(token))
         return Dish_Message(playerid, "Некорректное значение угла. Пример: /dish angle -45.", true);
+    new Float:value = floatstr(token);
 
     new Float:target;
     if (!strcmp(operation, "angle", true))
