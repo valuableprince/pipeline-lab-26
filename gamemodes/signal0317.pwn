@@ -176,6 +176,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "race_progress.inc"
 #include "race_core.inc"
 #include "server_guard.inc"
+#include "load_test.inc"
 #include "db_shadow.inc"
 #include "db_primary.inc"
 #include "payday.inc"
@@ -744,6 +745,7 @@ public OnGameModeInit()
     }
     RP_Init();
     Guard_Init();
+    LoadTest_Init();
 
 
     PayDay_Init();
@@ -768,6 +770,7 @@ public OnGameModeExit()
 {
     if (gAccountAutosaveTimer) KillTimer(gAccountAutosaveTimer);
     gAccountAutosaveTimer = 0;
+    LoadTest_Shutdown();
     Guard_Shutdown();
     if (gAdminJailTimer) KillTimer(gAdminJailTimer);
     gAdminJailTimer = 0;
@@ -860,6 +863,7 @@ public OnPlayerConnect(playerid)
 public OnPlayerDisconnect(playerid, reason)
 {
     RP_Reset(playerid);
+    LoadTest_OnDisconnect(playerid);
     Guard_OnDisconnect(playerid);
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);

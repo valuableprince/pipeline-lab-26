@@ -65,6 +65,11 @@ cmd:guardstatus(playerid, params[])
     return Guard_ShowStatus(playerid);
 }
 
+cmd:loadtest(playerid, params[])
+{
+    return LoadTest_Command(playerid, params);
+}
+
 // Каталог радиостанций для личного прослушивания вне гоночных событий.
 cmd:play(playerid, params[])
 {
