@@ -32,6 +32,8 @@ new Float:gShipPoint[SHIP_MAX_POINTS][4];
 new bool:gShipRunning;
 new gShipNextPoint;
 new gShipTimer;
+new gShipPortDeparture = -1;
+forward ShipPort_Tick();
 
 forward Ship_Tick();
 
@@ -53,6 +55,7 @@ stock bool:Ship_Ready()
 
 stock Ship_Stop()
 {
+    gShipPortDeparture = -1;
     gShipRunning = false;
     if (Ship_Ready()) StopObject(gShipRoot);
     return 1;
@@ -273,6 +276,7 @@ stock Ship_Advance()
 
 public Ship_Tick()
 {
+    if (gShipPortDeparture >= 0) return ShipPort_Tick();
     if (!gShipRunning || !Ship_Ready()) return 1;
     if (gShipNextPoint < 1) return Ship_Advance();
     new i = gShipNextPoint - 1;
