@@ -15,6 +15,8 @@
 #define SHIP_CRUISE_SPEED  (4.0)
 #define SHIP_CARGO_ROOT_Z   (7.0)
 #define SHIP_CARGO_ROOT_ID  (9585)
+// Freighter mesh points along local +X, 90 degrees from navigation +Y.
+#define SHIP_CARGO_HEADING_OFFSET (90.0)
 #define SHIP_CARGO_START_X  (2640.0)
 #define SHIP_CARGO_START_Y  (-2740.0)
 
@@ -293,7 +295,7 @@ stock bool:Ship_CreateCargoAssembly()
 {
     if (Ship_Ready()) return false;
     if (!Ship_Create(SHIP_CARGO_START_X, SHIP_CARGO_START_Y,
-        SHIP_CARGO_ROOT_Z, 0.0, SHIP_CARGO_ROOT_ID)) return false;
+        SHIP_CARGO_ROOT_Z, 298.07, SHIP_CARGO_ROOT_ID)) return false;
     // deck: original IPL world (-2412.12, 1544.95, 17.05)
     if (!Ship_AddPart(9586, -2.2800, 0.0000,
         10.0500, 0.0, 0.0, 0.0))
@@ -443,6 +445,15 @@ stock bool:Ship_SetRoutePreset(bool:reverse)
             gShipPoint[i][3] = gShipPoint[i-1][3];
         else
             gShipPoint[i][3] = gShipPresetLsSf[j][3];
+    }
+    if (gShipModel == SHIP_CARGO_ROOT_ID)
+    {
+        for (new i = 0; i < count; i++)
+        {
+            gShipPoint[i][3] += SHIP_CARGO_HEADING_OFFSET;
+            if (gShipPoint[i][3] >= 360.0)
+                gShipPoint[i][3] -= 360.0;
+        }
     }
     gShipNextPoint = 0;
 
@@ -633,6 +644,9 @@ stock Ship_Command(playerid, const params[])
         StopObject(gShipRoot);
         GetObjectPos(gShipRoot, x, y, z);
         GetObjectRot(gShipRoot, rx, ry, angle);
+        // Use the model's longitudinal heading, not its mesh yaw.
+        if (gShipModel == SHIP_CARGO_ROOT_ID)
+            angle -= SHIP_CARGO_HEADING_OFFSET;
         new Float:tx = x - floatsin(angle, degrees) * meters;
         new Float:ty = y + floatcos(angle, degrees) * meters;
         if (!Ship_ValidCoord(tx, ty, z))
