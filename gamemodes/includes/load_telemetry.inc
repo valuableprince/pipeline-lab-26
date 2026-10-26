@@ -6,7 +6,7 @@
 // LOADTEST-05: exact nearest-rank latency quantiles and bounded throughput counters.
 // No operating-system CPU/RAM information is available from Pawn in this module.
 #if defined TARKENSO_DB_PRIMARY
-#define TELEMETRY_MAX_SQL (LOADTEST_MAX_NPCS * 3)
+#define TELEMETRY_MAX_SQL (LOADTEST_MAX_NPCS * 6)
 #define TELEMETRY_HEADER "elapsed_sec,sql_p50_ms,sql_p95_ms,sql_p99_ms,hash_p95_ms,hash_p99_ms,verify_p95_ms,verify_p99_ms,cycle_completed,cycle_avg_ms,cycle_p95_ms,cycle_p99_ms,registration_rate_x100,authentication_rate_x100,peak_registrations_1s,peak_authentications_1s,phase\n"
 
 new gTelemetrySQL[TELEMETRY_MAX_SQL];
@@ -25,7 +25,7 @@ stock Telemetry_Quantile(const values[], count, percentile)
 {
     if (count < 1 || count > TELEMETRY_MAX_SQL ||
         percentile < 1 || percentile > 100) return -1;
-    // 300 integer samples max: bounded insertion-sort of a local copy.
+    // Max 600 recorded SQL samples: bounded insertion-sort of a local copy.
     new sorted[TELEMETRY_MAX_SQL];
     for (new i = 0; i < count; i++)
     {
@@ -207,7 +207,7 @@ stock Telemetry_WriteSummary()
         regRate / 100, regRate % 100, authRate / 100, authRate % 100,
         gTelemetryPeakReg, gTelemetryPeakAuth);
     fwrite(out, line);
-    fwrite(out, "Quantiles: exact nearest-rank (bounded observations); -1 means no samples. Peak is measured per server-clock second.\n");
+    fwrite(out, "Quantiles: nearest-rank of first up to 600 SQL observations; -1 means no samples. Peak is per server-clock second.\n");
     fwrite(out, "CPU_PERCENT=UNAVAILABLE; RAM_MB=UNAVAILABLE; NETWORK_RTT=UNAVAILABLE (requires host monitoring/client).\n");
     fclose(out);
     return 1;
