@@ -12,11 +12,9 @@ will work without lag.
 - Separate test database and backed-up game data.
 - The server operator/hosting provider must permit the test.
 - A real, provisioned and authenticated founder account `Veyran` and `/aduty`.
-- Manually create an empty file `scriptfiles/load_test.enabled` on the
-  **test server**. This file is deliberately absent from the repository.
+- No manual enable file is necessary. Only the founder in /aduty can start a test.
 
-`/loadtest` is disabled unless this file exists; removing it stops
-an active run on the next timer tick.
+The earlier scriptfiles/load_test.enabled flag is no longer required.
 
 ## Commands
 
