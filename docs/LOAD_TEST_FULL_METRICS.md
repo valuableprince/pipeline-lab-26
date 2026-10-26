@@ -15,6 +15,7 @@ Log in as the authenticated founder, enable `/aduty` and run:
 /load start 5 120 full
 /load status
 /load stop
+/load report
 ```
 
 For a larger run, after validating results:
@@ -61,6 +62,11 @@ load_test_01_26.10.2026_metrics.csv
 load_test_01_26.10.2026_advanced.csv
 load_test_01_26.10.2026_summary.txt
 ```
+
+After a FULL run ends, `/load report` shows the last test's verdict,
+completed operations, exact SQL P95/P99 and cycle P95 in the **game chat**
+without downloading the CSV. This in-memory view is available until
+server restart or the next FULL run. Files remain saved across restarts.
 
 The date and revision match the core NPC report. Examples only;
 actual date follows the server clock and test sequence.
