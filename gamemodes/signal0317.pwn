@@ -1,4 +1,6 @@
 #include <open.mp>
+// Bounded editor dialog buffers can exceed the default 4096-cell stack/heap.
+#pragma dynamic 16384
 // Сторонние исходники зафиксированы в gamemodes/includes; бинарные компоненты ставятся отдельно.
 #define SSCANF_NO_NICE_FEATURES
 #include "Pawn.CMD.inc"
@@ -113,6 +115,7 @@ forward bool:Economy_CleanerInitialize(playerid, earned);
 forward AdminTP_Reset(playerid);
 forward AdminTP_Info(playerid);
 forward CleanerDump_GetBin();
+forward bool:TDS_Active(playerid);
 forward CleanerDump_NavReset(playerid);
 forward CleanerDump_NavClear(playerid);
 forward CleanerDump_Navigate(playerid, count);
@@ -188,6 +191,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "cleaner_editor.inc"
 #include "admin_teleport.inc"
 #include "admin_vehicle.inc"
+#include "tdstudio.inc"
 #include "admin_tools.inc"
 #include "admin_help.inc"
 #include "admin_tools2.inc"
@@ -752,6 +756,7 @@ public OnGameModeInit()
     CleanerDump_Init();
     Truck_Init();
     SortUI_Init();
+    TDS_Init();
     Race_Init();
     Admin_Init();
     AdminVeh_Init();
@@ -778,6 +783,7 @@ public OnGameModeExit()
     AdminVeh_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
+    TDS_Shutdown();
     SortUI_Shutdown();
     Truck_Shutdown();
     CleanerDump_Shutdown();
@@ -790,6 +796,7 @@ public OnGameModeExit()
 
 public OnPlayerConnect(playerid)
 {
+    TDS_Reset(playerid);
     // Also apply at connection: default GTA stunt bonuses are enabled per player.
     EnableStuntBonusForPlayer(playerid, false);
     // No stock GTA checkpoints are used by the Tarkenso game mode.
@@ -859,6 +866,7 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    TDS_Reset(playerid, false);
     RP_Reset(playerid);
     Guard_OnDisconnect(playerid);
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
@@ -1001,6 +1009,7 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    TDS_Close(playerid);
     SortUI_Reset(playerid);
     if (Race_OnDeath(playerid)) return 1;
     if (gAuthState[playerid] == AUTH_READY)
@@ -1030,6 +1039,7 @@ public Auth_DeathRespawn(playerid, token)
 
 public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
+    if (TDS_Active(playerid)) return 1;
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
@@ -1039,11 +1049,13 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
+    if (TDS_OnClick(playerid, playertextid)) return 1;
     return SortUI_OnClick(playerid, playertextid);
 }
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
+    if (TDS_OnCancel(playerid, clickedid)) return 1;
     return SortUI_OnCancel(playerid, clickedid);
 }
 
@@ -1093,6 +1105,7 @@ public OnVehicleDeath(vehicleid, killerid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (TDS_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;

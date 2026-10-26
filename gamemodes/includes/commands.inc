@@ -15,6 +15,7 @@ public OnPlayerCommandReceived(playerid, cmd[], params[], flags)
         SendClientMessage(playerid, COLOR_RED, "Сначала завершите регистрацию или войдите в аккаунт.");
         return 0;
     }
+    if (!TDS_CommandAllowed(playerid, cmd)) return 0;
     if (AdminPunish_IsJailed(playerid) &&
         strcmp(cmd, "help", true) && strcmp(cmd, "report", true))
     {
@@ -179,6 +180,19 @@ cmd:trashdrop(playerid, params[])
 cmd:sort(playerid, params[])
 {
     return SortUI_Command(playerid);
+}
+
+cmd:tdstudio(playerid, params[])
+{
+    return TDS_Open(playerid);
+}
+
+cmd:tdgrant(playerid, params[])
+{
+    new target, allow;
+    if (sscanf(params, "ii", target, allow) || (allow != 0 && allow != 1))
+        return SendClientMessage(playerid, ADMIN_ERROR, "Использование: /tdgrant ID 0|1 (доступ до отключения).");
+    return TDS_Grant(playerid, target, allow == 1);
 }
 
 cmd:trashservice(playerid, params[])

@@ -337,6 +337,8 @@ stock SortUI_Reset(playerid)
 
 stock SortUI_Open(playerid)
 {
+    if (TDS_Active(playerid))
+        return SendClientMessage(playerid, COLOR_RED, "Сначала закройте TextDraw Studio через /tdstudio.");
     if (gSortOpen[playerid]) return 1;
     if (!SortUI_CanUse(playerid))
         return SendClientMessage(playerid, COLOR_RED,
