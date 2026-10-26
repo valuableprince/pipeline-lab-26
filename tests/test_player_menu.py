@@ -41,7 +41,8 @@ class PlayerMenuContracts(unittest.TestCase):
         self.assertIn("DIALOG_STYLE_MSGBOX", MENU)
         self.assertIn("if (response) return PlayerMenu_Open(playerid);", MENU)
         self.assertIn('"%d/%d"', MENU)
-        self.assertIn("PayDay_Grant(playerid, currentHourKey)", PAYDAY)
+        self.assertIn("PayDay_Grant(playerid, pending)", PAYDAY)
+        self.assertIn("gPayDayPendingHour[playerid]", PAYDAY)
 
 
 if __name__ == "__main__":
