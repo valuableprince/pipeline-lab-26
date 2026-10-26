@@ -23,7 +23,7 @@ class FlightContracts(unittest.TestCase):
     def test_unified_administrative_help(self):
         self.assertIn('{"fly", "/fly", "Включить или выключить свободный полёт", "/fly", 4, 2}', HELP)
         self.assertIn('#define ADMIN_FLY_COLOR ADMIN_COLOR', FLY)
-        self.assertIn('[TARKENSO] Полёт', FLY)
+        self.assertIn('[Tarkenso RPG] Полёт', FLY)
         self.assertIn('/ahelp fly', FLY)
 
     def test_no_third_party_client_or_hot_callback(self):
