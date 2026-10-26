@@ -10,8 +10,8 @@ class SustainedContracts(unittest.TestCase):
         self.assertIn("gLoadSpawnRate = 1", NPC)
         self.assertIn("spawnRate < 1 || spawnRate > LOADTEST_BATCH_NPCS",NPC)
         self.assertIn("batch < gLoadSpawnRate",NPC)
-        self.assertIn('sscanf(args, "iis[12]i", count, seconds, scenario, pace)', NPC)
-        self.assertIn("LoadTest_Start(playerid, count, seconds, true, pace)",NPC)
+        self.assertIn('new words[4][16]', NPC)
+        self.assertIn("LoadTest_Start(playerid, count, seconds, fullMode, pace)",NPC)
     def test_bounded_sustained_workload(self):
         self.assertIn("gBenchPendingSQL < BENCH_SQL_LIMIT",BENCH)
         self.assertIn("dispatched < 4",BENCH)
