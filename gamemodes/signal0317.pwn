@@ -161,6 +161,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "auth_dialogs.inc"
 #include "admin_system.inc"
 #include "studio_system.inc"
+#include "house_preview.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
 #include "economy.inc"
@@ -763,6 +764,7 @@ public OnGameModeInit()
     AdminVeh_Init();
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
+    House_Init();
     Ship_Init();
     Economy_Init();
     Leader_Init();
@@ -791,6 +793,7 @@ public OnGameModeExit()
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
     Ship_Shutdown();
+    House_Shutdown();
     Studio_Shutdown();
     DBShadow_Shutdown();
     DBPrimary_Shutdown();
@@ -813,6 +816,7 @@ public OnPlayerConnect(playerid)
     CleanerDump_NavReset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
+    House_OnConnect(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
@@ -879,6 +883,7 @@ public OnPlayerDisconnect(playerid, reason)
     Race_OnDisconnect(playerid);
     if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
+    House_OnConnect(playerid);
     Ship_OnDisconnect(playerid);
     StudioUI_Reset(playerid);
     Story_OnDisconnect(playerid);
@@ -994,6 +999,7 @@ public OnPlayerSpawn(playerid)
     SortUI_Reset(playerid);
     Cleaner_OnSpawn(playerid);
     Truck_Reset(playerid);
+    House_OnSpawn(playerid);
     SetPlayerInterior(playerid, 0);
     SetPlayerVirtualWorld(playerid, 0);
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
