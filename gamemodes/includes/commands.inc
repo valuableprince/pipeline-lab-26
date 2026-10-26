@@ -296,9 +296,19 @@ cmd:zoneedit(playerid, params[])
     return StudioZone_Command(playerid, params);
 }
 
+cmd:fly(playerid, params[])
+{
+    return AdminFly_Command(playerid, params);
+}
+
 cmd:ship(playerid, params[])
 {
     return Ship_Command(playerid, params);
+}
+
+cmd:shipsurf(playerid, params[])
+{
+    return ShipSurf_Command(playerid, params);
 }
 
 cmd:story(playerid, params[])
