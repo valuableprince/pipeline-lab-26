@@ -29,6 +29,7 @@ new gLoadRunId;
 new gLoadMoveIndex;
 new gLoadMovePhase;
 new gLoadLowTickCount;
+new gLoadCreateFailures;
 new gLoadMinTickrate;
 new gLoadWorstTickMs;
 new gLoadLastTick;
@@ -230,6 +231,7 @@ stock LoadTest_Start(playerid, count, duration, bool:fullScenario = false)
     gLoadMoveIndex = 0;
     gLoadMovePhase = 0;
     gLoadLowTickCount = 0;
+    gLoadCreateFailures = 0;
     gLoadMinTickrate = GetServerTickRate();
     gLoadWorstTickMs = 0;
     gLoadLastTick = GetTickCount();
@@ -319,13 +321,24 @@ public LoadTest_Tick()
     {
         new slot = gLoadNPCCount;
         new name[24];
-        format(name, sizeof(name), "LT_%d", slot);
+        // Unique within and across runs; avoids collisions if NPC destruction is delayed.
+        format(name, sizeof(name), "LT_%d_%d", gLoadRunId, slot);
         new npcid = NPC_Create(name);
         if (npcid == INVALID_NPC_ID || !NPC_IsValid(npcid))
         {
-            LoadTest_Stop("npc_create_failed");
-            return 1;
+            gLoadCreateFailures++;
+            printf("[LOADTEST] NPC_Create rejected: attempt=%d slot=%d created=%d/%d. Check open.mp NPC capacity, free player slots and previous bots.",
+                gLoadCreateFailures, slot, gLoadNPCCount, gLoadNPCTarget);
+            // A transient pool cleanup after an earlier run can take more than one tick.
+            // Retry at most 3 times; never claim all requested clients were spawned.
+            if (gLoadCreateFailures >= 3)
+            {
+                LoadTest_Stop("npc_create_failed");
+                return 1;
+            }
+            break;
         }
+        gLoadCreateFailures = 0;
         if (!NPC_Spawn(npcid))
         {
             NPC_Destroy(npcid);
@@ -360,6 +373,8 @@ public LoadTest_Tick()
     return 1;
 }
 
+// Explicitly split the first word. sscanf("s[16]", ...) alone consumes the
+// entire command tail and causes /load start 5 120 full to show help.
 stock LoadTest_Command(playerid, const params[])
 {
     if (!Admin_IsFounder(playerid))
@@ -367,14 +382,19 @@ stock LoadTest_Command(playerid, const params[])
     if (isnull(params))
         return SendClientMessage(playerid, ADMIN_COLOR,
             "[LoadTest] /load start [count] [sec] [npc|full] | status | report | stop.");
-    // sscanf2's trailing s[...] field consumes the remaining input, so it
-    // cannot safely be used as a standalone leading command parser.
-    new action[16];
-    new split = strfind(params, " ");
-    if (split == -1)
+
+    new separator = strfind(params, " ");
+    new action[16], args[64];
+    if (separator == -1)
+    {
         format(action, sizeof(action), "%s", params);
+        args[0] = EOS;
+    }
     else
-        strmid(action, params, 0, split, sizeof(action));
+    {
+        strmid(action, params, 0, separator, sizeof(action));
+        strmid(args, params, separator + 1, strlen(params), sizeof(args));
+    }
     if (!strcmp(action, "status", true)) return LoadTest_Status(playerid);
     if (!strcmp(action, "report", true)) return Bench_Report(playerid);
     if (!strcmp(action, "stop", true))
@@ -387,25 +407,23 @@ stock LoadTest_Command(playerid, const params[])
     {
         if (!gAdminDuty[playerid])
             return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Enable /aduty first.");
-        if (!strcmp(params, "start", true))
+        if (isnull(args))
             return LoadTest_Start(playerid, LOADTEST_DEFAULT_NPCS, LOADTEST_DEFAULT_SECONDS);
-        if (split == -1)
-            return SendClientMessage(playerid, ADMIN_ERROR,
-                "[LoadTest] Usage: /load start 5 120 full (or /load start).");
+
         new count, seconds, scenario[12];
-        new payload[64];
-        strmid(payload, params, split + 1, strlen(params), sizeof(payload));
-        if (!sscanf(payload, "iis[12]", count, seconds, scenario))
+        if (!sscanf(args, "iis[12]", count, seconds, scenario))
         {
-            if (!strcmp(scenario, "full", true)) return LoadTest_Start(playerid, count, seconds, true);
-            if (!strcmp(scenario, "npc", true)) return LoadTest_Start(playerid, count, seconds);
+            if (!strcmp(scenario, "full", true))
+                return LoadTest_Start(playerid, count, seconds, true);
+            if (!strcmp(scenario, "npc", true))
+                return LoadTest_Start(playerid, count, seconds);
             return SendClientMessage(playerid, ADMIN_ERROR, "[LoadTest] Scenario: npc or full.");
         }
-        if (sscanf(payload, "ii", count, seconds))
-            return SendClientMessage(playerid, ADMIN_ERROR,
-                "[LoadTest] Usage: /load start 5 120 full | /load start 5 120 npc");
-        return LoadTest_Start(playerid, count, seconds);
+        if (!sscanf(args, "ii", count, seconds))
+            return LoadTest_Start(playerid, count, seconds);
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[LoadTest] Usage: /load start 5 120 full | /load start 5 120 npc.");
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
-        "[LoadTest] /load start [count] [seconds] | status | stop.");
+        "[LoadTest] /load start [count] [seconds] [npc|full] | status | report | stop.");
 }
