@@ -464,13 +464,13 @@ stock Ship_Preset(playerid, bool:reverse)
 {
     if (!Ship_Ready())
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Сначала создайте или загрузите корабль.");
+            "[TARKENSO] Сначала создайте или загрузите корабль.");
     if (gShipRunning)
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Остановите автопилот командой /ship stop.");
+            "[TARKENSO] Остановите автопилот командой /ship stop.");
     if (!Ship_SetRoutePreset(reverse))
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "Ошибка загрузки точек маршрута.");
+            "[TARKENSO] Ошибка загрузки точек маршрута.");
     // Keep the command-level replay cursor reset explicit for existing contracts.
     gShipNextPoint = 0;
     SendClientMessage(playerid, SHIP_COLOR,
@@ -486,9 +486,9 @@ stock Ship_Preset(playerid, bool:reverse)
 stock Ship_Help(playerid)
 {
     SendClientMessage(playerid, SHIP_COLOR,
-        "Ship Studio: /ship cargo — создать грузовой корабль; /ship create [hull model].");
+        "[TARKENSO] Ship Studio: /ship cargo — создать грузовой корабль; /ship create [hull model].");
     SendClientMessage(playerid, SHIP_COLOR,
-        "/ship add [model dx dy dz rx ry rz] — добавить деталь к корпусу.");
+        "[TARKENSO] /ship add [model dx dy dz rx ry rz] — добавить деталь к корпусу.");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship move [meters], /ship turn [degrees], /ship set [x y z angle], /ship mark.");
     SendClientMessage(playerid, SHIP_COLOR,
@@ -553,18 +553,18 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "cargo", true))
     {
         if (Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
-            "Корабль уже существует. Для замены сохраните и выполните /ship clear.");
+            "[TARKENSO] Корабль уже существует. Для замены сохраните и выполните /ship clear.");
         if (!Ship_CreateCargoAssembly())
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "Не удалось собрать грузовой корабль: проверьте лимит объектов.");
+                "[TARKENSO] Не удалось собрать грузовой корабль: проверьте лимит объектов.");
         if (!Ship_SetRoutePreset(false))
         {
             Ship_Reset();
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "Ошибка установки маршрута для сборки.");
+                "[TARKENSO] Ошибка установки маршрута для сборки.");
         }
         SendClientMessage(playerid, SHIP_COLOR,
-            "Грузовой корабль собран! Маршрут LS -> SF задан, рейс НЕ запущен.");
+            "[TARKENSO] Грузовой корабль собран! Маршрут LS -> SF задан, рейс НЕ запущен.");
         return Ship_Status(playerid);
     }
     if (!strcmp(action, "create", true))
