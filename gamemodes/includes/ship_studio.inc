@@ -501,6 +501,8 @@ stock Ship_Help(playerid)
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship preset lssf|sfls — готовый черновик морского маршрута (без проверки коллизий).");
     SendClientMessage(playerid, SHIP_COLOR,
+        "[Tarkenso RPG] /ship port ls|sf berth|exit|depart — портовая настройка и отход.");
+    SendClientMessage(playerid, SHIP_COLOR,
         "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
     return 1;
 }
