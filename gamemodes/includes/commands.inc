@@ -304,6 +304,13 @@ cmd:ship(playerid, params[])
     return Ship_Command(playerid, params);
 }
 
+// BIG-EAR-02: route /dish through the central Pawn.CMD registry.
+cmd:dish(playerid, params[])
+{
+    SendClientMessage(playerid, 0xB6D9EFFF, "[BIG-EAR] /dish received.");
+    return Dish_Command(playerid, params);
+}
+
 cmd:story(playerid, params[])
 {
     return Story_Command(playerid);
