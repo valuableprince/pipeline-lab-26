@@ -155,7 +155,8 @@ stock LoadNet_Command(playerid, const params[])
     if (isnull(params) || sscanf(params, "s[16]", action))
         return SendClientMessage(playerid, ADMIN_COLOR,
             "[LoadNet] /loadnet start 5 90 [register|login]; /loadnet status; /loadnet stop");
-    if (!strcmp(action, "status", true)) return LoadNet_Status(playerid);
+    if (!strcmp(action, "status", true) || !strcmp(action, "report", true))
+        return LoadNet_Status(playerid);
     if (!strcmp(action, "stop", true)) return LoadNet_Stop(playerid);
     if (!strcmp(action, "start", true))
     {
