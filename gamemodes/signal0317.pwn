@@ -163,6 +163,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "studio_system.inc"
 #include "studio_ui.inc"
 #include "ship_studio.inc"
+#include "ship_passenger_sync.inc"
 #include "economy.inc"
 #include "admin_ui.inc"
 #include "leader_system.inc"
@@ -197,6 +198,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_help.inc"
 #include "admin_tools2.inc"
 #include "admin_punish.inc"
+#include "admin_fly.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
@@ -760,10 +762,12 @@ public OnGameModeInit()
     SortUI_Init();
     Race_Init();
     Admin_Init();
+    AdminFly_Init();
     AdminVeh_Init();
     gAdminJailTimer = SetTimer("AdminPunish_Tick", 5000, true);
     Studio_Init();
     Ship_Init();
+    ShipSurf_Init();
     Economy_Init();
     Leader_Init();
     OrvelarHUD_Init();
@@ -784,12 +788,14 @@ public OnGameModeExit()
     Admin_ClockShutdown();
     Auth_Autosave();
     AdminVeh_Shutdown();
+    AdminFly_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
     SortUI_Shutdown();
     Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
+    ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
     DBShadow_Shutdown();
@@ -808,11 +814,13 @@ public OnPlayerConnect(playerid)
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
     Admin_OnConnect(playerid);
+    AdminFly_Reset(playerid);
     AdminPunish_Reset(playerid);
     AdminVeh_Reset(playerid);
     CleanerDump_NavReset(playerid);
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
+    ShipSurf_Reset(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
@@ -868,6 +876,7 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    AdminFly_Reset(playerid);
     RP_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     Guard_OnDisconnect(playerid);
@@ -880,6 +889,7 @@ public OnPlayerDisconnect(playerid, reason)
     if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
     Ship_OnDisconnect(playerid);
+    ShipSurf_Reset(playerid);
     StudioUI_Reset(playerid);
     Story_OnDisconnect(playerid);
     Cleaner_OnDisconnect(playerid);
@@ -962,6 +972,7 @@ public OnPlayerRequestSpawn(playerid)
 
 public OnPlayerSpawn(playerid)
 {
+    AdminFly_Reset(playerid);
     if (gAuthState[playerid] != AUTH_READY)
     {
         TogglePlayerControllable(playerid, false);
@@ -1012,6 +1023,7 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    AdminFly_Reset(playerid);
     SortUI_Reset(playerid);
     if (Race_OnDeath(playerid)) return 1;
     if (gAuthState[playerid] == AUTH_READY)
@@ -1071,6 +1083,7 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
     Race_OnStateChange(playerid, newstate, oldstate);
     Truck_OnStateChange(playerid, newstate, oldstate);
     if (gCleanerDuty[playerid] && gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&
