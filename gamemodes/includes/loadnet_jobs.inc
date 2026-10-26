@@ -15,8 +15,13 @@ forward LoadNet_OnStatus(playerid, authToken);
 
 stock LoadNet_IsAuthorized(playerid)
 {
+#if defined TARKENSO_DB_PRIMARY
     return Admin_IsFounder(playerid) && gAdminDuty[playerid] &&
         gDBPrimaryLoaded[playerid] && gDBPrimaryAccountId[playerid] > 0;
+#else
+    #pragma unused playerid
+    return 0;
+#endif
 }
 
 stock LoadNet_Start(playerid, count, duration, const mode[])
