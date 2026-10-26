@@ -325,7 +325,8 @@ stock Bench_Tick()
     // Hash only a small, bounded set at a time, through the same bcrypt plugin
     // used by real accounts. The player ID identifies the authenticated founder,
     // not an NPC; NPCs do not go through OnDialogResponse.
-    for (new i = 0; i < gLoadNPCCount && gBenchPendingHash < BENCH_HASH_LIMIT; i++)
+    for (new i = 0; i < gLoadNPCCount && gBenchPendingHash < BENCH_HASH_LIMIT &&
+         gBenchPendingSQL < BENCH_SQL_LIMIT; i++)
     {
         new slot = (gBenchCursor + i) % gLoadNPCCount;
         if (gBenchStage[slot] != 0) continue;
