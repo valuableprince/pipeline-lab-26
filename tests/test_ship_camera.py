@@ -34,6 +34,22 @@ class ShipCameraContracts(unittest.TestCase):
         self.assertNotIn("MoveObject(gShipRoot", C)
         self.assertNotIn("SetObjectPos(gShipRoot", C)
 
+    def test_smooth_follow_does_not_snap_every_tick(self):
+        follow = C.split("stock ShipCam_UpdateView(playerid)", 1)[1].split(
+            "stock ShipCam_Status(playerid)", 1)[0]
+        self.assertIn("InterpolateCameraPos(playerid,", follow)
+        self.assertIn("InterpolateCameraLookAt(playerid,", follow)
+        self.assertIn("SHIPCAM_BLEND_MS, CAMERA_MOVE", follow)
+        self.assertIn("cameraStepSq < 0.0001 && lookStepSq < 0.0001", follow)
+        self.assertIn("gShipCamCameraReady[playerid]", follow)
+        self.assertIn("cameraStepSq < 2500.0 && lookStepSq < 2500.0", follow)
+        self.assertLess(follow.index("SetPlayerPos(playerid, x, y, z + SHIPCAM_ANCHOR_HEIGHT)"),
+                        follow.index("InterpolateCameraPos(playerid,"))
+        self.assertIn("gShipCamCameraReady[playerid] = false;", C)
+        self.assertIn('gShipCamCameraReady[i] = false;', C)
+        self.assertIn("gShipCamCameraReady[playerid] = false;\\n        ShipCam_Status(playerid);", C)
+        self.assertIn("#define SHIPCAM_TICK_MS (200)", C)
+
     def test_follow_streaming_and_restore(self):
         self.assertIn("SHIPCAM_ANCHOR_HEIGHT", C)
         self.assertIn("SetPlayerPos(playerid, x, y, z + SHIPCAM_ANCHOR_HEIGHT)", C)
