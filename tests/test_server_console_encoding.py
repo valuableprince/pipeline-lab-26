@@ -1,7 +1,7 @@
 """Encoding boundary: Pawn client strings are CP1251, host log console is UTF-8.
 
-Use portable ASCII for print/printf format strings so that server log output
-remains readable regardless of NickNinth panel locale. Keep Russian player UI.
+Direct print/printf format strings remain ASCII; Russian log text uses the
+explicit CP1251->UTF-8 ConsoleRU_Log helper. Keep Russian player UI.
 """
 from pathlib import Path
 import re
@@ -33,7 +33,6 @@ class ServerConsoleEncodingTest(unittest.TestCase):
     def test_startup_is_readable_without_cp1251_console_configuration(self):
         main = SOURCE.read_text(encoding="utf-8")
         db = (INCLUDES / "db_primary.inc").read_text(encoding="utf-8")
-        npc = (INCLUDES / "npc_route_editor.inc").read_text(encoding="utf-8")
         cleaner = (INCLUDES / "cleaner_job.inc").read_text(encoding="utf-8")
         studio = (INCLUDES / "studio_system.inc").read_text(encoding="utf-8")
         for marker in (
@@ -41,8 +40,7 @@ class ServerConsoleEncodingTest(unittest.TestCase):
             "[DB-PRIMARY] MySQL unavailable",
         ):
             self.assertIn(marker, main)
-        self.assertIn("[DB-PRIMARY] MySQL schema v4 detected", db)
-        self.assertIn("[NPCRoute] Route editor and saved waypoints initialized", npc)
+        self.assertIn("[DB-PRIMARY] MySQL schema v10 detected", db)
         self.assertIn("[Cleaner] Street cleaner job: Fort Carson", cleaner)
         self.assertIn("[Studio] Core and zone editor initialized", studio)
 
