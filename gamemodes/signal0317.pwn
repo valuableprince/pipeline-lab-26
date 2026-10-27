@@ -834,6 +834,7 @@ public OnPlayerConnect(playerid)
     ShipSurf_Reset(playerid);
     ShipEditor_Reset(playerid);
     ShipCam_Reset(playerid);
+    ShipPanel_Reset(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
@@ -902,6 +903,7 @@ public OnPlayerDisconnect(playerid, reason)
     if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
     ShipCam_Reset(playerid);
+    ShipPanel_Reset(playerid);
     ShipEditor_Reset(playerid);
     Ship_OnDisconnect(playerid);
     ShipSurf_Reset(playerid);
@@ -988,6 +990,7 @@ public OnPlayerRequestSpawn(playerid)
 public OnPlayerSpawn(playerid)
 {
     ShipCam_Reset(playerid);
+    ShipPanel_Reset(playerid);
     ShipEditor_Reset(playerid);
     AdminFly_Reset(playerid);
     if (gAuthState[playerid] != AUTH_READY)
@@ -1041,6 +1044,7 @@ public OnPlayerSpawn(playerid)
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
     ShipCam_Reset(playerid);
+    ShipPanel_Reset(playerid);
     ShipEditor_Reset(playerid);
     AdminFly_Reset(playerid);
     SortUI_Reset(playerid);
