@@ -1,5 +1,6 @@
 """PAYDAY-01 contracts for hourly EXP, SQL persistence, and retired NPC runtime."""
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +40,26 @@ class PayDayContract(unittest.TestCase):
         self.assertIn("PayDay_Shutdown();", GAME)
         self.assertIn("cmd:mn(playerid, params[])", COMMANDS)
         self.assertNotIn("cmd:level(playerid, params[])", COMMANDS)
+
+    def test_chat_receipt_and_native_right_game_text(self):
+        self.assertIn('========== TARKENSO | PAYDAY ==========', PAYDAY)
+        self.assertIn('Опыт за час:', PAYDAY)
+        self.assertNotIn("[Tarkenso RPG]", PAYDAY)
+        self.assertIn("#define PAYDAY_COLOR (0xFFFFFFFF)", PAYDAY)
+        for color in re.findall(r"\{([0-9A-Fa-f]{6})\}", PAYDAY):
+            self.assertIn(color.upper(), {"D9AA55", "FFFFFF", "B6E4B3", "9FAAB8"})
+        self.assertIn('Прогресс:', PAYDAY)
+        self.assertIn('Осталось:', PAYDAY)
+        self.assertIn('Поздравляем!', PAYDAY)
+        self.assertIn('new earnedExp = level < PAYDAY_LEVEL_LIMIT ? PAYDAY_EXP_PER_HOUR : 0;', PAYDAY)
+        self.assertIn('GameTextForPlayer(playerid, "~w~TARKENSO~n~~y~PAYDAY", 5000, 1);', PAYDAY)
+        self.assertEqual(PAYDAY.count("PayDay_Notify(playerid, earnedExp, levelUp);"), 1)
+        # A rejected, stale or failed DB update must never display the receipt.
+        self.assertLess(PAYDAY.index("if (!DBPrimary_Execute(query, affected) || affected != 1)"),
+                        PAYDAY.index("PayDay_Notify(playerid, earnedExp, levelUp);"))
+        self.assertLess(PAYDAY.index("gDBPrimaryVersion[playerid]++;"),
+                        PAYDAY.index("PayDay_Notify(playerid, earnedExp, levelUp);"))
+        self.assertNotIn("GivePlayerMoney(", PAYDAY)
 
     def test_npc_runtime_removed_without_db_drops(self):
         for name in ("npc_core.inc", "npc_editor.inc", "npc_route_editor.inc"):
