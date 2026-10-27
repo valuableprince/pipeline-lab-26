@@ -162,9 +162,11 @@
         new q[1400];
         mysql_format(gDBPrimary, q, sizeof(q),
             "SELECT account_id,username,password_hash,background,mute_until,balance,health,armour,cleaner_paid,txn_serial,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,start_region,character_level,character_exp,last_payday_hour,story_stage,row_version,DATE(created_at) AS registered_date FROM accounts WHERE username_key=LOWER('%e') LIMIT 1", gAccountName[playerid]);
+        AuthProfiler_DBStart(playerid);
         if (!mysql_tquery(gDBPrimary, q, "DBPrimary_OnAccount", "iii",
             playerid, gAuthToken[playerid], _:fromIntro))
         {
+            AuthProfiler_DBEnd(playerid, false);
             Kick(playerid);
             return 0;
         }
@@ -177,6 +179,8 @@
             token != gAuthToken[playerid] || gAuthState[playerid] != AUTH_VERIFYING ||
             strcmp(gDBPrimaryRequestName[playerid], gAccountName[playerid], false))
             return 1;
+        AuthProfiler_DBEnd(playerid);
+        new decodingStarted = GetTickCount();
         if (!DBPrimary_IsReady()) { Kick(playerid); return 1; }
         new rows;
         if (!cache_get_row_count(rows) || rows > 1) { Kick(playerid); return 1; }
@@ -281,6 +285,7 @@
         format(gDBPrimaryRegistrationDate[playerid],
             sizeof(gDBPrimaryRegistrationDate[]), "%s", registered);
         gAccountLegacy[playerid] = false;
+        AuthProfiler_Step(playerid, "account_row_decode", decodingStarted);
         if (Auth_IsLocked(playerid)) { Kick(playerid); return 1; }
         Auth_ShowLogin(playerid);
         return 1;
