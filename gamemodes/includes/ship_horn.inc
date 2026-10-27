@@ -24,8 +24,9 @@ stock bool:ShipHorn_URLValid(const url[])
     if (strfind(url, ".mp3", true) < 0 && strfind(url, ".ogg", true) < 0)
         return false;
     for (new i = 0; i < len; i++)
-        if (url[i] <= 32 || url[i] == '\\' || url[i] == '"' ||
-            url[i] == '\'' || url[i] == '<' || url[i] == '>')
+        // Reject spaces/control characters and URL-breaking punctuation.
+        if (url[i] <= 32 || url[i] == 92 || url[i] == 34 ||
+            url[i] == 39 || url[i] == 60 || url[i] == 62)
             return false;
     return true;
 }
