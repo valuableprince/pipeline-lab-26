@@ -22,7 +22,7 @@ class ShipPanelContracts(unittest.TestCase):
         self.assertIn('ShipEditor_Command(playerid, "")', PANEL)
 
     def test_unique_dialogs_and_navigation(self):
-        for id_ in range(6340, 6346):
+        for id_ in range(7100, 7106):
             self.assertIn(f'({id_})', PANEL)
         self.assertIn('#include "ship_panel.inc"', MAIN)
         self.assertIn("ShipPanel_OnDialog(playerid, dialogid, response, listitem)", MAIN)
@@ -36,6 +36,23 @@ class ShipPanelContracts(unittest.TestCase):
         self.assertIn("if (listitem < 0 || listitem > 3) return 1;", PANEL)
         self.assertIn("if (listitem < 0 || listitem > 6) return 1;", PANEL)
         self.assertIn("if (!response)", PANEL)
+
+    def test_dialog_ids_do_not_collide_with_other_modules(self):
+        import re
+        ship_ids = set(range(7100, 7106))
+        # The container editor used 6340-6345 and consumed /ship replies.
+        cleaner = (ROOT / "gamemodes/includes/cleaner_editor.inc").read_text("utf-8")
+        self.assertIn("#define CLEANER_EDITOR_LIST (6340)", cleaner)
+        self.assertLess(MAIN.index("CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)"),
+                        MAIN.index("ShipPanel_OnDialog(playerid, dialogid, response, listitem)"))
+        sources = list((ROOT / "gamemodes/includes").glob("*.inc"))
+        sources.append(ROOT / "gamemodes/signal0317.pwn")
+        for path in sources:
+            if path.name == "ship_panel.inc":
+                continue
+            contents = path.read_text("utf-8")
+            for name, value in re.findall(r"(?m)^\\s*#define\\s+(\\w+)\\s+\\(?(\\d{4})\\)?", contents):
+                self.assertNotIn(int(value), ship_ids, f"{path.name}: {name} collides with ship panel")
 
     def test_access_control_for_all_callbacks(self):
         self.assertIn("Admin_Require(playerid, PERM_MODERATE)", PANEL)
