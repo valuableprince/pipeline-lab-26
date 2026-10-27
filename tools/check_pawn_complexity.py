@@ -15,7 +15,10 @@ from pathlib import Path
 import re
 import sys
 
-from check_pawn_static import calls, closing, functions, mask_opaque, source_tree
+try:
+    from tools.check_pawn_static import calls, closing, functions, mask_opaque, source_tree
+except ModuleNotFoundError:
+    from check_pawn_static import calls, closing, functions, mask_opaque, source_tree
 
 ROOT = Path(__file__).resolve().parents[1]
 LOOPS = re.compile(r"\b(?:for|foreach|while)\s*\(")
