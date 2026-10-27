@@ -32,6 +32,9 @@ new Float:gShipPoint[SHIP_MAX_POINTS][4];
 new bool:gShipRunning;
 new gShipNextPoint;
 new gShipTimer;
+new gShipPortDeparture = -1;
+forward ShipPort_Tick();
+forward ShipPort_Command(playerid, const params[]);
 
 forward Ship_Tick();
 
@@ -53,6 +56,7 @@ stock bool:Ship_Ready()
 
 stock Ship_Stop()
 {
+    gShipPortDeparture = -1;
     gShipRunning = false;
     if (Ship_Ready()) StopObject(gShipRoot);
     return 1;
@@ -273,6 +277,7 @@ stock Ship_Advance()
 
 public Ship_Tick()
 {
+    if (gShipPortDeparture >= 0) return ShipPort_Tick();
     if (!gShipRunning || !Ship_Ready()) return 1;
     if (gShipNextPoint < 1) return Ship_Advance();
     new i = gShipNextPoint - 1;
@@ -295,7 +300,7 @@ stock bool:Ship_CreateCargoAssembly()
 {
     if (Ship_Ready()) return false;
     if (!Ship_Create(SHIP_CARGO_START_X, SHIP_CARGO_START_Y,
-        SHIP_CARGO_ROOT_Z, 298.07, SHIP_CARGO_ROOT_ID)) return false;
+        SHIP_CARGO_ROOT_Z, 330.95, SHIP_CARGO_ROOT_ID)) return false;
     // deck: original IPL world (-2412.12, 1544.95, 17.05)
     if (!Ship_AddPart(9586, -2.2800, 0.0000,
         10.0500, 0.0, 0.0, 0.0))
@@ -387,19 +392,26 @@ stock bool:Ship_CreateCargoAssembly()
 // Verified only against overall GTA SA map / known port areas, NOT in-game.
 // The terminal is an offshore holding point, NOT a pier berthing position.
 // Do NOT run without checking object-envelope clearance, sea bounds and bridges.
+// LS south coast v2: add an eastward offshore arc and shift southern sea lanes
+// south by 15..55 units where the 3000-unit map limit permits it.
+// NOT a collision-certified corridor; even a 230-unit hull may cross map bounds.
 new const Float:gShipPresetLsSf[][4] = {
-    {2640.0, -2740.0, 0.0, 208.07},
-    {2720.0, -2890.0, 0.0, 111.80},
-    {2520.0, -2970.0, 0.0, 88.64},
-    {2100.0, -2960.0, 0.0, 90.00},
-    {1580.0, -2960.0, 0.0, 90.00},
-    {980.0, -2960.0, 0.0, 90.00},
-    {380.0, -2960.0, 0.0, 89.05},
-    {-220.0, -2950.0, 0.0, 90.00},
-    {-820.0, -2950.0, 0.0, 88.18},
-    {-1450.0, -2930.0, 0.0, 85.53},
-    {-2090.0, -2880.0, 0.0, 76.50},
-    {-2590.0, -2760.0, 0.0, 42.71},
+    {2640.0, -2740.0, 0.0, 240.95},
+    {2730.0, -2790.0, 0.0, 233.13},
+    {2810.0, -2850.0, 0.0, 195.26},
+    {2825.0, -2905.0, 0.0, 131.63},
+    {2780.0, -2945.0, 0.0, 106.26},
+    {2660.0, -2980.0, 0.0, 91.59},
+    {2480.0, -2985.0, 0.0, 90.00},
+    {2100.0, -2985.0, 0.0, 90.00},
+    {1580.0, -2985.0, 0.0, 90.00},
+    {980.0, -2985.0, 0.0, 90.00},
+    {380.0, -2985.0, 0.0, 90.00},
+    {-220.0, -2985.0, 0.0, 90.00},
+    {-820.0, -2985.0, 0.0, 89.09},
+    {-1450.0, -2975.0, 0.0, 86.42},
+    {-2090.0, -2935.0, 0.0, 75.43},
+    {-2590.0, -2805.0, 0.0, 38.20},
     {-2830.0, -2500.0, 0.0, 13.63},
     {-2910.0, -2170.0, 0.0, 0.99},
     {-2920.0, -1590.0, 0.0, 0.00},
@@ -496,6 +508,8 @@ stock Ship_Help(playerid)
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship preset lssf|sfls — готовый черновик морского маршрута (без проверки коллизий).");
     SendClientMessage(playerid, SHIP_COLOR,
+        "[Tarkenso RPG] /ship port ls|sf berth|exit|depart — портовая настройка и отход.");
+    SendClientMessage(playerid, SHIP_COLOR,
         "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
     return 1;
 }
@@ -566,6 +580,13 @@ stock Ship_Command(playerid, const params[])
         SendClientMessage(playerid, SHIP_COLOR,
             "[Tarkenso RPG] Грузовой корабль собран! Маршрут LS -> SF задан, рейс НЕ запущен.");
         return Ship_Status(playerid);
+    }
+    if (!strcmp(action, "port", true))
+    {
+        new portParams[64];
+        if (strlen(params) <= 5) return ShipPort_Command(playerid, "");
+        strmid(portParams, params, 5, strlen(params), sizeof(portParams));
+        return ShipPort_Command(playerid, portParams);
     }
     if (!strcmp(action, "create", true))
     {
