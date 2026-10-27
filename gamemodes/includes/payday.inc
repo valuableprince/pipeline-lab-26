@@ -39,23 +39,23 @@ stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
 {
     new message[144];
     SendClientMessage(playerid, PAYDAY_COLOR,
-        "{D8AD65}========== TARKENSO | PAYDAY ==========");
+        "{D9AA55}[Tarkenso RPG] {D8AD65}========== TARKENSO | PAYDAY ==========");
 
     format(message, sizeof(message),
-        "{E4ECF3}Опыт за час: {75DFA5}+%d EXP {B2BDCA}| {E4ECF3}Уровень: {EAC885}%d",
+        "{D9AA55}[Tarkenso RPG] {E4ECF3}Опыт за час: {75DFA5}+%d EXP {B2BDCA}| {E4ECF3}Уровень: {EAC885}%d",
         earnedExp, gCharacterLevel[playerid]);
     SendClientMessage(playerid, PAYDAY_COLOR, message);
 
     if (gCharacterLevel[playerid] >= PAYDAY_LEVEL_LIMIT)
     {
         SendClientMessage(playerid, PAYDAY_COLOR,
-            "{EAC885}Достигнут максимальный уровень персонажа.");
+            "{D9AA55}[Tarkenso RPG] {EAC885}Достигнут максимальный уровень персонажа.");
     }
     else
     {
         new threshold = gCharacterLevel[playerid] * PAYDAY_EXP_STEP;
         format(message, sizeof(message),
-            "{E4ECF3}Прогресс: {EAC885}%d/%d EXP {B2BDCA}| {E4ECF3}Осталось: {FFFFFF}%d EXP",
+            "{D9AA55}[Tarkenso RPG] {E4ECF3}Прогресс: {EAC885}%d/%d EXP {B2BDCA}| {E4ECF3}Осталось: {FFFFFF}%d EXP",
             gCharacterEXP[playerid], threshold, threshold - gCharacterEXP[playerid]);
         SendClientMessage(playerid, PAYDAY_COLOR, message);
     }
@@ -63,12 +63,12 @@ stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
     if (levelUp)
     {
         format(message, sizeof(message),
-            "{EAC885}Поздравляем! Вы достигли %d уровня.", gCharacterLevel[playerid]);
+            "{D9AA55}[Tarkenso RPG] {EAC885}Поздравляем! Вы достигли %d уровня.", gCharacterLevel[playerid]);
         SendClientMessage(playerid, PAYDAY_COLOR, message);
     }
 
     SendClientMessage(playerid, PAYDAY_COLOR,
-        "{D8AD65}========================================");
+        "{D9AA55}[Tarkenso RPG] {D8AD65}========================================");
     GameTextForPlayer(playerid, "~w~TARKENSO~n~~y~PAYDAY", 5000, 1);
     return 1;
 }
