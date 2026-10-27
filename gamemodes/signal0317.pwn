@@ -159,6 +159,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
+#include "console_ru.inc"
 #include "auth_profiler.inc"
 #include "admin_system.inc"
 #include "studio_system.inc"
@@ -795,6 +796,7 @@ public OnGameModeInit()
     DisableInteriorEnterExits();
     AddPlayerClass(26, START_X, START_Y, START_Z, START_A, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
     fcreatedir(ACCOUNT_DIRECTORY);
+    ConsoleRU_Init();
     AuthProfiler_EnsureFile();
     gAccountAutosaveTimer = SetTimer("Auth_Autosave", ACCOUNT_AUTOSAVE_MS, true);
     DBShadow_Init();
