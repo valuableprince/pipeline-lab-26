@@ -217,6 +217,7 @@ stock ShipManeuver_MoveNext()
         }
         gShipPortDeparture = -1;
         gShipManeuverArrivePort = -1;
+        ShipHorn_Play(); // berth reached; no teleport or new audio timer
         return 1;
     }
     new Float:x, Float:y, Float:z, Float:yaw;
