@@ -182,6 +182,7 @@ stock TDS_GroupCreate(playerid, const name[])
         for (new e; e < TDS_ELEMENTS; e++) if (gTDSPicked[s][e] && TDS_ElementValid(s, e)) gTDSElement[s][e][tdGroup] = id;
         gTDS[s][tsGroupCount]++; gTDS[s][tsDirty] = true;
         TDS_GroupSelect(playerid, id);
+        TDS_HRecord(s, TDS_H_GROUP_CREATE, id);
         return id;
     }
     return 0;
@@ -193,6 +194,7 @@ stock bool:TDS_GroupRename(playerid, id, const name[])
     if (g < 0 || !TDS_GroupNameAvailable(s, name, id)) return false;
     if (!strcmp(gTDSGroup[s][g][tgName], name, false)) return true;
     format(gTDSGroup[s][g][tgName], TDS_NAME, "%s", name); gTDS[s][tsDirty] = true;
+    TDS_HRecord(s, TDS_H_GROUP_RENAME, id);
     TDS_RenderStatus(s);
     return true;
 }
@@ -209,6 +211,7 @@ stock bool:TDS_GroupAssign(playerid, id, e, bool:add)
     gTDS[s][tsSelectedGroup] = 0;
     if (!add) TDS_GroupPrune(s, id);
     gTDS[s][tsDirty] = true; TDS_RenderStatus(s);
+    TDS_HRecord(s, TDS_H_GROUP_ASSIGN, id);
     return true;
 }
 
@@ -218,6 +221,7 @@ stock bool:TDS_GroupDissolve(playerid, id)
     if (TDS_GroupSlot(s, id) < 0) return false;
     for (new e; e < TDS_ELEMENTS; e++) if (TDS_ElementValid(s, e) && gTDSElement[s][e][tdGroup] == id) gTDSElement[s][e][tdGroup] = 0;
     TDS_GroupPrune(s, id); gTDS[s][tsDirty] = true; TDS_RenderStatus(s);
+    TDS_HRecord(s, TDS_H_GROUP_DISSOLVE, id);
     return true;
 }
 
@@ -271,6 +275,7 @@ stock bool:TDS_Layer(playerid, E_TDS_LAYER:action)
     new orders[TDS_ELEMENTS]; TDS_SaveOrders(s, orders); TDS_Reindex(s, slots, count);
     if (!TDS_RenderRebuild(s)) { TDS_RestoreOrders(s, orders); return false; }
     gTDS[s][tsDirty] = true; TDS_RenderStatus(s);
+    TDS_HRecord(s, TDS_H_LAYER);
     return true;
 }
 
@@ -298,5 +303,6 @@ stock TDS_Duplicate(playerid)
     if (!TDS_RenderRebuild(s)) { gTDSElement[s][copy][tdId] = 0; TDS_RestoreOrders(s, orders); return -1; }
     gTDS[s][tsNextId]++; gTDS[s][tsCount]++; gTDS[s][tsDirty] = true;
     TDS_PickOne(s, copy); TDS_RenderStatus(s);
+    TDS_HRecord(s, TDS_H_COPY, gTDSElement[s][copy][tdId]);
     return copy;
 }

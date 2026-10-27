@@ -7,6 +7,12 @@
 #define TDS_DB_LOAD (2)
 #define TDS_DB_LIST (3)
 #define TDS_DB_DELETE (4)
+#define TDS_DB_TEMPLATE_SAVE (5)
+#define TDS_DB_TEMPLATE_LIST (6)
+#define TDS_DB_TEMPLATE_INFO (7)
+#define TDS_DB_TEMPLATE_INSERT (8)
+#define TDS_DB_TEMPLATE_UPDATE (9)
+#define TDS_DB_TEMPLATE_DELETE (10)
 #define TDS_JOB_LIMIT (8)
 
 enum E_TDS_JOB
@@ -35,6 +41,7 @@ stock TDS_ClearProject(session)
     gTDS[session][tsName][0] = EOS; gTDS[session][tsDescription][0] = EOS;
     gTDS[session][tsCreated][0] = EOS; gTDS[session][tsUpdated][0] = EOS;
     gTDS[session][tsDirty] = false; gTDS[session][tsMode] = TDS_MENU_MODE;
+    TDS_HReset(session);
     return 1;
 }
 
@@ -71,11 +78,13 @@ stock TDSDB_Expire()
 }
 
 #if defined TARKENSO_DB_PRIMARY && !defined TDS_TEST_NO_DB
+new bool:gTDSTemplatesReady;
 new const gTDSColumns[][] = {"element_id", "draw_order", "kind", "x", "y", "width", "height", "letter_x", "letter_y", "colour", "box_colour", "background", "font", "alignment", "outline", "shadow", "use_box", "proportional", "selectable", "sprite", "model", "rot_x", "rot_y", "rot_z", "zoom", "vehicle_colour1", "vehicle_colour2"};
 new gTDSJobSerial;
 new gTDSQuery[110000];
-new gTDSLoad[TDS_ELEMENTS][E_TDS_ELEMENT];
-new gTDSLoadedGroups[TDS_GROUPS][E_TDS_GROUP];
+
+#define gTDSLoad gTDSStage
+#define gTDSLoadedGroups gTDSStageGroups
 new bool:gTDSDBReady;
 forward TDSDB_Ready();
 forward TDSDB_Result(job, serial, playerid, token);
@@ -85,13 +94,20 @@ stock TDSDB_Init()
 {
     gTDSDBReady = false;
     if (!DBPrimary_IsReady()) return 0;
-    return mysql_tquery(gDBPrimary,"SELECT version FROM schema_migrations WHERE version=15 LIMIT 1","TDSDB_Ready");
+    return mysql_tquery(gDBPrimary,"SELECT version FROM schema_migrations WHERE version IN (15,16)","TDSDB_Ready");
 }
 
 public TDSDB_Ready()
 {
-    new rows;
-    gTDSDBReady = cache_get_row_count(rows) != 0 && rows == 1;
+    new rows; gTDSDBReady = false; gTDSTemplatesReady = false;
+    if (cache_get_row_count(rows) && rows <= 2) for (new i; i < rows; i++)
+    {
+        new version;
+        if (!cache_get_value_name_int(i,"version",version)) continue;
+        if (version == 15) gTDSDBReady = true;
+        if (version == 16) gTDSTemplatesReady = true;
+    }
+    gTDSTemplatesReady = gTDSTemplatesReady && gTDSDBReady;
     if (!gTDSDBReady) print("[TDSTUDIO] Apply migrations 012 and 015; persistent editor operations disabled.");
     return 1;
 }
@@ -217,27 +233,9 @@ stock bool:TDSDB_ReadHex(row, const column[], dest[], capacity)
     return TDS_Unhex(hex,dest,capacity);
 }
 
-stock bool:TDSDB_LoadResult(session, target, rows)
+stock bool:TDSDB_ReadData(count, version, nextId, nextGroup, groupCount)
 {
-    new id, creator, revision, version, interfaceType, nextId, count, nextGroup, groupCount, groupsRead;
-    new name[TDS_NAME], description[TDS_DESCRIPTION], created[20], updated[20];
-    if (rows < 1 || rows > TDS_ELEMENTS ||
-        !cache_get_value_name_int(0,"project_id",id) || id != target ||
-        !cache_get_value_name_int(0,"creator_id",creator) || creator <= 0 ||
-        !cache_get_value_name_int(0,"revision",revision) || revision <= 0 ||
-        !cache_get_value_name_int(0,"format_version",version) || (version != 1 && version != TDS_FORMAT) ||
-        !cache_get_value_name_int(0,"interface_type",interfaceType) || interfaceType < 0 || interfaceType > 1 ||
-        !cache_get_value_name_int(0,"next_element_id",nextId) || nextId < 1 || nextId > 2147483646 ||
-        !cache_get_value_name_int(0,"next_group_id",nextGroup) || nextGroup < 1 || nextGroup > 2147483646 ||
-        !cache_get_value_name_int(0,"group_count",groupCount) || groupCount < 0 || groupCount > TDS_GROUPS ||
-        (version == 1 && groupCount != 0) ||
-        !cache_get_value_name_int(0,"element_count",count) || count < 0 || count > TDS_ELEMENTS ||
-        rows != (count ? count : 1) || !TDSDB_ReadHex(0,"name_hex",name,sizeof(name)) || !TDS_ValidName(name) ||
-        !TDSDB_ReadHex(0,"description_hex",description,sizeof(description)) ||
-        (description[0] && !TDS_SafeText(description,TDS_DESCRIPTION-1)) ||
-        !cache_get_value_name(0,"created_at",created,sizeof(created)) ||
-        !cache_get_value_name(0,"updated_at",updated,sizeof(updated))) return false;
-    if (creator != TDSHost_Account(gTDS[session][tsOwner]) && !TDSHost_Founder(gTDS[session][tsOwner])) return false;
+    new groupsRead;
     for (new e; e < TDS_ELEMENTS; e++) gTDSLoad[e][tdId] = 0;
     for (new g; g < TDS_GROUPS; g++) gTDSLoadedGroups[g][tgId] = 0;
     for (new e; e < count; e++)
@@ -277,6 +275,31 @@ stock bool:TDSDB_LoadResult(session, target, rows)
         for (new i; i < e; i++) if (gTDSLoad[i][tdId] == gTDSLoad[e][tdId]) return false;
     }
     if (groupsRead != groupCount || !TDS_GroupDataValid(gTDSLoad, gTDSLoadedGroups, nextGroup, groupCount)) return false;
+    return true;
+}
+
+stock bool:TDSDB_LoadResult(session, target, rows)
+{
+    new id, creator, revision, version, interfaceType, nextId, count, nextGroup, groupCount;
+    new name[TDS_NAME], description[TDS_DESCRIPTION], created[20], updated[20];
+    if (rows < 1 || rows > TDS_ELEMENTS ||
+        !cache_get_value_name_int(0,"project_id",id) || id != target ||
+        !cache_get_value_name_int(0,"creator_id",creator) || creator <= 0 ||
+        !cache_get_value_name_int(0,"revision",revision) || revision <= 0 ||
+        !cache_get_value_name_int(0,"format_version",version) || (version != 1 && version != TDS_FORMAT) ||
+        !cache_get_value_name_int(0,"interface_type",interfaceType) || interfaceType < 0 || interfaceType > 1 ||
+        !cache_get_value_name_int(0,"next_element_id",nextId) || nextId < 1 || nextId > 2147483646 ||
+        !cache_get_value_name_int(0,"next_group_id",nextGroup) || nextGroup < 1 || nextGroup > 2147483646 ||
+        !cache_get_value_name_int(0,"group_count",groupCount) || groupCount < 0 || groupCount > TDS_GROUPS ||
+        (version == 1 && groupCount != 0) ||
+        !cache_get_value_name_int(0,"element_count",count) || count < 0 || count > TDS_ELEMENTS ||
+        rows != (count ? count : 1) || !TDSDB_ReadHex(0,"name_hex",name,sizeof(name)) || !TDS_ValidName(name) ||
+        !TDSDB_ReadHex(0,"description_hex",description,sizeof(description)) ||
+        (description[0] && !TDS_SafeText(description,TDS_DESCRIPTION-1)) ||
+        !cache_get_value_name(0,"created_at",created,sizeof(created)) ||
+        !cache_get_value_name(0,"updated_at",updated,sizeof(updated))) return false;
+    if (creator != TDSHost_Account(gTDS[session][tsOwner]) && !TDSHost_Founder(gTDS[session][tsOwner])) return false;
+    if (!TDSDB_ReadData(count, version, nextId, nextGroup, groupCount)) return false;
     // Allocate off-screen first. Failure preserves the current model AND handles.
     new PlayerText:draws[TDS_ELEMENTS], playerid = gTDS[session][tsOwner];
     for (new i; i < TDS_ELEMENTS; i++) draws[i] = INVALID_PLAYER_TEXT_DRAW;
@@ -296,11 +319,12 @@ stock bool:TDSDB_LoadResult(session, target, rows)
     gTDS[session][tsRevision] = revision; gTDS[session][tsFormat] = TDS_FORMAT; gTDS[session][tsInterface] = interfaceType;
     gTDS[session][tsNextId] = nextId; gTDS[session][tsCount] = count;
     gTDS[session][tsNextGroupId] = nextGroup; gTDS[session][tsGroupCount] = groupCount;
-    for (new g; g < groupsRead; g++) for (new E_TDS_GROUP:f; f < E_TDS_GROUP; f++) gTDSGroup[session][g][f] = gTDSLoadedGroups[g][f];
+    for (new g; g < groupCount; g++) for (new E_TDS_GROUP:f; f < E_TDS_GROUP; f++) gTDSGroup[session][g][f] = gTDSLoadedGroups[g][f];
     if (count) TDS_PickOne(session, 0);
     format(gTDS[session][tsName],TDS_NAME,"%s",name);
     format(gTDS[session][tsDescription],TDS_DESCRIPTION,"%s",description);
     format(gTDS[session][tsCreated],20,"%s",created); format(gTDS[session][tsUpdated],20,"%s",updated);
+    TDS_HReset(session); TDS_HCheckpoint(session);
     return true;
 }
 
@@ -311,6 +335,7 @@ public TDSDB_Result(job, serial, playerid, token)
     if (!TDSDB_Live(job)) { gTDSJob[job][tjUsed] = false; return 1; }
     new s = gTDSJob[job][tjSession], operation = gTDSJob[job][tjOperation], rows, ok;
     if (!cache_get_row_count(rows)) return TDSDB_Fail(job,"БД не вернула результат. Проект не помечен сохранённым.");
+    if (operation >= TDS_DB_TEMPLATE_SAVE) return TDS_TplResult(job, rows);
     if (operation == TDS_DB_LIST)
     {
         if (rows < 0 || rows > TDS_PROJECT_PAGE+1) return TDSDB_Fail(job,"Некорректный список проектов.");
@@ -353,6 +378,7 @@ public TDSDB_Result(job, serial, playerid, token)
             gTDS[s][tsProjectId] = id; gTDS[s][tsCreator] = creator; gTDS[s][tsRevision] = revision;
             format(gTDS[s][tsCreated],20,"%s",created); format(gTDS[s][tsUpdated],20,"%s",updated);
             gTDS[s][tsDirty] = false;
+            TDS_HCheckpoint(s);
         }
         else if (operation == TDS_DB_DELETE) TDS_ClearProject(s);
     }

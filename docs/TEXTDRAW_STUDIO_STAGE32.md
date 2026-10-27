@@ -1,5 +1,8 @@
 # TextDraw Studio — этап 3.2: Advanced Geometry
 
+Этот документ фиксирует этап 3.2. История и библиотека компонентов этапа 3.3:
+[TEXTDRAW_STUDIO_STAGE33.md](TEXTDRAW_STUDIO_STAGE33.md).
+
 Проверено 27.10.2026. База — `feat/tdstudio-advanced-layers-stage31`,
 **d396ab80d2dfefe8834a20132e7516dc171c82d2** (PR #59; далее #55 и #42).
 Рабочая ветка — `feat/tdstudio-advanced-geometry-stage32`.

@@ -39,7 +39,7 @@ stock TDS_Main(playerid)
         gTDS[s][tsName],gTDS[s][tsDirty] ? (" *") : (""),gTDS[s][tsProjectId]);
     else format(title,sizeof(title),"TARKENSO TextDraw Studio | Этап 2");
     return TDS_Dialog(playerid,TDS_MAIN,DIALOG_STYLE_LIST,title,
-        "Создать проект\nОткрыть проект\nСохранить\nСохранить как новый проект\nПереименовать\nУдалить проект из БД\nЭкспортировать Pawn\nРедактировать интерфейс\nПараметры проекта\nЗакрыть редактор");
+        "Создать проект\nОткрыть проект\nСохранить\nСохранить как новый проект\nПереименовать\nУдалить проект из БД\nЭкспортировать Pawn\nРедактировать интерфейс\nПараметры проекта\nЗакрыть редактор\nИстория действий\nБиблиотека шаблонов");
 }
 
 stock TDS_ContinueLeave(playerid)
@@ -83,7 +83,7 @@ stock TDS_EditMenu(playerid)
         gTDS[s][tsName], gTDS[s][tsCount], TDS_ELEMENTS);
     else format(title, sizeof(title), "TARKENSO TextDraw Studio | Этап 2");
     return TDS_Dialog(playerid, TDS_EDIT_MENU, DIALOG_STYLE_LIST, title,
-        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов / слоёв\nСвойства активного элемента\nШаг перемещения\nПредпросмотр\nПеремещение выделения (клавиатура)\nЗакрыть редактор\nСлои\nВыделение\nГруппы\nДублировать активный элемент\nГеометрия: размер / масштаб / сетка", "Открыть", "Закрыть");
+        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов / слоёв\nСвойства активного элемента\nШаг перемещения\nПредпросмотр\nПеремещение выделения (клавиатура)\nЗакрыть редактор\nСлои\nВыделение\nГруппы\nДублировать активный элемент\nГеометрия: размер / масштаб / сетка\nИстория действий\nБиблиотека шаблонов", "Открыть", "Закрыть");
 }
 
 stock TDS_List(playerid)
@@ -256,6 +256,8 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         if (dialogid == TDS_MAIN && response) return TDS_ConfirmClose(playerid);
         return TDS_Main(playerid);
     }
+    if (dialogid >= TDS_TEMPLATE_MENU) return TDS_OnTemplateDialog(playerid, dialogid, response, listitem, input);
+    if (dialogid >= TDS_HISTORY_MENU) return TDS_OnHistoryDialog(playerid, dialogid, response, listitem);
     if (dialogid >= TDS_GEOMETRY) return TDS_OnGeoDialog(playerid, dialogid, response, listitem, input);
     if (dialogid >= TDS_LAYERS) return TDS_OnLayoutDialog(playerid, dialogid, response, listitem, input);
     if (!response)
@@ -273,7 +275,8 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
     {
         case TDS_MAIN:
         {
-            if (listitem < 0 || listitem > 9) return TDS_Main(playerid);
+            if (listitem < 0 || listitem > 11) return TDS_Main(playerid);
+            if (listitem == 11) return TDS_TplMenu(playerid);
             if (listitem == 0) return TDS_Leave(playerid,1);
             if (listitem == 1) return TDSDB_List(playerid);
             if (listitem == 9) return TDS_ConfirmClose(playerid);
@@ -296,6 +299,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                 case 6: return TDS_Export(playerid);
                 case 7: return TDS_EditMenu(playerid);
                 case 8: return TDS_Settings(playerid);
+                case 10: return TDS_HMenu(playerid);
             }
         }
         case TDS_PROJECTS:
@@ -320,6 +324,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                 return TDS_Main(playerid);
             }
             format(gTDS[s][tsName],TDS_NAME,"%s",input); gTDS[s][tsDirty] = true;
+            TDS_HRecord(s, TDS_H_META);
             return TDS_Main(playerid);
         }
         case TDS_SETTINGS:
@@ -327,6 +332,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
             if (listitem == 0)
             {
                 gTDS[s][tsInterface] = 1-gTDS[s][tsInterface]; gTDS[s][tsDirty] = true;
+                TDS_HRecord(s, TDS_H_META);
                 return TDS_Settings(playerid);
             }
             if (listitem == 1) return TDS_Dialog(playerid,TDS_DESC_DIALOG,DIALOG_STYLE_INPUT,"TD Studio | Описание", "До 128 печатных символов. Пустая строка удаляет описание.","Применить");
@@ -336,12 +342,13 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         {
             if (input[0] && !TDS_SafeText(input,TDS_DESCRIPTION-1)) return TDS_Settings(playerid);
             format(gTDS[s][tsDescription],TDS_DESCRIPTION,"%s",input); gTDS[s][tsDirty] = true;
+            TDS_HRecord(s, TDS_H_META);
             return TDS_Settings(playerid);
         }
         case TDS_PROJECT_DELETE: return TDSDB_Delete(playerid);
         case TDS_EDIT_MENU:
         {
-            if (listitem < 0 || listitem > 13) return TDS_Main(playerid);
+            if (listitem < 0 || listitem > 15) return TDS_Main(playerid);
             if (listitem == 0) return TDS_Main(playerid);
             if (listitem == 8) return TDS_ConfirmClose(playerid);
             if (!gTDS[s][tsProject])
@@ -367,6 +374,8 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                     return TDS_EditMenu(playerid);
                 }
                 case 13: return TDS_GeoMenu(playerid);
+                case 14: return TDS_HMenu(playerid);
+                case 15: return TDS_TplMenu(playerid);
             }
         }
         case TDS_NEW:
@@ -442,6 +451,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
             }
             if (!TDS_RenderElement(s, e)) return TDS_Close(playerid);
             gTDS[s][tsDirty] = true;
+            TDS_HRecord(s, TDS_H_PROP+_:TDS_CONTENT, gTDSElement[s][e][tdId]);
             return TDS_Props(playerid);
         }
         case TDS_DELETE:
@@ -476,6 +486,10 @@ stock TDS_OnClick(playerid, PlayerText:clicked)
             case 6: TDS_Move(playerid, 0.0, step);
             case 7: return TDS_StepMenu(playerid);
             case 8: return TDS_SetMode(playerid, TDS_PREVIEW_MODE);
+            case 9,10:
+            {
+                if (!TDS_HStep(playerid,tool == 10)) SendClientMessage(playerid,TDS_COLOR,"Нет доступного действия или не хватает ресурсов.");
+            }
         }
         return 1;
     }

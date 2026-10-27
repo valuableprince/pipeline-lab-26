@@ -2,6 +2,7 @@
 #include "tdstudio_movement.inc"
 #include "tdstudio_layers.inc"
 #include "tdstudio_geometry_tests.inc"
+#include "tdstudio_history_tests.inc"
 
 main() {}
 public OnGameModeInit()
@@ -164,6 +165,7 @@ public TDS_RunTests()
     RunMovementTests();
     RunLayerTests();
     RunGeometryTests();
+    RunHistoryTests();
     Check(tCreate - tDestroy == 1 && MockValid(0, foreign), "movement cleanup preserves foreign handles");
     Check(tBadHandle == 0, "no invalid native handle access");
     Check(!tDialogOverflow, "native dialog body/caption limits respected");

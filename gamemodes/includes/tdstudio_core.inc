@@ -65,6 +65,7 @@ stock TDS_Close(playerid, bool:connected = true)
     for (new i; i < TDS_ELEMENTS; i++) gTDSElement[session][i][tdId] = 0;
     gTDS[session][tsUsed] = false;
     gTDS[session][tsProject] = false;
+    TDS_HReset(session);
     gTDS[session][tsName][0] = EOS;
     gTDS[session][tsOwner] = INVALID_PLAYER_ID;
     return 1;
@@ -85,7 +86,8 @@ stock TDS_Reset(playerid, bool:connected = true)
 stock TDS_RequireSession(playerid)
 {
     new session = TDS_Session(playerid);
-    if (session < 0 || !TDS_Allowed(playerid))
+    if (session < 0 || !TDS_Allowed(playerid) ||
+        (gTDS[session][tsProject] && gTDS[session][tsCreator] != TDSHost_Account(playerid) && !TDSHost_Founder(playerid)))
     {
         TDS_Close(playerid);
         return -1;
@@ -139,6 +141,7 @@ stock bool:TDS_NewProject(playerid, const name[])
     gTDS[s][tsProject] = true;
     gTDS[s][tsCreator] = TDSHost_Account(playerid);
     gTDS[s][tsDirty] = true;
+    TDS_HReset(s);
     return true;
 }
 
@@ -166,6 +169,7 @@ stock TDS_AddElement(playerid, E_TDS_TYPE:type)
         TDS_PickOne(s, i);
         TDS_RenderStatus(s);
         gTDS[s][tsDirty] = true;
+        TDS_HRecord(s, TDS_H_CREATE, gTDSElement[s][i][tdId]);
         return i;
     }
     return -1;
@@ -175,6 +179,7 @@ stock bool:TDS_DeleteElement(playerid, slot)
 {
     new s = TDS_RequireSession(playerid);
     if (!TDS_ElementValid(s, slot) || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return false;
+    new deletedId = gTDSElement[s][slot][tdId];
     TDS_RenderDestroyElement(s, slot);
     new group = gTDSElement[s][slot][tdGroup];
     gTDSElement[s][slot][tdId] = 0;
@@ -188,6 +193,7 @@ stock bool:TDS_DeleteElement(playerid, slot)
     }
     TDS_RenderStatus(s);
     gTDS[s][tsDirty] = true;
+    TDS_HRecord(s, TDS_H_DELETE, deletedId);
     return true;
 }
 
@@ -215,7 +221,8 @@ stock bool:TDS_Move(playerid, Float:dx, Float:dy)
     { gTDSElement[s][slots[i]][tdX] += dx; gTDSElement[s][slots[i]][tdY] += dy; }
     for (new i; i < count; i++) if (!TDS_RenderPosition(s, slots[i])) { TDS_Close(playerid); return false; }
     TDS_RenderStatus(s);
-    if (gTDS[s][tsMode] != TDS_MOVE_MODE) gTDS[s][tsDirty] = true;
+    if (gTDS[s][tsMode] != TDS_MOVE_MODE)
+    { gTDS[s][tsDirty] = true; TDS_HRecord(s, TDS_H_MOVE, gTDSElement[s][gTDS[s][tsSelected]][tdId]); }
     return true;
 }
 

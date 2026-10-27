@@ -12,10 +12,10 @@
 #define TDS_FORMAT (2)
 #define TDS_GROUPS (16)
 #define TDS_PROJECT_PAGE (20)
-#define TDS_TOOLS (9)
+#define TDS_TOOLS (11)
 #define TDS_COLOR (0xF1C263FF)
 #define TDS_FIRST_DIALOG (7100)
-#define TDS_LAST_DIALOG (7132)
+#define TDS_LAST_DIALOG (7147)
 #define TDS_MAIN (7100)
 #define TDS_NEW (7101)
 #define TDS_ADD (7102)
@@ -49,6 +49,21 @@
 #define TDS_GEO_GRID (7130)
 #define TDS_GEO_STEP (7131)
 #define TDS_GEO_INFO (7132)
+#define TDS_HISTORY_MENU (7133)
+#define TDS_HISTORY_LIST (7134)
+#define TDS_HISTORY_CLEAR (7135)
+#define TDS_TEMPLATE_MENU (7136)
+#define TDS_TEMPLATE_CAT (7137)
+#define TDS_TEMPLATE_LIST (7138)
+#define TDS_TEMPLATE_DETAIL (7139)
+#define TDS_TEMPLATE_NAME (7140)
+#define TDS_TEMPLATE_DESC (7141)
+#define TDS_TEMPLATE_NEW_CAT (7142)
+#define TDS_TEMPLATE_CONFIRM (7143)
+#define TDS_TEMPLATE_DELETE (7144)
+#define TDS_TEMPLATE_PLACE (7145)
+#define TDS_TEMPLATE_POS (7146)
+#define TDS_TEMPLATE_VIS (7147)
 
 enum E_TDS_TYPE { TDS_TEXT_TYPE, TDS_RECT_TYPE, TDS_SPRITE_TYPE, TDS_MODEL_TYPE };
 enum E_TDS_MODE { TDS_MENU_MODE, TDS_EDIT_MODE, TDS_PREVIEW_MODE, TDS_MOVE_MODE };
@@ -95,7 +110,11 @@ enum E_TDS_SESSION
     bool:tsAnchorCenter, bool:tsAlignActive, bool:tsAlignGroup,
     tsGridStep, bool:tsGridShow, bool:tsSnap, Float:tsMargin, tsGeoField,
     Float:tsGeoPivotX, Float:tsGeoPivotY, Float:tsGeoWidth, Float:tsGeoHeight,
-    Float:tsGeoValueW, Float:tsGeoValueH, Float:tsGeoRawX, Float:tsGeoRawY
+    Float:tsGeoValueW, Float:tsGeoValueH, Float:tsGeoRawX, Float:tsGeoRawY,
+    tsTplId, tsTplOwner, tsTplRevision, tsTplCategory, tsTplVisibility,
+    tsTplName[TDS_NAME], tsTplDescription[TDS_DESCRIPTION], tsTplCreated[20], tsTplUpdated[20],
+    tsTplFilter, tsTplPage, tsTplRows[TDS_PROJECT_PAGE], tsTplRowCount, bool:tsTplMore,
+    tsTplEdit, tsTplPlace, Float:tsTplX, Float:tsTplY
 };
 
 // Pool allocation avoids a large element array for every possible player.

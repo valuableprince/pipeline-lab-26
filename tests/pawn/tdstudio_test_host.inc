@@ -27,6 +27,7 @@ new Float:tW[MAX_PLAYERS][256], Float:tH[MAX_PLAYERS][256];
 new Float:tLetterX[MAX_PLAYERS][256], Float:tLetterY[MAX_PLAYERS][256];
 new tFont[MAX_PLAYERS][256], tTouches[MAX_PLAYERS][256];
 new tFailures, tChecks, tDialogOverflow;
+new tCancelDepth;
 
 stock bool:Admin_Ready(playerid) { return tConnected[playerid] && gAuthState[playerid] == AUTH_READY; }
 stock bool:Studio_Allowed(playerid) { return Admin_Ready(playerid) && tFounder[playerid]; }
@@ -71,8 +72,9 @@ forward TDS_OnCancel(playerid, Text:clicked);
 stock MockCancel(playerid)
 {
     tCancel++;
-    if (tCancel > 100) { print("TDS FAIL: recursive cancel"); return 0; }
+    if (++tCancelDepth > 4) { print("TDS FAIL: recursive cancel"); tCancelDepth--; return 0; }
     TDS_OnCancel(playerid, Text:INVALID_TEXT_DRAW);
+    tCancelDepth--;
     return 1;
 }
 stock bool:MockValid(playerid, PlayerText:td)

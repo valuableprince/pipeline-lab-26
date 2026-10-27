@@ -136,6 +136,17 @@ class TextDrawStudioIntegration(unittest.TestCase):
         self.assertIn("RunLayerTests();", source)
         self.assertIn('#include "tdstudio_geometry_tests.inc"', source)
         self.assertIn("RunGeometryTests();", source)
+        self.assertIn('#include "tdstudio_history_tests.inc"', source)
+        self.assertIn("RunHistoryTests();", source)
+
+    def test_templates_share_the_existing_async_queue_and_error_boundary(self):
+        source = (INC / "tdstudio_templates.inc").read_text(encoding="utf-8")
+        self.assertIn("TDSDB_Begin(playerid, operation, id)", source)
+        self.assertIn("TDSDB_Submit(j)", source)
+        self.assertNotIn("mysql_connect", source)
+        db = (INC / "tdstudio_db.inc").read_text(encoding="utf-8")
+        self.assertIn("TDS_TplResult(job, rows)", db)
+        self.assertIn("TDSDB_Live(job)", db)
 
 
 if __name__ == "__main__":

@@ -57,7 +57,14 @@ stock TDSInput_End(session, bool:accept, bool:connected = true, bool:redraw = tr
             if (!accept) gTDSElement[session][e][gTDSGeoFields[f]] = _:gTDSOrigin[session][e][E_TDS_GEOMETRY:f];
         }
     }
-    if (changed && accept) gTDS[session][tsDirty] = true;
+    if (changed && accept)
+    {
+        gTDS[session][tsDirty] = true;
+        new kind = TDS_H_MOVE;
+        if (gTDS[session][tsTransform] == TDS_TRANS_RESIZE) kind = TDS_H_RESIZE;
+        if (gTDS[session][tsTransform] == TDS_TRANS_SCALE) kind = TDS_H_SCALE;
+        TDS_HRecord(session, kind, gTDS[session][tsMoveId]);
+    }
     new bool:release = gTDS[session][tsMoveFreeze];
     gTDS[session][tsMode] = TDS_MENU_MODE;
     gTDS[session][tsMoveSlot] = -1; gTDS[session][tsMoveId] = 0;

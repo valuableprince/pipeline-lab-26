@@ -85,6 +85,7 @@ stock bool:TDS_ApplyInput(playerid, E_TDS_FIELD:field, const input[])
     if (!TDS_RenderElement(s, e)) { TDS_Close(playerid); return false; }
     TDS_RenderStatus(s);
     gTDS[s][tsDirty] = true;
+    TDS_HRecord(s, TDS_H_PROP+_:field, gTDSElement[s][e][tdId]);
     return true;
 }
 
@@ -103,5 +104,6 @@ stock bool:TDS_Toggle(playerid, E_TDS_FIELD:field)
     }
     if (!TDS_RenderElement(s, e)) { TDS_Close(playerid); return false; }
     gTDS[s][tsDirty] = true;
+    TDS_HRecord(s, TDS_H_PROP+_:field, gTDSElement[s][e][tdId]);
     return true;
 }

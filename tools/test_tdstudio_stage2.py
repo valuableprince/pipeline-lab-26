@@ -31,6 +31,7 @@ def compile_exports(source, output, server, prefix, profile="stage2"):
         "stage2": 'Привет, \\"Дима\\"! C:\\\\test 100% ~g~текст',
         "stage31": 'Логотип \\"TARKENSO\\" C:\\\\ui 100% ~g~текст',
         "stage32": 'Геометрия \\"TARKENSO\\" C:\\\\ui 100% ~g~текст',
+        "stage33": 'Шаблон \\"TARKENSO\\" C:\\\\ui 100% ~g~текст',
     }[profile]
     for file in files:
         data = file.read_bytes()
@@ -57,7 +58,7 @@ def compile_exports(source, output, server, prefix, profile="stage2"):
                 ids = list(map(int, re.findall(r'// Element ID (\d+), order', content)))
                 assert ids == [5, 6, 1, 2, 3, 4], (file.name, ids)
                 assert positions == [(20., 30.), (310., 270.), (11., 19.), (31., 39.), (51., 59.), (71., 79.)], positions
-            else:
+            elif profile == "stage32":
                 ids = list(map(int, re.findall(r'// Element ID (\d+), order', content)))
                 assert ids == [5, 1, 2, 3, 4], (file.name, ids)
                 assert positions == [(20., 20.), (260., 170.), (380., 170.), (260., 190.), (380.125, 190.25)], positions
@@ -69,6 +70,17 @@ def compile_exports(source, output, server, prefix, profile="stage2"):
                 assert re.search(r'Alignment\([^\n]+TEXT_DRAW_ALIGN:2\);', content)
                 assert 'SetPreviewRot' in content and '1.500000000' in content
                 assert '0x7CA6C030' not in content and len(positions) == 5, 'editor guides leaked into export'
+            else:
+                ids = list(map(int, re.findall(r'// Element ID (\d+), order', content)))
+                assert ids == list(range(1, 9)), ids
+                assert positions == [(275.,190.),(295.,210.),(315.,230.),(335.,250.),
+                                     (100.,100.),(120.,120.),(140.,140.),(160.,160.)], positions
+                assert content.count('Шаблон') == 2
+                assert '0x7CA6C030' not in content
+                sizes = [tuple(map(float, pair)) for pair in re.findall(
+                    r'(?:PlayerTextDraw|TextDraw)TextSize\([^\n]+, ([0-9.]+), ([0-9.]+)\);', content)]
+                assert sizes == [(315.,20.),(30.,20.),(40.,30.),(30.,40.),
+                                 (140.,20.),(30.,20.),(40.,30.),(30.,40.)], sizes
             moved_exports += 1
         calls.extend([f'{symbol}_Create({"0" if is_personal else ""});',
                       f'{symbol}_Show(0);', f'{symbol}_Hide(0);',
@@ -196,6 +208,63 @@ def sql_group_checks(query):
     print('MySQL groups: 8 invalid payloads rolled back all four entities; ownership, v1 writer protection, HEX injection-as-data, cascade and v1 upgrade passed.')
 
 
+def sql_template_checks(query):
+    """Exercise the actual 016 routines, independent of frontend authorization."""
+    columns = ['element_id','draw_order','kind','x','y','width','height','letter_x','letter_y','colour','box_colour',
+               'background','font','alignment','outline','shadow','use_box','proportional','selectable','sprite','model',
+               'rot_x','rot_y','rot_z','zoom','vehicle_colour1','vehicle_colour2']
+    private_name = 'Личный логотип'.encode('cp1251').hex()
+    meta = query(f"SELECT template_id,HEX(name),HEX(description),next_element_id,next_group_id,origin_x,origin_y,revision FROM tdstudio_templates WHERE name=CONVERT(X'{private_name}' USING cp1251)").strip().split('\t')
+    tid, name, description, next_id, next_group, ox, oy, revision = meta
+    rows = [json.loads(row) for row in query(f"SELECT JSON_ARRAY({','.join('`'+c+'`' for c in columns)},HEX(content)) FROM tdstudio_template_elements WHERE template_id={tid} ORDER BY ordinal").splitlines()]
+    groups = []
+    for line in query(f'SELECT group_id,HEX(name) FROM tdstudio_template_groups WHERE template_id={tid} ORDER BY group_id').splitlines():
+        gid, gname = line.split('\t')
+        members = list(map(int,query(f'SELECT element_id FROM tdstudio_template_members WHERE template_id={tid} AND group_id={gid} ORDER BY element_id').split()))
+        groups.append([int(gid),gname,members])
+    assert len(rows) == 4 and len(groups) == 2
+    def counts():
+        return tuple(query(f'SELECT COUNT(*) FROM {table}').strip() for table in
+                     ['tdstudio_templates','tdstudio_template_elements','tdstudio_template_groups','tdstudio_template_members'])
+    def save(elements=rows, membership=groups, actor=100, privileged=0, visibility=0, label=name, category=5, origin_x=ox):
+        payload = json.dumps(elements,separators=(',',':')).encode().hex()
+        group_payload = json.dumps(membership,separators=(',',':')).encode().hex()
+        return query(f"CALL tds_template_save({actor},{privileged},X'{label}',X'{description}',{category},{visibility},1,{next_id},CONVERT(X'{payload}' USING ascii),{next_group},CONVERT(X'{group_payload}' USING ascii),{origin_x},{oy})").strip()
+    before = counts()
+    bad = json.loads(json.dumps(rows)); bad[1][2] = 99
+    assert save(elements=bad) == '0' and counts() == before, 'partial element insert must roll back all entities'
+    bad = json.loads(json.dumps(groups)); bad[1][2].append(99999)
+    assert save(membership=bad) == '0' and counts() == before, 'partial group insert must roll back all entities'
+    assert save(actor=101,visibility=1) == '0' and counts() == before, 'SQL must enforce publication privilege'
+    assert save(category=65536) == '0' and counts() == before
+    assert save(origin_x=float(ox)+1) == '0' and counts() == before, 'origin mismatch rolls back a complete staged component'
+    assert not query(f'CALL tds_template_load({tid},101,0)').strip(), 'private read denied in SQL'
+    shared = query("SELECT template_id,revision FROM tdstudio_templates WHERE visibility=1").strip().split('\t')
+    sid, srevision = shared
+    assert len(query(f'CALL tds_template_load({sid},101,0)').splitlines()) == 4, 'shared read allowed'
+    assert query(f"CALL tds_template_update({sid},101,0,{srevision},X'{name}',X'{description}')").strip() == '0'
+    assert query(f'CALL tds_template_delete({sid},101,0,{srevision})').strip() == '0'
+    assert query(f"CALL tds_template_update({tid},100,0,{revision},X'{name}',X'{description}')").strip() == '1'
+    assert query(f"CALL tds_template_update({tid},100,0,{revision},X'{name}',X'{description}')").strip() == '0', 'stale library revision denied'
+    injection = "sql'); SELECT 1; --".encode().hex()
+    result = save(label=injection).split('\t'); assert result[0] == '1', result
+    clone = int(result[1])
+    assert query(f'SELECT HEX(name) FROM tdstudio_templates WHERE template_id={clone}').strip().lower() == injection
+    assert int(query('SELECT COUNT(*) FROM accounts').strip()) == 3
+    assert query(f'CALL tds_template_delete({clone},100,0,1)').strip() == '1'
+    assert query(f'SELECT COUNT(*) FROM tdstudio_template_members WHERE template_id={clone}').strip() == '0'
+    for i in range(23):
+        assert save(label=f'Page {i:02}'.encode().hex(),category=6).split('\t')[0] == '1'
+    page1 = query('CALL tds_template_list(100,0,6,0)').splitlines()
+    page2 = query('CALL tds_template_list(100,0,6,20)').splitlines()
+    assert len(page1) == 21 and len(page2) == 3 and page1[20] == page2[0]
+    assert len({row.split('\t')[0] for row in page1[:20]+page2}) == 23
+    assert not query('CALL tds_template_list(100,0,6,1000001)').strip()
+    assert query("SELECT COUNT(*) FROM tdstudio_templates WHERE name='Maximum component'").strip() == '1'
+    assert query("SELECT COUNT(*) FROM tdstudio_template_elements e JOIN tdstudio_templates t USING(template_id) WHERE t.name='Maximum component'").strip() == '64'
+    print('MySQL templates: rollback after partial element/group writes, server-independent rights, CAS, HEX injection-as-data, cascade, maximum payload and 23-template pagination passed.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--server',type=Path,required=True)
@@ -216,7 +285,7 @@ def main():
     db = cfg['database']
     query(f'DROP DATABASE IF EXISTS `{db}`; CREATE DATABASE `{db}`;',False)
     for migration in sorted((ROOT/'db/migrations').glob('*.sql')):
-        if migration.name == '015_tdstudio_groups.sql':
+        if migration.name in {'015_tdstudio_groups.sql','016_tdstudio_templates.sql'}:
             continue
         query(migration.read_text())
     query("INSERT INTO accounts(account_id,username,password_hash,background) VALUES (100,'Veyran',REPEAT('a',60),1),(101,'Developer',REPEAT('b',60),1),(102,'Other',REPEAT('c',60),1)")
@@ -227,6 +296,10 @@ def main():
     assert original == query(f'SELECT project_id,HEX(name),creator_id,format_version,revision,next_element_id FROM tdstudio_projects WHERE project_id={legacy}')
     assert original_elements == query(f'SELECT ordinal,element_id,draw_order,x,y,width,height,letter_x,letter_y,colour,box_colour,background,font,alignment,outline,shadow,use_box,proportional,selectable,sprite,model,rot_x,rot_y,rot_z,zoom,vehicle_colour1,vehicle_colour2,HEX(content) FROM tdstudio_elements WHERE project_id={legacy} ORDER BY ordinal')
     assert query(f'SELECT next_group_id FROM tdstudio_projects WHERE project_id={legacy}').strip() == '1'
+    existing_tables = ['tdstudio_projects','tdstudio_elements','tdstudio_groups','tdstudio_group_members']
+    before16 = [query(f'SELECT * FROM {table}') for table in existing_tables]
+    query((ROOT/'db/migrations/016_tdstudio_templates.sql').read_text())
+    assert before16 == [query(f'SELECT * FROM {table}') for table in existing_tables], '016 must preserve all existing project rows'
     assert query(f'CALL tds_delete({legacy},100,0,1)').strip() == '1'
     prefix = shlex.split(args.prefix)
     run(args.server,prefix,args.output,'tdstudio_stage2.pwn',args.mysql_config,args.plugin)
@@ -253,6 +326,13 @@ def main():
     run(args.server,prefix,geometry,'tdstudio_stage32.pwn',args.mysql_config,args.plugin,restart=True,export_profile='stage32')
     shutil.copy2(geometry/'tdstudio-test-run.log',geometry/'tdstudio-stage32-restart-run.log')
     print('Geometry restart: a fresh open.mp process restored six geometry fields, layers, IDs, group membership and Cyrillic. Both export types compiled with verified native geometry.')
+    library = args.output/'stage33'
+    run(args.server,prefix,library,'tdstudio_stage33.pwn',args.mysql_config,args.plugin,export_profile='stage33')
+    shutil.copy2(library/'tdstudio-test-run.log',library/'tdstudio-stage33-run.log')
+    sql_template_checks(query)
+    run(args.server,prefix,library,'tdstudio_stage33.pwn',args.mysql_config,args.plugin,restart=True,export_profile='stage33')
+    shutil.copy2(library/'tdstudio-test-run.log',library/'tdstudio-stage33-restart-run.log')
+    print('Templates restart: a fresh open.mp process loaded reusable components and restored confirmed project geometry/groups. Undo checkpoints, rights, stale callbacks and both compiled exports passed.')
 
 
 if __name__ == '__main__':

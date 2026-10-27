@@ -63,7 +63,7 @@ stock TDS_GeoPlan(s, const slots[], count, bool:origin = false)
     return 1;
 }
 
-stock bool:TDS_GeoCommit(s, const slots[], count, bool:live = false)
+stock bool:TDS_GeoCommit(s, const slots[], count, bool:live = false, kind = TDS_H_GEOMETRY)
 {
     if (s < 0 || s >= TDS_SESSIONS || count < 1 || count > TDS_ELEMENTS) return false;
     new bool:changed[TDS_ELEMENTS], bool:resized[TDS_ELEMENTS], bool:any, p = gTDS[s][tsOwner];
@@ -88,7 +88,11 @@ stock bool:TDS_GeoCommit(s, const slots[], count, bool:live = false)
         if (resized[i]) TDS_RenderGeometry(s, slots[i]);
         else TDS_RenderPosition(s, slots[i]);
     }
-    if (!live) gTDS[s][tsDirty] = true;
+    if (!live)
+    {
+        gTDS[s][tsDirty] = true;
+        TDS_HRecord(s, kind, TDS_ElementValid(s,gTDS[s][tsSelected]) ? gTDSElement[s][gTDS[s][tsSelected]][tdId] : 0);
+    }
     TDS_RenderStatus(s);
     return true;
 }
@@ -138,13 +142,13 @@ stock bool:TDS_GeoSnapDelta(s, const slots[], count, &Float:dx, &Float:dy, bool:
     return true;
 }
 
-stock bool:TDS_GeoTranslate(s, const slots[], count, Float:dx, Float:dy, bool:snap = false, bool:origin = false, bool:live = false)
+stock bool:TDS_GeoTranslate(s, const slots[], count, Float:dx, Float:dy, bool:snap = false, bool:origin = false, bool:live = false, kind = TDS_H_MOVE)
 {
     if (!TDS_InRange(dx, -4096.0, 4096.0) || !TDS_InRange(dy, -4096.0, 4096.0)) return false;
     if (snap && !TDS_GeoSnapDelta(s, slots, count, dx, dy, origin)) return false;
     TDS_GeoPlan(s, slots, count, origin);
     for (new i; i < count; i++) { gTDSGeoPlan[slots[i]][geoX] += dx; gTDSGeoPlan[slots[i]][geoY] += dy; }
-    return TDS_GeoCommit(s, slots, count, live);
+    return TDS_GeoCommit(s, slots, count, live, kind);
 }
 
 stock bool:TDS_GeoNudge(s, Float:dx, Float:dy)
@@ -213,7 +217,7 @@ stock bool:TDS_GeoProperty(playerid, E_TDS_FIELD:field, const Float:v[])
         }
         default: return false;
     }
-    return TDS_GeoCommit(s, slots, 1);
+    return TDS_GeoCommit(s, slots, 1, false, field == TDS_POSITION ? TDS_H_MOVE : TDS_H_RESIZE);
 }
 
 stock bool:TDS_GeoScalePlan(s, const slots[], count, Float:sx, Float:sy, Float:px, Float:py, bool:origin, bool:live)
@@ -229,7 +233,7 @@ stock bool:TDS_GeoScalePlan(s, const slots[], count, Float:sx, Float:sy, Float:p
         if (gTDSElement[s][e][tdType] == TDS_TEXT_TYPE)
         { gTDSGeoPlan[e][geoLetterX] *= sx; gTDSGeoPlan[e][geoLetterY] *= sy; }
     }
-    return TDS_GeoCommit(s, slots, count, live);
+    return TDS_GeoCommit(s, slots, count, live, TDS_H_SCALE);
 }
 
 stock bool:TDS_GeoScale(playerid, Float:sx, Float:sy)
@@ -281,7 +285,7 @@ stock bool:TDS_GeoAlign(playerid, E_TDS_ALIGN_OP:action, bool:active = true, gro
         new Float:l, Float:t, Float:r, Float:b, Float:dx, Float:dy;
         if (!TDS_GeoBounds(s, slots, count, l, t, r, b)) return false;
         TDS_GeoAlignDelta(action, l, t, r, b, rl, rt, rr, rb, dx, dy);
-        return TDS_GeoTranslate(s, slots, count, dx, dy);
+        return TDS_GeoTranslate(s, slots, count, dx, dy, false, false, false, TDS_H_ALIGN);
     }
     TDS_GeoPlan(s, slots, count);
     for (new i; i < count; i++)
@@ -292,7 +296,7 @@ stock bool:TDS_GeoAlign(playerid, E_TDS_ALIGN_OP:action, bool:active = true, gro
         TDS_GeoAlignDelta(action, l, t, r, b, rl, rt, rr, rb, dx, dy);
         gTDSGeoPlan[e][geoX] += dx; gTDSGeoPlan[e][geoY] += dy;
     }
-    return TDS_GeoCommit(s, slots, count);
+    return TDS_GeoCommit(s, slots, count, false, TDS_H_ALIGN);
 }
 
 // Screen is API virtual 640x480. Existing format-2 anchor limits remain in force.
@@ -314,7 +318,7 @@ stock bool:TDS_GeoScreen(playerid, action)
         case 5: { dx = 320.0-(l+r)/2.0; dy = m-t; }
         case 6: { dx = 320.0-(l+r)/2.0; dy = 480.0-m-b; }
     }
-    return TDS_GeoTranslate(s, slots, count, dx, dy);
+    return TDS_GeoTranslate(s, slots, count, dx, dy, false, false, false, TDS_H_SCREEN);
 }
 
 stock bool:TDS_GeoDistribute(playerid, bool:horizontal)
@@ -349,7 +353,7 @@ stock bool:TDS_GeoDistribute(playerid, bool:horizontal)
         }
         cursor += extent[e]+gap;
     }
-    return TDS_GeoCommit(s, slots, count);
+    return TDS_GeoCommit(s, slots, count, false, TDS_H_DISTRIBUTE);
 }
 
 stock bool:TDS_GeoLive(s, Float:dx, Float:dy)

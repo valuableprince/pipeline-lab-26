@@ -68,7 +68,9 @@ def run(server: Path, prefix: list[str], output: Path, harness="tdstudio_harness
         # outside this test's mocked-player scope.
         process = subprocess.Popen(prefix + [str(server / "omp-server")], cwd=work,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=child_env)
-        watchdog = threading.Timer(45, process.kill)
+        # Eight full projects with depth-20 history execute real Pawn restores;
+        # allow bounded emulator overhead as well as native CI hosts.
+        watchdog = threading.Timer(120, process.kill)
         watchdog.start()
         chunks = []
         stopped_after_report = False

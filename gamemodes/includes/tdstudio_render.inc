@@ -5,14 +5,16 @@
 
 new PlayerText:gTDSDraw[TDS_SESSIONS][TDS_ELEMENTS];
 new PlayerText:gTDSTool[TDS_SESSIONS][TDS_TOOLS];
+new gTDSHistoryToolState[TDS_SESSIONS][2];
 new const gTDSToolText[][] =
 {
-    "TARKENSO TD STUDIO", "MENU", "ELEMENTS", "X -", "X +", "Y -", "Y +", "STEP", "PREVIEW"
+    "TARKENSO TD STUDIO", "MENU", "ELEMENTS", "X -", "X +", "Y -", "Y +", "STEP", "PREVIEW", "UNDO", "REDO"
 };
 
 stock TDS_RenderInit(session)
 {
     TDS_GridInit(session);
+    gTDSHistoryToolState[session][0] = -1; gTDSHistoryToolState[session][1] = -1;
     for (new i; i < TDS_ELEMENTS; i++) gTDSDraw[session][i] = INVALID_PLAYER_TEXT_DRAW;
     for (new i; i < TDS_TOOLS; i++) gTDSTool[session][i] = INVALID_PLAYER_TEXT_DRAW;
     return 1;
@@ -185,6 +187,22 @@ stock TDS_RenderStatus(session)
     if (gTDS[session][tsMode] == TDS_MOVE_MODE && gTDS[session][tsTransform] != TDS_TRANS_MOVE)
         TDS_GeoStatus(session, label, sizeof(label));
     PlayerTextDrawSetString(gTDS[session][tsOwner], td, "%s", label);
+    TDS_RenderHistory(session);
+    return 1;
+}
+
+stock TDS_RenderHistory(s)
+{
+    for (new i = 9; i < TDS_TOOLS; i++)
+    {
+        new PlayerText:td = gTDSTool[s][i]; if (td == INVALID_PLAYER_TEXT_DRAW) continue;
+        new bool:available = TDS_HCount(s, i == 10) > 0 && !gTDS[s][tsBusy] && gTDS[s][tsMode] == TDS_EDIT_MODE;
+        if (gTDSHistoryToolState[s][i-9] == _:available) continue;
+        gTDSHistoryToolState[s][i-9] = _:available;
+        PlayerTextDrawColour(gTDS[s][tsOwner], td, available ? TDS_COLOR : 0x777777FF);
+        PlayerTextDrawSetSelectable(gTDS[s][tsOwner], td, available);
+        if (gTDS[s][tsMode] == TDS_EDIT_MODE) { PlayerTextDrawHide(gTDS[s][tsOwner], td); PlayerTextDrawShow(gTDS[s][tsOwner], td); }
+    }
     return 1;
 }
 
@@ -195,6 +213,7 @@ stock bool:TDS_RenderTools(session)
     {
         new Float:x = 5.0, Float:y = 5.0;
         if (i > 0) { x += float(i - 1) * 78.0; y = 424.0; }
+        if (i >= 9) { x = 475.0+float(i-9)*78.0; y = 25.0; }
         new PlayerText:td = CreatePlayerTextDraw(playerid, x, y, gTDSToolText[i]);
         if (td == INVALID_PLAYER_TEXT_DRAW) return false;
         gTDSTool[session][i] = td;
