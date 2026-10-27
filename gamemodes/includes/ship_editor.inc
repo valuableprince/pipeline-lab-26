@@ -7,7 +7,7 @@
 // 18 selectable PlayerTextDraw controls and a static overhead camera.
 // Safety: deny moving if ANY player occupies the ship collision envelope.
 #define SHIPEDIT_BUTTONS (18)
-#define SHIPEDIT_ZOOM_DEFAULT (280.0)
+#define SHIPEDIT_ZOOM_DEFAULT (250.0)
 #define SHIPEDIT_COLOR (0xA8D4E8FF)
 #define SHIPEDIT_POLL_MS (250)
 
@@ -194,6 +194,9 @@ stock ShipEditor_Begin(playerid)
     if (!Ship_Ready() || gShipRunning || gShipPortDeparture >= 0)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Для редактора нужен остановленный корабль.");
+    if (gShipModel != SHIP_CARGO_ROOT_ID)
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] Редактор откалиброван для грузового корпуса 9585.");
     if (gShipEditOwner != INVALID_PLAYER_ID || gShipEditActive[playerid] ||
         GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         gAdminFly[playerid] || gAdminFrozen[playerid] ||
@@ -271,10 +274,10 @@ stock ShipEditor_Action(playerid, action)
     }
     if (action == SE_ZOOM_IN || action == SE_ZOOM_OUT)
     {
-        if (action == SE_ZOOM_IN && gShipEditZoom[playerid] > 180.0)
-            gShipEditZoom[playerid] -= 50.0;
-        if (action == SE_ZOOM_OUT && gShipEditZoom[playerid] < 430.0)
-            gShipEditZoom[playerid] += 50.0;
+        if (action == SE_ZOOM_IN && gShipEditZoom[playerid] > 175.0)
+            gShipEditZoom[playerid] -= 25.0;
+        if (action == SE_ZOOM_OUT && gShipEditZoom[playerid] < 300.0)
+            gShipEditZoom[playerid] += 25.0;
         ShipEditor_Refresh(playerid);
         return 1;
     }
@@ -297,6 +300,8 @@ stock ShipEditor_Action(playerid, action)
     if (!Ship_ValidCoord(x, y, z))
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Достигнута граница допустимых координат.");
+    if (yaw < 0.0) yaw += 360.0;
+    if (yaw >= 360.0) yaw -= 360.0;
     // UI edits ONLY a stationary and passenger-free root; attachments follow.
     SetObjectPos(gShipRoot, x, y, z);
     SetObjectRot(gShipRoot, 0.0, 0.0, yaw);
