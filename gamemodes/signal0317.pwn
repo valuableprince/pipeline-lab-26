@@ -159,6 +159,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
+#include "auth_profiler.inc"
 #include "admin_system.inc"
 #include "studio_system.inc"
 #include "studio_ui.inc"
@@ -599,33 +600,86 @@ stock Auth_EnterWorld(playerid)
     if (!IsPlayerConnected(playerid) || gAuthState[playerid] != AUTH_SUCCESS) return 0;
     gAuthState[playerid] = AUTH_READY;
     gAuthDialogOpen[playerid] = false;
+    AuthProfiler_WorldStart(playerid);
+    new started = GetTickCount();
     AuthCamera_Stop(playerid);
-    if (!Admin_OnReady(playerid) || !AdminPunish_Load(playerid) ||
-        (gAccountLegacy[playerid] && !Auth_SaveAccount(playerid)))
+    AuthProfiler_Step(playerid, "camera_stop", started);
+
+    // Preserve the original fail-closed short circuit but time each stage.
+    started = GetTickCount();
+    new bool:adminOK = Admin_OnReady(playerid);
+    AuthProfiler_Step(playerid, "admin_ready", started, adminOK);
+    if (!adminOK)
     {
+        AuthProfiler_WorldEnd(playerid, false);
         gAuthState[playerid] = AUTH_NONE;
         SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить данные аккаунта.");
         Kick(playerid);
         return 0;
     }
-    Leader_OnReady(playerid);
-    Cleaner_OnReady(playerid);
-    if (gTruckPersistenceReady && !TruckPersist_LoadProfile(playerid))
+    started = GetTickCount();
+    new bool:punishOK = AdminPunish_Load(playerid);
+    AuthProfiler_Step(playerid, "punishment_load", started, punishOK);
+    if (!punishOK)
     {
-        SendClientMessage(playerid, COLOR_RED,
-            "Не удалось прочитать опыт муниципального водителя. Повторите вход.");
+        AuthProfiler_WorldEnd(playerid, false);
+        gAuthState[playerid] = AUTH_NONE;
+        SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить данные аккаунта.");
         Kick(playerid);
         return 0;
     }
+    if (gAccountLegacy[playerid])
+    {
+        started = GetTickCount();
+        new bool:saved = Auth_SaveAccount(playerid);
+        AuthProfiler_Step(playerid, "legacy_account_save", started, saved);
+        if (!saved)
+        {
+            AuthProfiler_WorldEnd(playerid, false);
+            gAuthState[playerid] = AUTH_NONE;
+            SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить данные аккаунта.");
+            Kick(playerid);
+            return 0;
+        }
+    }
+    started = GetTickCount();
+    Leader_OnReady(playerid);
+    AuthProfiler_Step(playerid, "leader_ready", started);
+    started = GetTickCount();
+    Cleaner_OnReady(playerid);
+    AuthProfiler_Step(playerid, "cleaner_ready", started);
+    if (gTruckPersistenceReady)
+    {
+        started = GetTickCount();
+        new bool:truckOK = TruckPersist_LoadProfile(playerid);
+        AuthProfiler_Step(playerid, "truck_profile_load", started, truckOK);
+        if (!truckOK)
+        {
+            AuthProfiler_WorldEnd(playerid, false);
+            SendClientMessage(playerid, COLOR_RED,
+                "Не удалось прочитать опыт муниципального водителя. Повторите вход.");
+            Kick(playerid);
+            return 0;
+        }
+    }
+    started = GetTickCount();
     RaceProgress_OnReady(playerid);
+    AuthProfiler_Step(playerid, "race_ready", started);
+    started = GetTickCount();
     PayDay_OnReady(playerid);
+    AuthProfiler_Step(playerid, "payday_ready", started);
+
+    started = GetTickCount();
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
     Auth_GetSpawnCoordinates(playerid, spawnX, spawnY, spawnZ, spawnA);
     SetSpawnInfo(playerid, NO_TEAM, 26, spawnX, spawnY, spawnZ, spawnA,
         WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
     TogglePlayerSpectating(playerid, false);
     SetPlayerVirtualWorld(playerid, 0);
+    gAuthProfSpawnPending[playerid] = true; // Arm before possible synchronous callback.
     SpawnPlayer(playerid);
+    AuthProfiler_Step(playerid, "spawn_request", started);
+    AuthProfiler_WorldEnd(playerid);
     return 1;
 }
 
@@ -741,6 +795,7 @@ public OnGameModeInit()
     DisableInteriorEnterExits();
     AddPlayerClass(26, START_X, START_Y, START_Z, START_A, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
     fcreatedir(ACCOUNT_DIRECTORY);
+    AuthProfiler_EnsureFile();
     gAccountAutosaveTimer = SetTimer("Auth_Autosave", ACCOUNT_AUTOSAVE_MS, true);
     DBShadow_Init();
     if (!DBPrimary_Init())
@@ -832,6 +887,7 @@ public OnPlayerConnect(playerid)
     Admin_UI_OnDisconnect(playerid);
     OrvelarHUD_OnConnect(playerid);
     gAuthToken[playerid]++;
+    AuthProfiler_Reset(playerid);
     gAuthState[playerid] = AUTH_NONE;
     gAuthDialogOpen[playerid] = false;
     gAuthJustRegistered[playerid] = false;
@@ -879,6 +935,7 @@ public OnPlayerDisconnect(playerid, reason)
     AdminFly_Reset(playerid);
     RP_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
+    AuthProfiler_Reset(playerid);
     Guard_OnDisconnect(playerid);
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
@@ -972,6 +1029,7 @@ public OnPlayerRequestSpawn(playerid)
 
 public OnPlayerSpawn(playerid)
 {
+    AuthProfiler_FirstSpawnBegin(playerid);
     AdminFly_Reset(playerid);
     if (gAuthState[playerid] != AUTH_READY)
     {
@@ -1018,6 +1076,7 @@ public OnPlayerSpawn(playerid)
     CleanerDump_NavClear(playerid);
     Admin_ApplyEvent(playerid);
     if (!AdminPunish_OnSpawn(playerid)) Story_OnSpawn(playerid);
+    AuthProfiler_FirstSpawnEnd(playerid);
     return 1;
 }
 
@@ -1225,6 +1284,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             }
             gAuthState[playerid] = AUTH_HASHING;
             SendClientMessage(playerid, COLOR_GREY, "Архив создаёт защищённое личное дело...");
+            AuthProfiler_BcryptStart(playerid);
             bcrypt_hash(playerid, "Auth_OnPasswordHashed", gPasswordPending[playerid],
                 AUTH_COST, "d", gAuthToken[playerid]);
             gPasswordPending[playerid][0] = EOS;
@@ -1250,6 +1310,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             }
             gAuthState[playerid] = AUTH_VERIFYING;
             SendClientMessage(playerid, COLOR_GREY, "Проверяем пароль в архиве...");
+            AuthProfiler_BcryptStart(playerid);
             bcrypt_verify(playerid, "Auth_OnPasswordVerified", inputtext,
                 gAccountHash[playerid], "d", gAuthToken[playerid]);
             return 1;
@@ -1276,6 +1337,7 @@ public Auth_OnPasswordHashed(playerid, token)
 
     new hash[61];
     bcrypt_get_hash(hash, sizeof(hash));
+    AuthProfiler_BcryptEnd(playerid, true, strlen(hash) == 60);
     if (strlen(hash) != 60 || hash[0] != '$' || hash[1] != '2' || !Auth_WriteAccount(playerid, hash))
     {
         SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить аккаунт.");
@@ -1292,6 +1354,7 @@ public Auth_OnPasswordHashed(playerid, token)
 public Auth_OnPasswordVerified(playerid, bool:success, token)
 {
     if (!IsPlayerConnected(playerid) || gAuthState[playerid] != AUTH_VERIFYING || gAuthToken[playerid] != token) return 1;
+    AuthProfiler_BcryptEnd(playerid, false, success);
     if (!success)
     {
         Auth_AuthFailure(playerid);
