@@ -8,6 +8,7 @@ on:
       - "tests/**"
       - "tools/check_pawn_output.py"
       - "tools/check_chat_style.py"
+      - "tools/check_dialog_ids.py"
       - "tools/install_rustext.py"
       - "tools/test_tdstudio.py"
       - ".github/workflows/build.yml"
@@ -32,6 +33,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Check dialog ID collisions
+        run: python3 tools/check_dialog_ids.py
 
       - name: Install runtime
         run: |
