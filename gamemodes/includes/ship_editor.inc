@@ -6,7 +6,7 @@
 // SHIP-EDITOR-01: mouse-driven top-down placement; no custom client.
 // 18 selectable PlayerTextDraw controls and a static overhead camera.
 // Safety: deny moving if ANY player occupies the ship collision envelope.
-#define SHIPEDIT_BUTTONS (18)
+#define SHIPEDIT_BUTTONS (28)
 #define SHIPEDIT_ZOOM_DEFAULT (250.0)
 #define SHIPEDIT_COLOR (0xA8D4E8FF)
 #define SHIPEDIT_POLL_MS (250)
@@ -29,6 +29,16 @@
 #define SE_LS_EXIT (15)
 #define SE_SF_BERTH (16)
 #define SE_SF_EXIT (17)
+#define SE_ROUTE_LS_OUT (18)
+#define SE_ROUTE_LS_IN (19)
+#define SE_ROUTE_SF_OUT (20)
+#define SE_ROUTE_SF_IN (21)
+#define SE_ROUTE_ADD (22)
+#define SE_ROUTE_UNDO (23)
+#define SE_ROUTE_PREVIEW (24)
+#define SE_ROUTE_STOP (25)
+#define SE_ROUTE_SAVE (26)
+#define SE_ROUTE_LOAD (27)
 
 new bool:gShipEditActive[MAX_PLAYERS];
 new PlayerText:gShipEditButtons[MAX_PLAYERS][SHIPEDIT_BUTTONS];
@@ -86,10 +96,14 @@ stock ShipEditor_Refresh(playerid)
     new Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:yaw;
     GetObjectPos(gShipRoot, x, y, z);
     GetObjectRot(gShipRoot, rx, ry, yaw);
-    new line[145];
+    new line[220];
     format(line, sizeof(line),
-        "Tarkenso RPG | Ship Studio~n~X %.2f  Y %.2f  Z %.2f  A %.1f~n~Step %.1f | Zoom %.0f",
-        x, y, z, yaw, gShipEditStep[playerid], gShipEditZoom[playerid]);
+        "Tarkenso RPG | Ship Studio~n~X %.2f  Y %.2f  Z %.2f  A %.1f~n~Step %.1f | Zoom %.0f~n~Route %s %s: %d/%d",
+        x, y, z, yaw, gShipEditStep[playerid], gShipEditZoom[playerid],
+        gShipManeuverSelectedPort == SHIP_PORT_LS ? ("LS") : ("SF"),
+        gShipManeuverSelectedKind == SHIP_MANEUVER_DEPART ? ("OUT") : ("IN"),
+        gShipManeuverDraftCount[gShipManeuverSelectedPort][gShipManeuverSelectedKind],
+        SHIP_MANEUVER_MAX);
     PlayerTextDrawSetString(playerid, gShipEditInfo[playerid], line);
     ShipEditor_Camera(playerid);
     return 1;
@@ -143,6 +157,16 @@ stock ShipEditor_Draw(playerid)
     ShipEditor_AddButton(playerid, SE_LS_EXIT, 330.0, 392.0, "LS EXIT", 85.0);
     ShipEditor_AddButton(playerid, SE_SF_BERTH, 422.0, 392.0, "SF BERTH", 85.0);
     ShipEditor_AddButton(playerid, SE_SF_EXIT, 514.0, 392.0, "SF EXIT", 85.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_LS_OUT, 22.0, 346.0, "LS OUT", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_LS_IN, 99.0, 346.0, "LS IN", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_SF_OUT, 176.0, 346.0, "SF OUT", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_SF_IN, 253.0, 346.0, "SF IN", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_ADD, 22.0, 369.0, "ADD POINT", 86.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_UNDO, 115.0, 369.0, "UNDO", 65.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_PREVIEW, 187.0, 369.0, "PREVIEW", 80.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_STOP, 274.0, 369.0, "STOP", 65.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_SAVE, 346.0, 369.0, "SAVE ROUTE", 100.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_LOAD, 453.0, 369.0, "LOAD ROUTE", 108.0);
     ShipEditor_Refresh(playerid);
     SelectTextDraw(playerid, SHIPEDIT_COLOR);
     return 1;
@@ -154,6 +178,7 @@ stock ShipEditor_End(playerid, bool:rollback)
 {
     if (!gShipEditActive[playerid]) return 0;
     gShipEditActive[playerid] = false;
+    ShipManeuver_EditorEnd(playerid);
     if (gShipEditOwner == playerid) gShipEditOwner = INVALID_PLAYER_ID;
     if (rollback && Ship_Ready() && !ShipEditor_Occupied())
     {
@@ -219,6 +244,7 @@ stock ShipEditor_Begin(playerid)
     gShipEditZoom[playerid] = SHIPEDIT_ZOOM_DEFAULT;
     gShipEditActive[playerid] = true;
     gShipEditOwner = playerid;
+    ShipManeuver_EditorBegin(playerid);
     TogglePlayerControllable(playerid, false);
     ShipEditor_Draw(playerid);
     return SendClientMessage(playerid, SHIP_COLOR,
@@ -234,6 +260,9 @@ stock ShipEditor_Action(playerid, action)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Редактор закрыт: кто-то приблизился к палубе. Судно не перемещалось.");
     }
+    if (gShipManeuverActive && action != SE_ROUTE_STOP && action != SE_CANCEL)
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] Дождитесь конца манёвра или нажмите STOP.");
     if (action == SE_CANCEL)
     {
         ShipEditor_End(playerid, true);
@@ -262,6 +291,23 @@ stock ShipEditor_Action(playerid, action)
         }
         ShipPort_Command(playerid, op);
         return 1;
+    }
+    if (action >= SE_ROUTE_LS_OUT && action <= SE_ROUTE_SF_IN)
+    {
+        new port = action >= SE_ROUTE_SF_OUT ? SHIP_PORT_SF : SHIP_PORT_LS;
+        new kind = (action == SE_ROUTE_LS_IN || action == SE_ROUTE_SF_IN) ?
+            SHIP_MANEUVER_ARRIVE : SHIP_MANEUVER_DEPART;
+        ShipManeuver_EditorSelect(playerid, port, kind);
+        return ShipEditor_Refresh(playerid);
+    }
+    switch (action)
+    {
+        case SE_ROUTE_ADD: return ShipManeuver_EditorAdd(playerid);
+        case SE_ROUTE_UNDO: return ShipManeuver_EditorUndo(playerid);
+        case SE_ROUTE_PREVIEW: return ShipManeuver_EditorPreview(playerid);
+        case SE_ROUTE_STOP: return ShipManeuver_EditorStop(playerid);
+        case SE_ROUTE_SAVE: return ShipManeuver_EditorSave(playerid);
+        case SE_ROUTE_LOAD: return ShipManeuver_EditorLoad(playerid);
     }
     if (action == SE_FINE || action == SE_COARSE)
     {
@@ -352,6 +398,7 @@ public ShipEditor_Poll()
         ShipEditor_End(p, false);
         return 1;
     }
+    if (gShipManeuverPreview) ShipEditor_Refresh(p);
     if (ShipEditor_Occupied())
     {
         ShipEditor_End(p, false); // no rollback if a passenger might be aboard
