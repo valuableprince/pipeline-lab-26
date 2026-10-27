@@ -32,9 +32,22 @@ new Float:gShipPoint[SHIP_MAX_POINTS][4];
 new bool:gShipRunning;
 new gShipNextPoint;
 new gShipTimer;
+new gShipEditOwner = INVALID_PLAYER_ID;
+#define SHIP_MANEUVER_DEPART (0)
+#define SHIP_MANEUVER_ARRIVE (1)
+new gShipManeuverCount[2][2];
+new bool:gShipManeuverActive;
+new gShipManeuverArrivePort = -1;
+forward ShipManeuver_Tick();
+forward ShipManeuver_Stop();
+forward bool:ShipEditor_Occupied();
+forward bool:ShipManeuver_Start(port, kind, bool:preview);
+forward ShipEditor_Command(playerid, const params[]);
+forward ShipPanel_Open(playerid);
 new gShipPortDeparture = -1;
 forward ShipPort_Tick();
 forward ShipPort_Command(playerid, const params[]);
+forward ShipHorn_Play();
 
 forward Ship_Tick();
 
@@ -56,6 +69,7 @@ stock bool:Ship_Ready()
 
 stock Ship_Stop()
 {
+    ShipManeuver_Stop();
     gShipPortDeparture = -1;
     gShipRunning = false;
     if (Ship_Ready()) StopObject(gShipRoot);
@@ -272,11 +286,18 @@ stock Ship_Advance()
         return 1;
     }
     gShipRunning = false;
+    if (gShipManeuverArrivePort >= 0)
+    {
+        new port = gShipManeuverArrivePort;
+        gShipManeuverArrivePort = -1;
+        if (ShipManeuver_Start(port, 1, false)) return 1;
+    }
     return 1;
 }
 
 public Ship_Tick()
 {
+    if (gShipManeuverActive) return ShipManeuver_Tick();
     if (gShipPortDeparture >= 0) return ShipPort_Tick();
     if (!gShipRunning || !Ship_Ready()) return 1;
     if (gShipNextPoint < 1) return Ship_Advance();
@@ -508,6 +529,8 @@ stock Ship_Help(playerid)
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship preset lssf|sfls — готовый черновик морского маршрута (без проверки коллизий).");
     SendClientMessage(playerid, SHIP_COLOR,
+        "[Tarkenso RPG] /ship edit — вид сверху, управление мышью, сохранение причалов.");
+    SendClientMessage(playerid, SHIP_COLOR,
         "[Tarkenso RPG] /ship port ls|sf berth|exit|depart — портовая настройка и отход.");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
@@ -543,12 +566,22 @@ stock bool:Ship_Lock(playerid)
 
 stock Ship_Command(playerid, const params[])
 {
+    if (isnull(params)) return ShipPanel_Open(playerid);
     if (!Studio_Require(playerid)) return 1;
-    if (isnull(params)) return Ship_Help(playerid);
     new action[24];
     if (sscanf(params, "s[24]", action)) return Ship_Help(playerid);
     if (!strcmp(action, "help", true)) return Ship_Help(playerid);
     if (!strcmp(action, "status", true)) return Ship_Status(playerid);
+    if (!strcmp(action, "edit", true))
+    {
+        new editParams[32];
+        if (strlen(params) <= 5) return ShipEditor_Command(playerid, "");
+        strmid(editParams, params, 5, strlen(params), sizeof(editParams));
+        return ShipEditor_Command(playerid, editParams);
+    }
+    if (gShipEditOwner != INVALID_PLAYER_ID)
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] Позиционирование активно. Используйте /ship edit save|cancel.");
     if (!strcmp(action, "load", true))
     {
         if (!Ship_Lock(playerid)) return 1;

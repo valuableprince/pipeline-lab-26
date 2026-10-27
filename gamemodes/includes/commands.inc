@@ -306,6 +306,13 @@ cmd:ship(playerid, params[])
     return Ship_Command(playerid, params);
 }
 
+// One command opens the read-only ship camera panel; all views are clickable.
+cmd:shipcam(playerid, params[])
+{
+    #pragma unused params
+    return ShipCam_Command(playerid);
+}
+
 cmd:shipsurf(playerid, params[])
 {
     return ShipSurf_Command(playerid, params);
