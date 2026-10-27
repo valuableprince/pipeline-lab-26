@@ -190,6 +190,7 @@ public ShipPort_Command(playerid, const params[])
                     "[Tarkenso RPG] Манёвр не запущен: проверьте точки и положение у причала.");
             gShipPortDeparture = port;
             gShipManeuverArrivePort = port == SHIP_PORT_LS ? SHIP_PORT_SF : SHIP_PORT_LS;
+            ShipHorn_Play();
             return SendClientMessage(playerid, SHIP_COLOR,
                 "[Tarkenso RPG] Запущен маршрут отхода: промежуточные точки, затем море.");
         }
@@ -199,6 +200,7 @@ public ShipPort_Command(playerid, const params[])
         gShipRunning = false;
         gShipPortDeparture = port;
         gShipManeuverArrivePort = port == SHIP_PORT_LS ? SHIP_PORT_SF : SHIP_PORT_LS;
+        ShipHorn_Play();
         MoveObject(gShipRoot, ex, ey,
             gShipPortCoord[port][SHIP_PORT_EXIT][2], SHIP_PORT_SLOW_SPEED,
             0.0, 0.0, gShipPortCoord[port][SHIP_PORT_EXIT][3]);
