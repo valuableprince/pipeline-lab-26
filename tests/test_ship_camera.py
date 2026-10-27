@@ -47,7 +47,7 @@ class ShipCameraContracts(unittest.TestCase):
                         follow.index("InterpolateCameraPos(playerid,"))
         self.assertIn("gShipCamCameraReady[playerid] = false;", C)
         self.assertIn('gShipCamCameraReady[i] = false;', C)
-        self.assertIn("gShipCamCameraReady[playerid] = false;\\n        ShipCam_Status(playerid);", C)
+        self.assertIn("gShipCamCameraReady[playerid] = false;\n        ShipCam_Status(playerid);", C)
         self.assertIn("#define SHIPCAM_TICK_MS (200)", C)
 
     def test_follow_streaming_and_restore(self):
