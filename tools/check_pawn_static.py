@@ -21,7 +21,8 @@ CALL = re.compile(r"\b([A-Za-z_]\w*)\s*\(")
 ASSIGNMENT = re.compile(
     r"(?:(?:new|static)\s+)?(?:(?:File|Cache):)?([A-Za-z_]\w*)\s*=\s*$"
 )
-DECL = re.compile(r"\b([A-Za-z_]\w*)\s*\[\s*(\d+)\s*\]")
+# For foo[rows][columns], element foo[i] has capacity columns, not rows.
+DECL = re.compile(r"\b([A-Za-z_]\w*)\s*\[\s*(\d+)\s*\](?:\s*\[\s*(\d+)\s*\])?")
 RETURN = re.compile(r"\breturn\b")
 PLAYER_MUTATOR = re.compile(
     r"\b(?:SetPlayer(?:Pos|Health|Armour|Score|Money|VirtualWorld|Interior|Skin)"
@@ -151,7 +152,7 @@ def declared_buffers(body: str, clean: str) -> dict[str, int]:
     for match in DECL.finditer(clean):
         lead = clean[max(0, match.start() - 100):match.start()]
         if re.search(r"(?:\bnew|\bstatic|\bconst)\b[^;{}]*$", lead):
-            arrays[match[1]] = int(match[2])
+            arrays[match[1]] = int(match[3] or match[2])
     return arrays
 
 
