@@ -134,6 +134,9 @@ jobs:
       - name: Validate sustained load simulation
         run: python3 -m unittest discover -s tests -p 'test_load_continuous.py' -v
 
+      - name: Validate auth login profiler
+        run: python3 -m unittest discover -s tests -p 'test_auth_profiler.py' -v
+
       - name: Compile source
         shell: bash
         run: |
