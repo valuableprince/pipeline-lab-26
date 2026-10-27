@@ -28,7 +28,7 @@ class AdminToolsContracts(unittest.TestCase):
             self.assertRegex(CMDS, rf"cmd:{name}\(playerid, params\[\]\)\s*\{{\s*return {re.escape(call)};")
         self.assertIn('#include "admin_tools.inc"', MAIN)
         self.assertIn('#include "admin_tools.inc"\n#include "admin_help.inc"\n#include "admin_tools2.inc"\n#include "admin_punish.inc"\n#include "rp_chat.inc"\n#include "commands.inc"', MAIN)
-        self.assertIn("'test_admin_tools.py'", WORKFLOW)
+        self.assertIn("python3 -m unittest discover -s tests -v", WORKFLOW)
 
     def test_permissions_and_rank_safety(self):
         for name, permission in (

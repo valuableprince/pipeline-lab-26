@@ -3,6 +3,7 @@
 Static checks do not replace a live NickNinth/open.mp client UAT.
 """
 from pathlib import Path
+from build_contracts import assert_staged
 import re
 import unittest
 
@@ -12,8 +13,6 @@ GAME = (ROOT / "gamemodes/signal0317.pwn").read_text("utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text("utf-8")
 UI = (ROOT / "gamemodes/includes/admin_ui.inc").read_text("utf-8")
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text("utf-8")
-WINDOWS = (ROOT / "tools/build_windows.py").read_text("utf-8")
 
 class AdminTeleportContracts(unittest.TestCase):
     def test_map_callback_and_confirmation_route(self):
@@ -43,7 +42,7 @@ class AdminTeleportContracts(unittest.TestCase):
         self.assertIn("TP_COORDS", TELEPORT)
         self.assertIn("TP_MAP", TELEPORT)
         self.assertIn("Использование: /tpcor X Y Z", TELEPORT)
-        self.assertIn("/tpcor X Y Z", COMMANDS)
+        self.assertIn("/tpcor X Y Z", (ROOT / "gamemodes/includes/admin_help.inc").read_text("utf-8"))
         self.assertIn("SetPlayerInterior(playerid, 0)", TELEPORT)
         self.assertIn("SetPlayerVirtualWorld(playerid, 0)", TELEPORT)
         self.assertIn("SetVehiclePos(vehicleid, x, y, z)", TELEPORT)
@@ -66,8 +65,7 @@ class AdminTeleportContracts(unittest.TestCase):
         self.assertIn("ADMIN_TP_DLG_HEIGHT   (6517)", TELEPORT)
         self.assertIn("ADMIN_TP_DLG_INFO     (6518)", TELEPORT)
         self.assertIn('#include "admin_teleport.inc"', GAME)
-        for source in (CI, WINDOWS):
-            self.assertIn('"admin_teleport.inc"', source)
+        assert_staged(self, "admin_teleport.inc")
         self.assertNotIn("TextDraw", TELEPORT)
 
 if __name__ == "__main__":

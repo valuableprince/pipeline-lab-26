@@ -1,5 +1,6 @@
 """RACE-EVENT-01: динамические опасности и контракт изоляции."""
 from pathlib import Path
+from build_contracts import assert_staged
 import re
 import unittest
 
@@ -52,9 +53,7 @@ class RaceEventTest(unittest.TestCase):
         self.assertIn("RaceEvent_ResetPlayer(playerid);", CORE)
         self.assertIn('#include "race_map.inc"\n#include "race_event.inc"', MAIN)
         self.assertIn("RACE_WORLD_ID", CORE)
-        for p in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
-            c = (ROOT / p).read_text(encoding="utf-8")
-            self.assertIn('"race_event.inc"', c)
+        assert_staged(self, "race_event.inc")
         self.assertIn("обязателен UAT", DOC.lower().replace("обязателен uat", "обязателен UAT"))
 
 

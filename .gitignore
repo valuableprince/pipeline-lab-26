@@ -12,3 +12,7 @@ secrets/
 workspace/
 build/
 dist/
+
+# Local server settings and database credentials (examples remain versioned).
+config.json
+mysql.ini

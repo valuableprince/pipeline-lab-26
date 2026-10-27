@@ -1,5 +1,7 @@
 """RACE-MAP-01: контракт картографического модуля и геометрии трассы."""
 from pathlib import Path
+from build_contracts import assert_staged
+from build_contracts import assert_include_order
 import re
 import unittest
 
@@ -22,7 +24,7 @@ class RaceMapTest(unittest.TestCase):
         return tiles
 
     def test_world_and_lifecycle(self):
-        self.assertIn('#include "race_map.inc"\n#include "race_event.inc"\n#include "race_playlist.inc"\n#include "race_audio.inc"\n#include "race_progress.inc"\n#include "race_core.inc"', MAIN)
+        assert_include_order(self, MAIN, "race_map.inc", "race_event.inc", "race_playlist.inc", "race_audio.inc", "race_progress.inc", "race_core.inc")
         self.assertIn("SetPlayerVirtualWorld(playerid, RACE_WORLD_ID);", CORE)
         self.assertIn("SetVehicleVirtualWorld(vehicle, RACE_WORLD_ID);", CORE)
         for token in ("RaceMap_Init()", "RaceMap_Load(playerid)",
@@ -69,9 +71,7 @@ class RaceMapTest(unittest.TestCase):
         self.assertIn("gRaceMapReady = RaceMap_Init() != 0;", CORE)
 
     def test_build_stages_map_include(self):
-        for p in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
-            content = (ROOT / p).read_text(encoding="utf-8")
-            self.assertIn('"race_map.inc"', content)
+        assert_staged(self, "race_map.inc")
 
 
 if __name__ == "__main__":

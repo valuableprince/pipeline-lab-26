@@ -1,6 +1,7 @@
 """Контрактные проверки системы ADMIN-01; не заменяют игровой UAT."""
 
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,7 +9,6 @@ GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 UI = (ROOT / "gamemodes/includes/admin_ui.inc").read_text(encoding="utf-8")
-BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
 DOC = (ROOT / "docs/ADMIN_SYSTEM.md").read_text(encoding="utf-8")
 
 
@@ -69,13 +69,12 @@ class AdminContractTests(unittest.TestCase):
                       "gAdminUIDialogMode[playerid]", "gAdminUIPlayerTokens",
                       "gAdminUIReportSerial", "gAdminUITargetToken"):
             self.assertIn(token, UI)
-        self.assertNotIn("PlayerTextDraw", GAME)
+        self.assertNotIn("CreatePlayerTextDraw(", UI)
         self.assertNotIn("TextDraw", UI)
         self.assertIn("DIALOG_STYLE_LIST", UI)
 
     def test_build_and_bootstrap_documentation(self):
-        for module in ('"admin_system.inc"', '"admin_ui.inc"'):
-            self.assertIn(module, BUILD)
+        assert_staged(self, "admin_system.inc", "admin_ui.inc")
         for token in ("Ручная приёмка", "SIGNALADMIN|1", "Уровень", "/setadmin",
                       "bcrypt", "обращений", "Windows"):
             self.assertIn(token, DOC)

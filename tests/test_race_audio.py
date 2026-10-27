@@ -1,5 +1,6 @@
 """RACE-AUDIO-01: интеграционные регрессии и лицензированный MP3."""
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,9 +49,7 @@ class RaceAudioTests(unittest.TestCase):
         self.assertIn('#include "race_audio.inc"\n#include "race_progress.inc"\n#include "race_core.inc"', MAIN)
         self.assertIn("cmd:raceaudio(playerid, params[])", CORE)
         self.assertIn('strcmp(cmd, "raceaudio", true)', COMMANDS)
-        for path in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
-            c = (ROOT / path).read_text(encoding="utf-8")
-            self.assertIn('"race_audio.inc"', c)
+        assert_staged(self, "race_audio.inc")
         AUDIO.encode("cp1251")
 
 

@@ -1,5 +1,6 @@
 """RACE-PROGRESS-01: контракты надёжной статистики и вознаграждения."""
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 import re
 
@@ -70,8 +71,7 @@ class RaceProgressTest(unittest.TestCase):
         for cmd in ('"stats"', '"top"'):
             self.assertIn(f"!strcmp(params, {cmd}, true)", CORE)
         self.assertIn('#include "race_progress.inc"\n#include "race_core.inc"', AUTH)
-        for build in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
-            self.assertIn('"race_progress.inc"', (ROOT / build).read_text(encoding="utf-8"))
+        assert_staged(self, "race_progress.inc")
         PROGRESS.encode("cp1251")
         AUTH.encode("cp1251")
 
