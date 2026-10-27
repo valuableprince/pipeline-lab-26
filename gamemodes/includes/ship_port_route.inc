@@ -21,12 +21,10 @@ new gShipManeuverDraftCount[2][2];
 new Float:gShipManeuverDraft[2][2][SHIP_MANEUVER_MAX][4];
 new gShipManeuverSelectedPort;
 new gShipManeuverSelectedKind;
-new bool:gShipManeuverActive;
 new bool:gShipManeuverPreview;
 new gShipManeuverPort;
 new gShipManeuverKind;
 new gShipManeuverNext;
-new gShipManeuverArrivePort = -1;
 new PlayerText3D:gShipManeuverLabels[MAX_PLAYERS][SHIP_MANEUVER_MAX];
 
 stock ShipManeuver_DraftLoad()
@@ -260,6 +258,20 @@ stock ShipManeuver_Tick()
 {
     if (!gShipManeuverActive || !Ship_Ready()) return 0;
     new p = gShipManeuverPort, k = gShipManeuverKind;
+    if (gShipManeuverNext == -1)
+    {
+        new Float:ax, Float:ay, Float:az;
+        GetObjectPos(gShipRoot, ax, ay, az);
+        new Float:ex = ax-gShipPortCoord[p][SHIP_PORT_EXIT][0];
+        new Float:ey = ay-gShipPortCoord[p][SHIP_PORT_EXIT][1];
+        new Float:ez = az-gShipPortCoord[p][SHIP_PORT_EXIT][2];
+        if (ex*ex+ey*ey+ez*ez <= SHIP_MANEUVER_EPS)
+        {
+            gShipManeuverNext = 0;
+            return ShipManeuver_MoveNext();
+        }
+        return 1;
+    }
     new count = gShipManeuverPreview ? gShipManeuverDraftCount[p][k] :
         gShipManeuverCount[p][k];
     new idx = gShipManeuverNext-1;
@@ -296,19 +308,30 @@ stock bool:ShipManeuver_Start(port, kind, bool:preview)
 {
     if (gShipManeuverActive || gShipRunning || !Ship_Ready()) return false;
     if (!ShipManeuver_Validated(-1, port, kind, preview)) return false;
-    if (ShipEditor_Occupied()) return false;
+    if (preview && ShipEditor_Occupied()) return false;
     new startType = kind == SHIP_MANEUVER_DEPART ? SHIP_PORT_BERTH : SHIP_PORT_EXIT;
     new Float:x, Float:y, Float:z;
     GetObjectPos(gShipRoot, x, y, z);
     new Float:dx = x-gShipPortCoord[port][startType][0];
     new Float:dy = y-gShipPortCoord[port][startType][1];
     new Float:dz = z-gShipPortCoord[port][startType][2];
-    if (dx*dx + dy*dy + dz*dz > 64.0) return false;
+    new Float:startD2 = dx*dx + dy*dy + dz*dz;
+    if (startD2 > 64.0 && (preview || kind != SHIP_MANEUVER_ARRIVE ||
+        startD2 > SHIP_PORT_EXIT_NEAR_ROUTE*SHIP_PORT_EXIT_NEAR_ROUTE)) return false;
     gShipManeuverPort = port;
     gShipManeuverKind = kind;
     gShipManeuverPreview = preview;
     gShipManeuverActive = true;
     gShipManeuverNext = 0;
+    if (startD2 > 64.0)
+    {
+        gShipManeuverNext = -1;
+        MoveObject(gShipRoot, gShipPortCoord[port][startType][0],
+            gShipPortCoord[port][startType][1],
+            gShipPortCoord[port][startType][2], SHIP_MANEUVER_SPEED,
+            0.0, 0.0, gShipPortCoord[port][startType][3]);
+        return true;
+    }
     return ShipManeuver_MoveNext() != 0;
 }
 
