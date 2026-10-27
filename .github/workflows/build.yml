@@ -137,6 +137,11 @@ jobs:
       - name: Validate auth login profiler
         run: python3 -m unittest discover -s tests -p 'test_auth_profiler.py' -v
 
+      - name: Validate UTF-8 Russian console logging
+        run: |
+          python3 -m unittest discover -s tests -p 'test_console_ru.py' -v
+          python3 -m unittest discover -s tests -p 'test_server_console_encoding.py' -v
+
       - name: Compile source
         shell: bash
         run: |
