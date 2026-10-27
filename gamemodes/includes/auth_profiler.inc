@@ -78,7 +78,13 @@ stock AuthProfiler_Record(playerid, const step[], duration, bool:ok = true)
     new written = fwrite(out, row);
     fclose(out);
     if (duration >= AUTHPROF_WARN_MS)
-        printf("[AUTH-PROFILE] slow step=%s duration=%dms player_id=%d (wall clock, not CPU)", step, duration, playerid);
+    {
+        new message[190];
+        format(message, sizeof(message),
+            "[AUTH-PROFILE] Медленный этап %s: %d мс, ID=%d (время ожидания, не CPU)",
+            step, duration, playerid);
+        ConsoleRU_Log(message);
+    }
     return written > 0;
 }
 
