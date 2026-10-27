@@ -204,6 +204,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "ship_editor.inc"
 #include "ship_camera.inc"
 #include "ship_panel.inc"
+#include "ship_horn.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
@@ -774,6 +775,7 @@ public OnGameModeInit()
     Ship_Init();
     ShipPort_Init();
     ShipManeuver_Init();
+    ShipHorn_Init();
     ShipEditor_Init();
     ShipCam_Init();
     ShipSurf_Init();
