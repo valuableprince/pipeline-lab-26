@@ -203,6 +203,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_fly.inc"
 #include "ship_editor.inc"
 #include "ship_camera.inc"
+#include "ship_panel.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
@@ -1147,6 +1148,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Truck_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (ShipPanel_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
