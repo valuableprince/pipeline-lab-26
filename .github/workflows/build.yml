@@ -60,9 +60,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin main
+          BASE_REF="${GITHUB_BASE_REF:-main}"
+          git fetch --no-tags --depth=1 origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}"
           python3 -m unittest discover -s tests -p 'test_chat_style.py' -v
-          python3 tools/check_chat_style.py --base origin/main
+          python3 tools/check_chat_style.py --base "origin/${BASE_REF}"
 
       - name: Stage source
         run: |
