@@ -613,7 +613,7 @@ stock Auth_EnterWorld(playerid)
     {
         AuthProfiler_WorldEnd(playerid, false);
         gAuthState[playerid] = AUTH_NONE;
-        SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить данные аккаунта.");
+        SendClientMessage(playerid, COLOR_RED, "[Tarkenso RPG] Не удалось сохранить данные аккаунта.");
         Kick(playerid);
         return 0;
     }
@@ -624,7 +624,7 @@ stock Auth_EnterWorld(playerid)
     {
         AuthProfiler_WorldEnd(playerid, false);
         gAuthState[playerid] = AUTH_NONE;
-        SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить данные аккаунта.");
+        SendClientMessage(playerid, COLOR_RED, "[Tarkenso RPG] Не удалось сохранить данные аккаунта.");
         Kick(playerid);
         return 0;
     }
@@ -637,7 +637,7 @@ stock Auth_EnterWorld(playerid)
         {
             AuthProfiler_WorldEnd(playerid, false);
             gAuthState[playerid] = AUTH_NONE;
-            SendClientMessage(playerid, COLOR_RED, "Не удалось сохранить данные аккаунта.");
+            SendClientMessage(playerid, COLOR_RED, "[Tarkenso RPG] Не удалось сохранить данные аккаунта.");
             Kick(playerid);
             return 0;
         }
@@ -657,7 +657,7 @@ stock Auth_EnterWorld(playerid)
         {
             AuthProfiler_WorldEnd(playerid, false);
             SendClientMessage(playerid, COLOR_RED,
-                "Не удалось прочитать опыт муниципального водителя. Повторите вход.");
+                "[Tarkenso RPG] Не удалось прочитать опыт муниципального водителя. Повторите вход.");
             Kick(playerid);
             return 0;
         }
