@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Check newly introduced user-facing Pawn chat strings across ALL game modules.
 
-Only new/edited SendClientMessage literal callsites are blocking on PRs. Existing
-legacy messages remain outside the gate until they are edited. Dynamic text is
-reported as unverified, never falsely treated as validated.
+Only new/edited literal SendClientMessage callsites are blocking on PRs. No
+mandatory message label or prefix. Existing legacy messages remain untouched;
+dynamic text is reported as unverified, not falsely treated as validated.
 """
 from __future__ import annotations
 
@@ -13,12 +13,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-PREFIX = ("[Tarkenso RPG]", "{D9AA55}[Tarkenso RPG]", "{D9AA55}[Tarkenso]")
-ALLOWED_FUNCTIONS = ("SendClientMessage", "SendClientMessageToAll")
+# Inline chat colors follow the /ahelp palette. No textual prefix is mandatory.
+# System-specific labels ([PAYDAY], [Работа], etc.) are content, not CI policy.
+CHAT_PALETTE = frozenset({"D9AA55", "FFFFFF", "B6E4B3", "9FAAB8"})
 CALL = re.compile(r"\b(?:SendClientMessage|SendClientMessageToAll)\s*\(")
 LITERAL = re.compile(r'"((?:\\.|[^"\\])*)"')
-TRIGGER = re.compile(r"(?i)(использование\s*:|синтаксис\s*:|usage\s*:)")
-ANSI = re.compile(r"\{[0-9A-Fa-f]{6}\}")
+COLOR_TOKEN = re.compile(r"\{([0-9A-Fa-f]{6})\}")
+# Only recognizable transliterated Russian interface terms. Do not block arbitrary
+# Latin words (commands, names, product labels, SQL tokens) or proper Russian text.
+TRANSLIT_UI = re.compile(
+    r"(?i)(?<![A-Za-z])(?:ispolzovanie|ispolzovaniye|sintaksis|"
+    r"opisanie|opisaniye|oshibka|vvedite|nedostupno|neizvestnaya)(?![A-Za-z])"
+)
 
 
 def changed_line_numbers(diff: str) -> dict[str, set[int]]:
@@ -96,11 +102,15 @@ def check(changed: dict[str, set[int]], root: Path):
             # before it might also include dynamic content, handled conservatively.
             msg = literals[-1]
             checked += 1
-            normalized = ANSI.sub("", msg).lstrip()
-            if TRIGGER.search(msg) and not normalized.startswith("[Tarkenso RPG]"):
-                issues.append(f"{path}:{first}: use unified help, not raw usage: {msg[:90]}")
-            elif not normalized.startswith("[Tarkenso RPG]"):
-                issues.append(f"{path}:{first}: chat string lacks [Tarkenso RPG] prefix: {msg[:90]}")
+            for color in COLOR_TOKEN.findall(msg):
+                if color.upper() not in CHAT_PALETTE:
+                    issues.append(
+                        f"{path}:{first}: inline chat color {{{color}}} is outside /ahelp palette"
+                    )
+            if TRANSLIT_UI.search(COLOR_TOKEN.sub("", msg)):
+                issues.append(
+                    f"{path}:{first}: possible Russian UI transliteration: {msg[:90]}"
+                )
     return issues, checked, unknown
 
 
