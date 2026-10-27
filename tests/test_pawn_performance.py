@@ -130,7 +130,7 @@ class BenchmarkLogicTests(unittest.TestCase):
         self.assertEqual(compare(base, {**slow,"checksum":2})["status"], "incomparable")
         self.assertEqual(compare(base, {**summarize([21]*7),"checksum":1})["status"], "ok")
         self.assertEqual(compare({**summarize([1]*7),"checksum":1}, slow)["status"], "noisy")
-        volatile = {**summarize([10,60,11,70,12,80,13]), "checksum":1}
+        volatile = {**summarize([10,11,12,80,90,100,110]), "checksum":1}
         self.assertTrue(volatile["noisy"])
         self.assertEqual(compare(volatile, slow)["status"], "noisy")
 
