@@ -214,6 +214,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "tdstudio.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
+#include "ship_notice.inc"
 
 stock bool:Auth_SetAccountName(playerid)
 {
