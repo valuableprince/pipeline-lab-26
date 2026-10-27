@@ -156,15 +156,45 @@ def declared_buffers(body: str, clean: str) -> dict[str, int]:
     return arrays
 
 
-def is_guarded_failed_handle(prefix: str, name: str) -> bool:
-    # Match the immediate condition *before this return*, not an earlier guard.
-    # Otherwise "if (!handle) return 0; if (bad) return 0;" gets suppressed.
-    return bool(re.search(
-        r"\bif\s*\(\s*!\s*" + re.escape(name) + r"\s*\)\s*(?:\{\s*)?$",
-        prefix[-160:].strip(),
-        re.I,
-    ))
+def failed_open_guards(section: str, name: str) -> set[int]:
+    """Return offsets belonging to an invalid-handle guard's true branch.
 
+    A failed fopen/mysql_query yields no live resource to release. Both braced
+    guards with logging and direct one-line guards are supported. Never extend
+    the exemption to the code AFTER the guarded branch.
+    """
+    positions: set[int] = set()
+    for match in re.finditer(r"\bif\s*\(", section):
+        opening = section.find("(", match.start(), match.end())
+        end = closing(section, opening, "(", ")")
+        if end < 0:
+            continue
+        condition = section[opening + 1:end].strip()
+        name_re = re.escape(name)
+        if not (
+            re.fullmatch(r"!\s*" + name_re, condition) or
+            re.fullmatch(name_re + r"\s*==\s*(?:Cache:|File:)?0", condition)
+        ):
+            continue
+        body_start = end + 1
+        while body_start < len(section) and section[body_start].isspace():
+            body_start += 1
+        if body_start >= len(section):
+            continue
+        if section[body_start] == "{":
+            body_end = closing(section, body_start, "{", "}")
+            if body_end < 0:
+                continue
+        else:
+            semicolon = section.find(";", body_start)
+            if semicolon < 0:
+                continue
+            body_end = semicolon + 1
+
+        # Record *only* returns in this branch; later returns remain suspicious.
+        for ret in RETURN.finditer(section, body_start, body_end):
+            positions.add(ret.start())
+    return positions
 
 def analyze_sources(texts: dict[str, str]) -> list[Finding]:
     findings: set[Finding] = set()
@@ -200,10 +230,10 @@ def analyze_sources(texts: dict[str, str]) -> list[Finding]:
                                    f"{name} assigns {var}, but no {close_name}({var}) is visible in {fn.name}")
                         if closure:
                             section = fn.clean[pos:pos + closure.start()]
+                            safe_returns = failed_open_guards(section, var)
                             for ret in RETURN.finditer(section):
                                 at = ret.start()
-                                snippet = section[max(0, at - 160):at]
-                                if not is_guarded_failed_handle(snippet, var):
+                                if at not in safe_returns:
                                     report(pos + at, "RESOURCE_EARLY_RETURN",
                                            f"return before {close_name}({var}) may skip cleanup in {fn.name}")
                                     break
