@@ -11,7 +11,7 @@ on:
       - "tools/install_rustext.py"
       - ".github/workflows/build.yml"
   pull_request:
-    branches: [main]
+    branches: [main, "feat/ship-unified-control-panel"]
   workflow_dispatch:
 
 permissions:
