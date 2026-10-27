@@ -84,7 +84,9 @@ stock bool:Perf_IsConnected(playerid)
 {
     return playerid >= 0 && playerid < gPerfOnline;
 }
-stock bool:Perf_IsNPC(playerid) { #pragma unused playerid
+stock bool:Perf_IsNPC(playerid)
+{
+    #pragma unused playerid
     return false;
 }
 stock Perf_Score(playerid, value)
@@ -106,10 +108,14 @@ stock Perf_Pos(playerid, &Float:x, &Float:y, &Float:z)
     z = 20.0;
     return 1;
 }
-stock Perf_World(playerid) { #pragma unused playerid
+stock Perf_World(playerid)
+{
+    #pragma unused playerid
     return 0;
 }
-stock Perf_Interior(playerid) { #pragma unused playerid
+stock Perf_Interior(playerid)
+{
+    #pragma unused playerid
     return 0;
 }
 
@@ -124,6 +130,7 @@ stock Perf_Interior(playerid) { #pragma unused playerid
 
 #include "payday.inc"
 #include "perf_leader_validate.inc"
+forward StudioZone_Poll();
 #include "perf_studio_poll.inc"
 
 #define PERF_PASSES (7)
