@@ -127,7 +127,7 @@ public ShipPort_Command(playerid, const params[])
         "[Tarkenso RPG] Порт: ls или sf.");
     if (!Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
         "[Tarkenso RPG] Корабль ещё не создан.");
-    if (gShipRunning || gShipPortDeparture >= 0)
+    if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Остановите корабль перед редактированием порта.");
     if (!strcmp(operation, "berth", true) || !strcmp(operation, "exit", true))
@@ -181,10 +181,24 @@ public ShipPort_Command(playerid, const params[])
         if (!Ship_SetRoutePreset(port == SHIP_PORT_SF))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "[Tarkenso RPG] Не удалось установить морской маршрут.");
+        // Persist the destination only for a full outbound trip.
+        // A configured, validated maneuver takes precedence over straight exit.
+        if (gShipManeuverCount[port][SHIP_MANEUVER_DEPART] > 0)
+        {
+            if (!ShipManeuver_Start(port, SHIP_MANEUVER_DEPART, false))
+                return SendClientMessage(playerid, ADMIN_ERROR,
+                    "[Tarkenso RPG] Манёвр не запущен: проверьте точки и положение у причала.");
+            gShipPortDeparture = port;
+            gShipManeuverArrivePort = port == SHIP_PORT_LS ? SHIP_PORT_SF : SHIP_PORT_LS;
+            return SendClientMessage(playerid, SHIP_COLOR,
+                "[Tarkenso RPG] Запущен маршрут отхода: промежуточные точки, затем море.");
+        }
+        // Legacy direct exit remains for ports with no authored route.
         // NEVER snap the root to the route start: passengers are on board.
         StopObject(gShipRoot);
         gShipRunning = false;
         gShipPortDeparture = port;
+        gShipManeuverArrivePort = port == SHIP_PORT_LS ? SHIP_PORT_SF : SHIP_PORT_LS;
         MoveObject(gShipRoot, ex, ey,
             gShipPortCoord[port][SHIP_PORT_EXIT][2], SHIP_PORT_SLOW_SPEED,
             0.0, 0.0, gShipPortCoord[port][SHIP_PORT_EXIT][3]);
