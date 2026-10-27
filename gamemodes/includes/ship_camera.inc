@@ -6,6 +6,8 @@
 // SHIP-CAMERA-01: one command, selectable right-side camera menu.
 // No extra collision scans; only active observers receive camera updates.
 #define SHIPCAM_TICK_MS (200)
+// Match the follow interval: interpolate camera movement instead of snapping each tick.
+#define SHIPCAM_BLEND_MS (SHIPCAM_TICK_MS)
 #define SHIPCAM_BUTTONS (12)
 #define SHIPCAM_MODE_COUNT (7)
 #define SHIPCAM_TOP (0)
@@ -28,6 +30,9 @@ new Float:gShipCamDistance[MAX_PLAYERS];
 new Float:gShipCamOrbit[MAX_PLAYERS];
 new Float:gShipCamReturn[MAX_PLAYERS][4];
 new Float:gShipCamAnchor[MAX_PLAYERS][2];
+new bool:gShipCamCameraReady[MAX_PLAYERS];
+new Float:gShipCamLastPos[MAX_PLAYERS][3];
+new Float:gShipCamLastLook[MAX_PLAYERS][3];
 new PlayerText:gShipCamButtons[MAX_PLAYERS][SHIPCAM_BUTTONS];
 new PlayerText:gShipCamStatus[MAX_PLAYERS];
 new gShipCamUsers[MAX_PLAYERS];
@@ -95,12 +100,9 @@ stock ShipCam_UpdateView(playerid)
             cz = z + d*0.48;
         }
     }
-    // Follow the vessel without touching its root or autopilot.
-    SetPlayerCameraPos(playerid, cx, cy, cz);
-    SetPlayerCameraLookAt(playerid, x, y, lookZ);
-
     // Stock CreateObject streaming is based on the player's position.
-    // Keep the frozen observer above the ship, out of its collision envelope.
+    // Relocate the frozen anchor BEFORE touching the camera: SetPlayerPos may
+    // reset the client camera, so the same tick has to reapply the view.
     new Float:dx = x - gShipCamAnchor[playerid][0];
     new Float:dy = y - gShipCamAnchor[playerid][1];
     if (dx*dx + dy*dy >= 2500.0)
@@ -109,6 +111,47 @@ stock ShipCam_UpdateView(playerid)
         gShipCamAnchor[playerid][0] = x;
         gShipCamAnchor[playerid][1] = y;
     }
+
+    // The prior code snapped both camera coordinates every 200 ms.
+    // Follow the moving hull with a client-side interpolation; keep immediate
+    // cuts only for first entry, explicit view changes and large teleports.
+    new Float:cxStep = cx - gShipCamLastPos[playerid][0];
+    new Float:cyStep = cy - gShipCamLastPos[playerid][1];
+    new Float:czStep = cz - gShipCamLastPos[playerid][2];
+    new Float:lxStep = x - gShipCamLastLook[playerid][0];
+    new Float:lyStep = y - gShipCamLastLook[playerid][1];
+    new Float:lzStep = lookZ - gShipCamLastLook[playerid][2];
+    new Float:cameraStepSq = cxStep*cxStep + cyStep*cyStep + czStep*czStep;
+    new Float:lookStepSq = lxStep*lxStep + lyStep*lyStep + lzStep*lzStep;
+
+    if (gShipCamCameraReady[playerid] &&
+        cameraStepSq < 0.0001 && lookStepSq < 0.0001)
+        return 1; // No camera packets when the ship and view are stationary.
+
+    if (gShipCamCameraReady[playerid] &&
+        cameraStepSq < 2500.0 && lookStepSq < 2500.0)
+    {
+        InterpolateCameraPos(playerid,
+            gShipCamLastPos[playerid][0], gShipCamLastPos[playerid][1],
+            gShipCamLastPos[playerid][2], cx, cy, cz,
+            SHIPCAM_BLEND_MS, CAMERA_MOVE);
+        InterpolateCameraLookAt(playerid,
+            gShipCamLastLook[playerid][0], gShipCamLastLook[playerid][1],
+            gShipCamLastLook[playerid][2], x, y, lookZ,
+            SHIPCAM_BLEND_MS, CAMERA_MOVE);
+    }
+    else
+    {
+        SetPlayerCameraPos(playerid, cx, cy, cz);
+        SetPlayerCameraLookAt(playerid, x, y, lookZ);
+    }
+    gShipCamLastPos[playerid][0] = cx;
+    gShipCamLastPos[playerid][1] = cy;
+    gShipCamLastPos[playerid][2] = cz;
+    gShipCamLastLook[playerid][0] = x;
+    gShipCamLastLook[playerid][1] = y;
+    gShipCamLastLook[playerid][2] = lookZ;
+    gShipCamCameraReady[playerid] = true;
     return 1;
 }
 
@@ -207,6 +250,7 @@ stock ShipCam_Close(playerid, bool:restore = true)
 {
     if (!gShipCamActive[playerid]) return 0;
     gShipCamActive[playerid] = false;
+    gShipCamCameraReady[playerid] = false;
     ShipCam_RemoveObserver(playerid);
     if (!IsPlayerConnected(playerid)) return 1;
     for (new i = 0; i < SHIPCAM_BUTTONS; i++)
@@ -233,6 +277,7 @@ stock ShipCam_Reset(playerid)
 {
     if (gShipCamActive[playerid]) ShipCam_Close(playerid, false);
     gShipCamActive[playerid] = false;
+    gShipCamCameraReady[playerid] = false;
     gShipCamMode[playerid] = SHIPCAM_ANGLE;
     gShipCamDistance[playerid] = 205.0;
     gShipCamOrbit[playerid] = 225.0;
@@ -265,6 +310,7 @@ stock ShipCam_Command(playerid)
     gShipCamMode[playerid] = SHIPCAM_ANGLE;
     gShipCamDistance[playerid] = 205.0;
     gShipCamOrbit[playerid] = 225.0;
+    gShipCamCameraReady[playerid] = false;
     gShipCamActive[playerid] = true;
     gShipCamUsers[gShipCamCount++] = playerid;
     new Float:x, Float:y, Float:z;
@@ -301,6 +347,8 @@ stock ShipCam_OnClick(playerid, PlayerText:clickedid)
             gShipCamDistance[playerid] -= 25.0;
         else if (i == SHIPCAM_ZOOM_OUT && gShipCamDistance[playerid] < 280.0)
             gShipCamDistance[playerid] += 25.0;
+        // A deliberate angle/zoom change is an immediate cut, not the moving follow path.
+        gShipCamCameraReady[playerid] = false;
         ShipCam_Status(playerid);
         ShipCam_UpdateView(playerid);
         return 1;
@@ -350,6 +398,7 @@ stock ShipCam_Init()
     for (new i = 0; i < MAX_PLAYERS; i++)
     {
         gShipCamActive[i] = false;
+        gShipCamCameraReady[i] = false;
         gShipCamMode[i] = SHIPCAM_ANGLE;
         gShipCamDistance[i] = 205.0;
         gShipCamOrbit[i] = 225.0;

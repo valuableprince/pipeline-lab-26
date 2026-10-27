@@ -4,14 +4,15 @@
 #define _tarkenso_ship_panel_included
 
 // SHIP-PANEL-01: one /ship entry point, menu-driven workflows.
+// Dedicated 7100-7105 dialog IDs: 6340-6345 belong to CleanerEditor.
 // Read-only pages/camera: admin 2+. All ship modifications: Founder /aduty.
 // Keep legacy /ship subcommands and /ship stop for compatibility and emergencies.
-#define SHIP_PANEL_MAIN (6340)
-#define SHIP_PANEL_INFO (6341)
-#define SHIP_PANEL_VOYAGE (6342)
-#define SHIP_PANEL_ROUTE (6343)
-#define SHIP_PANEL_TOOLS (6344)
-#define SHIP_PANEL_CLEAR_CONFIRM (6345)
+#define SHIP_PANEL_MAIN (7100)
+#define SHIP_PANEL_INFO (7101)
+#define SHIP_PANEL_VOYAGE (7102)
+#define SHIP_PANEL_ROUTE (7103)
+#define SHIP_PANEL_TOOLS (7104)
+#define SHIP_PANEL_CLEAR_CONFIRM (7105)
 new bool:gShipPanelClearPending[MAX_PLAYERS];
 
 stock ShipPanel_Reset(playerid)
