@@ -33,6 +33,12 @@ new bool:gShipRunning;
 new gShipNextPoint;
 new gShipTimer;
 new gShipEditOwner = INVALID_PLAYER_ID;
+new bool:gShipManeuverActive;
+new gShipManeuverArrivePort = -1;
+forward ShipManeuver_Tick();
+forward ShipManeuver_Stop();
+forward bool:ShipEditor_Occupied();
+forward bool:ShipManeuver_Start(port, kind, bool:preview);
 forward ShipEditor_Command(playerid, const params[]);
 new gShipPortDeparture = -1;
 forward ShipPort_Tick();
@@ -58,6 +64,7 @@ stock bool:Ship_Ready()
 
 stock Ship_Stop()
 {
+    ShipManeuver_Stop();
     gShipPortDeparture = -1;
     gShipRunning = false;
     if (Ship_Ready()) StopObject(gShipRoot);
@@ -274,11 +281,18 @@ stock Ship_Advance()
         return 1;
     }
     gShipRunning = false;
+    if (gShipManeuverArrivePort >= 0)
+    {
+        new port = gShipManeuverArrivePort;
+        gShipManeuverArrivePort = -1;
+        if (ShipManeuver_Start(port, 1, false)) return 1;
+    }
     return 1;
 }
 
 public Ship_Tick()
 {
+    if (gShipManeuverActive) return ShipManeuver_Tick();
     if (gShipPortDeparture >= 0) return ShipPort_Tick();
     if (!gShipRunning || !Ship_Ready()) return 1;
     if (gShipNextPoint < 1) return Ship_Advance();
