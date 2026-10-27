@@ -1,5 +1,6 @@
 """PAYDAY-01 contracts for hourly EXP, SQL persistence, and retired NPC runtime."""
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,10 @@ class PayDayContract(unittest.TestCase):
     def test_chat_receipt_and_native_right_game_text(self):
         self.assertIn('========== TARKENSO | PAYDAY ==========', PAYDAY)
         self.assertIn('Опыт за час:', PAYDAY)
+        self.assertNotIn("[Tarkenso RPG]", PAYDAY)
+        self.assertIn("#define PAYDAY_COLOR (0xFFFFFFFF)", PAYDAY)
+        for color in re.findall(r"\\{([0-9A-Fa-f]{6})\\}", PAYDAY):
+            self.assertIn(color.upper(), {"D9AA55", "FFFFFF", "B6E4B3", "9FAAB8"})
         self.assertIn('Прогресс:', PAYDAY)
         self.assertIn('Осталось:', PAYDAY)
         self.assertIn('Поздравляем!', PAYDAY)
