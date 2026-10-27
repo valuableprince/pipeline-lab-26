@@ -203,8 +203,8 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_fly.inc"
 #include "ship_editor.inc"
 #include "ship_camera.inc"
-#include "ship_panel.inc"
 #include "ship_horn.inc"
+#include "ship_panel.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
