@@ -6,7 +6,7 @@
 // PAYDAY-01: one EXP at each server-clock HH:00; no AFK checks or wages.
 // EXP needed for next level = current level * 4.
 #define PAYDAY_EXP_PER_HOUR (1)
-#define PAYDAY_COLOR (0xA7D6B5FF)
+#define PAYDAY_COLOR (0xFFFFFFFF)
 
 new gPayDayTimer;
 new gPayDayLastHour;
@@ -39,23 +39,23 @@ stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
 {
     new message[144];
     SendClientMessage(playerid, PAYDAY_COLOR,
-        "{D9AA55}[Tarkenso RPG] {D8AD65}========== TARKENSO | PAYDAY ==========");
+        "{D9AA55}========== TARKENSO | PAYDAY ==========");
 
     format(message, sizeof(message),
-        "{D9AA55}[Tarkenso RPG] {E4ECF3}Опыт за час: {75DFA5}+%d EXP {B2BDCA}| {E4ECF3}Уровень: {EAC885}%d",
+        "{FFFFFF}Опыт за час: {B6E4B3}+%d EXP {9FAAB8}| {FFFFFF}Уровень: {D9AA55}%d",
         earnedExp, gCharacterLevel[playerid]);
     SendClientMessage(playerid, PAYDAY_COLOR, message);
 
     if (gCharacterLevel[playerid] >= PAYDAY_LEVEL_LIMIT)
     {
         SendClientMessage(playerid, PAYDAY_COLOR,
-            "{D9AA55}[Tarkenso RPG] {EAC885}Достигнут максимальный уровень персонажа.");
+            "{D9AA55}Достигнут максимальный уровень персонажа.");
     }
     else
     {
         new threshold = gCharacterLevel[playerid] * PAYDAY_EXP_STEP;
         format(message, sizeof(message),
-            "{D9AA55}[Tarkenso RPG] {E4ECF3}Прогресс: {EAC885}%d/%d EXP {B2BDCA}| {E4ECF3}Осталось: {FFFFFF}%d EXP",
+            "{FFFFFF}Прогресс: {B6E4B3}%d/%d EXP {9FAAB8}| {FFFFFF}Осталось: {D9AA55}%d EXP",
             gCharacterEXP[playerid], threshold, threshold - gCharacterEXP[playerid]);
         SendClientMessage(playerid, PAYDAY_COLOR, message);
     }
@@ -63,12 +63,12 @@ stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
     if (levelUp)
     {
         format(message, sizeof(message),
-            "{D9AA55}[Tarkenso RPG] {EAC885}Поздравляем! Вы достигли %d уровня.", gCharacterLevel[playerid]);
+            "{D9AA55}Поздравляем! {FFFFFF}Вы достигли {B6E4B3}%d {FFFFFF}уровня.", gCharacterLevel[playerid]);
         SendClientMessage(playerid, PAYDAY_COLOR, message);
     }
 
     SendClientMessage(playerid, PAYDAY_COLOR,
-        "{D9AA55}[Tarkenso RPG] {D8AD65}========================================");
+        "{D9AA55}========================================");
     GameTextForPlayer(playerid, "~w~TARKENSO~n~~y~PAYDAY", 5000, 1);
     return 1;
 }
