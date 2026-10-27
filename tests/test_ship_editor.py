@@ -45,4 +45,8 @@ class ShipEditorContracts(unittest.TestCase):
         self.assertIn('!strcmp(operation, "berth", true)', P)
         self.assertIn("SHIPEDIT_POLL_MS", E)
         self.assertIn("KillTimer(gShipEditTimer)", E)
+        self.assertIn("#define SHIPEDIT_ZOOM_DEFAULT (250.0)", E)
+        self.assertIn("gShipEditZoom[playerid] < 300.0", E)
+        self.assertIn("if (yaw < 0.0) yaw += 360.0;", E)
+        self.assertIn("gShipModel != SHIP_CARGO_ROOT_ID", E)
 if __name__=="__main__": unittest.main()
