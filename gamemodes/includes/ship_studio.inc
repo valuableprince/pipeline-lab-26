@@ -32,6 +32,7 @@ new Float:gShipPoint[SHIP_MAX_POINTS][4];
 new bool:gShipRunning;
 new gShipNextPoint;
 new gShipTimer;
+new gShipEditOwner = INVALID_PLAYER_ID;
 forward ShipEditor_Command(playerid, const params[]);
 new gShipPortDeparture = -1;
 forward ShipPort_Tick();
