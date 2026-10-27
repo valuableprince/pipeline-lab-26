@@ -166,6 +166,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "studio_ui.inc"
 #include "ship_studio.inc"
 #include "ship_port.inc"
+#include "ship_port_route.inc"
 #include "ship_passenger_sync.inc"
 #include "economy.inc"
 #include "admin_ui.inc"
@@ -202,6 +203,10 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_tools2.inc"
 #include "admin_punish.inc"
 #include "admin_fly.inc"
+#include "ship_editor.inc"
+#include "ship_camera.inc"
+#include "ship_horn.inc"
+#include "ship_panel.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
@@ -826,6 +831,10 @@ public OnGameModeInit()
     Studio_Init();
     Ship_Init();
     ShipPort_Init();
+    ShipManeuver_Init();
+    ShipHorn_Init();
+    ShipEditor_Init();
+    ShipCam_Init();
     ShipSurf_Init();
     Economy_Init();
     Leader_Init();
@@ -854,6 +863,8 @@ public OnGameModeExit()
     Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
+    ShipCam_Shutdown();
+    ShipEditor_Shutdown();
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
@@ -880,6 +891,9 @@ public OnPlayerConnect(playerid)
     AdminTP_Reset(playerid);
     StudioUI_Reset(playerid);
     ShipSurf_Reset(playerid);
+    ShipEditor_Reset(playerid);
+    ShipCam_Reset(playerid);
+    ShipPanel_Reset(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
@@ -1125,11 +1139,15 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
+    if (ShipCam_OnClick(playerid, playertextid)) return 1;
+    if (ShipEditor_OnClick(playerid, playertextid)) return 1;
     return SortUI_OnClick(playerid, playertextid);
 }
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
+    if (ShipCam_OnEscape(playerid, clickedid)) return 1;
+    if (ShipEditor_OnEscape(playerid, clickedid)) return 1;
     return SortUI_OnCancel(playerid, clickedid);
 }
 
@@ -1146,6 +1164,8 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    if (newstate != PLAYER_STATE_ONFOOT) ShipCam_Reset(playerid);
+    if (newstate != PLAYER_STATE_ONFOOT) ShipEditor_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
     Race_OnStateChange(playerid, newstate, oldstate);
     Truck_OnStateChange(playerid, newstate, oldstate);
@@ -1186,6 +1206,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Truck_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (ShipPanel_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (StudioUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Studio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
