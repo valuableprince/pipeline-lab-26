@@ -94,7 +94,7 @@ stock ShipPanel_Voyage(playerid)
     if (!ShipPanel_Allowed(playerid)) return 1;
     ShowPlayerDialog(playerid, SHIP_PANEL_VOYAGE, DIALOG_STYLE_LIST,
         "Tarkenso RPG | Управление рейсами",
-        "Отправить из Лос-Сантоса\nОтправить из Сан-Фиерро\nОстановить корабль\nПосмотреть состояние",
+        "Отправить из Лос-Сантоса\nОтправить из Сан-Фиерро\nОстановить корабль\nПосмотреть состояние\nПодать корабельный гудок",
         "Выбрать", "Назад");
     return 1;
 }
@@ -162,7 +162,7 @@ stock ShipPanel_OnDialog(playerid, dialogid, response, listitem)
     if (dialogid == SHIP_PANEL_INFO) return ShipPanel_Open(playerid);
     if (dialogid == SHIP_PANEL_VOYAGE)
     {
-        if (listitem < 0 || listitem > 3) return 1;
+        if (listitem < 0 || listitem > 4) return 1;
         if (!Studio_Require(playerid)) return 1;
         switch (listitem)
         {
@@ -170,6 +170,7 @@ stock ShipPanel_OnDialog(playerid, dialogid, response, listitem)
             case 1: ShipPanel_Dispatch(playerid, "port sf depart");
             case 2: ShipPanel_Dispatch(playerid, "stop");
             case 3: return ShipPanel_Info(playerid);
+            case 4: ShipHorn_Manual(playerid);
         }
         return ShipPanel_Voyage(playerid);
     }
