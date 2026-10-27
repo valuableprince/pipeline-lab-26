@@ -51,7 +51,7 @@ class ShipPanelContracts(unittest.TestCase):
             if path.name == "ship_panel.inc":
                 continue
             contents = path.read_text("utf-8")
-            for name, value in re.findall(r"(?m)^\\s*#define\\s+(\\w+)\\s+\\(?(\\d{4})\\)?", contents):
+            for name, value in re.findall(r"(?m)^\s*#define\s+(\w+)\s+\(?(\d{4})\)?", contents):
                 self.assertNotIn(int(value), ship_ids, f"{path.name}: {name} collides with ship panel")
 
     def test_access_control_for_all_callbacks(self):
