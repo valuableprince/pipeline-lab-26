@@ -2,6 +2,7 @@
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from build_contracts import assert_staged
 import re
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ from tools.check_pawn_output import analyze_pawn_output, main as verify_compiler
 ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 INC = ROOT / "gamemodes/includes"
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+CI = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 WIN = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
 HUD = (INC / "orvelar_hud.inc").read_text(encoding="utf-8")
 ECONOMY = (INC / "economy.inc").read_text(encoding="utf-8")
@@ -48,11 +49,11 @@ class CompilerQualityGate(unittest.TestCase):
                 self.assertEqual(verify_compiler_log([str(log)]), 1)
 
     def test_ci_and_windows_both_block_warnings(self):
-        self.assertIn("set -o pipefail", CI)
-        self.assertIn("2>&1 | tee build/pawn_compiler.log", CI)
-        self.assertIn("python tools/check_pawn_output.py build/pawn_compiler.log", CI)
-        self.assertIn("python -m unittest discover -s tests -v", CI)
-        self.assertIn("python -m compileall -q tools tests", CI)
+        self.assertIn("set -euo pipefail", CI)
+        self.assertIn("2>&1 | tee build/compiler.log", CI)
+        self.assertIn("python3 tools/check_pawn_output.py build/compiler.log", CI)
+        self.assertIn("python3 -m unittest discover -s tests -v", CI)
+        self.assertIn("python3 -m compileall -q tools tests", CI)
         self.assertIn("from check_pawn_output import analyze_pawn_output", WIN)
         self.assertIn("stderr=subprocess.STDOUT", WIN)
         self.assertIn("issues = analyze_pawn_output(output_text)", WIN)
@@ -66,8 +67,7 @@ class CompilerQualityGate(unittest.TestCase):
         for module in modules:
             with self.subTest(include=module):
                 self.assertTrue((INC / module).is_file())
-                self.assertIn('"' + module + '"', CI)
-                self.assertIn('"' + module + '"', WIN)
+                assert_staged(self, module)
 
     def test_hud_uses_supported_openmp_apis(self):
         self.assertEqual(HUD.count("TextDrawColour("), 3)
@@ -86,7 +86,13 @@ class CriticalSmokeContracts(unittest.TestCase):
         self.assertIn("if (!Auth_SaveAccount(playerid))", ECONOMY)
         self.assertIn("Cleaner_SettlePending(playerid)", CLEANER)
         self.assertNotIn("GivePlayerMoney(", CLEANER)
-        self.assertNotIn("GetPlayerMoney(", ECONOMY)
+        # Client money is observed only to repair HUD, never used as account authority.
+        reconcile = ECONOMY.split("public Economy_ReconcileTick()", 1)[1].split("stock Economy_Log(", 1)[0]
+        self.assertIn("GetPlayerMoney(playerid) != gAccountMoney[playerid]", reconcile)
+        self.assertIn("Economy_SyncHUD(playerid);", reconcile)
+        self.assertNotRegex(ECONOMY, r"gAccountMoney\[playerid\]\s*=\s*GetPlayerMoney\(")
+        change = ECONOMY.split("stock bool:Economy_Change(", 1)[1].split("stock bool:Economy_Credit(", 1)[0]
+        self.assertNotIn("GetPlayerMoney(", change)
 
     def test_leader_cache_and_worker_only_zone_tick(self):
         self.assertIn("gFactionCachedOrg[playerid]", LEADER)

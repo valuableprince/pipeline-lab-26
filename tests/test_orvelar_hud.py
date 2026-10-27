@@ -1,13 +1,13 @@
 """Статические контракты HUD-01 без запуска игрового клиента."""
 
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = (ROOT / "gamemodes" / "signal0317.pwn").read_text(encoding="utf-8")
 MODULE = (ROOT / "gamemodes" / "includes" / "orvelar_hud.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes" / "includes" / "commands.inc").read_text(encoding="utf-8")
-BUILDER = (ROOT / "tools" / "build_windows.py").read_text(encoding="utf-8")
 
 
 class OrvelarHudTest(unittest.TestCase):
@@ -23,14 +23,14 @@ class OrvelarHudTest(unittest.TestCase):
 
     def test_three_parts_and_toggle(self):
         for token in (
-            '"O"', '"/"', '"Tarkenso"',
+            '"O"', '"/"', '"Tarkenso RPG"',
             "TextDrawCreate(", "TextDrawShowForPlayer(",
             "TextDrawHideForPlayer(", "TextDrawDestroy(",
             "gOrvelarHudVisible[MAX_PLAYERS]", "OrvelarHUD_Toggle",
         ):
             self.assertIn(token, MODULE)
         self.assertIn("cmd:hudlogo(playerid, params[])", COMMANDS)
-        self.assertIn("orvelar_hud.inc", BUILDER)
+        assert_staged(self, "orvelar_hud.inc")
 
     def test_modern_openmp_colour_names_without_deprecated_aliases(self):
         self.assertEqual(MODULE.count("TextDrawColour("), 3)

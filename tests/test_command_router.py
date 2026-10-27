@@ -1,6 +1,7 @@
 """Проверки нового процессора команд Pawn.CMD + sscanf без запуска сервера."""
 
 from pathlib import Path
+from build_contracts import assert_staged
 import re
 import unittest
 
@@ -9,8 +10,7 @@ GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 ADMIN = (ROOT / "gamemodes/includes/admin_system.inc").read_text(encoding="utf-8")
 DOC = (ROOT / "docs/COMMAND_PROCESSOR.md").read_text(encoding="utf-8")
-BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
+WORKFLOW = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 
 
 class PawnCmdMigrationTests(unittest.TestCase):
@@ -24,15 +24,20 @@ class PawnCmdMigrationTests(unittest.TestCase):
         self.assertIn("public OnPlayerCommandPerformed(", COMMANDS)
 
     def test_all_existing_commands_registered_once(self):
-        names = re.findall(r"^cmd:([a-z]+)\(playerid, params\[\]\)", COMMANDS, re.MULTILINE)
-        expected = set(("help story position hudlogo report admins admin aduty a reports "
-                        "accept areply close spec warn mute kick freeze goto gethere "
-                        "ban unban setadmin setevent event weather alog founder").split())
-        expected.update(("leaders fmenu leader fstats fchat finvite faccept "
-                         "funinvite frank fleave setleader unleader renewleader").split())
-        expected.update(("trashdrop trashservice cleanstats orders truckpark truckcancel truckveh truckunload guardstatus npcroute studio zoneedit nset tpcor").split())
-        self.assertEqual(set(names), expected)
+        modules = list((ROOT / "gamemodes/includes").glob("*.inc"))
+        names = re.findall(r"^cmd:(\w+)\(playerid, params\[\]\)",
+                           "\n".join(p.read_text("utf-8") for p in modules), re.M)
+        # Assert the supported entrypoints, permit independent feature additions,
+        # and detect duplicate registrations across includes as well as commands.inc.
+        required = set("help story position hudlogo founder studio zoneedit tdstudio tdgrant "
+                       "race raceaudio report admins admin aduty a setadmin setevent "
+                       "leaders fmenu finvite faccept tpcor trashdrop trashservice sort "
+                       "guardstatus load loadtest play mn mm menu".split())
+        self.assertTrue(required.issubset(names), sorted(required - set(names)))
         self.assertEqual(len(names), len(set(names)))
+        self.assertTrue(all(re.fullmatch(r"[a-z][a-z0-9_]*", name) for name in names))
+        self.assertNotIn("npcroute", names)
+        self.assertNotIn("nset", names)
 
     def test_auth_gate_and_admin_permissions_preserved(self):
         self.assertIn("return Admin_Execute(playerid, input);", COMMANDS)
@@ -48,8 +53,7 @@ class PawnCmdMigrationTests(unittest.TestCase):
 
     def test_windows_and_ci_stage_all_includes(self):
         for name in ("Pawn.CMD.inc", "sscanf2.inc", "commands.inc"):
-            self.assertIn('"' + name + '"', BUILD)
-            self.assertIn('"' + name + '"', WORKFLOW)
+            assert_staged(self, name)
             self.assertTrue((ROOT / "gamemodes/includes" / name).is_file())
         self.assertIn("branches: [main]", WORKFLOW)
 

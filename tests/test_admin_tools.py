@@ -1,6 +1,7 @@
 """Contracts for six audited, duty-gated administrator utility commands."""
 
 from pathlib import Path
+from build_contracts import assert_include_order
 import re
 import unittest
 
@@ -27,8 +28,8 @@ class AdminToolsContracts(unittest.TestCase):
         for name, call in aliases.items():
             self.assertRegex(CMDS, rf"cmd:{name}\(playerid, params\[\]\)\s*\{{\s*return {re.escape(call)};")
         self.assertIn('#include "admin_tools.inc"', MAIN)
-        self.assertIn('#include "admin_tools.inc"\n#include "admin_help.inc"\n#include "admin_tools2.inc"\n#include "admin_punish.inc"\n#include "admin_fly.inc"\n#include "ship_editor.inc"\n#include "ship_camera.inc"\n#include "ship_horn.inc"\n#include "ship_panel.inc"\n#include "rp_chat.inc"\n#include "commands.inc"', MAIN)
-        self.assertIn("'test_admin_tools.py'", WORKFLOW)
+        assert_include_order(self, MAIN, "admin_tools.inc", "admin_help.inc", "admin_tools2.inc", "admin_punish.inc", "admin_fly.inc", "ship_editor.inc", "ship_camera.inc", "ship_horn.inc", "ship_panel.inc", "tdstudio.inc", "rp_chat.inc", "commands.inc")
+        self.assertIn("python3 -m unittest discover -s tests -v", WORKFLOW)
 
     def test_permissions_and_rank_safety(self):
         for name, permission in (

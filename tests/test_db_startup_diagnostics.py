@@ -8,7 +8,7 @@ class DBStartupDiagnostics(unittest.TestCase):
         for message in ("Opening mysql.ini", "mysql_connect_file returned invalid handle",
                         "mysql_connect_file failed; MySQL errno=",
                         "schema query failed; MySQL errno=",
-                        "expected schema version 4"):
+                        "expected schema version 10"):
             self.assertIn(message, SRC)
     def test_safe_logging(self):
         self.assertNotIn("password = ", SRC)

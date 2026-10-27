@@ -1,13 +1,12 @@
 """Контрактные тесты системы уборщика TARKENSO: NPC, личный UI и выплаты."""
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 JOB = (ROOT / "gamemodes/includes/cleaner_job.inc").read_text(encoding="utf-8")
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
-BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
 
 
 class CleanerIntegrationTest(unittest.TestCase):
@@ -117,7 +116,7 @@ class CleanerIntegrationTest(unittest.TestCase):
 
     def test_carried_bag_and_progress_hud(self):
         for needle in (
-            "CLEANER_BAG_MODEL       (1264)",
+            "CLEANER_BAG_MODEL       (1265)",
             "SetPlayerAttachedObject(playerid, slot, CLEANER_BAG_MODEL, 6",
             "IsPlayerAttachedObjectSlotUsed(playerid, slot)",
             "RemovePlayerAttachedObject(playerid, slot)",
@@ -186,11 +185,14 @@ class CleanerIntegrationTest(unittest.TestCase):
         self.assertIn("if (!Cleaner_Save(playerid))", JOB)
         self.assertIn("Cleaner_SettlePending(playerid)", JOB)
         self.assertIn("if (!Cleaner_FinishNightContract(playerid)) return 1;", JOB)
-        self.assertIn("gCleanerNightCompleted[playerid] * CLEANER_NIGHT_BONUS", JOB + " gCleanerNightCompleted[playerid] * CLEANER_NIGHT_BONUS")
+        self.assertIn("earned != collected * CLEANER_PAY_PER_UNIT + completed * CLEANER_NIGHT_BONUS", JOB)
+        night = JOB.split("stock bool:Cleaner_FinishNightContract(playerid)", 1)[1].split("stock Cleaner_OnConnect(", 1)[0]
+        for token in ("gCleanerNightCompleted[playerid]++;", "gCleanerEarned[playerid] += CLEANER_NIGHT_BONUS;",
+                      "gCleanerNightCompleted[playerid]--;", "gCleanerEarned[playerid] -= CLEANER_NIGHT_BONUS;"):
+            self.assertIn(token, night)
 
     def test_builds_stage_include(self):
-        self.assertIn('"cleaner_job.inc"', CI)
-        self.assertIn('"cleaner_job.inc"', BUILD)
+        assert_staged(self, "cleaner_job.inc")
 
 
 if __name__ == "__main__":

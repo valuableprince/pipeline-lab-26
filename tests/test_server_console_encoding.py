@@ -41,6 +41,7 @@ class ServerConsoleEncodingTest(unittest.TestCase):
         ):
             self.assertIn(marker, main)
         self.assertIn("[DB-PRIMARY] MySQL schema v10 detected", db)
+        self.assertIn("Studio_Init();", main)
         self.assertIn("[Cleaner] Street cleaner job: Fort Carson", cleaner)
         self.assertIn("[Studio] Core and zone editor initialized", studio)
 

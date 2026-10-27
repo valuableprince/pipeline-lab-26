@@ -1,5 +1,6 @@
 """STREAMER-01: критические контракты интеграции с open.mp."""
 from pathlib import Path
+from build_contracts import assert_staged
 import re
 import unittest
 
@@ -18,9 +19,7 @@ class StreamerIntegrationTests(unittest.TestCase):
                       "CreateDynamic3DTextLabel(", "Streamer_Update("):
             self.assertIn(token, STREAMER)
         self.assertIn("Licensed under the Apache License, Version 2.0", STREAMER)
-        for path in (ROOT / "tools/build_windows.py",
-                     ROOT / ".github/workflows/pawn-build.yml"):
-            self.assertIn('"streamer.inc"', path.read_text(encoding="utf-8"))
+        assert_staged(self, "streamer.inc")
 
     def test_world_isolation_and_single_registration(self):
         self.assertIn("#define RACE_WORLD_ID            (1800)", RACE_MAP)
