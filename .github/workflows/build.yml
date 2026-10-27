@@ -12,6 +12,7 @@ on:
       - "tools/check_pawn_static.py"
       - "tools/check_pawn_complexity.py"
       - "tools/run_pawn_benchmark.py"
+      - "tools/run_pawn_scaling.py"
       - "tools/install_rustext.py"
       - "tools/test_tdstudio.py"
       - ".github/workflows/build.yml"
@@ -106,6 +107,24 @@ jobs:
           export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
           python3 tools/run_pawn_benchmark.py --server "$OMP_SERVER_DIR" \
             --baseline-ref origin/main --output build
+
+      - name: Compare synthetic 100/250/500-player AMX scaling (advisory)
+        run: |
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 -m unittest discover -s tests -p 'test_pawn_scaling.py' -v
+          python3 tools/run_pawn_scaling.py --server "$OMP_SERVER_DIR" \
+            --baseline-ref origin/main --output build
+
+      - name: Upload Pawn scaling report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawn-scaling-report
+          path: |
+            build/pawn_scaling_bench.json
+            build/scaling-*.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload Pawn AMX performance report
         if: always()
