@@ -9,6 +9,7 @@ on:
       - "tools/check_pawn_output.py"
       - "tools/check_chat_style.py"
       - "tools/check_dialog_ids.py"
+      - "tools/check_pawn_static.py"
       - "tools/install_rustext.py"
       - "tools/test_tdstudio.py"
       - ".github/workflows/build.yml"
@@ -36,6 +37,20 @@ jobs:
 
       - name: Check dialog ID collisions
         run: python3 tools/check_dialog_ids.py
+
+      - name: Pawn static safety review (advisory)
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pawn_static.py' -v
+          python3 tools/check_pawn_static.py --output build/pawn_static_report.json
+
+      - name: Upload Pawn static review report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawn-static-report
+          path: build/pawn_static_report.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Install runtime
         run: |
