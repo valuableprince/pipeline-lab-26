@@ -43,6 +43,7 @@ forward ShipManeuver_Stop();
 forward bool:ShipEditor_Occupied();
 forward bool:ShipManeuver_Start(port, kind, bool:preview);
 forward ShipEditor_Command(playerid, const params[]);
+forward ShipPanel_Open(playerid);
 new gShipPortDeparture = -1;
 forward ShipPort_Tick();
 forward ShipPort_Command(playerid, const params[]);
@@ -564,8 +565,8 @@ stock bool:Ship_Lock(playerid)
 
 stock Ship_Command(playerid, const params[])
 {
+    if (isnull(params)) return ShipPanel_Open(playerid);
     if (!Studio_Require(playerid)) return 1;
-    if (isnull(params)) return Ship_Help(playerid);
     new action[24];
     if (sscanf(params, "s[24]", action)) return Ship_Help(playerid);
     if (!strcmp(action, "help", true)) return Ship_Help(playerid);
