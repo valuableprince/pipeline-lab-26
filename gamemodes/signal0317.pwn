@@ -202,6 +202,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_punish.inc"
 #include "admin_fly.inc"
 #include "ship_editor.inc"
+#include "ship_camera.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 
@@ -773,6 +774,7 @@ public OnGameModeInit()
     ShipPort_Init();
     ShipManeuver_Init();
     ShipEditor_Init();
+    ShipCam_Init();
     ShipSurf_Init();
     Economy_Init();
     Leader_Init();
@@ -801,6 +803,7 @@ public OnGameModeExit()
     Truck_Shutdown();
     CleanerDump_Shutdown();
     Cleaner_Shutdown();
+    ShipCam_Shutdown();
     ShipEditor_Shutdown();
     ShipSurf_Shutdown();
     Ship_Shutdown();
@@ -829,6 +832,7 @@ public OnPlayerConnect(playerid)
     StudioUI_Reset(playerid);
     ShipSurf_Reset(playerid);
     ShipEditor_Reset(playerid);
+    ShipCam_Reset(playerid);
     Story_OnConnect(playerid);
     Cleaner_OnConnect(playerid);
     Truck_Reset(playerid);
@@ -896,6 +900,7 @@ public OnPlayerDisconnect(playerid, reason)
     Race_OnDisconnect(playerid);
     if (gCleanerEditorOwner == playerid) CleanerEditor_Cancel();
     Studio_OnDisconnect(playerid);
+    ShipCam_Reset(playerid);
     ShipEditor_Reset(playerid);
     Ship_OnDisconnect(playerid);
     ShipSurf_Reset(playerid);
@@ -981,6 +986,7 @@ public OnPlayerRequestSpawn(playerid)
 
 public OnPlayerSpawn(playerid)
 {
+    ShipCam_Reset(playerid);
     ShipEditor_Reset(playerid);
     AdminFly_Reset(playerid);
     if (gAuthState[playerid] != AUTH_READY)
@@ -1033,6 +1039,7 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    ShipCam_Reset(playerid);
     ShipEditor_Reset(playerid);
     AdminFly_Reset(playerid);
     SortUI_Reset(playerid);
@@ -1073,12 +1080,14 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
+    if (ShipCam_OnClick(playerid, playertextid)) return 1;
     if (ShipEditor_OnClick(playerid, playertextid)) return 1;
     return SortUI_OnClick(playerid, playertextid);
 }
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
+    if (ShipCam_OnEscape(playerid, clickedid)) return 1;
     if (ShipEditor_OnEscape(playerid, clickedid)) return 1;
     return SortUI_OnCancel(playerid, clickedid);
 }
@@ -1096,6 +1105,7 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    if (newstate != PLAYER_STATE_ONFOOT) ShipCam_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) ShipEditor_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
     Race_OnStateChange(playerid, newstate, oldstate);
