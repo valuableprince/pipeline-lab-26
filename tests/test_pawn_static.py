@@ -160,6 +160,19 @@ stock BadFormat()
         self.assertIn("BUFFER_WRONG_SIZEOF", reported)
         self.assertIn("BUFFER_LENGTH_OVERFLOW", reported)
 
+    def test_multidimensional_array_element_capacity(self):
+        good = '''
+stock SafeRow()
+{
+    new lines[5][240];
+    format(lines[2], 240, "%s", "ok");
+    return 1;
+}
+'''
+        bad = good.replace("format(lines[2], 240", "format(lines[2], 241")
+        self.assertNotIn("BUFFER_LENGTH_OVERFLOW", rules(good))
+        self.assertIn("BUFFER_LENGTH_OVERFLOW", rules(bad))
+
     def test_valid_buffer_and_unknown_extents(self):
         sample = '''
 stock GoodFormat()
