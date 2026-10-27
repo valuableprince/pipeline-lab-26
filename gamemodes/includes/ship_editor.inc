@@ -30,7 +30,6 @@
 #define SE_SF_BERTH (16)
 #define SE_SF_EXIT (17)
 
-new gShipEditOwner = INVALID_PLAYER_ID;
 new bool:gShipEditActive[MAX_PLAYERS];
 new PlayerText:gShipEditButtons[MAX_PLAYERS][SHIPEDIT_BUTTONS];
 new PlayerText:gShipEditInfo[MAX_PLAYERS];
