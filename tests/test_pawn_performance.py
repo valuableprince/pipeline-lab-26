@@ -127,6 +127,7 @@ class BenchmarkLogicTests(unittest.TestCase):
         base = {**summarize([20]*7), "checksum": 1}
         slow = {**summarize([26]*7), "checksum": 1}
         self.assertEqual(compare(base, slow)["status"], "regression")
+        self.assertEqual(compare(base, slow, identical_source=True)["status"], "unchanged")
         self.assertEqual(compare(base, {**slow,"checksum":2})["status"], "incomparable")
         self.assertEqual(compare(base, {**summarize([21]*7),"checksum":1})["status"], "ok")
         self.assertEqual(compare({**summarize([1]*7),"checksum":1}, slow)["status"], "noisy")
