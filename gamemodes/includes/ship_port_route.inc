@@ -9,13 +9,10 @@
 #define SHIP_MANEUVER_FILE SHIP_DIR "/maneuvers_01.dat"
 #define SHIP_MANEUVER_TEMP SHIP_DIR "/maneuvers_01.tmp"
 #define SHIP_MANEUVER_MAX (8)
-#define SHIP_MANEUVER_DEPART (0)
-#define SHIP_MANEUVER_ARRIVE (1)
 #define SHIP_MANEUVER_SPEED (0.9)
 #define SHIP_MANEUVER_EPS (0.64)
 #define SHIP_MANEUVER_SEGMENT_MAX (600.0)
 
-new gShipManeuverCount[2][2];
 new Float:gShipManeuverPoint[2][2][SHIP_MANEUVER_MAX][4];
 new gShipManeuverDraftCount[2][2];
 new Float:gShipManeuverDraft[2][2][SHIP_MANEUVER_MAX][4];
