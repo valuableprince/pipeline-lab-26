@@ -43,7 +43,9 @@ def summarize(samples: list[int]) -> dict:
             "noisy": median <= 0 or dispersion > max(3, median * 0.15)}
 
 
-def compare(baseline: dict, current: dict) -> dict:
+def compare(baseline: dict, current: dict, identical_source: bool = False) -> dict:
+    if identical_source:
+        return {"status": "unchanged", "reason": "benchmark source byte-identical to baseline"}
     if baseline["checksum"] != current["checksum"]:
         return {"status": "incomparable", "reason": "algorithm checksum changed; inspect results"}
     b, c = baseline["median_ms"], current["median_ms"]
@@ -169,8 +171,13 @@ def run(server: Path, baseline_ref: str, output: Path) -> dict:
     # than comparing separate GitHub VMs; timing remains approximate.
     base = run_once(server, baseline_source, "base", output)
     current = run_once(server, candidate_source, "head", output)
+    # A changed CI harness, compiler, runner or OS can alter elapsed timing
+    # even when the production algorithm is exactly the same. Never report
+    # a code performance regression when the benchmarked source is unchanged.
+    identical_source = baseline_source == candidate_source
     cases = {name: {"baseline": base[name], "candidate": current[name],
-                    "comparison": compare(base[name], current[name])} for name in CASES}
+                    "comparison": compare(base[name], current[name], identical_source)}
+             for name in CASES}
     result = {"schema_version": 1, "mode": "advisory",
               "baseline_ref": baseline_ref, "source": SHIP, "cases": cases}
     (output / "pawn_perf_bench.json").write_text(
