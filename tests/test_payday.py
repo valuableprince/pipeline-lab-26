@@ -46,7 +46,7 @@ class PayDayContract(unittest.TestCase):
         self.assertIn('Опыт за час:', PAYDAY)
         self.assertNotIn("[Tarkenso RPG]", PAYDAY)
         self.assertIn("#define PAYDAY_COLOR (0xFFFFFFFF)", PAYDAY)
-        for color in re.findall(r"\\{([0-9A-Fa-f]{6})\\}", PAYDAY):
+        for color in re.findall(r"\{([0-9A-Fa-f]{6})\}", PAYDAY):
             self.assertIn(color.upper(), {"D9AA55", "FFFFFF", "B6E4B3", "9FAAB8"})
         self.assertIn('Прогресс:', PAYDAY)
         self.assertIn('Осталось:', PAYDAY)
