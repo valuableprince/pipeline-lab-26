@@ -112,6 +112,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_ship_cargo_assembly.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_surfing.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_port.py' -v
+          python3 -m unittest discover -s tests -p 'test_ship_editor.py' -v
 
       - name: Validate controlled NPC load test
         run: |
