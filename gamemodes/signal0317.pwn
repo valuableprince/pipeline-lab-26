@@ -206,10 +206,10 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "ship_editor.inc"
 #include "ship_camera.inc"
 #include "ship_horn.inc"
-#include "ship_notice.inc"
 #include "ship_panel.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
+#include "ship_notice.inc"
 
 stock bool:Auth_SetAccountName(playerid)
 {
