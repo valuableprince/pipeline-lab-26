@@ -6,6 +6,8 @@ on:
     paths:
       - "gamemodes/**"
       - "tests/**"
+      - "data/payday/**"
+      - "tools/export_payday_phrases.py"
       - "tools/check_pawn_output.py"
       - "tools/check_chat_style.py"
       - "tools/check_dialog_ids.py"
@@ -83,6 +85,9 @@ jobs:
               (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
           PY
 
+      - name: Export PayDay level-up phrases (CP1251)
+        run: python3 tools/export_payday_phrases.py
+
       - name: Validate all Python contracts and tools
         run: |
           python3 -m compileall -q tools tests
@@ -135,7 +140,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: compiled-output
-          path: build/compiled.amx
+          path: |
+            build/compiled.amx
+            build/scriptfiles/payday_levelup.txt
           if-no-files-found: error
           retention-days: 3
 
