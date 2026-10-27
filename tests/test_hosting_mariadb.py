@@ -1,11 +1,11 @@
 """HOSTING-DB-01: безопасная поставка схемы и теневой проверки."""
 from pathlib import Path
+from build_contracts import assert_staged, staged_sources
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 INC = (ROOT / "gamemodes/includes/db_shadow.inc").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
 INI = (ROOT / "config/mysql.ini.example").read_text(encoding="utf-8")
 
 class HostingReadiness(unittest.TestCase):
@@ -20,10 +20,15 @@ class HostingReadiness(unittest.TestCase):
         self.assertIn('return Auth_WriteData(playerid);', GAME)
         self.assertNotIn('#define TARKENSO_DB_SHADOW', GAME)
 
-    def test_both_pawn_configs_are_built(self):
-        self.assertIn('signal0317_db_shadow.pwn', WORKFLOW)
-        self.assertIn('signal0317_db_shadow.amx', WORKFLOW)
-        self.assertIn('db_shadow.inc', WORKFLOW)
+    def test_current_build_selects_primary_and_excludes_shadow(self):
+        # The hosted build is primary; shadow remains an optional source branch.
+        for backend, sources in staged_sources().items():
+            with self.subTest(backend=backend):
+                main = sources["signal0317.pwn"]
+                self.assertTrue(main.startswith(b"#define TARKENSO_DB_PRIMARY\n"))
+                self.assertNotIn(b"#define TARKENSO_DB_SHADOW", main)
+        assert_staged(self, "db_shadow.inc", "db_primary.inc")
+        self.assertIn("#error", (ROOT / "gamemodes/includes/db_primary.inc").read_text("utf-8"))
 
     def test_no_credential_or_config_leak(self):
         self.assertIn('password = CHANGE_ME', INI)

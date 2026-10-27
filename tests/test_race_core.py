@@ -1,13 +1,12 @@
 """RACE-CORE-01: контракт виртуального мира, гонок и жизненного цикла."""
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 CORE = (ROOT / "gamemodes/includes/race_core.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
-BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
 
 
 class RaceCoreIntegrationTest(unittest.TestCase):
@@ -70,8 +69,7 @@ class RaceCoreIntegrationTest(unittest.TestCase):
         self.assertIn("Race_IsParticipant(playerid)", COMMANDS)
 
     def test_build_and_encoding(self):
-        self.assertIn('"race_core.inc"', BUILD)
-        self.assertIn('"race_core.inc"', CI)
+        assert_staged(self, "race_core.inc")
         CORE.encode("cp1251")
         self.assertIn("/race join", COMMANDS)
 

@@ -14,7 +14,11 @@ class AccountV2Contract(unittest.TestCase):
         self.assertIn('ACCOUNT_FORMAT       "SIGNAL0317|5"', GAME)
         self.assertIn('!strcmp(header, "SIGNAL0317|1", false)', GAME)
         self.assertIn('gAccountLegacy[playerid] = v1 || v2 || v3 || v4;', GAME)
-        self.assertIn('gAccountLegacy[playerid] && !Auth_SaveAccount(playerid)', GAME)
+        entry = GAME.split("stock Auth_EnterWorld(playerid)", 1)[1].split("// Истекшие записи", 1)[0]
+        legacy = entry.split("if (gAccountLegacy[playerid])", 1)[1].split("Leader_OnReady(playerid)", 1)[0]
+        for token in ("new bool:saved = Auth_SaveAccount(playerid);", 'AuthProfiler_Step(playerid, "legacy_account_save", started, saved)',
+                      "if (!saved)", "gAuthState[playerid] = AUTH_NONE;", "Kick(playerid);"):
+            self.assertIn(token, legacy)
         self.assertIn('fexist(backup) && !frename(backup, path)', GAME)
         self.assertIn('Admin_ReplaceFile(path, temp, backup)', GAME)
         self.assertIn('fread(handle, extra, sizeof(extra))', GAME)

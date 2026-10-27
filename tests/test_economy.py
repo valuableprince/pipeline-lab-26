@@ -1,13 +1,12 @@
 """AUDIT-FIX-02: статические контракты и модель повторяемого погашения выплат."""
 import unittest
 from pathlib import Path
+from build_contracts import assert_staged
 
 BASE = Path(__file__).resolve().parents[1]
 MAIN = (BASE / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 ECON = (BASE / "gamemodes/includes/economy.inc").read_text(encoding="utf-8")
 CLEAN = (BASE / "gamemodes/includes/cleaner_job.inc").read_text(encoding="utf-8")
-CI = (BASE / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
-BUILD = (BASE / "tools/build_windows.py").read_text(encoding="utf-8")
 
 
 class SettlementModel:
@@ -33,8 +32,7 @@ class EconomyTests(unittest.TestCase):
                   "amount < -gAccountMoney[playerid]"):
             self.assertIn(s, ECON)
         self.assertIn('#include "economy.inc"', MAIN)
-        self.assertIn('"economy.inc"', CI)
-        self.assertIn('"economy.inc"', BUILD)
+        assert_staged(self, "economy.inc")
         self.assertNotIn('Auth_AddMoney', MAIN + CLEAN)
         self.assertIn('ACCOUNT_FORMAT       "SIGNAL0317|5"', MAIN)
 

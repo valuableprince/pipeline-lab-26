@@ -1,5 +1,7 @@
 """RACE-PLAYLIST-02: базовые регрессии лицензируемого набора."""
 from pathlib import Path
+from build_contracts import assert_staged
+from build_contracts import assert_include_order
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,7 +40,7 @@ class RacePlaylistTest(unittest.TestCase):
         self.assertIn("Stab_\'em_with_Your_Fork.mp3", AUDIO)
 
     def test_lifecycle_and_world(self):
-        self.assertIn('#include "race_playlist.inc"\n#include "race_audio.inc"', MAIN)
+        assert_include_order(self, MAIN, "race_playlist.inc", "race_audio.inc")
         self.assertIn("RacePlaylist_Load();", CORE)
         self.assertIn("RacePlaylist_Reset();", CORE)
         self.assertIn("RaceAudio_OnRaceStart();", CORE)
@@ -55,8 +57,7 @@ class RacePlaylistTest(unittest.TestCase):
         self.assertIn("PlayAudioStreamForPlayer(playerid, gRacePlaylistUrls[stage - 1])", AUDIO)
         self.assertNotIn("music.apple.com", PLAYLIST)
         self.assertIn("не означает права", DOC)
-        for file in ("tools/build_windows.py", ".github/workflows/pawn-build.yml"):
-            self.assertIn('"race_playlist.inc"', (ROOT / file).read_text(encoding="utf-8"))
+        assert_staged(self, "race_playlist.inc")
 
 
 if __name__ == "__main__":

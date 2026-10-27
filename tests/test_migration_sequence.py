@@ -11,7 +11,7 @@ class MigrationVersionContracts(unittest.TestCase):
         numbers = [int(p.name[:3]) for p in files]
         self.assertEqual(len(numbers), len(set(numbers)),
                          "Two migration files claim the same version")
-        self.assertEqual(sorted(numbers), list(range(1, 15)))
+        self.assertEqual(sorted(numbers), list(range(1, 17)))
 
     def test_12_is_exact_textdraw_schema(self):
         td = (M / "012_tdstudio_projects.sql").read_text(encoding="utf-8")
