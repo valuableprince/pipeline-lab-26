@@ -10,6 +10,9 @@ on:
       - "tools/check_chat_style.py"
       - "tools/check_dialog_ids.py"
       - "tools/check_pawn_static.py"
+      - "tools/check_pawn_complexity.py"
+      - "tools/run_pawn_benchmark.py"
+      - "tools/run_pawn_scaling.py"
       - "tools/install_rustext.py"
       - "tools/test_tdstudio.py"
       - ".github/workflows/build.yml"
@@ -42,6 +45,20 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_pawn_static.py' -v
           python3 tools/check_pawn_static.py --output build/pawn_static_report.json
+
+      - name: Pawn hot-path complexity guard (advisory)
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pawn_performance.py' -v
+          python3 tools/check_pawn_complexity.py --output build/pawn_complexity.json
+
+      - name: Upload Pawn complexity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawn-complexity-report
+          path: build/pawn_complexity.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload Pawn static review report
         if: always()
@@ -84,6 +101,41 @@ jobs:
           git fetch --no-tags --depth=1 origin main
           python3 -m unittest discover -s tests -p 'test_chat_style.py' -v
           python3 tools/check_chat_style.py --base origin/main
+
+      - name: Compare baseline and PR Pawn AMX performance (advisory)
+        run: |
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 tools/run_pawn_benchmark.py --server "$OMP_SERVER_DIR" \
+            --baseline-ref origin/main --output build
+
+      - name: Compare synthetic 100/250/500-player AMX scaling (advisory)
+        run: |
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 -m unittest discover -s tests -p 'test_pawn_scaling.py' -v
+          python3 tools/run_pawn_scaling.py --server "$OMP_SERVER_DIR" \
+            --baseline-ref origin/main --output build
+
+      - name: Upload Pawn scaling report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawn-scaling-report
+          path: |
+            build/pawn_scaling_bench.json
+            build/scaling-*.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload Pawn AMX performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawn-performance-report
+          path: |
+            build/pawn_perf_bench.json
+            build/perf-*.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Stage source
         run: |
