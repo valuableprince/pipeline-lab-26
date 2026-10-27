@@ -33,6 +33,46 @@ stock PayDay_Status(playerid)
     return 1;
 }
 
+// Chat receipt is shown only after the persisted hourly grant succeeds.
+// GameText style 1 is the native lower-right notification, no TextDraw needed.
+stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
+{
+    new message[144];
+    SendClientMessage(playerid, PAYDAY_COLOR,
+        "{D8AD65}========== TARKENSO | PAYDAY ==========");
+
+    format(message, sizeof(message),
+        "{E4ECF3}Опыт за час: {75DFA5}+%d EXP {B2BDCA}| {E4ECF3}Уровень: {EAC885}%d",
+        earnedExp, gCharacterLevel[playerid]);
+    SendClientMessage(playerid, PAYDAY_COLOR, message);
+
+    if (gCharacterLevel[playerid] >= PAYDAY_LEVEL_LIMIT)
+    {
+        SendClientMessage(playerid, PAYDAY_COLOR,
+            "{EAC885}Достигнут максимальный уровень персонажа.");
+    }
+    else
+    {
+        new threshold = gCharacterLevel[playerid] * PAYDAY_EXP_STEP;
+        format(message, sizeof(message),
+            "{E4ECF3}Прогресс: {EAC885}%d/%d EXP {B2BDCA}| {E4ECF3}Осталось: {FFFFFF}%d EXP",
+            gCharacterEXP[playerid], threshold, threshold - gCharacterEXP[playerid]);
+        SendClientMessage(playerid, PAYDAY_COLOR, message);
+    }
+
+    if (levelUp)
+    {
+        format(message, sizeof(message),
+            "{EAC885}Поздравляем! Вы достигли %d уровня.", gCharacterLevel[playerid]);
+        SendClientMessage(playerid, PAYDAY_COLOR, message);
+    }
+
+    SendClientMessage(playerid, PAYDAY_COLOR,
+        "{D8AD65}========================================");
+    GameTextForPlayer(playerid, "~w~TARKENSO~n~~y~PAYDAY", 5000, 1);
+    return 1;
+}
+
 stock PayDay_Grant(playerid, hourKey)
 {
 #if defined TARKENSO_DB_PRIMARY
@@ -47,6 +87,7 @@ stock PayDay_Grant(playerid, hourKey)
         return 0;
 
     new bool:levelUp = false;
+    new earnedExp = level < PAYDAY_LEVEL_LIMIT ? PAYDAY_EXP_PER_HOUR : 0;
     if (level < PAYDAY_LEVEL_LIMIT)
     {
         exp += PAYDAY_EXP_PER_HOUR;
@@ -72,15 +113,7 @@ stock PayDay_Grant(playerid, hourKey)
     gCharacterEXP[playerid] = exp;
     gCharacterLastPaydayHour[playerid] = hourKey;
     SetPlayerScore(playerid, level);
-    if (levelUp)
-    {
-        new message[100];
-        format(message, sizeof(message), "PAYDAY: +1 EXP. Новый уровень: %d! Поздравляем.", level);
-        SendClientMessage(playerid, PAYDAY_COLOR, message);
-    }
-    else
-        SendClientMessage(playerid, PAYDAY_COLOR, "PAYDAY: +1 EXP.");
-    PayDay_Status(playerid);
+    PayDay_Notify(playerid, earnedExp, levelUp);
     return 1;
 #else
     return 0;
