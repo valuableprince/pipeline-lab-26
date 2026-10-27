@@ -33,6 +33,9 @@ new bool:gShipRunning;
 new gShipNextPoint;
 new gShipTimer;
 new gShipEditOwner = INVALID_PLAYER_ID;
+#define SHIP_MANEUVER_DEPART (0)
+#define SHIP_MANEUVER_ARRIVE (1)
+new gShipManeuverCount[2][2];
 new bool:gShipManeuverActive;
 new gShipManeuverArrivePort = -1;
 forward ShipManeuver_Tick();
