@@ -138,10 +138,12 @@ stock ShipEditor_Draw(playerid)
     PlayerTextDrawColour(playerid, td, 0xFFFFFFFF);
     PlayerTextDrawSetOutline(playerid, td, 1);
     PlayerTextDrawShow(playerid, td);
+    // TextDraw font-1 clickable boxes extend ~5 units left and ~10 units
+    // above their origins. Keep real hover bounds apart, not just text baselines.
     // Mouse-click arrows work even when the player's keyboard is remapped.
     ShipEditor_AddButton(playerid, SE_NORTH, 499.0, 275.0, "NORTH", 55.0);
-    ShipEditor_AddButton(playerid, SE_WEST, 440.0, 300.0, "WEST", 55.0);
-    ShipEditor_AddButton(playerid, SE_EAST, 558.0, 300.0, "EAST", 55.0);
+    ShipEditor_AddButton(playerid, SE_WEST, 430.0, 300.0, "WEST", 55.0);
+    ShipEditor_AddButton(playerid, SE_EAST, 570.0, 300.0, "EAST", 55.0);
     ShipEditor_AddButton(playerid, SE_SOUTH, 499.0, 325.0, "SOUTH", 55.0);
     ShipEditor_AddButton(playerid, SE_ROTATE_L, 22.0, 285.0, "TURN -", 72.0);
     ShipEditor_AddButton(playerid, SE_ROTATE_R, 99.0, 285.0, "TURN +", 72.0);
@@ -151,22 +153,22 @@ stock ShipEditor_Draw(playerid)
     ShipEditor_AddButton(playerid, SE_COARSE, 262.0, 285.0, "STEP +", 70.0);
     ShipEditor_AddButton(playerid, SE_ZOOM_IN, 185.0, 315.0, "ZOOM +", 70.0);
     ShipEditor_AddButton(playerid, SE_ZOOM_OUT, 262.0, 315.0, "ZOOM -", 70.0);
-    ShipEditor_AddButton(playerid, SE_SAVE, 22.0, 392.0, "SAVE SHIP", 100.0);
-    ShipEditor_AddButton(playerid, SE_CANCEL, 130.0, 392.0, "CANCEL", 100.0);
-    ShipEditor_AddButton(playerid, SE_LS_BERTH, 238.0, 392.0, "LS BERTH", 85.0);
-    ShipEditor_AddButton(playerid, SE_LS_EXIT, 330.0, 392.0, "LS EXIT", 85.0);
-    ShipEditor_AddButton(playerid, SE_SF_BERTH, 422.0, 392.0, "SF BERTH", 85.0);
-    ShipEditor_AddButton(playerid, SE_SF_EXIT, 514.0, 392.0, "SF EXIT", 85.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_LS_OUT, 22.0, 346.0, "LS OUT", 70.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_LS_IN, 99.0, 346.0, "LS IN", 70.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_SF_OUT, 176.0, 346.0, "SF OUT", 70.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_SF_IN, 253.0, 346.0, "SF IN", 70.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_ADD, 22.0, 369.0, "ADD POINT", 86.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_UNDO, 115.0, 369.0, "UNDO", 65.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_PREVIEW, 187.0, 369.0, "PREVIEW", 80.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_STOP, 274.0, 369.0, "STOP", 65.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_SAVE, 346.0, 369.0, "SAVE ROUTE", 100.0);
-    ShipEditor_AddButton(playerid, SE_ROUTE_LOAD, 453.0, 369.0, "LOAD ROUTE", 108.0);
+    ShipEditor_AddButton(playerid, SE_SAVE, 22.0, 432.0, "SAVE SHIP", 100.0);
+    ShipEditor_AddButton(playerid, SE_CANCEL, 130.0, 432.0, "CANCEL", 100.0);
+    ShipEditor_AddButton(playerid, SE_LS_BERTH, 238.0, 432.0, "LS BERTH", 85.0);
+    ShipEditor_AddButton(playerid, SE_LS_EXIT, 330.0, 432.0, "LS EXIT", 85.0);
+    ShipEditor_AddButton(playerid, SE_SF_BERTH, 422.0, 432.0, "SF BERTH", 85.0);
+    ShipEditor_AddButton(playerid, SE_SF_EXIT, 514.0, 432.0, "SF EXIT", 85.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_LS_OUT, 22.0, 358.0, "LS OUT", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_LS_IN, 99.0, 358.0, "LS IN", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_SF_OUT, 176.0, 358.0, "SF OUT", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_SF_IN, 253.0, 358.0, "SF IN", 70.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_ADD, 22.0, 395.0, "ADD POINT", 86.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_UNDO, 115.0, 395.0, "UNDO", 65.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_PREVIEW, 187.0, 395.0, "PREVIEW", 80.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_STOP, 274.0, 395.0, "STOP", 65.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_SAVE, 346.0, 395.0, "SAVE ROUTE", 100.0);
+    ShipEditor_AddButton(playerid, SE_ROUTE_LOAD, 453.0, 395.0, "LOAD ROUTE", 108.0);
     ShipEditor_Refresh(playerid);
     SelectTextDraw(playerid, SHIPEDIT_COLOR);
     return 1;
