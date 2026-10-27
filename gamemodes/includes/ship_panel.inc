@@ -12,6 +12,13 @@
 #define SHIP_PANEL_ROUTE (6343)
 #define SHIP_PANEL_TOOLS (6344)
 #define SHIP_PANEL_CLEAR_CONFIRM (6345)
+new bool:gShipPanelClearPending[MAX_PLAYERS];
+
+stock ShipPanel_Reset(playerid)
+{
+    gShipPanelClearPending[playerid] = false;
+    return 1;
+}
 
 stock bool:ShipPanel_Allowed(playerid)
 {
@@ -20,6 +27,7 @@ stock bool:ShipPanel_Allowed(playerid)
 
 stock ShipPanel_Open(playerid)
 {
+    gShipPanelClearPending[playerid] = false;
     if (!Admin_Require(playerid, PERM_MODERATE)) return 1;
     if (gShipEditActive[playerid])
         return SendClientMessage(playerid, ADMIN_ERROR,
@@ -133,6 +141,7 @@ stock ShipPanel_OnDialog(playerid, dialogid, response, listitem)
     if (gShipEditActive[playerid] || gShipCamActive[playerid]) return 1;
     if (!response)
     {
+        if (dialogid == SHIP_PANEL_CLEAR_CONFIRM) gShipPanelClearPending[playerid] = false;
         if (dialogid == SHIP_PANEL_MAIN) return 1;
         return ShipPanel_Open(playerid);
     }
@@ -191,6 +200,11 @@ stock ShipPanel_OnDialog(playerid, dialogid, response, listitem)
             case 5: ShipPanel_Dispatch(playerid, "help");
             case 6:
             {
+                if (!Ship_Ready()) return ShipPanel_Tools(playerid);
+                if (ShipEditor_Occupied())
+                    return SendClientMessage(playerid, ADMIN_ERROR,
+                        "[Tarkenso RPG] Нельзя удалить корабль, пока рядом с корпусом есть игроки.");
+                gShipPanelClearPending[playerid] = true;
                 ShowPlayerDialog(playerid, SHIP_PANEL_CLEAR_CONFIRM,
                     DIALOG_STYLE_MSGBOX, "Tarkenso RPG | Подтверждение",
                     "Удалить корабль из памяти?\nСохранённый файл останется на диске.",
@@ -202,7 +216,12 @@ stock ShipPanel_OnDialog(playerid, dialogid, response, listitem)
     }
     if (dialogid == SHIP_PANEL_CLEAR_CONFIRM)
     {
+        if (!gShipPanelClearPending[playerid]) return 1;
+        gShipPanelClearPending[playerid] = false;
         if (!Studio_Require(playerid)) return 1;
+        if (ShipEditor_Occupied())
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Удаление отменено: кто-то находится у корпуса.");
         ShipPanel_Dispatch(playerid, "clear");
         return ShipPanel_Open(playerid);
     }
