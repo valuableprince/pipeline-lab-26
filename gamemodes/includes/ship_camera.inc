@@ -126,15 +126,15 @@ stock ShipCam_Status(playerid)
         case SHIPCAM_ANGLE: format(name, sizeof(name), "ANGLE 45");
         case SHIPCAM_ORBIT: format(name, sizeof(name), "ORBIT");
     }
-    new state[18];
-    if (gShipManeuverActive) format(state, sizeof(state), "MANEUVER");
-    else if (gShipPortDeparture >= 0) format(state, sizeof(state), "PORT EXIT");
-    else if (gShipRunning) format(state, sizeof(state), "AT SEA");
-    else format(state, sizeof(state), "STOPPED");
+    new vesselState[18];
+    if (gShipManeuverActive) format(vesselState, sizeof(vesselState), "MANEUVER");
+    else if (gShipPortDeparture >= 0) format(vesselState, sizeof(vesselState), "PORT EXIT");
+    else if (gShipRunning) format(vesselState, sizeof(vesselState), "AT SEA");
+    else format(vesselState, sizeof(vesselState), "STOPPED");
     new line[160];
     format(line, sizeof(line),
         "Tarkenso RPG | SHIP CAM~n~VIEW: %s | DIST: %.0f~n~VESSEL: %s",
-        name, gShipCamDistance[playerid], state);
+        name, gShipCamDistance[playerid], vesselState);
     PlayerTextDrawSetString(playerid, gShipCamStatus[playerid], line);
     return 1;
 }
