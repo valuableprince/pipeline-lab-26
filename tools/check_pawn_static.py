@@ -155,13 +155,13 @@ def declared_buffers(body: str, clean: str) -> dict[str, int]:
     return arrays
 
 
-def is_guarded_failed_handle(fragment: str, name: str) -> bool:
-    # Only suppress the common "if (!handle) return 0;" validation path.
-    tail = fragment[-160:]
+def is_guarded_failed_handle(prefix: str, name: str) -> bool:
+    # Match the immediate condition *before this return*, not an earlier guard.
+    # Otherwise "if (!handle) return 0; if (bad) return 0;" gets suppressed.
     return bool(re.search(
-        r"\bif\s*\(\s*!\s*" + re.escape(name) +
-        r"\s*\)\s*(?:\{\s*)?return\s+(?:0|false|INVALID_[A-Z_]+)\s*;",
-        tail, re.I,
+        r"\bif\s*\(\s*!\s*" + re.escape(name) + r"\s*\)\s*(?:\{\s*)?$",
+        prefix[-160:].strip(),
+        re.I,
     ))
 
 
@@ -201,7 +201,7 @@ def analyze_sources(texts: dict[str, str]) -> list[Finding]:
                             section = fn.clean[pos:pos + closure.start()]
                             for ret in RETURN.finditer(section):
                                 at = ret.start()
-                                snippet = section[max(0, at - 120):]
+                                snippet = section[max(0, at - 160):at]
                                 if not is_guarded_failed_handle(snippet, var):
                                     report(pos + at, "RESOURCE_EARLY_RETURN",
                                            f"return before {close_name}({var}) may skip cleanup in {fn.name}")
