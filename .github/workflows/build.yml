@@ -116,6 +116,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_ship_maneuver.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_camera.py' -v
           python3 -m unittest discover -s tests -p 'test_ship_panel.py' -v
+          python3 -m unittest discover -s tests -p 'test_ship_horn.py' -v
 
       - name: Validate controlled NPC load test
         run: |
