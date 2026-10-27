@@ -47,6 +47,7 @@ forward ShipPanel_Open(playerid);
 new gShipPortDeparture = -1;
 forward ShipPort_Tick();
 forward ShipPort_Command(playerid, const params[]);
+forward ShipHorn_Play();
 
 forward Ship_Tick();
 
