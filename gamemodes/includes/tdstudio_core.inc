@@ -1,0 +1,328 @@
+#if defined _tarkenso_tds_core
+    #endinput
+#endif
+#define _tarkenso_tds_core
+
+static gTDSTimer;
+forward TDS_Poll();
+forward bool:TDSInput_Target(session);
+forward bool:TDSInput_Usable(session);
+forward bool:TDS_GeoNudge(s, Float:dx, Float:dy);
+
+stock bool:TDS_Allowed(playerid)
+{
+    if (!gTDSTimer) return false;
+    if (!TDSHost_Ready(playerid)) return false;
+    if (TDSHost_Founder(playerid)) return true;
+    if (!gTDSGranted[playerid] || gTDSGrantToken[playerid] != TDSHost_Token(playerid) ||
+        gTDSGrantAccount[playerid] != TDSHost_Account(playerid)) return false;
+    return true;
+}
+
+stock TDS_Session(playerid)
+{
+    if (!TDS_PlayerValid(playerid)) return -1;
+    new session = gTDSPlayerSlot[playerid] - 1;
+    if (session < 0 || session >= TDS_SESSIONS || !gTDS[session][tsUsed] ||
+        gTDS[session][tsOwner] != playerid ||
+        gTDS[session][tsToken] != TDSHost_Token(playerid) ||
+        gTDS[session][tsAccount] != TDSHost_Account(playerid)) return -1;
+    return session;
+}
+
+stock bool:TDS_Active(playerid)
+{
+    return TDS_PlayerValid(playerid) && gTDSPlayerSlot[playerid] != 0;
+}
+
+stock TDS_StopMouse(session, bool:cancel = true)
+{
+    if (!gTDS[session][tsMouse]) return 1;
+    // CancelSelectTextDraw dispatches INVALID_TEXT_DRAW; clear ownership first.
+    gTDS[session][tsMouse] = false;
+    if (cancel && IsPlayerConnected(gTDS[session][tsOwner]))
+        CancelSelectTextDraw(gTDS[session][tsOwner]);
+    return 1;
+}
+
+stock TDS_Close(playerid, bool:connected = true)
+{
+    if (!TDS_PlayerValid(playerid)) return 0;
+    new session = gTDSPlayerSlot[playerid] - 1;
+    if (session < 0 || session >= TDS_SESSIONS || !gTDS[session][tsUsed] ||
+        gTDS[session][tsOwner] != playerid) return 0;
+    TDSExp_Cancel(session);
+    TDSInput_End(session, false, connected, false);
+    gTDSPlayerSlot[playerid] = 0;
+    new dialog = gTDS[session][tsDialog];
+    gTDS[session][tsDialog] = 0;
+    TDS_StopMouse(session, connected);
+    // Never dismiss a dialog owned by another system.
+    if (connected && dialog != 0 && GetPlayerDialogID(playerid) == dialog)
+        HidePlayerDialog(playerid);
+    TDS_RenderDestroy(session);
+    TDS_LayoutReset(session);
+    for (new i; i < TDS_ELEMENTS; i++) gTDSElement[session][i][tdId] = 0;
+    gTDS[session][tsUsed] = false;
+    gTDS[session][tsProject] = false;
+    TDS_HReset(session);
+    gTDS[session][tsName][0] = EOS;
+    gTDS[session][tsOwner] = INVALID_PLAYER_ID;
+    return 1;
+}
+
+stock TDS_Reset(playerid, bool:connected = true)
+{
+    if (!TDS_PlayerValid(playerid)) return 0;
+    TDS_Close(playerid, connected);
+    gTDSGranted[playerid] = false;
+    gTDSGrantToken[playerid] = 0;
+    gTDSGrantAccount[playerid] = 0;
+    gTDSOpenLimited[playerid] = false;
+    gTDSOpenTick[playerid] = 0;
+    return 1;
+}
+
+stock TDS_RequireSession(playerid)
+{
+    new session = TDS_Session(playerid);
+    if (session < 0 || !TDS_Allowed(playerid) ||
+        (gTDS[session][tsProject] && gTDS[session][tsCreator] != TDSHost_Account(playerid) && !TDSHost_Founder(playerid)))
+    {
+        TDS_Close(playerid);
+        return -1;
+    }
+    return session;
+}
+
+// One shared action budget for forged dialogs, toolbar clicks and commands.
+stock bool:TDS_Action(session)
+{
+    new now = GetTickCount();
+    if (gTDS[session][tsThrottled] && now - gTDS[session][tsLastAction] < 100) return false;
+    gTDS[session][tsThrottled] = true;
+    gTDS[session][tsLastAction] = now;
+    return true;
+}
+
+stock TDS_Allocate(playerid)
+{
+    if (!TDS_Allowed(playerid) || gTDSLeaseSerial >= 2147483646) return -1;
+    for (new s; s < TDS_SESSIONS; s++)
+    {
+        if (gTDS[s][tsUsed]) continue;
+        for (new E_TDS_SESSION:i; i < E_TDS_SESSION; i++) gTDS[s][i] = 0;
+        gTDS[s][tsUsed] = true;
+        gTDS[s][tsLease] = ++gTDSLeaseSerial;
+        gTDS[s][tsInterface] = 1;
+        gTDS[s][tsFormat] = TDS_FORMAT;
+        gTDS[s][tsOwner] = playerid;
+        gTDS[s][tsToken] = TDSHost_Token(playerid);
+        gTDS[s][tsAccount] = TDSHost_Account(playerid);
+        gTDS[s][tsSelected] = -1;
+        gTDS[s][tsNextId] = 1;
+        gTDS[s][tsStep] = 2; // 1.0
+        gTDSPlayerSlot[playerid] = s + 1;
+        for (new i; i < TDS_ELEMENTS; i++) gTDSElement[s][i][tdId] = 0;
+        TDS_LayoutReset(s);
+        TDS_GeoInit(s);
+        TDS_RenderInit(s);
+        if (!TDS_RenderTools(s)) { TDS_Close(playerid); return -1; }
+        return s;
+    }
+    return -1;
+}
+
+stock bool:TDS_NewProject(playerid, const name[])
+{
+    new s = TDS_RequireSession(playerid);
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsProject] || !TDS_ValidName(name)) return false;
+    format(gTDS[s][tsName], TDS_NAME, "%s", name);
+    gTDS[s][tsProject] = true;
+    gTDS[s][tsCreator] = TDSHost_Account(playerid);
+    gTDS[s][tsDirty] = true;
+    TDS_HReset(s);
+    return true;
+}
+
+stock TDS_AddElement(playerid, E_TDS_TYPE:type)
+{
+    new s = TDS_RequireSession(playerid);
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE || !gTDS[s][tsProject] || type < TDS_TEXT_TYPE || type > TDS_MODEL_TYPE ||
+        gTDS[s][tsCount] >= TDS_ELEMENTS || gTDS[s][tsNextId] >= 2147483646) return -1;
+    for (new i; i < TDS_ELEMENTS; i++)
+    {
+        if (gTDSElement[s][i][tdId]) continue;
+        new slots[TDS_ELEMENTS], orders[TDS_ELEMENTS], count = TDS_Order(s, slots);
+        TDS_SaveOrders(s, orders);
+        TDS_DefaultElement(s, i, type, gTDS[s][tsNextId]);
+        slots[count] = i; TDS_Reindex(s, slots, count+1);
+        if (!TDS_RenderRebuild(s))
+        {
+            TDS_RenderDestroyElement(s, i);
+            gTDSElement[s][i][tdId] = 0;
+            TDS_RestoreOrders(s, orders);
+            return -1;
+        }
+        gTDS[s][tsNextId]++;
+        gTDS[s][tsCount]++;
+        TDS_PickOne(s, i);
+        TDS_RenderStatus(s);
+        gTDS[s][tsDirty] = true;
+        TDS_HRecord(s, TDS_H_CREATE, gTDSElement[s][i][tdId]);
+        return i;
+    }
+    return -1;
+}
+
+stock bool:TDS_DeleteElement(playerid, slot)
+{
+    new s = TDS_RequireSession(playerid);
+    if (!TDS_ElementValid(s, slot) || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return false;
+    new deletedId = gTDSElement[s][slot][tdId];
+    TDS_RenderDestroyElement(s, slot);
+    new group = gTDSElement[s][slot][tdGroup];
+    gTDSElement[s][slot][tdId] = 0;
+    gTDSPicked[s][slot] = false;
+    TDS_GroupPrune(s, group);
+    gTDS[s][tsCount]--;
+    if (gTDS[s][tsSelected] == slot)
+    {
+        gTDS[s][tsSelected] = -1;
+        for (new e; e < TDS_ELEMENTS; e++) if (gTDSPicked[s][e] && TDS_ElementValid(s, e)) { gTDS[s][tsSelected] = e; break; }
+    }
+    TDS_RenderStatus(s);
+    gTDS[s][tsDirty] = true;
+    TDS_HRecord(s, TDS_H_DELETE, deletedId);
+    return true;
+}
+
+stock bool:TDS_Move(playerid, Float:dx, Float:dy)
+{
+    new s = TDS_RequireSession(playerid);
+    if (s < 0 || gTDS[s][tsBusy]) return false;
+    if (gTDS[s][tsMode] == TDS_MOVE_MODE && gTDS[s][tsTransform] != TDS_TRANS_MOVE) return false;
+    if (gTDS[s][tsSnap] && gTDS[s][tsMode] != TDS_MOVE_MODE) return TDS_GeoNudge(s, dx, dy);
+    if (gTDS[s][tsMode] == TDS_MOVE_MODE && !TDSInput_Target(s)) return false;
+    if (!TDS_InRange(dx, -640.0, 640.0) || !TDS_InRange(dy, -448.0, 448.0)) return false;
+    new slots[TDS_ELEMENTS], count = TDS_Targets(s, slots), bool:changed;
+    if (!count) return false;
+    // Validate the whole set (including native resources) before any write.
+    for (new i; i < count; i++)
+    {
+        new e = slots[i];
+        new Float:x = gTDSElement[s][e][tdX] + dx, Float:y = gTDSElement[s][e][tdY] + dy;
+        if (!TDS_InRange(x, 0.0, 640.0) || !TDS_InRange(y, 0.0, 448.0)) return false;
+        if (!IsValidPlayerTextDraw(playerid, gTDSDraw[s][e])) { TDS_Close(playerid); return false; }
+        if (x != gTDSElement[s][e][tdX] || y != gTDSElement[s][e][tdY]) changed = true;
+    }
+    if (!changed) return true;
+    for (new i; i < count; i++)
+    { gTDSElement[s][slots[i]][tdX] += dx; gTDSElement[s][slots[i]][tdY] += dy; }
+    for (new i; i < count; i++) if (!TDS_RenderPosition(s, slots[i])) { TDS_Close(playerid); return false; }
+    TDS_RenderStatus(s);
+    if (gTDS[s][tsMode] != TDS_MOVE_MODE)
+    { gTDS[s][tsDirty] = true; TDS_HRecord(s, TDS_H_MOVE, gTDSElement[s][gTDS[s][tsSelected]][tdId]); }
+    return true;
+}
+
+stock TDS_SetMode(playerid, E_TDS_MODE:mode)
+{
+    new s = TDS_RequireSession(playerid);
+    if (s < 0 || gTDS[s][tsBusy] || mode < TDS_MENU_MODE || mode > TDS_PREVIEW_MODE) return 0;
+    if (mode != TDS_MENU_MODE && !gTDS[s][tsProject]) return 0;
+    TDSInput_End(s, false);
+    TDS_StopMouse(s);
+    gTDS[s][tsDialog] = 0;
+    gTDS[s][tsMode] = mode;
+    TDS_RenderToolsVisible(s, false);
+    if (mode == TDS_EDIT_MODE)
+    {
+        gTDS[s][tsMouse] = true;
+        SelectTextDraw(playerid, TDS_COLOR);
+    }
+    for (new i; i < TDS_ELEMENTS; i++)
+        if (TDS_ElementValid(s, i) && !TDS_RenderElement(s, i))
+        {
+            TDS_Close(playerid);
+            return 0;
+        }
+    if (mode == TDS_EDIT_MODE)
+    {
+        TDS_RenderStatus(s);
+        TDS_RenderToolsVisible(s, true);
+    }
+    if (mode == TDS_PREVIEW_MODE)
+        TDSHost_Message(playerid, TDS_COLOR, "Предпросмотр. /tdstudio — вернуться к редактированию.");
+    return 1;
+}
+
+// Commands that may open foreign dialogs/selection cannot steal the UI session.
+stock bool:TDS_CommandAllowed(playerid, const cmd[])
+{
+    if (!TDS_Active(playerid) || !strcmp(cmd, "tdstudio", true) ||
+        !strcmp(cmd, "tdgrant", true) || !strcmp(cmd, "aduty", true)) return true;
+    TDSHost_Message(playerid, TDS_COLOR, "Сначала закройте проект через /tdstudio.");
+    return false;
+}
+
+stock TDS_Grant(playerid, target, bool:allow)
+{
+    if (!TDSHost_Ready(playerid) || !TDSHost_Founder(playerid))
+        return TDSHost_Message(playerid, ADMIN_ERROR, "Выдавать доступ может подтверждённый основатель в /aduty.");
+    if (!TDSHost_Ready(target))
+        return TDSHost_Message(playerid, ADMIN_ERROR, "Разработчик должен войти в аккаунт.");
+    if (!TDSHost_LogGrant(playerid, target, allow))
+        return TDSHost_Message(playerid, ADMIN_ERROR, "Журнал недоступен: доступ не изменён.");
+    gTDSGranted[target] = allow;
+    gTDSGrantToken[target] = TDSHost_Token(target);
+    gTDSGrantAccount[target] = TDSHost_Account(target);
+    if (!allow) TDS_Close(target);
+    TDSHost_Message(target, TDS_COLOR, allow ?
+        ("Выдан доступ к /tdstudio до отключения от сервера.") : ("Доступ к TextDraw Studio отозван."));
+    return TDSHost_Message(playerid, TDS_COLOR, "Права TextDraw Studio обновлены.");
+}
+
+stock TDS_Init()
+{
+    if (gTDSTimer) return 1;
+    gTDSTimer = SetTimer("TDS_Poll", 1000, true);
+    if (!gTDSTimer)
+    {
+        print("[TDSTUDIO] Session monitor unavailable; editor access disabled.");
+        return 0;
+    }
+    TDSDB_Init();
+    return 1;
+}
+
+public TDS_Poll()
+{
+    TDSDB_Expire();
+    for (new s; s < TDS_SESSIONS; s++)
+    {
+        if (!gTDS[s][tsUsed]) continue;
+        new playerid = gTDS[s][tsOwner];
+        if (!TDS_Allowed(playerid) || TDS_Session(playerid) != s)
+        {
+            TDS_Close(playerid, IsPlayerConnected(playerid));
+            continue;
+        }
+        if (gTDS[s][tsMode] == TDS_MOVE_MODE && !TDSInput_Usable(s))
+        {
+            TDS_Close(playerid);
+            continue;
+        }
+        TDSExp_Tick(s);
+    }
+    return 1;
+}
+
+stock TDS_Shutdown()
+{
+    if (gTDSTimer) KillTimer(gTDSTimer);
+    gTDSTimer = 0;
+    for (new s; s < TDS_SESSIONS; s++)
+        if (gTDS[s][tsUsed]) TDS_Close(gTDS[s][tsOwner]);
+    return 1;
+}

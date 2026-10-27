@@ -1,0 +1,15 @@
+ENCODING: CP1251 (raw bytes), matching TARKENSO build staging.
+Copy the .inc from scriptfiles/tdstudio_exports into gamemodes/includes.
+Include it after <open.mp>. When committing to this UTF-8 repository, decode
+CP1251 to UTF-8 first; the normal build converts UTF-8 back to CP1251.
+Keep the existing server rustext component; no client mods are required.
+PlayerTextDraw lifecycle:
+OnPlayerSpawn (or UI entry): TD_ui_6ADF342F_Create(playerid); TD_ui_6ADF342F_Show(playerid);
+OnPlayerDisconnect: TD_ui_6ADF342F_Destroy(playerid);
+OnGameModeExit: loop connected players and call TD_ui_6ADF342F_Destroy(playerid).
+Hide without destroying: TD_ui_6ADF342F_Hide(playerid).
+Route clicks from OnPlayerClickPlayerTextDraw through TD_ui_6ADF342F_Hit(playerid, playertextid).
+Hit returns the original element ID, or -1 for an unrelated handle.
+For selectable interfaces call SelectTextDraw BEFORE Show.
+Preserve existing click/cancel handlers; handle INVALID_TEXT_DRAW on ESC.
+Global TextDraws consume the global pool; budget other UI before integration.

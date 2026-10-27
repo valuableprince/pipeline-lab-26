@@ -1,6 +1,7 @@
 """AUTH-UI-01: проверки оформленных стандартных диалогов и защиты аккаунтов."""
 
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,8 +9,6 @@ CORE = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 DIALOGS = (ROOT / "gamemodes/includes/auth_dialogs.inc").read_text(encoding="utf-8")
 CAMERA = (ROOT / "gamemodes/includes/auth_camera.inc").read_text(encoding="utf-8")
 COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
-BUILD = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
-WORKFLOW = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
 
 
 class AuthUiContractTest(unittest.TestCase):
@@ -25,7 +24,10 @@ class AuthUiContractTest(unittest.TestCase):
                 self.assertIn(phrase, DIALOGS)
         self.assertIn('#include "auth_dialogs.inc"', CORE)
         self.assertNotIn("CreatePlayerTextDraw(", CORE + DIALOGS)
-        self.assertNotIn("OnPlayerClickPlayerTextDraw(", CORE + DIALOGS)
+        self.assertNotIn("OnPlayerClickPlayerTextDraw(", DIALOGS)
+        clicks = CORE.split("public OnPlayerClickPlayerTextDraw(", 1)[1].split("\n}", 1)[0]
+        self.assertIn("TDS_OnClick", clicks)
+        self.assertIn("SortUI_OnClick", clicks)
         self.assertFalse((ROOT / "gamemodes/includes/auth_ui.inc").exists())
 
     def test_registration_and_login_security(self):
@@ -86,8 +88,7 @@ class AuthUiContractTest(unittest.TestCase):
             source.encode("cp1251", errors="strict")
         for module in ("auth_camera.inc",
                        "auth_dialogs.inc", "studio_system.inc", "studio_ui.inc"):
-            self.assertIn(f'"{module}"', BUILD)
-            self.assertIn(f'"{module}"', WORKFLOW)
+            assert_staged(self, module)
 
 
 if __name__ == "__main__":

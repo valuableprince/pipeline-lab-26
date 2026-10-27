@@ -1,5 +1,6 @@
 """DB-MIGRATION-02B: два persistence backend и контракт SQL сохранений."""
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,14 +8,15 @@ G = (ROOT / "gamemodes/signal0317.pwn").read_text("utf-8")
 D = (ROOT / "gamemodes/includes/db_primary.inc").read_text("utf-8")
 C = (ROOT / "gamemodes/includes/cleaner_job.inc").read_text("utf-8")
 A = (ROOT / "gamemodes/includes/admin_system.inc").read_text("utf-8")
-W = (ROOT / ".github/workflows/pawn-build.yml").read_text("utf-8")
+W = (ROOT / ".github/workflows/build.yml").read_text("utf-8")
 
 class PrimaryDatabase(unittest.TestCase):
     def test_opt_in_and_build(self):
         self.assertIn("#if defined TARKENSO_DB_PRIMARY", D)
-        self.assertIn("signal0317_db_primary.amx", W)
-        self.assertIn("db_primary.inc", W)
+        self.assertIn("build/compiled.amx", W)
+        assert_staged(self, "db_primary.inc")
         self.assertNotIn("#define TARKENSO_DB_PRIMARY", G)
+        self.assertIn("#define TARKENSO_DB_PRIMARY", W)
 
     def test_sql_accounts_and_cas(self):
         self.assertIn("return DBPrimary_BeginAccount(playerid, fromIntro)", G)
@@ -25,7 +27,7 @@ class PrimaryDatabase(unittest.TestCase):
         self.assertIn("mysql_tquery(gDBPrimary, q", D)
         self.assertIn("gAuthToken[playerid]", D)
         self.assertIn("fexist(legacyPath) || fexist(legacyBackup)", D)
-        self.assertIn("signal0317-mysql-uat-amx", W)
+        self.assertIn("name: compiled-output", W)
         self.assertIn("cache_affected_rows()", D)
 
     def test_jobs_admin_and_bans(self):

@@ -15,3 +15,6 @@ dist/
 
 # Local headless-client load test data (may contain account/connection diagnostics).
 loadtest_results/
+# Local server settings and database credentials (examples remain versioned).
+config.json
+mysql.ini

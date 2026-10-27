@@ -1,4 +1,6 @@
 #include <open.mp>
+// Bounded editor dialog buffers can exceed the default 4096-cell stack/heap.
+#pragma dynamic 16384
 // Сторонние исходники зафиксированы в gamemodes/includes; бинарные компоненты ставятся отдельно.
 #define SSCANF_NO_NICE_FEATURES
 #include "Pawn.CMD.inc"
@@ -113,6 +115,8 @@ forward bool:Economy_CleanerInitialize(playerid, earned);
 forward AdminTP_Reset(playerid);
 forward AdminTP_Info(playerid);
 forward CleanerDump_GetBin();
+forward bool:TDS_Active(playerid);
+forward bool:TDSDB_OnError(const callback[], const query[]);
 forward CleanerDump_NavReset(playerid);
 forward CleanerDump_NavClear(playerid);
 forward CleanerDump_Navigate(playerid, count);
@@ -207,6 +211,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "ship_camera.inc"
 #include "ship_horn.inc"
 #include "ship_panel.inc"
+#include "tdstudio.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 #include "ship_notice.inc"
@@ -824,6 +829,7 @@ public OnGameModeInit()
     CleanerDump_Init();
     Truck_Init();
     SortUI_Init();
+    TDS_Init();
     Race_Init();
     Admin_Init();
     AdminFly_Init();
@@ -860,6 +866,7 @@ public OnGameModeExit()
     AdminFly_Shutdown();
     OrvelarHUD_Shutdown();
     Race_Shutdown();
+    TDS_Shutdown();
     SortUI_Shutdown();
     Truck_Shutdown();
     CleanerDump_Shutdown();
@@ -876,6 +883,7 @@ public OnGameModeExit()
 
 public OnPlayerConnect(playerid)
 {
+    TDS_Reset(playerid);
     // Also apply at connection: default GTA stunt bonuses are enabled per player.
     EnableStuntBonusForPlayer(playerid, false);
     // No stock GTA checkpoints are used by the Tarkenso game mode.
@@ -952,6 +960,7 @@ public OnPlayerConnect(playerid)
 public OnPlayerDisconnect(playerid, reason)
 {
     AdminFly_Reset(playerid);
+    TDS_Reset(playerid, false);
     RP_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     AuthProfiler_Reset(playerid);
@@ -1111,6 +1120,7 @@ public OnPlayerDeath(playerid, killerid, WEAPON:reason)
     ShipPanel_Reset(playerid);
     ShipEditor_Reset(playerid);
     AdminFly_Reset(playerid);
+    TDS_Close(playerid);
     SortUI_Reset(playerid);
     if (Race_OnDeath(playerid)) return 1;
     if (gAuthState[playerid] == AUTH_READY)
@@ -1140,6 +1150,11 @@ public Auth_DeathRespawn(playerid, token)
 
 public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 {
+    if (TDS_Active(playerid))
+    {
+        TDSInput_OnKeys(playerid, newkeys);
+        return 1;
+    }
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
@@ -1147,10 +1162,17 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     return 1;
 }
 
+public OnPlayerUpdate(playerid)
+{
+    if (TDS_Active(playerid)) TDSInput_OnUpdate(playerid);
+    return 1;
+}
+
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
     if (ShipCam_OnClick(playerid, playertextid)) return 1;
     if (ShipEditor_OnClick(playerid, playertextid)) return 1;
+    if (TDS_OnClick(playerid, playertextid)) return 1;
     return SortUI_OnClick(playerid, playertextid);
 }
 
@@ -1158,6 +1180,7 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
     if (ShipCam_OnEscape(playerid, clickedid)) return 1;
     if (ShipEditor_OnEscape(playerid, clickedid)) return 1;
+    if (TDS_OnCancel(playerid, clickedid)) return 1;
     return SortUI_OnCancel(playerid, clickedid);
 }
 
@@ -1177,6 +1200,9 @@ public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstat
     if (newstate != PLAYER_STATE_ONFOOT) ShipCam_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) ShipEditor_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
+    new studio = TDS_Session(playerid);
+    if (studio >= 0 && gTDS[studio][tsMode] == TDS_MOVE_MODE && newstate != PLAYER_STATE_ONFOOT)
+        TDS_Close(playerid);
     Race_OnStateChange(playerid, newstate, oldstate);
     Truck_OnStateChange(playerid, newstate, oldstate);
     if (gCleanerDuty[playerid] && gCleanerBag[playerid] >= Cleaner_Capacity(playerid) &&
@@ -1210,6 +1236,7 @@ public OnVehicleDeath(vehicleid, killerid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (TDS_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;

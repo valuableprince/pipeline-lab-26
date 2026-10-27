@@ -8,7 +8,9 @@ on:
       - "tests/**"
       - "tools/check_pawn_output.py"
       - "tools/check_chat_style.py"
+      - "tools/check_dialog_ids.py"
       - "tools/install_rustext.py"
+      - "tools/test_tdstudio.py"
       - ".github/workflows/build.yml"
   pull_request:
     branches: [main]
@@ -32,10 +34,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check dialog ID collisions
+        run: python3 tools/check_dialog_ids.py
+
       - name: Install runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y libc6-i386
+          sudo apt-get install -y libc6-i386 lib32gcc-s1 lib32stdc++6 lib32atomic1
 
       - name: Obtain compiler
         shell: bash
@@ -55,6 +60,7 @@ jobs:
           echo "PAWN_COMPILER=$COMPILER" >> "$GITHUB_ENV"
           echo "PAWN_INCLUDE=$(dirname "$INCLUDE")" >> "$GITHUB_ENV"
           echo "PAWN_LIB=$(dirname "$LIBPAWNC")" >> "$GITHUB_ENV"
+          echo "OMP_SERVER_DIR=$(dirname "$(dirname "$COMPILER")")" >> "$GITHUB_ENV"
 
       - name: Audit chat style
         shell: bash
@@ -77,51 +83,15 @@ jobs:
               (dest / source.name).write_bytes(source.read_text(encoding="utf-8").encode("cp1251", errors="strict"))
           PY
 
-      - name: Validate PayDay, character menu and Studio contracts
+      - name: Validate all Python contracts and tools
         run: |
-          python3 -m unittest discover -s tests -p 'test_payday.py' -v
-          python3 -m unittest discover -s tests -p 'test_story_prologue.py' -v
-          python3 -m unittest discover -s tests -p 'test_death_respawn.py' -v
-          python3 -m unittest discover -s tests -p 'test_story_audio.py' -v
-          python3 -m unittest discover -s tests -p 'test_player_menu.py' -v
-          python3 -m unittest discover -s tests -p 'test_radio_player.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_vehicle.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_fly.py' -v
-          python3 -m unittest discover -s tests -p 'test_stunt_bonus.py' -v
-          python3 -m unittest discover -s tests -p 'test_legacy_race_entries.py' -v
-          python3 -m unittest discover -s tests -p 'test_standard_rewards_audit.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_weather.py' -v
-          python3 -m unittest discover -s tests -p 'test_rp_commands.py' -v
-          python3 -m unittest discover -s tests -p 'test_local_chat.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_tools.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_tools2.py' -v
-          python3 -m unittest discover -s tests -p 'test_admin_punish.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_editor05.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck01.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck02.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck03.py' -v
-          python3 -m unittest discover -s tests -p 'test_truck_loading_hotfix.py' -v
-          python3 -m unittest discover -s tests -p 'test_truck_alt_cargo_labels.py' -v
-          python3 -m unittest discover -s tests -p 'test_cleaner_truck04.py' -v
-          python3 -m unittest discover -s tests -p 'test_waste_sort.py' -v
-          python3 -m unittest discover -s tests -p 'test_rustext_installer.py' -v
-          python3 -m unittest discover -s tests -p 'test_studio_core.py' -v
-          python3 -m unittest discover -s tests -p 'test_studio_stage2.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_studio.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_route_lssf.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_cargo_assembly.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_surfing.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_port.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_editor.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_maneuver.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_camera.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_panel.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_horn.py' -v
-          python3 -m unittest discover -s tests -p 'test_ship_notice.py' -v
+          python3 -m compileall -q tools tests
+          python3 -m unittest discover -s tests -v
 
-      - name: Validate controlled NPC load test
+      - name: Run TextDraw Studio Pawn behavior tests
         run: |
-          python3 -m unittest discover -s tests -p 'test_load_test.py' -v
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 tools/test_tdstudio.py --server "$OMP_SERVER_DIR"
 
       - name: Validate stage 2 headless harness
         run: |
@@ -174,6 +144,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: diagnostics
-          path: build/compiler.log
+          path: |
+            build/compiler.log
+            build/tdstudio-test-compile.log
+            build/tdstudio-test-run.log
           if-no-files-found: ignore
           retention-days: 3

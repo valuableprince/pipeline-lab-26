@@ -1,12 +1,11 @@
 """DB-MIGRATION-02A — optional MySQL shadow adapter safety contracts."""
 from pathlib import Path
+from build_contracts import assert_staged
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 INC = (ROOT / "gamemodes/includes/db_shadow.inc").read_text(encoding="utf-8")
-CI = (ROOT / ".github/workflows/pawn-build.yml").read_text(encoding="utf-8")
-WIN = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
 
 
 class ShadowBridge(unittest.TestCase):
@@ -34,8 +33,7 @@ class ShadowBridge(unittest.TestCase):
                        "DBShadow_CheckAccount(playerid);"):
             self.assertIn(method, GAME)
         self.assertIn('#include "db_shadow.inc"', GAME)
-        self.assertIn('"db_shadow.inc"', CI)
-        self.assertIn('"db_shadow.inc"', WIN)
+        assert_staged(self, "db_shadow.inc")
         self.assertIn("Auth_ReadAccount(playerid)", GAME)
         self.assertIn("Auth_WriteData(playerid", GAME)
 
