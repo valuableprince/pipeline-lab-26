@@ -19,7 +19,10 @@ import subprocess
 import tempfile
 import threading
 
-from check_pawn_output import analyze_pawn_output
+try:
+    from tools.check_pawn_output import analyze_pawn_output
+except ModuleNotFoundError:
+    from check_pawn_output import analyze_pawn_output
 
 ROOT = Path(__file__).resolve().parents[1]
 SHIP = "gamemodes/includes/ship_notice.inc"
