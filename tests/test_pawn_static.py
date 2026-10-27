@@ -75,6 +75,73 @@ stock BadPath()
 '''
         self.assertIn("RESOURCE_EARLY_RETURN", rules(source))
 
+    def test_invalid_handle_braced_guard_with_logging_is_not_a_leak(self):
+        examples = (
+            '''
+stock LogOpen()
+{
+    new File:handle = fopen("audit.log", io_append);
+    if (!handle)
+    {
+        print("File missing");
+        return 0;
+    }
+    fwrite(handle, "entry");
+    fclose(handle);
+    return 1;
+}
+''',
+            '''
+stock SqlOpen()
+{
+    new Cache:check = mysql_query(db, "SELECT 1");
+    if (check == Cache:0)
+    {
+        printf("Invalid query: %d", 5);
+        return false;
+    }
+    cache_delete(check);
+    return true;
+}
+''',
+            '''
+stock CopyTwo()
+{
+    new File:input = fopen("src", io_read);
+    if (!input) return false;
+    new File:output = fopen("dest", io_write);
+    if (!output)
+    {
+        fclose(input);
+        return false;
+    }
+    fclose(output);
+    fclose(input);
+    return true;
+}
+''',
+        )
+        for source in examples:
+            with self.subTest(source=source[:45]):
+                self.assertNotIn("RESOURCE_EARLY_RETURN", rules(source))
+
+    def test_invalid_guard_does_not_hide_subsequent_real_early_exit(self):
+        sample = '''
+stock PathWithLeak()
+{
+    new File:handle = fopen("save.dat", io_read);
+    if (!handle)
+    {
+        print("bad");
+        return 0;
+    }
+    if (isCorrupt) return 0;
+    fclose(handle);
+    return 1;
+}
+'''
+        self.assertIn("RESOURCE_EARLY_RETURN", rules(sample))
+
     def test_file_resource_valid_guard_and_cleanup(self):
         source = '''
 stock GoodFile()
