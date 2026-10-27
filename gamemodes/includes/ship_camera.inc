@@ -241,13 +241,13 @@ stock ShipCam_Reset(playerid)
 
 stock ShipCam_Command(playerid)
 {
-    if (!Admin_Require(playerid, PERM_MODERATE)) return 1;
     if (gShipCamActive[playerid])
     {
         ShipCam_Close(playerid);
         return SendClientMessage(playerid, ADMIN_COLOR,
             "[Tarkenso RPG] Наблюдение за кораблём завершено.");
     }
+    if (!Admin_Require(playerid, PERM_MODERATE)) return 1;
     if (!Ship_Ready())
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Корабль не загружен.");
@@ -332,7 +332,8 @@ public ShipCam_Tick()
             !gAdminDuty[playerid] || GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
             AdminPunish_IsJailed(playerid))
         {
-            ShipCam_Close(playerid, false);
+            ShipCam_Close(playerid, IsPlayerConnected(playerid) &&
+                GetPlayerState(playerid) == PLAYER_STATE_ONFOOT);
             continue;
         }
         ShipCam_UpdateView(playerid);
