@@ -15,7 +15,10 @@ stock TDS_LayoutSession(playerid)
 stock TDS_LayoutReset(s)
 {
     for (new e; e < TDS_ELEMENTS; e++)
-    { gTDSPicked[s][e] = false; gTDSMoving[s][e] = 0; gTDSMoveX[s][e] = 0.0; gTDSMoveY[s][e] = 0.0; }
+    {
+        gTDSPicked[s][e] = false; gTDSMoving[s][e] = 0;
+        for (new f; f < _:E_TDS_GEOMETRY; f++) gTDSOrigin[s][e][E_TDS_GEOMETRY:f] = 0.0;
+    }
     for (new g; g < TDS_GROUPS; g++) { gTDSGroup[s][g][tgId] = 0; gTDSGroup[s][g][tgName][0] = EOS; }
     gTDS[s][tsNextGroupId] = 1; gTDS[s][tsGroupCount] = 0;
     gTDS[s][tsGroupFocus] = 0; gTDS[s][tsSelectedGroup] = 0; gTDS[s][tsMultiPick] = false;

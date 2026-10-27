@@ -12,6 +12,7 @@ new const gTDSToolText[][] =
 
 stock TDS_RenderInit(session)
 {
+    TDS_GridInit(session);
     for (new i; i < TDS_ELEMENTS; i++) gTDSDraw[session][i] = INVALID_PLAYER_TEXT_DRAW;
     for (new i; i < TDS_TOOLS; i++) gTDSTool[session][i] = INVALID_PLAYER_TEXT_DRAW;
     return 1;
@@ -126,6 +127,20 @@ stock bool:TDS_RenderPosition(session, slot)
     return true;
 }
 
+stock bool:TDS_RenderGeometry(session, slot)
+{
+    if (!TDS_ElementValid(session, slot)) return false;
+    new playerid = gTDS[session][tsOwner], PlayerText:td = gTDSDraw[session][slot];
+    if (td == INVALID_PLAYER_TEXT_DRAW || !IsValidPlayerTextDraw(playerid, td)) return false;
+    PlayerTextDrawHide(playerid, td);
+    PlayerTextDrawSetPos(playerid, td, gTDSElement[session][slot][tdX], gTDSElement[session][slot][tdY]);
+    if (gTDSElement[session][slot][tdType] == TDS_TEXT_TYPE)
+        PlayerTextDrawLetterSize(playerid, td, gTDSElement[session][slot][tdLetterX], gTDSElement[session][slot][tdLetterY]);
+    TDS_RenderSize(playerid, td, gTDSElement[session][slot]);
+    PlayerTextDrawShow(playerid, td);
+    return true;
+}
+
 stock bool:TDS_RenderRebuild(session)
 {
     new slots[TDS_ELEMENTS], count = TDS_Order(session,slots), PlayerText:draws[TDS_ELEMENTS];
@@ -148,6 +163,7 @@ stock bool:TDS_RenderRebuild(session)
 
 stock TDS_RenderStatus(session)
 {
+    TDS_GridUpdate(session);
     new PlayerText:td = gTDSTool[session][0];
     if (td == INVALID_PLAYER_TEXT_DRAW) return 0;
     new label[128], slot = gTDS[session][tsSelected];
@@ -166,6 +182,8 @@ stock TDS_RenderStatus(session)
             gTDS[session][tsMode] == TDS_MOVE_MODE ? ("") : (gTDS[session][tsMultiPick] ? (" | MULTI") : (" | CLICK:MOVE")));
     else format(label, sizeof(label), "TD STUDIO | SEL 0/%d | STEP %.1f%s",
         gTDS[session][tsCount], gTDSSteps[gTDS[session][tsStep]], gTDS[session][tsMultiPick] ? (" | MULTI") : (""));
+    if (gTDS[session][tsMode] == TDS_MOVE_MODE && gTDS[session][tsTransform] != TDS_TRANS_MOVE)
+        TDS_GeoStatus(session, label, sizeof(label));
     PlayerTextDrawSetString(gTDS[session][tsOwner], td, "%s", label);
     return 1;
 }
@@ -194,6 +212,7 @@ stock bool:TDS_RenderTools(session)
 
 stock TDS_RenderToolsVisible(session, bool:visible)
 {
+    TDS_GridUpdate(session);
     // Reuse the existing bottom row as one hint strip in keyboard mode.
     new playerid = gTDS[session][tsOwner], PlayerText:hint = gTDSTool[session][1];
     new bool:moving = gTDS[session][tsMode] == TDS_MOVE_MODE;
@@ -203,7 +222,9 @@ stock TDS_RenderToolsVisible(session, bool:visible)
         PlayerTextDrawTextSize(playerid, hint, moving ? 635.0 : 77.0, 16.0);
         PlayerTextDrawSetSelectable(playerid, hint, !moving);
         PlayerTextDrawSetString(playerid, hint, "%s", moving ?
-            ("MOVE: WASD / ARROWS | ENTER / Y: OK | N: CANCEL | SPACE: STEP | /tdstudio: CANCEL") : ("MENU"));
+            (gTDS[session][tsTransform] == TDS_TRANS_MOVE ?
+            ("MOVE: WASD / ARROWS | ENTER / Y: OK | N: CANCEL | SPACE: STEP | /tdstudio: CANCEL") :
+            ("SIZE: MOVE AXES +/- | CROUCH: AXIS | YES/ENTER: OK | NO: CANCEL | SPRINT: STEP | /tdstudio: CANCEL")) : ("MENU"));
     }
     for (new i; i < TDS_TOOLS; i++)
     {
@@ -216,6 +237,7 @@ stock TDS_RenderToolsVisible(session, bool:visible)
 
 stock TDS_RenderDestroy(session)
 {
+    TDS_GridDestroy(session);
     for (new i; i < TDS_ELEMENTS; i++) TDS_RenderDestroyElement(session, i);
     for (new i; i < TDS_TOOLS; i++)
     {

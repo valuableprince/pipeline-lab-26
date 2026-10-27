@@ -83,7 +83,7 @@ stock TDS_EditMenu(playerid)
         gTDS[s][tsName], gTDS[s][tsCount], TDS_ELEMENTS);
     else format(title, sizeof(title), "TARKENSO TextDraw Studio | Этап 2");
     return TDS_Dialog(playerid, TDS_EDIT_MENU, DIALOG_STYLE_LIST, title,
-        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов / слоёв\nСвойства активного элемента\nШаг перемещения\nПредпросмотр\nПеремещение выделения (клавиатура)\nЗакрыть редактор\nСлои\nВыделение\nГруппы\nДублировать активный элемент", "Открыть", "Закрыть");
+        "Главное меню проекта\nПросмотр проекта / холст\nДобавить элемент\nСписок элементов / слоёв\nСвойства активного элемента\nШаг перемещения\nПредпросмотр\nПеремещение выделения (клавиатура)\nЗакрыть редактор\nСлои\nВыделение\nГруппы\nДублировать активный элемент\nГеометрия: размер / масштаб / сетка", "Открыть", "Закрыть");
 }
 
 stock TDS_List(playerid)
@@ -141,6 +141,8 @@ stock TDS_Props(playerid)
     strcat(body, "Перемещение элемента (клавиатура)", sizeof(body));
     gTDS[s][tsRows][rows++] = -4;
     strcat(body, "\nДублировать активный элемент", sizeof(body));
+    gTDS[s][tsRows][rows++] = -5;
+    strcat(body, "\nГеометрия: точные параметры / resize / scale", sizeof(body));
     gTDS[s][tsRowCount] = rows;
     return TDS_Dialog(playerid, TDS_PROPS, DIALOG_STYLE_LIST, title, body);
 }
@@ -254,6 +256,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         if (dialogid == TDS_MAIN && response) return TDS_ConfirmClose(playerid);
         return TDS_Main(playerid);
     }
+    if (dialogid >= TDS_GEOMETRY) return TDS_OnGeoDialog(playerid, dialogid, response, listitem, input);
     if (dialogid >= TDS_LAYERS) return TDS_OnLayoutDialog(playerid, dialogid, response, listitem, input);
     if (!response)
     {
@@ -338,7 +341,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
         case TDS_PROJECT_DELETE: return TDSDB_Delete(playerid);
         case TDS_EDIT_MENU:
         {
-            if (listitem < 0 || listitem > 12) return TDS_Main(playerid);
+            if (listitem < 0 || listitem > 13) return TDS_Main(playerid);
             if (listitem == 0) return TDS_Main(playerid);
             if (listitem == 8) return TDS_ConfirmClose(playerid);
             if (!gTDS[s][tsProject])
@@ -363,6 +366,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                     if (TDS_Duplicate(playerid) < 0) SendClientMessage(playerid, ADMIN_ERROR, "Копия не создана: выберите элемент, проверьте лимит и ресурсы.");
                     return TDS_EditMenu(playerid);
                 }
+                case 13: return TDS_GeoMenu(playerid);
             }
         }
         case TDS_NEW:
@@ -402,6 +406,7 @@ stock TDS_OnDialog(playerid, dialogid, response, listitem, const input[])
                 if (TDS_Duplicate(playerid) < 0) SendClientMessage(playerid, ADMIN_ERROR, "Копия не создана: лимит или нехватка хэндлов.");
                 return TDS_Props(playerid);
             }
+            if (field == -5) return TDS_GeoMenu(playerid);
             if (field < 0 || field > _:TDS_VEH_COLOURS) return TDS_Props(playerid);
             return TDS_Input(playerid, E_TDS_FIELD:field);
         }

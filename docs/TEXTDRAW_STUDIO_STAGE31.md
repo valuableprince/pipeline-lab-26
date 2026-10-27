@@ -1,5 +1,8 @@
 # TextDraw Studio — этап 3.1: слои, выделение и группы
 
+Этот документ фиксирует этап 3.1. Расширение геометрии и результаты этапа 3.2:
+[TEXTDRAW_STUDIO_STAGE32.md](TEXTDRAW_STUDIO_STAGE32.md).
+
 База: `feat/tdstudio-interactive-move`, `e173eab` (PR #55, основа PR #42).
 Рабочая ветка: `feat/tdstudio-advanced-layers-stage31`. Этапы 3.2/3.3 не реализуются.
 Контрольная компиляция базы выполнена до изменений: 0 ошибок и предупреждений.

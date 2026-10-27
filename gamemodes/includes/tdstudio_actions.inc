@@ -28,24 +28,7 @@ stock bool:TDS_ApplyInput(playerid, E_TDS_FIELD:field, const input[])
         case TDS_POSITION, TDS_SIZE, TDS_LETTERS:
         {
             if (!TDS_Numbers(input, v, 2)) return false;
-            switch (field)
-            {
-                case TDS_POSITION:
-                {
-                    if (!TDS_InRange(v[0], 0.0, 640.0) || !TDS_InRange(v[1], 0.0, 448.0)) return false;
-                    gTDSElement[s][e][tdX] = v[0]; gTDSElement[s][e][tdY] = v[1];
-                }
-                case TDS_SIZE:
-                {
-                    if (!TDS_InRange(v[0], 0.1, 640.0) || !TDS_InRange(v[1], 0.1, 448.0)) return false;
-                    gTDSElement[s][e][tdW] = v[0]; gTDSElement[s][e][tdH] = v[1];
-                }
-                case TDS_LETTERS:
-                {
-                    if (!TDS_InRange(v[0], 0.01, 5.0) || !TDS_InRange(v[1], 0.01, 10.0)) return false;
-                    gTDSElement[s][e][tdLetterX] = v[0]; gTDSElement[s][e][tdLetterY] = v[1];
-                }
-            }
+            return TDS_GeoProperty(playerid, field, v);
         }
         case TDS_CONTENT:
         {

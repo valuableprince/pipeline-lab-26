@@ -130,10 +130,12 @@ class TextDrawStudioIntegration(unittest.TestCase):
         self.assertIn("ROLLBACK;", save)
         self.assertIn("v_revision<>p_revision", save)
 
-    def test_layout_runtime_suite_runs_with_existing_harness(self):
+    def test_layout_and_geometry_suites_run_with_existing_harness(self):
         source = (ROOT / "tests/pawn/tdstudio_harness.pwn").read_text(encoding="utf-8")
         self.assertIn('#include "tdstudio_layers.inc"', source)
         self.assertIn("RunLayerTests();", source)
+        self.assertIn('#include "tdstudio_geometry_tests.inc"', source)
+        self.assertIn("RunGeometryTests();", source)
 
 
 if __name__ == "__main__":

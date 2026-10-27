@@ -5,7 +5,7 @@
 
 #define TDS_INPUT_MS (50)
 #define TDS_INPUT_STALE_MS (250)
-#define TDS_INPUT_BUTTONS (KEY_SECONDARY_ATTACK | KEY_YES | KEY_NO | KEY_SPRINT)
+#define TDS_INPUT_BUTTONS (KEY_SECONDARY_ATTACK | KEY_YES | KEY_NO | KEY_SPRINT | KEY_CROUCH)
 
 stock bool:TDSInput_Target(session)
 {
@@ -14,11 +14,16 @@ stock bool:TDSInput_Target(session)
     new e = gTDS[session][tsMoveSlot];
     if (!TDS_ElementValid(session, e) || gTDS[session][tsSelected] != e ||
         gTDSElement[session][e][tdId] != gTDS[session][tsMoveId] ||
-        gTDS[session][tsStep] < 0 || gTDS[session][tsStep] >= sizeof(gTDSSteps)) return false;
+        gTDS[session][tsStep] < 0 || gTDS[session][tsStep] >= sizeof(gTDSSteps) ||
+        gTDS[session][tsResizeStep] < 0 || gTDS[session][tsResizeStep] >= sizeof(gTDSSteps) ||
+        gTDS[session][tsTransform] < TDS_TRANS_MOVE || gTDS[session][tsTransform] > TDS_TRANS_SCALE ||
+        gTDS[session][tsGeoAxis] < 0 || gTDS[session][tsGeoAxis] > 2 ||
+        !TDS_PlayerValid(gTDS[session][tsOwner])) return false;
     new count;
     for (new i; i < TDS_ELEMENTS; i++) if (gTDSMoving[session][i])
     {
         if (!TDS_ElementValid(session, i) || gTDSElement[session][i][tdId] != gTDSMoving[session][i] ||
+            !IsValidPlayerTextDraw(gTDS[session][tsOwner], gTDSDraw[session][i]) ||
             !TDS_InRange(gTDSElement[session][i][tdX], 0.0, 640.0) ||
             !TDS_InRange(gTDSElement[session][i][tdY], 0.0, 448.0)) return false;
         count++;
@@ -46,12 +51,10 @@ stock TDSInput_End(session, bool:accept, bool:connected = true, bool:redraw = tr
     for (new e; e < TDS_ELEMENTS; e++) if (gTDSMoving[session][e] && TDS_ElementValid(session, e) &&
         gTDSElement[session][e][tdId] == gTDSMoving[session][e])
     {
-        if (gTDSElement[session][e][tdX] != gTDSMoveX[session][e] ||
-            gTDSElement[session][e][tdY] != gTDSMoveY[session][e]) changed = true;
-        if (!accept)
+        for (new f; f < _:E_TDS_GEOMETRY; f++)
         {
-            gTDSElement[session][e][tdX] = gTDSMoveX[session][e];
-            gTDSElement[session][e][tdY] = gTDSMoveY[session][e];
+            if (Float:gTDSElement[session][e][gTDSGeoFields[f]] != gTDSOrigin[session][e][E_TDS_GEOMETRY:f]) changed = true;
+            if (!accept) gTDSElement[session][e][gTDSGeoFields[f]] = _:gTDSOrigin[session][e][E_TDS_GEOMETRY:f];
         }
     }
     if (changed && accept) gTDS[session][tsDirty] = true;
@@ -65,10 +68,19 @@ stock TDSInput_End(session, bool:accept, bool:connected = true, bool:redraw = tr
     for (new e; e < TDS_ELEMENTS; e++)
     {
         if (redraw && connected && changed && !accept && gTDSMoving[session][e] &&
-            TDS_ElementValid(session, e) && gTDSElement[session][e][tdId] == gTDSMoving[session][e]) TDS_RenderPosition(session, e);
-        gTDSMoving[session][e] = 0; gTDSMoveX[session][e] = 0.0; gTDSMoveY[session][e] = 0.0;
+            TDS_ElementValid(session, e) && gTDSElement[session][e][tdId] == gTDSMoving[session][e])
+        {
+            if (gTDS[session][tsTransform] == TDS_TRANS_MOVE) TDS_RenderPosition(session, e);
+            else TDS_RenderGeometry(session, e);
+        }
+        gTDSMoving[session][e] = 0;
+        for (new f; f < _:E_TDS_GEOMETRY; f++) gTDSOrigin[session][e][E_TDS_GEOMETRY:f] = 0.0;
     }
-    gTDS[session][tsMoveCount] = 0;
+    gTDS[session][tsMoveCount] = 0; gTDS[session][tsTransform] = TDS_TRANS_MOVE;
+    gTDS[session][tsGeoRawX] = 0.0; gTDS[session][tsGeoRawY] = 0.0;
+    gTDS[session][tsGeoWidth] = 0.0; gTDS[session][tsGeoHeight] = 0.0;
+    gTDS[session][tsGeoValueW] = 0.0; gTDS[session][tsGeoValueH] = 0.0;
+    gTDS[session][tsGeoPivotX] = 0.0; gTDS[session][tsGeoPivotY] = 0.0; gTDS[session][tsGlyphs] = false;
     return 1;
 }
 
@@ -83,19 +95,26 @@ stock bool:TDS_SetStep(playerid, index)
     return true;
 }
 
-stock TDSInput_Start(playerid)
+stock TDSInput_Start(playerid, E_TDS_TRANSFORM:kind = TDS_TRANS_MOVE, bool:glyphs = false)
 {
     new s = TDS_RequireSession(playerid);
-    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE) return 0;
+    if (s < 0 || gTDS[s][tsBusy] || gTDS[s][tsMode] == TDS_MOVE_MODE || kind < TDS_TRANS_MOVE || kind > TDS_TRANS_SCALE) return 0;
     new e = gTDS[s][tsSelected];
     if (!TDS_ElementValid(s, e))
         return SendClientMessage(playerid, TDS_COLOR, "Сначала выберите элемент мышью или через список.");
-    if (!TDS_DataValid(gTDSElement[s][e]) || gTDS[s][tsStep] < 0 || gTDS[s][tsStep] >= sizeof(gTDSSteps)) return 0;
+    if (!TDS_DataValid(gTDSElement[s][e]) || gTDS[s][tsStep] < 0 || gTDS[s][tsStep] >= sizeof(gTDSSteps) ||
+        gTDS[s][tsResizeStep] < 0 || gTDS[s][tsResizeStep] >= sizeof(gTDSSteps) ||
+        gTDS[s][tsGeoAxis] < 0 || gTDS[s][tsGeoAxis] > 2) return 0;
     if (!TDSHost_ControlAllowed(playerid) || !IsPlayerControllable(playerid))
-        return SendClientMessage(playerid, ADMIN_ERROR, "Перемещение доступно пешком, вне гонки/тюрьмы и без чужой блокировки управления.");
+        return SendClientMessage(playerid, ADMIN_ERROR, "Клавиатурное редактирование доступно пешком, вне гонки/тюрьмы и без чужой блокировки управления.");
     new slots[TDS_ELEMENTS], count = TDS_Targets(s, slots);
+    if (kind == TDS_TRANS_RESIZE) { count = 1; slots[0] = e; }
+    if (glyphs && (kind != TDS_TRANS_RESIZE || gTDSElement[s][e][tdType] != TDS_TEXT_TYPE)) return 0;
     if (!count) return 0;
-    for (new i; i < count; i++) if (!TDS_DataValid(gTDSElement[s][slots[i]])) return 0;
+    for (new i; i < count; i++) if (!TDS_DataValid(gTDSElement[s][slots[i]]) ||
+        !IsValidPlayerTextDraw(playerid, gTDSDraw[s][slots[i]])) return 0;
+    new Float:l, Float:t, Float:r, Float:b;
+    if (!TDS_GeoBounds(s, slots, count, l, t, r, b)) return 0;
     new dialog = GetPlayerDialogID(playerid);
     if (dialog != INVALID_DIALOG_ID && dialog != gTDS[s][tsDialog]) return 0;
     // Cursor cancellation can dispatch a callback; relinquish it before freezing.
@@ -113,15 +132,22 @@ stock TDSInput_Start(playerid)
     {
         new target = slots[i];
         gTDSMoving[s][target] = gTDSElement[s][target][tdId];
-        gTDSMoveX[s][target] = gTDSElement[s][target][tdX]; gTDSMoveY[s][target] = gTDSElement[s][target][tdY];
+        TDS_GeoRead(s, target, gTDSOrigin[s][target]);
     }
-    gTDS[s][tsMoveCount] = count;
+    gTDS[s][tsMoveCount] = count; gTDS[s][tsTransform] = kind; gTDS[s][tsGlyphs] = glyphs;
+    gTDS[s][tsGeoPivotX] = gTDS[s][tsAnchorCenter] ? (l+r)/2.0 : l;
+    gTDS[s][tsGeoPivotY] = gTDS[s][tsAnchorCenter] ? (t+b)/2.0 : t;
+    gTDS[s][tsGeoWidth] = kind == TDS_TRANS_SCALE ? (r-l) : (glyphs ? gTDSElement[s][e][tdLetterX] : gTDSElement[s][e][tdW]);
+    gTDS[s][tsGeoHeight] = kind == TDS_TRANS_SCALE ? (b-t) : (glyphs ? gTDSElement[s][e][tdLetterY] : gTDSElement[s][e][tdH]);
+    gTDS[s][tsGeoValueW] = gTDS[s][tsGeoWidth]; gTDS[s][tsGeoValueH] = gTDS[s][tsGeoHeight];
+    gTDS[s][tsGeoRawX] = 0.0; gTDS[s][tsGeoRawY] = 0.0;
     gTDS[s][tsMode] = TDS_MOVE_MODE;
     gTDS[s][tsMoveSlot] = e; gTDS[s][tsMoveId] = gTDSElement[s][e][tdId];
     gTDS[s][tsMoveTick] = GetTickCount(); gTDS[s][tsMoveKeys] = KEY:0;
     gTDS[s][tsMoveReady] = false; gTDS[s][tsMoveFreeze] = true;
     TDS_RenderStatus(s); TDS_RenderToolsVisible(s, true);
-    SendClientMessage(playerid, TDS_COLOR, "Перемещение: отпустите клавиши. Направления — действия движения GTA; Enter/Y — принять; N — отменить; Space — шаг.");
+    SendClientMessage(playerid, TDS_COLOR, "Отпустите клавиши. Действия GTA (обычно): WASD/стрелки — геометрия; Enter/Y — принять; N — отменить; Space — шаг.");
+    if (kind != TDS_TRANS_MOVE) SendClientMessage(playerid, TDS_COLOR, "Размер: вправо/назад — больше; влево/вперёд — меньше. C (присесть) переключает ось: обе, W, H.");
     return 1;
 }
 
@@ -142,8 +168,20 @@ stock TDSInput_Buttons(session, KEY:keys)
     // Cancel wins when multiple actions arrive in the same packet.
     if (pressed & KEY_NO) return TDSInput_Finish(p, false);
     if (pressed & (KEY_SECONDARY_ATTACK | KEY_YES)) return TDSInput_Finish(p, true);
+    if ((pressed & KEY_CROUCH) && gTDS[session][tsTransform] != TDS_TRANS_MOVE && TDS_Action(session))
+    {
+        gTDS[session][tsGeoAxis] = (gTDS[session][tsGeoAxis]+1)%3;
+        gTDS[session][tsMoveTick] = GetTickCount(); TDS_RenderStatus(session);
+    }
     if ((pressed & KEY_SPRINT) && TDS_Action(session))
-        TDS_SetStep(p, (gTDS[session][tsStep] + 1) % sizeof(gTDSSteps));
+    {
+        if (gTDS[session][tsTransform] == TDS_TRANS_MOVE) TDS_SetStep(p, (gTDS[session][tsStep]+1)%sizeof(gTDSSteps));
+        else
+        {
+            gTDS[session][tsResizeStep] = (gTDS[session][tsResizeStep]+1)%sizeof(gTDSSteps);
+            gTDS[session][tsMoveTick] = GetTickCount(); TDS_RenderStatus(session);
+        }
+    }
     return 1;
 }
 
@@ -181,12 +219,14 @@ stock TDSInput_OnUpdate(playerid)
     // Time-based velocity, capped at two quanta per packet. Typical 50 ms input
     // moves one configured step; no accumulated work is replayed after a stall.
     if (elapsed > TDS_INPUT_MS * 2) elapsed = TDS_INPUT_MS * 2;
-    new Float:scale = gTDSSteps[gTDS[s][tsStep]] * float(elapsed) / float(TDS_INPUT_MS);
+    new stepIndex = gTDS[s][tsTransform] == TDS_TRANS_MOVE ? gTDS[s][tsStep] : gTDS[s][tsResizeStep];
+    if (stepIndex < 0 || stepIndex >= sizeof(gTDSSteps)) { TDS_Close(playerid); return 1; }
+    new Float:scale = gTDSSteps[stepIndex] * float(elapsed) / float(TDS_INPUT_MS);
     new Float:dx = float(lr) / 128.0, Float:dy = float(ud) / 128.0;
     new Float:length = floatsqroot(dx * dx + dy * dy);
     if (length > 1.0) { dx /= length; dy /= length; }
     dx *= scale; dy *= scale;
-    TDS_ClampMove(s, dx, dy);
-    TDS_Move(playerid, dx, dy);
+    if (gTDS[s][tsTransform] != TDS_TRANS_MOVE || gTDS[s][tsSnap]) TDS_GeoLive(s, dx, dy);
+    else { TDS_ClampMove(s, dx, dy); TDS_Move(playerid, dx, dy); }
     return 1; // never suppress unrelated player synchronization
 }

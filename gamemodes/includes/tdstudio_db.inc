@@ -18,6 +18,7 @@ new gTDSJob[TDS_JOB_LIMIT][E_TDS_JOB];
 
 stock TDS_ClearProject(session)
 {
+    TDS_GridHide(session);
     TDSInput_End(session, false);
     TDS_LayoutReset(session);
     TDS_StopMouse(session);

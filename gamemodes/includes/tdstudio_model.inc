@@ -15,7 +15,7 @@
 #define TDS_TOOLS (9)
 #define TDS_COLOR (0xF1C263FF)
 #define TDS_FIRST_DIALOG (7100)
-#define TDS_LAST_DIALOG (7125)
+#define TDS_LAST_DIALOG (7132)
 #define TDS_MAIN (7100)
 #define TDS_NEW (7101)
 #define TDS_ADD (7102)
@@ -42,9 +42,20 @@
 #define TDS_GROUP_NAME (7123)
 #define TDS_GROUP_DELETE (7124)
 #define TDS_GROUP_MEMBERS (7125)
+#define TDS_GEOMETRY (7126)
+#define TDS_GEO_INPUT (7127)
+#define TDS_GEO_ALIGN (7128)
+#define TDS_GEO_SCREEN (7129)
+#define TDS_GEO_GRID (7130)
+#define TDS_GEO_STEP (7131)
+#define TDS_GEO_INFO (7132)
 
 enum E_TDS_TYPE { TDS_TEXT_TYPE, TDS_RECT_TYPE, TDS_SPRITE_TYPE, TDS_MODEL_TYPE };
 enum E_TDS_MODE { TDS_MENU_MODE, TDS_EDIT_MODE, TDS_PREVIEW_MODE, TDS_MOVE_MODE };
+// MOVE_MODE owns all interactive transactions, including resize/scale.
+enum E_TDS_TRANSFORM { TDS_TRANS_MOVE, TDS_TRANS_RESIZE, TDS_TRANS_SCALE };
+enum E_TDS_GEOMETRY { Float:geoX, Float:geoY, Float:geoW, Float:geoH, Float:geoLetterX, Float:geoLetterY };
+enum E_TDS_ALIGN_OP { TDS_ALIGN_LEFT, TDS_ALIGN_RIGHT, TDS_ALIGN_TOP, TDS_ALIGN_BOTTOM, TDS_ALIGN_HCENTER, TDS_ALIGN_VCENTER };
 enum E_TDS_FIELD
 {
     TDS_POSITION, TDS_SIZE, TDS_LETTERS, TDS_CONTENT, TDS_COLOUR,
@@ -79,7 +90,12 @@ enum E_TDS_SESSION
     tsMoveSlot, tsMoveId,
     tsMoveTick, KEY:tsMoveKeys, bool:tsMoveReady, bool:tsMoveFreeze,
     tsNextGroupId, tsGroupCount, tsGroupFocus, tsSelectedGroup,
-    bool:tsMultiPick, bool:tsRenameGroup, tsMoveCount
+    bool:tsMultiPick, bool:tsRenameGroup, tsMoveCount,
+    E_TDS_TRANSFORM:tsTransform, tsResizeStep, tsGeoAxis, bool:tsKeepRatio, bool:tsGlyphs,
+    bool:tsAnchorCenter, bool:tsAlignActive, bool:tsAlignGroup,
+    tsGridStep, bool:tsGridShow, bool:tsSnap, Float:tsMargin, tsGeoField,
+    Float:tsGeoPivotX, Float:tsGeoPivotY, Float:tsGeoWidth, Float:tsGeoHeight,
+    Float:tsGeoValueW, Float:tsGeoValueH, Float:tsGeoRawX, Float:tsGeoRawY
 };
 
 // Pool allocation avoids a large element array for every possible player.
@@ -89,7 +105,9 @@ new gTDSGroup[TDS_SESSIONS][TDS_GROUPS][E_TDS_GROUP];
 // Editor selection and move snapshots never enter the serialized element data.
 new bool:gTDSPicked[TDS_SESSIONS][TDS_ELEMENTS];
 new gTDSMoving[TDS_SESSIONS][TDS_ELEMENTS]; // original ID, zero when excluded
-new Float:gTDSMoveX[TDS_SESSIONS][TDS_ELEMENTS], Float:gTDSMoveY[TDS_SESSIONS][TDS_ELEMENTS];
+new Float:gTDSOrigin[TDS_SESSIONS][TDS_ELEMENTS][E_TDS_GEOMETRY];
+new const E_TDS_ELEMENT:gTDSGeoFields[] = {tdX, tdY, tdW, tdH, tdLetterX, tdLetterY};
+new const Float:gTDSGridSteps[] = {2.0, 5.0, 10.0, 20.0};
 new gTDSPlayerSlot[MAX_PLAYERS]; // slot + 1; zero means no session
 new bool:gTDSGranted[MAX_PLAYERS];
 new gTDSGrantToken[MAX_PLAYERS];

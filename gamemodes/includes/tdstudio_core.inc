@@ -7,6 +7,7 @@ static gTDSTimer;
 forward TDS_Poll();
 forward bool:TDSInput_Target(session);
 forward bool:TDSInput_Usable(session);
+forward bool:TDS_GeoNudge(s, Float:dx, Float:dy);
 
 stock bool:TDS_Allowed(playerid)
 {
@@ -122,6 +123,7 @@ stock TDS_Allocate(playerid)
         gTDSPlayerSlot[playerid] = s + 1;
         for (new i; i < TDS_ELEMENTS; i++) gTDSElement[s][i][tdId] = 0;
         TDS_LayoutReset(s);
+        TDS_GeoInit(s);
         TDS_RenderInit(s);
         if (!TDS_RenderTools(s)) { TDS_Close(playerid); return -1; }
         return s;
@@ -193,6 +195,8 @@ stock bool:TDS_Move(playerid, Float:dx, Float:dy)
 {
     new s = TDS_RequireSession(playerid);
     if (s < 0 || gTDS[s][tsBusy]) return false;
+    if (gTDS[s][tsMode] == TDS_MOVE_MODE && gTDS[s][tsTransform] != TDS_TRANS_MOVE) return false;
+    if (gTDS[s][tsSnap] && gTDS[s][tsMode] != TDS_MOVE_MODE) return TDS_GeoNudge(s, dx, dy);
     if (gTDS[s][tsMode] == TDS_MOVE_MODE && !TDSInput_Target(s)) return false;
     if (!TDS_InRange(dx, -640.0, 640.0) || !TDS_InRange(dy, -448.0, 448.0)) return false;
     new slots[TDS_ELEMENTS], count = TDS_Targets(s, slots), bool:changed;

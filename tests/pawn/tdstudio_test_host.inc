@@ -24,6 +24,7 @@ new bool:tSelectable[MAX_PLAYERS][256];
 new tDialog[MAX_PLAYERS], tCreate, tDestroy, tBadHandle, tCancel, tFailAfter = -1, tNow;
 new Float:tX[MAX_PLAYERS][256], Float:tY[MAX_PLAYERS][256];
 new Float:tW[MAX_PLAYERS][256], Float:tH[MAX_PLAYERS][256];
+new Float:tLetterX[MAX_PLAYERS][256], Float:tLetterY[MAX_PLAYERS][256];
 new tFont[MAX_PLAYERS][256], tTouches[MAX_PLAYERS][256];
 new tFailures, tChecks, tDialogOverflow;
 
@@ -128,8 +129,9 @@ stock MockSelectable(playerid, PlayerText:td, bool:flag)
 { MockTouch(playerid, td); tSelectable[playerid][_:td] = flag; return 1; }
 stock MockLetters(playerid, PlayerText:td, Float:x, Float:y)
 {
-    #pragma unused x, y
-    return MockTouch(playerid, td); }
+    MockTouch(playerid, td); tLetterX[playerid][_:td] = x; tLetterY[playerid][_:td] = y;
+    return 1;
+}
 stock MockString(playerid, PlayerText:td, const fmt[], OPEN_MP_TAGS:...)
 {
     #pragma unused fmt

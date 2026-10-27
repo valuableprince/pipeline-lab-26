@@ -27,8 +27,11 @@ def compile_exports(source, output, server, prefix, profile="stage2"):
     calls = []
     personal = global_td = empty = cyrillic = False
     moved_exports = 0
-    fixture = ('Привет, \\"Дима\\"! C:\\\\test 100% ~g~текст' if profile == "stage2"
-               else 'Логотип \\"TARKENSO\\" C:\\\\ui 100% ~g~текст')
+    fixture = {
+        "stage2": 'Привет, \\"Дима\\"! C:\\\\test 100% ~g~текст',
+        "stage31": 'Логотип \\"TARKENSO\\" C:\\\\ui 100% ~g~текст',
+        "stage32": 'Геометрия \\"TARKENSO\\" C:\\\\ui 100% ~g~текст',
+    }[profile]
     for file in files:
         data = file.read_bytes()
         content = data.decode("cp1251", errors="strict")
@@ -50,16 +53,28 @@ def compile_exports(source, output, server, prefix, profile="stage2"):
                 assert len(positions) == 4, (file.name, positions)
                 assert abs(positions[0][0] - 13.345) < 0.0001 and abs(positions[0][1] - 66.89) < 0.0001, positions
                 assert positions[1:] == [(271.0, 199.0)] * 3, positions
-            else:
+            elif profile == "stage31":
                 ids = list(map(int, re.findall(r'// Element ID (\d+), order', content)))
                 assert ids == [5, 6, 1, 2, 3, 4], (file.name, ids)
                 assert positions == [(20., 30.), (310., 270.), (11., 19.), (31., 39.), (51., 59.), (71., 79.)], positions
+            else:
+                ids = list(map(int, re.findall(r'// Element ID (\d+), order', content)))
+                assert ids == [5, 1, 2, 3, 4], (file.name, ids)
+                assert positions == [(20., 20.), (260., 170.), (380., 170.), (260., 190.), (380.125, 190.25)], positions
+                sizes = [tuple(map(float, pair)) for pair in re.findall(
+                    r'(?:PlayerTextDraw|TextDraw)TextSize\([^\n]+, ([0-9.]+), ([0-9.]+)\);', content)]
+                assert sizes == [(10., 10.), (10., 80.), (60., 10.), (81., 16.), (60.125, 20.375)], sizes
+                letters = re.findall(r'(?:PlayerTextDraw|TextDraw)LetterSize\([^\n]+, ([0-9.]+), ([0-9.]+)\);', content)
+                assert len(letters) == 1 and all(abs(float(v)-.5) < 1e-7 for v in letters[0]), letters
+                assert re.search(r'Alignment\([^\n]+TEXT_DRAW_ALIGN:2\);', content)
+                assert 'SetPreviewRot' in content and '1.500000000' in content
+                assert '0x7CA6C030' not in content and len(positions) == 5, 'editor guides leaked into export'
             moved_exports += 1
         calls.extend([f'{symbol}_Create({"0" if is_personal else ""});',
                       f'{symbol}_Show(0);', f'{symbol}_Hide(0);',
                       f'{symbol}_Hit({"0, PlayerText:INVALID_PLAYER_TEXT_DRAW" if is_personal else "Text:INVALID_TEXT_DRAW"});',
                       f'{symbol}_Destroy({"0" if is_personal else ""});'])
-    assert personal and global_td and cyrillic and (empty or profile == "stage31"), "missing export fixture coverage"
+    assert personal and global_td and cyrillic and (empty or profile != "stage2"), "missing export fixture coverage"
     assert moved_exports == 2, "both TextDraw and PlayerTextDraw must export confirmed keyboard coordinates"
     text += '\nmain() {\n' + '\n'.join('    '+line for line in calls) + '\n}\n'
     context = dest / "export_compile.pwn"
@@ -229,6 +244,15 @@ def main():
     run(args.server,prefix,advanced,'tdstudio_stage31.pwn',args.mysql_config,args.plugin,restart=True,export_profile='stage31')
     shutil.copy2(advanced/'tdstudio-test-run.log',advanced/'tdstudio-stage31-restart-run.log')
     print('Groups restart: fresh open.mp process restored group IDs/names/membership, stable element IDs, layers and confirmed positions.')
+    geometry = args.output/'stage32'
+    run(args.server,prefix,geometry,'tdstudio_stage32.pwn',args.mysql_config,args.plugin,export_profile='stage32')
+    shutil.copy2(geometry/'tdstudio-test-run.log',geometry/'tdstudio-stage32-run.log')
+    geometry_rows = query("SELECT e.element_id,e.x,e.y,e.width,e.height,e.letter_x,e.letter_y FROM tdstudio_elements e JOIN tdstudio_projects p USING(project_id) WHERE p.name='Geometry saved copy' ORDER BY e.draw_order")
+    assert len(geometry_rows.splitlines()) == 5, geometry_rows
+    assert query("SELECT COUNT(*) FROM tdstudio_group_members m JOIN tdstudio_projects p USING(project_id) WHERE p.name='Geometry saved copy'").strip() == '4'
+    run(args.server,prefix,geometry,'tdstudio_stage32.pwn',args.mysql_config,args.plugin,restart=True,export_profile='stage32')
+    shutil.copy2(geometry/'tdstudio-test-run.log',geometry/'tdstudio-stage32-restart-run.log')
+    print('Geometry restart: a fresh open.mp process restored six geometry fields, layers, IDs, group membership and Cyrillic. Both export types compiled with verified native geometry.')
 
 
 if __name__ == '__main__':

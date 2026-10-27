@@ -67,7 +67,7 @@ stock TDS_GroupMenu(playerid)
     format(title, sizeof(title), "G%d %s | %d | шаг %.1f", id, gTDSGroup[s][g][tgName],
         TDS_GroupMembers(s, id), gTDSSteps[gTDS[s][tsStep]]);
     return TDS_Dialog(playerid, TDS_GROUP_MENU, DIALOG_STYLE_LIST, title,
-        "Выделить всю группу\nПереименовать\nСостав: посмотреть / добавить / исключить\nРасформировать\nПереместить группу\nСлои группы");
+        "Выделить всю группу\nПереименовать\nСостав: посмотреть / добавить / исключить\nРасформировать\nПереместить группу\nСлои группы\nГеометрия группы");
 }
 
 stock TDS_GroupNameDialog(playerid, bool:rename)
@@ -162,6 +162,7 @@ stock TDS_OnLayoutDialog(playerid, dialog, response, row, const input[])
                     "Все TextDraw останутся на холсте с прежними свойствами и слоями.", "Расформировать");
                 case 4: { if (TDS_GroupSelect(playerid, id)) return TDSInput_Start(playerid); }
                 case 5: { TDS_GroupSelect(playerid, id); return TDS_LayersMenu(playerid); }
+                case 6: { TDS_GroupSelect(playerid, id); return TDS_GeoMenu(playerid); }
             }
             return TDS_GroupMenu(playerid);
         }
