@@ -13,6 +13,9 @@
 #define BONDS_DLG_POSITION   (6705)
 #define BONDS_DLG_COLLECT    (6706)
 #define BONDS_DLG_QUANTITY   (6707)
+#define BONDS_DLG_COUPONS    (6708)
+#define BONDS_DLG_COUPON     (6709)
+#define BONDS_DLG_COUPON_PAY (6710)
 #define BONDS_UI_PAGE_SIZE   (10)
 #define BONDS_UI_PAGE_LIMIT  (1000)
 #define BONDS_UI_NONE        (0)
@@ -23,6 +26,9 @@
 #define BONDS_UI_PENDING_BUY (5)
 #define BONDS_UI_PENDING_PAY (6)
 #define BONDS_UI_QUANTITY    (7)
+#define BONDS_UI_COUPONS     (8)
+#define BONDS_UI_COUPON      (9)
+#define BONDS_UI_PENDING_COUPON (10)
 
 // Localize only user-visible debt states. SQL keeps stable technical enums.
 stock BondsUI_DebtStatusLabel(const status[],output[],size)
@@ -56,6 +62,7 @@ new gBondsUIPurchaseQty[MAX_PLAYERS];
 new gBondsUIPendingQty[MAX_PLAYERS];
 new gBondsUIClaimId[MAX_PLAYERS];
 new gBondsUIClaimAmount[MAX_PLAYERS];
+new gBondsUICouponAmount[MAX_PLAYERS];
 new gBondsUIPendingAction[MAX_PLAYERS];
 new gBondsUIEventSerial;
 
@@ -83,6 +90,7 @@ stock BondsUI_Reset(playerid)
     gBondsUIPendingQty[playerid] = 0;
     gBondsUIClaimId[playerid] = 0;
     gBondsUIClaimAmount[playerid] = 0;
+    gBondsUICouponAmount[playerid] = 0;
     gBondsUIPendingAction[playerid] = 0;
     return 1;
 }
@@ -120,7 +128,7 @@ stock BondsUI_Main(playerid)
     gBondsUIStage[playerid] = BONDS_UI_NONE;
     ShowPlayerDialog(playerid, BONDS_DLG_MAIN, DIALOG_STYLE_LIST,
         "{D9B872}TARKENSO {98A6B9}| {F2F4F8}Государственные облигации",
-        "{E9C783}Государственные займы {AAB5C4}— купить облигацию\n{79D5AD}Мой инвестиционный портфель\n{AAB5C4}Условия и инвестиционные риски\n{DDBB77}Публичная отчётность казны",
+        "{E9C783}Государственные займы {AAB5C4}— купить облигацию\n{79D5AD}Мой инвестиционный портфель\n{E9C783}Купонный счёт\n{AAB5C4}Условия и инвестиционные риски\n{DDBB77}Публичная отчётность казны",
         "Выбрать", "Закрыть");
     return 1;
 }
@@ -179,6 +187,13 @@ stock BondsUI_LoadList(playerid, kind, page = 0)
             "SELECT i.issue_id,i.issue_code,h.quantity,i.face_value,i.debt_status,COALESCE(c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected,0) AS available FROM government_bond_holdings h INNER JOIN government_bond_issues i ON i.issue_id=h.issue_id LEFT JOIN government_bond_claims c ON c.issue_id=i.issue_id AND c.account_id=h.account_id WHERE h.account_id=%d ORDER BY i.issue_id DESC LIMIT 11 OFFSET %d",
             gDBPrimaryAccountId[playerid], offset);
     }
+    else if(kind==BONDS_UI_COUPONS)
+    {
+        if(!BondCoupon_IsReady())return 1;
+        mysql_format(gDBPrimary,query,sizeof(query),
+            "SELECT w.issue_id,i.issue_code,i.face_value,w.accrued,w.collected,w.converted,w.accrued-w.collected-w.converted AS available FROM government_bond_coupon_wallets w JOIN government_bond_issues i ON i.issue_id=w.issue_id WHERE w.account_id=%d ORDER BY w.issue_id DESC LIMIT 11 OFFSET %d",
+            gDBPrimaryAccountId[playerid],offset);
+    }
     else return 1;
 
     gBondsUIStage[playerid] = kind;
@@ -210,6 +225,9 @@ public BondsUI_OnList(playerid,authToken,accountId,requestSeq,kind)
     if (kind==BONDS_UI_OFFERS)
         format(body,sizeof(body),
             "{DDBB77}Выпуск\tНоминал\tДоходность\tДоступно\n");
+    else if(kind==BONDS_UI_COUPONS)
+        format(body,sizeof(body),
+            "{DDBB77}Выпуск\tНачислено\tПолучено\tДоступно\n");
     else
         format(body,sizeof(body),
             "{DDBB77}Выпуск\tКоличество\tНоминал\tК выплате\n");
@@ -236,6 +254,17 @@ public BondsUI_OnList(playerid,authToken,accountId,requestSeq,kind)
                 "{F1F4F8}%s\t{E9C67E}$%d\t{78D8AA}%d.%02d%%\t{B8C6D7}%d шт.\n",
                 code,face,rate/100,rate%100,remain);
         }
+        else if(kind==BONDS_UI_COUPONS)
+        {
+            new accrued,collected,converted;
+            if(!cache_get_value_name_int(i,"accrued",accrued) ||
+                !cache_get_value_name_int(i,"collected",collected) ||
+                !cache_get_value_name_int(i,"converted",converted) ||
+                !cache_get_value_name_int(i,"available",available)) return 1;
+            format(line,sizeof(line),
+                "{F1F4F8}%s\t{78D8AA}$%d\t{B8C6D7}$%d\t{E9C67E}$%d\n",
+                code,accrued,collected,available);
+        }
         else
         {
             if (!cache_get_value_name_int(i,"quantity",count) ||
@@ -258,6 +287,9 @@ public BondsUI_OnList(playerid,authToken,accountId,requestSeq,kind)
             strcat(body,
                 "{92A0AF}Сейчас нет открытых выпусков\t—\t—\t—\n",
                 sizeof(body));
+        else if(kind==BONDS_UI_COUPONS)
+            strcat(body,"{92A0AF}Купоны пока не начислены\t—\t—\t—\n",
+                sizeof(body));
         else
             strcat(body,
                 "{92A0AF}В вашем портфеле пока нет облигаций\t—\t—\t—\n",
@@ -276,6 +308,14 @@ public BondsUI_OnList(playerid,authToken,accountId,requestSeq,kind)
             gBondsUIPage[playerid]+1);
         ShowPlayerDialog(playerid,BONDS_DLG_OFFERS,DIALOG_STYLE_TABLIST_HEADERS,
             title,body,"Выбрать","Закрыть");
+    }
+    else if(kind==BONDS_UI_COUPONS)
+    {
+        format(title,sizeof(title),
+            "{D9B872}TARKENSO | Купонный счёт [стр. %d]",
+            gBondsUIPage[playerid]+1);
+        ShowPlayerDialog(playerid,BONDS_DLG_COUPONS,DIALOG_STYLE_TABLIST_HEADERS,
+            title,body,"Открыть","Назад");
     }
     else
     {
@@ -307,6 +347,13 @@ stock BondsUI_LoadDetail(playerid, kind, issueId)
     {
         mysql_format(gDBPrimary,query,sizeof(query),
             "SELECT i.issue_id,i.issue_code,i.face_value,i.yield_basis_points,i.debt_status,h.quantity,COALESCE(c.claim_id,0) AS claim_id,COALESCE(c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected,0) AS available,COALESCE(c.principal_due-c.principal_budget_awarded-c.insurance_awarded,0) AS principal_remaining FROM government_bond_holdings h INNER JOIN government_bond_issues i ON i.issue_id=h.issue_id LEFT JOIN government_bond_claims c ON c.issue_id=i.issue_id AND c.account_id=h.account_id WHERE i.issue_id=%d AND h.account_id=%d LIMIT 1",
+            issueId,gDBPrimaryAccountId[playerid]);
+    }
+    else if(kind==BONDS_UI_COUPON)
+    {
+        if(!BondCoupon_IsReady())return 1;
+        mysql_format(gDBPrimary,query,sizeof(query),
+            "SELECT i.issue_id,i.issue_code,i.face_value,i.yield_basis_points,w.accrued,w.collected,w.converted,w.accrued-w.collected-w.converted AS available,LEAST(t.max_transaction,GREATEST(0,t.balance-t.minimum_reserve-t.bond_fund_reserved-t.bond_payout_reserved)) AS treasury_free,i.maturity_at FROM government_bond_coupon_wallets w JOIN government_bond_issues i ON i.issue_id=w.issue_id CROSS JOIN treasury_accounts t WHERE t.code='state' AND w.issue_id=%d AND w.account_id=%d LIMIT 1",
             issueId,gDBPrimaryAccountId[playerid]);
     }
     else return 1;
@@ -382,6 +429,30 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         gBondsUIStage[playerid]=BONDS_UI_OFFER;
         ShowPlayerDialog(playerid,BONDS_DLG_OFFER,DIALOG_STYLE_MSGBOX,
             "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Условия займа",body,"Купить","Назад");
+    }
+    else if(kind==BONDS_UI_COUPON)
+    {
+        new accrued,collected,converted,available,freeTreasury,maturity[32];
+        if(!cache_get_value_name_int(0,"accrued",accrued) ||
+           !cache_get_value_name_int(0,"collected",collected) ||
+           !cache_get_value_name_int(0,"converted",converted) ||
+           !cache_get_value_name_int(0,"available",available) ||
+           !cache_get_value_name_int(0,"treasury_free",freeTreasury) ||
+           !cache_get_value_name(0,"maturity_at",maturity,sizeof(maturity)))
+            return 1;
+        new canGet=available;
+        if(canGet>freeTreasury)canGet=freeTreasury;
+        if(canGet>ACCOUNT_MAX_MONEY-gAccountMoney[playerid])
+            canGet=ACCOUNT_MAX_MONEY-gAccountMoney[playerid];
+        if(canGet<0)canGet=0;
+        gBondsUICouponAmount[playerid]=canGet;
+        format(body,sizeof(body),
+            "{DDBB77}КУПОННЫЙ СЧЁТ\n{F1F4F8}%s\n\n{B8C6D7}Доходность за срок: {78D8AA}%d.%02d%%\n{B8C6D7}Начислено купонов: {78D8AA}$%d\n{B8C6D7}Ранее получено: {F1F4F8}$%d\n{B8C6D7}Перенесено в погашение: {F1F4F8}$%d\n{B8C6D7}На условном счёте: {E9C67E}$%d\n{B8C6D7}Доступно к переводу сейчас: {78D8AA}$%d\n{B8C6D7}Погашение (UTC): {F1F4F8}%s\n\n{92A0AF}Купоны начисляются каждый PayDay даже офлайн. Перевод выполняется вручную при наличии денег в казне.",
+            code,rate/100,rate%100,accrued,collected,converted,available,canGet,maturity);
+        gBondsUIStage[playerid]=BONDS_UI_COUPON;
+        ShowPlayerDialog(playerid,BONDS_DLG_COUPON,DIALOG_STYLE_MSGBOX,
+            "{D9B872}TARKENSO | Купонный счёт",body,
+            canGet>0?"Получить":"Обновить","Назад");
     }
     else
     {
@@ -498,18 +569,19 @@ stock BondsUI_StartCollect(playerid)
 
 stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 {
-    if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_QUANTITY) return 0;
+    if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_COUPON_PAY) return 0;
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY) return 1;
     if(gBondsUILoading[playerid] || gGovTransferBusy[playerid]) return 1;
     if(dialogid==BONDS_DLG_MAIN)
     {
-        if(!response || listitem<0 || listitem>3)return 1;
+        if(!response || listitem<0 || listitem>4)return 1;
         switch(listitem)
         {
             case 0:return BondsUI_LoadList(playerid,BONDS_UI_OFFERS);
             case 1:return BondsUI_LoadList(playerid,BONDS_UI_PORTFOLIO);
-            case 3:return GovBond_UI_PublicReport(playerid);
-            case 2:
+            case 2:return BondsUI_LoadList(playerid,BONDS_UI_COUPONS);
+            case 4:return GovBond_UI_PublicReport(playerid);
+            case 3:
             {
                 ShowPlayerDialog(playerid,BONDS_DLG_OFFER,DIALOG_STYLE_MSGBOX,
                     "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Риски инвестиций",
@@ -520,16 +592,16 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             }
         }
     }
-    if(dialogid==BONDS_DLG_OFFERS || dialogid==BONDS_DLG_PORTFOLIO)
+    if(dialogid==BONDS_DLG_OFFERS || dialogid==BONDS_DLG_PORTFOLIO || dialogid==BONDS_DLG_COUPONS)
     {
-        new kind=dialogid==BONDS_DLG_OFFERS?BONDS_UI_OFFERS:BONDS_UI_PORTFOLIO;
+        new kind=dialogid==BONDS_DLG_OFFERS?BONDS_UI_OFFERS:(dialogid==BONDS_DLG_COUPONS?BONDS_UI_COUPONS:BONDS_UI_PORTFOLIO);
         if(gBondsUIStage[playerid]!=kind)return 1;
         if(!response)return 1;
         if(listitem>=0 && listitem<gBondsUIListCount[playerid])
         {
             new issueId=gBondsUIRowIds[playerid][listitem];
             return BondsUI_LoadDetail(playerid,
-                kind==BONDS_UI_OFFERS?BONDS_UI_OFFER:BONDS_UI_POSITION,issueId);
+                kind==BONDS_UI_OFFERS?BONDS_UI_OFFER:(kind==BONDS_UI_COUPONS?BONDS_UI_COUPON:BONDS_UI_POSITION),issueId);
         }
         // A placeholder occupies listitem=0 when there are no records.
         // Headers are not counted in listitem by TABLIST_HEADERS.
@@ -627,6 +699,42 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 #endif
         return 1;
     }
+    if(dialogid==BONDS_DLG_COUPON)
+    {
+        if(gBondsUIStage[playerid]!=BONDS_UI_COUPON)return 1;
+        if(!response)return BondsUI_LoadList(playerid,BONDS_UI_COUPONS,gBondsUIPage[playerid]);
+        if(gBondsUICouponAmount[playerid]<=0)
+            return BondsUI_LoadDetail(playerid,BONDS_UI_COUPON,gBondsUISelectedIssue[playerid]);
+        new body[290];
+        format(body,sizeof(body),
+            "{DDBB77}Подтвердить получение купонов?\n\n{B8C6D7}Выпуск: {F1F4F8}%s\n{78D8AA}К переводу: $%d\n\n{92A0AF}Деньги поступят на игровой кошелёк после проверки казны.",
+            gBondsUISelectedCode[playerid],gBondsUICouponAmount[playerid]);
+        ShowPlayerDialog(playerid,BONDS_DLG_COUPON_PAY,DIALOG_STYLE_MSGBOX,
+            "{D9B872}TARKENSO | Получение купонов",body,"Получить","Назад");
+        return 1;
+    }
+    if(dialogid==BONDS_DLG_COUPON_PAY)
+    {
+        if(gBondsUIStage[playerid]!=BONDS_UI_COUPON)return 1;
+        if(!response)return BondsUI_LoadDetail(playerid,BONDS_UI_COUPON,gBondsUISelectedIssue[playerid]);
+        gBondsUIStage[playerid]=BONDS_UI_NONE;
+#if defined TARKENSO_DB_PRIMARY
+        if(gBondsUICouponAmount[playerid]<=0 || !BondCoupon_IsReady())return 1;
+        new eventKey[65];
+        BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));
+        gBondsUIPendingAction[playerid]=3;
+        if(!BondSettlement_CollectCoupon(playerid,eventKey,
+            gBondsUISelectedIssue[playerid],gBondsUICouponAmount[playerid]))
+        {
+            gBondsUIPendingAction[playerid]=0;
+            SendClientMessage(playerid,COLOR_RED,
+                "Не удалось запросить выплату купонов.");
+        }
+        else SendClientMessage(playerid,COLOR_AMBER,
+            "Выплата купонов запрошена; ожидается подтверждение MySQL.");
+#endif
+        return 1;
+    }
     if(dialogid==BONDS_DLG_POSITION)
     {
         if(gBondsUIStage[playerid]!=BONDS_UI_POSITION)return 1;
@@ -688,5 +796,9 @@ public BondsUI_OnSettlement(playerid,bool:replayed)
     else if(action==2)
         SendClientMessage(playerid,COLOR_AMBER,
             replayed?"Выплата уже была перечислена.":"Выплата подтверждена и зачислена на кошелёк.");
+    else if(action==3)
+        SendClientMessage(playerid,COLOR_AMBER,
+            replayed?"Купоны уже перечислены ранее.":
+                "Купоны перечислены на ваш кошелёк. Остаток смотрите в /bonds.");
     return 1;
 }
