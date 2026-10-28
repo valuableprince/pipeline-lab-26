@@ -330,7 +330,7 @@ stock bool:GovBond_UI_LoadApprovalReason(playerid)
         !gGovUISelectedCode[playerid][0]) return false;
     new query[1950];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT x.issue_code,x.status,x.sold_quantity,x.signed,x.enabled,x.reserved,x.committed,x.util_bps,x.row_version,x.role_rank,CAST(x.exposure AS CHAR) AS exposure,CAST(CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0)) AS CHAR) AS reserve_min,CAST(GREATEST(0,CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0))-x.reserved) AS CHAR) AS reserve_short FROM (SELECT i.issue_code,i.status,i.sold_quantity,(i.approve_event_key IS NOT NULL) AS signed,t.bond_fund_enabled AS enabled,t.bond_fund_reserved AS reserved,t.bond_fund_committed AS committed,t.bond_fund_utilization_bps AS util_bps,t.row_version,COALESCE((SELECT m.rank_id FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id WHERE m.account_id=%d AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP() LIMIT 1),0) AS role_rank,CEIL(CAST(i.face_value AS DECIMAL(20,0))*t.bond_fund_coverage_bps/10000)*i.max_quantity AS exposure FROM government_bond_issues i JOIN treasury_accounts t ON t.code='state' WHERE i.issue_code='%e' LIMIT 1) x",
+        "SELECT x.issue_code,x.status,x.sold_quantity,x.is_signed,x.enabled,x.reserved,x.committed,x.util_bps,x.row_version,x.role_rank,CAST(x.exposure AS CHAR) AS exposure,CAST(CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0)) AS CHAR) AS reserve_min,CAST(GREATEST(0,CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0))-x.reserved) AS CHAR) AS reserve_short FROM (SELECT i.issue_code,i.status,i.sold_quantity,(i.approve_event_key IS NOT NULL) AS is_signed,t.bond_fund_enabled AS enabled,t.bond_fund_reserved AS reserved,t.bond_fund_committed AS committed,t.bond_fund_utilization_bps AS util_bps,t.row_version,COALESCE((SELECT m.rank_id FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id WHERE m.account_id=%d AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP() LIMIT 1),0) AS role_rank,CEIL(CAST(i.face_value AS DECIMAL(20,0))*t.bond_fund_coverage_bps/10000)*i.max_quantity AS exposure FROM government_bond_issues i JOIN treasury_accounts t ON t.code='state' WHERE i.issue_code='%e' LIMIT 1) x",
         gDBPrimaryAccountId[playerid],gGovUISelectedCode[playerid]);
     return GovBond_UI_Query(playerid,query,5);
 #else
@@ -388,7 +388,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name(0,"reserve_min",minimum,sizeof(minimum)) ||
             !cache_get_value_name(0,"reserve_short",shortage,sizeof(shortage)) ||
             !cache_get_value_name(0,"exposure",exposure,sizeof(exposure)) ||
-            !cache_get_value_name_int(0,"signed",signed) ||
+            !cache_get_value_name_int(0,"is_signed",signed) ||
             !cache_get_value_name_int(0,"sold_quantity",sold) ||
             !cache_get_value_name_int(0,"enabled",enabled) ||
             !cache_get_value_name_int(0,"role_rank",rank) ||
