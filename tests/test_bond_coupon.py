@@ -94,7 +94,7 @@ class CouponContracts(unittest.TestCase):
             "BONDS_DLG_COUPON,DIALOG_STYLE_MSGBOX",
             "BONDS_DLG_COUPON_PAY,DIALOG_STYLE_MSGBOX",
             "w.accrued-w.collected-w.converted AS available",
-            "gov_bond_coupon_wallets w",
+            "government_bond_coupon_wallets w",
             "gBondsUICouponAmount[playerid]=canGet;",
             "BondSettlement_CollectCoupon(playerid,eventKey,",
             "gBondsUIPendingAction[playerid]=3;",
