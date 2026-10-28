@@ -22,6 +22,20 @@
 #define BONDS_UI_PENDING_BUY (5)
 #define BONDS_UI_PENDING_PAY (6)
 
+// Localize only user-visible debt states. SQL keeps stable technical enums.
+stock BondsUI_DebtStatusLabel(const status[],output[],size)
+{
+    if (!strcmp(status,"NOT_DUE")) format(output,size,"Срок не наступил");
+    else if (!strcmp(status,"DUE")) format(output,size,"К погашению");
+    else if (!strcmp(status,"PARTIALLY_PAID")) format(output,size,"Частично погашен");
+    else if (!strcmp(status,"OVERDUE")) format(output,size,"Просрочен");
+    else if (!strcmp(status,"DEFAULTED")) format(output,size,"Дефолт");
+    else if (!strcmp(status,"RESTRUCTURED")) format(output,size,"Реструктурирован");
+    else if (!strcmp(status,"SETTLED")) format(output,size,"Погашен полностью");
+    else format(output,size,"Неизвестный статус");
+    return 1;
+}
+
 new gBondsUIStage[MAX_PLAYERS];
 new bool:gBondsUILoading[MAX_PLAYERS];
 new gBondsUIQuerySeq[MAX_PLAYERS];
@@ -339,7 +353,7 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
     }
     else
     {
-        new qty,claimId,available,remaining,debt[24];
+        new qty,claimId,available,remaining,debt[24],debtLabel[40];
         if (!cache_get_value_name_int(0,"quantity",qty) ||
             !cache_get_value_name_int(0,"claim_id",claimId) ||
             !cache_get_value_name_int(0,"available",available) ||
@@ -351,6 +365,7 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         new walletFree=ACCOUNT_MAX_MONEY-gAccountMoney[playerid];
         gBondsUIClaimAmount[playerid]=available>walletFree?walletFree:available;
         if (gBondsUIClaimAmount[playerid]<0)gBondsUIClaimAmount[playerid]=0;
+        BondsUI_DebtStatusLabel(debt,debtLabel,sizeof(debtLabel));
         new debtColor[9];
         if (!strcmp(debt,"DEFAULTED",true) || !strcmp(debt,"OVERDUE",true))
             format(debtColor,sizeof(debtColor),"{E48A8A}");
@@ -360,7 +375,7 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
             format(debtColor,sizeof(debtColor),"{E9C67E}");
         format(body,sizeof(body),
             "{DDBB77}ИНВЕСТИЦИОННЫЙ ПОРТФЕЛЬ\n{F1F4F8}%s\n\n{B8C6D7}Облигации: {F1F4F8}%d шт.\n{B8C6D7}Номинал одной: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d bp\n{B8C6D7}Статус долга: %s%s\n{B8C6D7}Непогашенный номинал: {E48A8A}$%d\n\n{B8C6D7}Начислено к получению: {78D8AA}$%d\n{B8C6D7}Можно получить сейчас: {78D8AA}$%d\n\n{92A0AF}Выплаты по оставшейся части долга могут задерживаться.",
-            code,qty,face,rate,debtColor,debt,remaining,available,gBondsUIClaimAmount[playerid]);
+            code,qty,face,rate,debtColor,debtLabel,remaining,available,gBondsUIClaimAmount[playerid]);
         gBondsUIStage[playerid]=BONDS_UI_POSITION;
         ShowPlayerDialog(playerid,BONDS_DLG_POSITION,DIALOG_STYLE_MSGBOX,
             "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Позиция портфеля",body,
