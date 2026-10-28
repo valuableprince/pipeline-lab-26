@@ -51,8 +51,8 @@ class FinanceAclTests(unittest.TestCase):
         for table in ("faction_members", "factions", "admin_roles"):
             with self.subTest(table=table):
                 result = self.check([
-                    "GRANT UPDATE ON \\x60tarkenso_gov00\\x60.\\x60" + table +
-                    "\\x60 TO 'app'@'%'"
+                    "GRANT UPDATE ON \x60tarkenso_gov00\x60.\x60" + table +
+                    "\x60 TO 'app'@'%'"
                 ], "FAIL")
                 self.assertTrue(any("authority" in v for v in result["violations"]))
 
