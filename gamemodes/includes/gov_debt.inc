@@ -16,6 +16,7 @@ new gGovDebtCrisisSerial;
 new bool:gGovDebtAdminBusy[MAX_PLAYERS];
 new gGovDebtAdminSerial[MAX_PLAYERS];
 new gGovDebtAdminAccount[MAX_PLAYERS];
+new gGovDebtAdminEvent[MAX_PLAYERS][65];
 
 forward GovDebt_Tick();
 forward GovDebt_OnScan();
@@ -37,6 +38,7 @@ stock GovDebt_Reset(playerid)
     gGovDebtAdminBusy[playerid]=false;
     gGovDebtAdminSerial[playerid]++;
     gGovDebtAdminAccount[playerid]=0;
+    gGovDebtAdminEvent[playerid][0]=EOS;
     return 1;
 }
 
@@ -104,12 +106,13 @@ stock bool:GovDebt_AdminAllowed(playerid,const eventKey[],const issueCode[])
 #endif
 }
 
-stock bool:GovDebt_QueueAdmin(playerid,const query[])
+stock bool:GovDebt_QueueAdmin(playerid,const query[],const eventKey[])
 {
 #if defined TARKENSO_DB_PRIMARY
     if (!GovDebt_IsReady() || gGovDebtAdminBusy[playerid]) return false;
     gGovDebtAdminBusy[playerid]=true;
     gGovDebtAdminAccount[playerid]=gDBPrimaryAccountId[playerid];
+    format(gGovDebtAdminEvent[playerid],65,"%s",eventKey);
     gGovDebtAdminSerial[playerid]++;
     if (!mysql_tquery(gDBPrimary,query,"GovDebt_OnAdminAction","iiii",
         playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
@@ -117,6 +120,7 @@ stock bool:GovDebt_QueueAdmin(playerid,const query[])
     {
         gGovDebtAdminBusy[playerid]=false;
         gGovDebtAdminAccount[playerid]=0;
+        gGovDebtAdminEvent[playerid][0]=EOS;
         return false;
     }
     return true;
@@ -137,7 +141,7 @@ stock bool:GovDebt_Propose(playerid,const eventKey[],const issueCode[],
     mysql_format(gDBPrimary,query,sizeof(query),
         "CALL gov_bond_restructure_propose('%e','%e','%e','%e',%d)",
         eventKey,issueCode,targetUTC,rationale,gDBPrimaryAccountId[playerid]);
-    return GovDebt_QueueAdmin(playerid,query);
+    return GovDebt_QueueAdmin(playerid,query,eventKey);
 #else
     #pragma unused playerid,eventKey,issueCode,targetUTC,rationale
     return false;
@@ -153,7 +157,7 @@ stock bool:GovDebt_Approve(playerid,const eventKey[],const issueCode[],planId)
     mysql_format(gDBPrimary,query,sizeof(query),
         "CALL gov_bond_restructure_approve('%e','%e',%d,%d)",
         eventKey,issueCode,planId,gDBPrimaryAccountId[playerid]);
-    return GovDebt_QueueAdmin(playerid,query);
+    return GovDebt_QueueAdmin(playerid,query,eventKey);
 #else
     #pragma unused playerid,eventKey,issueCode,planId
     return false;
@@ -172,6 +176,7 @@ public GovDebt_OnAdminAction(playerid,authToken,accountId,requestSerial)
         gGovDebtAdminSerial[playerid]!=requestSerial) return 1;
     gGovDebtAdminBusy[playerid]=false;
     gGovDebtAdminAccount[playerid]=0;
+    gGovDebtAdminEvent[playerid][0]=EOS;
     new rows=0;
     if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
     {
@@ -282,14 +287,17 @@ public GovDebt_OnCrisis()
     new rows=0;
     if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
         print("[GOV-04] Crisis status reconciliation failed.");
+    else if (!BondFund_Reload())
+        print("[GOV-04] Fund snapshot refresh failed after crisis reconciliation.");
 #endif
     return 1;
 }
 
 // Only known, deterministic business-rule SQL rollback should be absorbed;
 // connectivity and non-business SQL errors remain handled by the DB fail-safe.
-stock bool:GovDebt_OnError(errorid,const callback[])
+stock bool:GovDebt_OnError(errorid,const callback[],const query[])
 {
+#if defined TARKENSO_DB_PRIMARY
     if (errorid!=1644 && errorid!=1062) return false;
     if (!strcmp(callback,"GovDebt_OnRecovered",true))
     {
@@ -302,5 +310,30 @@ stock bool:GovDebt_OnError(errorid,const callback[])
         gGovDebtCrisisBusy=false;
         return true;
     }
+    if (!strcmp(callback,"GovDebt_OnAdminAction",true))
+    {
+        for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
+        {
+            if (!gGovDebtAdminBusy[playerid] ||
+                !gGovDebtAdminEvent[playerid][0]) continue;
+            new token[68];
+            format(token,sizeof(token),"'%s'",gGovDebtAdminEvent[playerid]);
+            if (strfind(query,token,true)<0) continue;
+            new accountId=gGovDebtAdminAccount[playerid];
+            gGovDebtAdminBusy[playerid]=false;
+            gGovDebtAdminAccount[playerid]=0;
+            gGovDebtAdminEvent[playerid][0]=EOS;
+            if (IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
+                gAuthState[playerid]==AUTH_READY &&
+                gDBPrimaryAccountId[playerid]==accountId)
+                SendClientMessage(playerid,COLOR_RED,
+                    "Казначейство отклонило реструктуризацию: перепроверьте полномочия и условия.");
+            break;
+        }
+        return true; // an old disconnected actor cannot disconnect other users
+    }
+#else
+    #pragma unused errorid,callback,query
+#endif
     return false;
 }
