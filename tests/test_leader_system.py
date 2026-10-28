@@ -131,7 +131,7 @@ class LeaderCoreContract(unittest.TestCase):
         self.assertNotIn("граждан",cmd)  # no alternate demotion path
         self.assertIn("Leader_RemoveMember(org, idx)",CORE)
         self.assertIn("!Leader_RequireAdmin(playerid)",cmd)
-        self.assertIn("Leader_LeaderRank(org)",cmd)
+        self.assertIn("Leader_LeaderRank(x)",cmd)
         world=(ROOT/"gamemodes/includes/db_world.inc").read_text("utf-8")
         self.assertIn("START TRANSACTION",world)
         self.assertIn("DELETE FROM faction_members WHERE faction_id=%d",world)
