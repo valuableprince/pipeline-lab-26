@@ -3,8 +3,8 @@
 #endif
 #define _tarkenso_bond_governance_ui_included
 
-// GOV-05 | State Treasury issue management: two signatures, DB roles, audited IDs.
-// No direct money edits. /bondgovrole is founder-only appointment bootstrap.
+// GOV-05 | Ministry of Finance: rank-based signing/rejection via SQL issue register.
+// Rejections require an auditable reason; no direct money edits.
 #define GOVUI_MAIN (6800)
 #define GOVUI_TYPE (6801)
 #define GOVUI_INPUT (6802)
@@ -237,9 +237,9 @@ stock GovBond_UI_LoadIssues(playerid,page=0)
 {
 #if defined TARKENSO_DB_PRIMARY
     if (!GovBond_UI_Authorized(playerid) || page<0 || page>500) return 1;
-    new query[430];
+    new query[750];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT issue_id,issue_code,status,face_value,sold_quantity,max_quantity FROM government_bond_issues ORDER BY issue_id DESC LIMIT 11 OFFSET %d",
+        "SELECT i.issue_id,i.issue_code,i.status,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'Неизвестен') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
         page*GOVUI_ROWS);
     gGovUIPage[playerid]=page;
     if (!GovBond_UI_Query(playerid,query,2))
@@ -254,9 +254,9 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
-    new query[550];
+    new query[1400];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT issue_id,issue_code,title,purpose,status,face_value,max_quantity,sold_quantity,yield_basis_points,insured_max_exposure,offer_end_at,maturity_at,created_by_account_id,approved_by_account_id FROM government_bond_issues WHERE issue_id=%d LIMIT 1",
+        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,i.rejection_reason,COALESCE(a.username,'Неизвестен') AS applicant,COALESCE(rej.username,'Неизвестен') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1),'Не назначен') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
     if (!GovBond_UI_Query(playerid,query,3))
@@ -326,66 +326,92 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         new shown=rows>GOVUI_ROWS?GOVUI_ROWS:rows;
         gGovUICount[playerid]=shown;
         gGovUIHasMore[playerid]=rows>GOVUI_ROWS;
-        new body[1900],line[165],code[65],status[20],id,face,sold,total;
-        format(body,sizeof(body),"{DDBB77}Код\tНоминал\tПродано\tСтатус\n");
+        new body[2700],line[225],code[65],status[20],applicant[40];
+        new id,face,quantity,yield;
+        format(body,sizeof(body),"{DDBB77}Код\tЗаявитель\tКол-во\tНоминал\tСтатус\n");
         for(new i=0;i<shown;i++)
         {
             if (!cache_get_value_name_int(i,"issue_id",id) ||
                 !cache_get_value_name(i,"issue_code",code,sizeof(code)) ||
                 !cache_get_value_name(i,"status",status,sizeof(status)) ||
+                !cache_get_value_name(i,"applicant",applicant,sizeof(applicant)) ||
                 !cache_get_value_name_int(i,"face_value",face) ||
-                !cache_get_value_name_int(i,"sold_quantity",sold) ||
-                !cache_get_value_name_int(i,"max_quantity",total)) return 1;
+                !cache_get_value_name_int(i,"max_quantity",quantity) ||
+                !cache_get_value_name_int(i,"yield_basis_points",yield)) return 1;
             gGovUIRows[playerid][i]=id;
+            if(!strcmp(status,"DRAFT")) format(status,sizeof(status),"На подпись");
+            else if(!strcmp(status,"REJECTED")) format(status,sizeof(status),"Отклонено");
             format(line,sizeof(line),
-                "{F1F4F8}%s\t{DDBB77}$%d\t{78D8AA}%d/%d\t{AAB6C6}%s\n",
-                code,face,sold,total,status);
+                "{F1F4F8}%s\t{B8C6D7}%s\t{78D8AA}%d\t{DDBB77}$%d\t{AAB6C6}%s\n",
+                code,applicant,quantity,face,status);
             strcat(body,line,sizeof(body));
         }
-        if (!shown)
-            strcat(body,"{AAB6C6}Выпусков пока нет\t—\t—\t—\n",sizeof(body));
-        if (gGovUIHasMore[playerid])
-            strcat(body,"{E9C67E}Следующая страница\t\t\t\n",sizeof(body));
-        if (gGovUIPage[playerid]>0)
-            strcat(body,"{E9C67E}Предыдущая страница\t\t\t\n",sizeof(body));
-        strcat(body,"{BAC6D5}Назад\t\t\t\n",sizeof(body));
+        if(!shown)
+            strcat(body,"{AAB6C6}Заявок пока нет\t—\t—\t—\t—\n",sizeof(body));
+        if(gGovUIHasMore[playerid])
+            strcat(body,"{E9C67E}Следующая страница\t\t\t\t\n",sizeof(body));
+        if(gGovUIPage[playerid]>0)
+            strcat(body,"{E9C67E}Предыдущая страница\t\t\t\t\n",sizeof(body));
+        strcat(body,"{BAC6D5}Назад\t\t\t\t\n",sizeof(body));
         gGovUIStage[playerid]=2;
         ShowPlayerDialog(playerid,GOVUI_LIST,DIALOG_STYLE_TABLIST_HEADERS,
-            "{D9B872}TARKENSO | Реестр выпусков",
-            body,"Открыть","Назад");
+            "{D9B872}Минфин | Заявки и выпуски",body,"Открыть","Назад");
         return 1;
     }
     if (kind==3)
     {
         new id,code[65],title[129],purpose[193],status[20];
-        new face,total,sold,yield,exposure,creator,offerEnd[32],maturity[32];
+        new face,total,sold,yield,exposure;
+        new applicant[40],minister[40],rejector[40],reason[256];
+        new createdAt[32],offerStart[32],offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
             id!=gGovUISelectedIssue[playerid] ||
             !cache_get_value_name(0,"issue_code",code,sizeof(code)) ||
             !cache_get_value_name(0,"title",title,sizeof(title)) ||
             !cache_get_value_name(0,"purpose",purpose,sizeof(purpose)) ||
             !cache_get_value_name(0,"status",status,sizeof(status)) ||
+            !cache_get_value_name(0,"applicant",applicant,sizeof(applicant)) ||
+            !cache_get_value_name(0,"minister",minister,sizeof(minister)) ||
+            !cache_get_value_name(0,"rejector",rejector,sizeof(rejector)) ||
+            !cache_get_value_name(0,"created_at",createdAt,sizeof(createdAt)) ||
+            !cache_get_value_name(0,"offer_start_at",offerStart,sizeof(offerStart)) ||
             !cache_get_value_name(0,"offer_end_at",offerEnd,sizeof(offerEnd)) ||
             !cache_get_value_name(0,"maturity_at",maturity,sizeof(maturity)) ||
             !cache_get_value_name_int(0,"face_value",face) ||
             !cache_get_value_name_int(0,"max_quantity",total) ||
             !cache_get_value_name_int(0,"sold_quantity",sold) ||
             !cache_get_value_name_int(0,"yield_basis_points",yield) ||
-            !cache_get_value_name_int(0,"insured_max_exposure",exposure) ||
-            !cache_get_value_name_int(0,"created_by_account_id",creator))
+            !cache_get_value_name_int(0,"insured_max_exposure",exposure))
             return 1;
+        reason[0]=EOS;
+        cache_get_value_name(0,"rejection_reason",reason,sizeof(reason));
         gGovUISelectedIssue[playerid]=id;
         format(gGovUISelectedCode[playerid],65,"%s",code);
         format(gGovUISelectedStatus[playerid],20,"%s",status);
-        new body[1150];
+        new body[1700],extra[400];
         format(body,sizeof(body),
-            "{DDBB77}ГОСУДАРСТВЕННЫЙ ВЫПУСК\n{F1F4F8}%s\n{B6C5D4}%s\n{BAC6D4}%s\n\n{BAC6D4}Состояние: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Продано: {78D8AA}%d / %d\n{BAC6D4}Доход за весь срок: {78D8AA}%d.%02d%%\n{BAC6D4}Зарезервирована страховка: {DDBB77}$%d\n{BAC6D4}Окончание продажи (UTC): {F1F4F8}%s\n{BAC6D4}Погашение (UTC): {F1F4F8}%s\n{BAC6D4}Автор (account ID): %d",
-            code,title,purpose,status,face,sold,total,yield/100,yield%100,
-            exposure,offerEnd,maturity,creator);
+            "{DDBB77}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{BAC6D4}Код выпуска: {F1F4F8}%s\n{BAC6D4}Подал заявку: {E9C67E}%s\n{BAC6D4}Действующий министр: {F1F4F8}%s\n{BAC6D4}Состояние: {F1F4F8}%s\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Назначение: {F1F4F8}%s\n{BAC6D4}Количество облигаций: {78D8AA}%d\n{BAC6D4}Номинал: {DDBB77}$%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Продано: %d\n{BAC6D4}Гарантия: $%d\n\n{BAC6D4}Дата подачи (UTC): {F1F4F8}%s\n{BAC6D4}Дата выпуска (UTC): {F1F4F8}%s\n{BAC6D4}Окончание размещения: {F1F4F8}%s\n{BAC6D4}Погашение (UTC): {F1F4F8}%s",
+            code,applicant,minister,status,title,purpose,total,face,
+            face*total,yield/100,yield%100,sold,exposure,
+            createdAt,offerStart,offerEnd,maturity);
+        if(!strcmp(status,"REJECTED"))
+        {
+            format(extra,sizeof(extra),
+                "\n\n{E48A8A}ОТКЛОНЕНО\n{BAC6D4}Кто отклонил: {F1F4F8}%s\n{BAC6D4}Причина: {E48A8A}%s",
+                rejector,reason);
+            strcat(body,extra,sizeof(body));
+        }
         gGovUIStage[playerid]=3;
-        ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
-            "{D9B872}TARKENSO | Управление выпуском",body,
-            "Действия","Назад");
+        if (!strcmp(status,"DRAFT") && GovBond_UI_CanApprove(playerid))
+            ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
+                "{D9B872}Минфин | Заявка на подпись",body,"Подписать","Отклонить");
+        else if (GovBond_UI_CanApprove(playerid) &&
+                 strcmp(status,"REJECTED") && strcmp(status,"CANCELLED"))
+            ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
+                "{D9B872}Минфин | Управление выпуском",body,"Действия","Назад");
+        else
+            ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
+                "{D9B872}Минфин | Информация о выпуске",body,"Назад","");
         return 1;
     }
     if (kind==4)
