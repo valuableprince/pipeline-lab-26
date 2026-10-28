@@ -163,9 +163,9 @@ stock TDSDB_Save(playerid, bool:asNew = false)
     new id = asNew ? 0 : gTDS[s][tsProjectId], j = TDSDB_Begin(playerid,TDS_DB_SAVE,id);
     if (j < 0) return TDS_Main(playerid);
     // R41 has no prepared-statement/bind API. Typed stored-routine parameters;
-    // all text is an alphabet-restricted HEX literal, independent of sql_mode.
+    // all text is HEX-encoded first; %e adds SQL escaping as defence in depth.
     mysql_format(gDBPrimary,gTDSQuery,sizeof(gTDSQuery),
-        "/*TDS:%d*/ CALL tds_save_v2(%d,%d,%d,%d,X'%s',X'%s',%d,%d,CONVERT(X'",
+        "/*TDS:%d*/ CALL tds_save_v2(%d,%d,%d,%d,X'%e',X'%e',%d,%d,CONVERT(X'",
         gTDSJob[j][tjSerial],id,TDSHost_Account(playerid),_:TDSHost_Founder(playerid),
         gTDS[s][tsRevision],name,description,gTDS[s][tsInterface],gTDS[s][tsNextId]);
     if (!TDSDB_QueryHex(gTDSWire)) return TDSDB_Fail(j,"Проект превышает размер запроса.");
