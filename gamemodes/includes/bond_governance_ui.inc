@@ -808,7 +808,8 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         }
         else
         {
-            if(!GovBond_UI_ParsePositive(inputtext,num,1000000000))
+            if(step==5 && !strcmp(inputtext,"0")) num=0;
+            else if(!GovBond_UI_ParsePositive(inputtext,num,1000000000))
                 return GovBond_UI_Wizard(playerid,step);
             switch(step)
             {
