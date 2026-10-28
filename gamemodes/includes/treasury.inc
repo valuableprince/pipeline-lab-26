@@ -6,7 +6,6 @@
 // TREASURY-01: government budget is independent of player cash.
 // SQL is authoritative; this snapshot is only for status/read APIs.
 // No income, tax or PayDay integration is enabled at this stage.
-#define TREASURY_STATE_ID       (1)
 #define TREASURY_MAX_BALANCE    (2000000000)
 #define TREASURY_MAX_CHANGE     (1000000000)
 
@@ -91,7 +90,7 @@ stock bool:Treasury_Reload()
     }
 
     c = mysql_query(gDBPrimary,
-        "SELECT balance,enabled,row_version,income_enabled,expense_enabled,minimum_reserve,max_transaction,income_tax_basis_points,config_version FROM treasury_accounts WHERE treasury_id=1 LIMIT 1");
+        "SELECT balance,enabled,row_version,income_enabled,expense_enabled,minimum_reserve,max_transaction,income_tax_basis_points,config_version FROM treasury_accounts WHERE code='state' LIMIT 1");
     if (c == Cache:0) return false;
 
     new balance, enabled, version, income, expense, reserve, cap, tax, configVersion;
@@ -164,8 +163,8 @@ stock bool:Treasury_Post(delta, const eventKey[], const source[], const note[], 
 
     new query[768];
     mysql_format(gDBPrimary, query, sizeof(query),
-        "CALL treasury_post(%d,'%e',%d,'%e',NULLIF(%d,0),'%e')",
-        TREASURY_STATE_ID, eventKey, delta, source, actorAccountId, note);
+        "CALL treasury_post('%e',%d,'%e',NULLIF(%d,0),'%e')",
+        eventKey, delta, source, actorAccountId, note);
     new Cache:c = mysql_query(gDBPrimary, query);
     if (c == Cache:0)
     {
