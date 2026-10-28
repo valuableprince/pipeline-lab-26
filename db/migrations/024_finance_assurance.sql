@@ -25,6 +25,7 @@ ALTER PROCEDURE gov_bond_issue_create_auto SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_official_approve SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_official_open SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_official_cancel SQL SECURITY DEFINER;
+ALTER PROCEDURE gov_bond_official_reject SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_tax_earmark SQL SECURITY DEFINER;
 
 DELIMITER $$
