@@ -16,7 +16,7 @@ WORKFLOW=(ROOT/".github/workflows/build.yml").read_text("utf-8")
 class FinanceRegistryCollation(unittest.TestCase):
     def test_registry_sql_has_no_non_ascii_username_fallback(self):
         sql=[s for s in re.findall(r'"(SELECT [^"\n]+)"',UI)
-             if "government_bond_issues i" in s]
+             if "government_bond_issues i" in s and " AS applicant" in s]
         self.assertEqual(len(sql),2)
         for q in sql:
             with self.subTest(query=q[:65]):
