@@ -218,7 +218,7 @@ stock GovBond_UI_LoadIssues(playerid,page=0)
 #if defined TARKENSO_DB_PRIMARY
     if (!GovBond_UI_Authorized(playerid) || page<0 || page>500) return 1;
     new query[430];
-    format(query,sizeof(query),
+    mysql_format(gDBPrimary,query,sizeof(query),
         "SELECT issue_id,issue_code,status,face_value,sold_quantity,max_quantity FROM government_bond_issues ORDER BY issue_id DESC LIMIT 11 OFFSET %d",
         page*GOVUI_ROWS);
     gGovUIPage[playerid]=page;
@@ -235,7 +235,7 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
 #if defined TARKENSO_DB_PRIMARY
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
     new query[550];
-    format(query,sizeof(query),
+    mysql_format(gDBPrimary,query,sizeof(query),
         "SELECT issue_id,issue_code,title,purpose,status,face_value,max_quantity,sold_quantity,yield_basis_points,insured_max_exposure,offer_end_at,maturity_at,created_by_account_id,approved_by_account_id FROM government_bond_issues WHERE issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
@@ -251,7 +251,7 @@ stock GovBond_UI_Report(playerid)
 {
 #if defined TARKENSO_DB_PRIMARY
     new query[800];
-    format(query,sizeof(query),
+    mysql_format(gDBPrimary,query,sizeof(query),
         "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
     if (!GovBond_UI_Query(playerid,query,4))
         SendClientMessage(playerid,COLOR_RED,"Отчёт казны временно недоступен.");
@@ -521,17 +521,20 @@ stock GovBond_UI_ExecuteAction(playerid)
     if ((action==2 || action==4) && !GovBond_UI_CanApprove(playerid))
         return 1;
     if (action==3 && !GovBond_UI_CanCreate(playerid)) return 1;
-    new query[440],eventKey[65],proc[45];
+    new query[440],eventKey[65];
     GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
     switch(action)
     {
-        case 2: format(proc,sizeof(proc),"gov_bond_official_approve");
-        case 3: format(proc,sizeof(proc),"gov_bond_official_open");
-        case 4: format(proc,sizeof(proc),"gov_bond_official_cancel");
+        case 2: mysql_format(gDBPrimary,query,sizeof(query),
+            "CALL gov_bond_official_approve('%e','%e',%d)",
+            eventKey,gGovUISelectedCode[playerid],gDBPrimaryAccountId[playerid]);
+        case 3: mysql_format(gDBPrimary,query,sizeof(query),
+            "CALL gov_bond_official_open('%e','%e',%d)",
+            eventKey,gGovUISelectedCode[playerid],gDBPrimaryAccountId[playerid]);
+        case 4: mysql_format(gDBPrimary,query,sizeof(query),
+            "CALL gov_bond_official_cancel('%e','%e',%d)",
+            eventKey,gGovUISelectedCode[playerid],gDBPrimaryAccountId[playerid]);
     }
-    mysql_format(gDBPrimary,query,sizeof(query),
-        "CALL %s('%e','%e',%d)",proc,eventKey,gGovUISelectedCode[playerid],
-        gDBPrimaryAccountId[playerid]);
     gGovUIStage[playerid]=0;
     if (!GovBond_UI_Write(playerid,query,action,eventKey))
         SendClientMessage(playerid,COLOR_RED,"Решение не поставлено в очередь.");
