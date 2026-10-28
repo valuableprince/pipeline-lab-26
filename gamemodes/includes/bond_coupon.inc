@@ -9,6 +9,7 @@
 #define BOND_COUPON_SCAN_LIMIT (8)
 #define BOND_COUPON_BACKSTOP_MS (30000)
 #define BOND_COUPON_NOTICE_TOP (3)
+#define BOND_COUPON_CHAT_COLOR (0xFFFFFFFF)
 
 new bool:gBondCouponReady;
 new bool:gBondCouponScanBusy;
@@ -267,7 +268,7 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
             gBondCouponNotifyBusy[playerid]=false;
             return 1;
         }
-    SendClientMessage(playerid,PAYDAY_COLOR,offline?
+    SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,offline?
         "{D9AA55}[Госзаймы] За время отсутствия начислены купоны:":
         "{D9AA55}[Госзаймы] Начислены купоны за PayDay:");
     for(new i=0;i<rows;i++)
@@ -278,20 +279,20 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
         new message[145];
         format(message,sizeof(message),"{FFFFFF}%s: {B6E4B3}+$%s",
             code,amount);
-        SendClientMessage(playerid,PAYDAY_COLOR,message);
+        SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,message);
     }
     if(series>rows)
     {
         new extra[110];
         format(extra,sizeof(extra),
             "{9FAAB8}Других выпусков с начислениями: %d",series-rows);
-        SendClientMessage(playerid,PAYDAY_COLOR,extra);
+        SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,extra);
     }
     new summary[145];
     format(summary,sizeof(summary),
         "{D9AA55}Всего начислено: {B6E4B3}+$%s",total);
-    SendClientMessage(playerid,PAYDAY_COLOR,summary);
-    SendClientMessage(playerid,PAYDAY_COLOR,
+    SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,summary);
+    SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,
         "{9FAAB8}На условном купонном счёте. Подробнее: /bonds");
 
     // ACK only after messages were sent, only up to the snapshot max ID.
