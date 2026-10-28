@@ -266,10 +266,32 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("SET status='OFFERING'",opening)
         self.assertIn("v_status AS issue_status,v_replayed AS replayed",opening)
 
+    def test_approval_denial_explains_fund_minimum_and_missing_amount(self):
+        self.assertIn("stock bool:GovBond_UI_LoadApprovalReason(playerid)",UI)
+        self.assertIn("GovBond_UI_Query(playerid,query,5)",UI)
+        self.assertIn('if (kind==5)',UI)
+        self.assertIn("Нужно минимум: $%s",UI)
+        self.assertIn("Сейчас в резерве: $%s",UI)
+        self.assertIn("Не хватает: $%s",UI)
+        self.assertIn("Страховой фонд выключен.",UI)
+        self.assertIn("только заместитель или министр финансов",UI)
+        self.assertIn("Выпуск уже подписан или больше не ожидает подписи",UI)
+        self.assertIn("CEIL(CAST(i.face_value AS DECIMAL(20,0))*t.bond_fund_coverage_bps/10000)*i.max_quantity AS exposure",UI)
+        self.assertIn("CAST(CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0)) AS CHAR) AS reserve_min",UI)
+        self.assertIn("CAST(GREATEST(0,CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0))-x.reserved) AS CHAR) AS reserve_short",UI)
+        self.assertIn('if(failedAction==2)',UI)
+        self.assertIn('GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX',UI)
+        self.assertIn("if(dialogid==GOVUI_APPROVAL_REASON)",UI)
+        self.assertIn("if(gGovUIStage[playerid]!=13)",UI)
+        self.assertNotIn("Казначейство отклонило решение: проверяйте роль, статус, фонд и подписи.",UI)
+        # Explanation is read-only. The protected approval routine is unchanged.
+        self.assertIn("gov_bond_official_approve",UI)
+        self.assertNotIn("UPDATE treasury_accounts SET",UI)
+
     def test_distinct_dialog_ids(self):
         import re
-        ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT)\s+\((\d+)\)",UI)
-        self.assertEqual(set(map(int,ids)),set(range(6800,6808)))
+        ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON)\s+\((\d+)\)",UI)
+        self.assertEqual(set(map(int,ids)),set(range(6800,6809)))
 
 
 if __name__=="__main__":
