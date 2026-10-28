@@ -187,11 +187,19 @@ jobs:
           set -euo pipefail
           mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/027_bond_coupon_payday_notices.sql
 
+      - name: Apply GOV-07.2 timezone-independent PayDay fix 028
+        run: |
+          set -euo pipefail
+          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/028_coupon_payday_timezone.sql
+
       - name: GOV-07 hourly offline coupons, collection and integrity MariaDB UAT
         run: python3 tests/gov07_coupon_mysql_uat.py
 
       - name: GOV-07.1 offline PayDay notices, ACK snapshot and replay MariaDB UAT
         run: python3 tests/gov07_notice_mysql_uat.py
+
+      - name: GOV-07.2 SQL session timezone +03:00 regression MariaDB UAT
+        run: python3 tests/gov07_timezone_mysql_uat.py
 
   compile:
     name: Compile
