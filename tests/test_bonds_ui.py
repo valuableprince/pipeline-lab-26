@@ -164,7 +164,7 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn("BONDS_UI_PAGE_SIZE   (10)",UI)
 
     def test_monochrome_bonds_ui_and_risk_visibility(self):
-        palette=set(re.findall(r"\\{[0-9A-F]{6}\\}",UI))
+        palette=set(re.findall(r"\{[0-9A-F]{6}\}",UI))
         self.assertEqual(palette,{"{E8EDF3}"})
         self.assertIn("Риск дефолта: доход не застрахован.",UI)
         self.assertIn("Проценты не застрахованы.",UI)
