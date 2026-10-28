@@ -1,4 +1,4 @@
--- GOV-05: treasury governance roles, automatic year-based bond codes, auditable game UI API.
+-- GOV-05: treasury governance roles, globally sequential bond codes, auditable game UI API.
 -- Requires migrations 017-022, staging only. Full finance acceptance after GOV-06.
 
 CREATE TABLE government_bond_officials (
@@ -36,22 +36,19 @@ CREATE TABLE government_bond_role_audit (
   CONSTRAINT chk_bond_role_audit_enabled CHECK (enabled IN (0,1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Rows are created on demand. Sequence is never reset when an issue is cancelled.
+-- One persistent, globally increasing counter, never reset across years.
 CREATE TABLE government_bond_code_sequences (
-  issue_year SMALLINT UNSIGNED NOT NULL PRIMARY KEY,
+  sequence_id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   last_number INT UNSIGNED NOT NULL DEFAULT 0,
-  CONSTRAINT chk_bond_sequence_year CHECK (issue_year BETWEEN 2026 AND 2100),
-  CONSTRAINT chk_bond_sequence_max CHECK (last_number <= 9999)
+  CONSTRAINT chk_bond_sequence_singleton CHECK (sequence_id = 1),
+  CONSTRAINT chk_bond_sequence_max CHECK (last_number <= 999999)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Reserve prior manually issued annual codes so they cannot be reused.
-INSERT INTO government_bond_code_sequences(issue_year,last_number)
- SELECT CAST(SUBSTRING(issue_code,5,4) AS UNSIGNED),
-        MAX(CAST(SUBSTRING(issue_code,10,4) AS UNSIGNED))
+-- Seed from the highest existing six-digit GOV number without changing old codes.
+INSERT INTO government_bond_code_sequences(sequence_id,last_number)
+ SELECT 1, COALESCE(MAX(CAST(SUBSTRING(issue_code,5) AS UNSIGNED)),0)
  FROM government_bond_issues
- WHERE issue_code REGEXP '^GOV-[0-9]{4}-[0-9]{4}$'
-   AND CAST(SUBSTRING(issue_code,5,4) AS UNSIGNED) BETWEEN 2026 AND 2100
- GROUP BY CAST(SUBSTRING(issue_code,5,4) AS UNSIGNED);
+ WHERE BINARY issue_code REGEXP '^GOV-[0-9]{6}$';
 
 -- The 5% income-tax reserve rate already exists since GOV-01.
 ALTER TABLE bond_fund_ledger
@@ -154,8 +151,7 @@ CREATE PROCEDURE gov_bond_issue_create_auto(
 SQL SECURITY INVOKER
 BEGIN
  DECLARE v_role VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL;
- DECLARE v_year SMALLINT UNSIGNED;
- DECLARE v_number INT UNSIGNED;
+ DECLARE v_number INT UNSIGNED DEFAULT NULL;
  DECLARE v_code VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin;
  DECLARE v_issue BIGINT UNSIGNED DEFAULT NULL;
  DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
@@ -208,21 +204,15 @@ BEGIN
    SET v_replayed=1;
  ELSE
    SET v_start_new=UTC_TIMESTAMP();
-   SET v_year=YEAR(v_start_new);
-   IF v_year NOT BETWEEN 2026 AND 2100 THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond code year unsupported';
-   END IF;
-   INSERT INTO government_bond_code_sequences(issue_year,last_number)
-     VALUES(v_year,0) ON DUPLICATE KEY UPDATE issue_year=VALUES(issue_year);
    SELECT last_number INTO v_number
-     FROM government_bond_code_sequences WHERE issue_year=v_year FOR UPDATE;
-   IF v_number>=9999 THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='annual bond sequence exhausted';
+     FROM government_bond_code_sequences WHERE sequence_id=1 FOR UPDATE;
+   IF v_number IS NULL OR v_number>=999999 THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='global bond sequence exhausted';
    END IF;
    SET v_number=v_number+1;
    UPDATE government_bond_code_sequences SET last_number=v_number
-     WHERE issue_year=v_year;
-   SET v_code=CONCAT('GOV-',v_year,'-',LPAD(v_number,4,'0'));
+     WHERE sequence_id=1;
+   SET v_code=CONCAT('GOV-',LPAD(v_number,6,'0'));
    INSERT INTO government_bond_issues
      (issue_code,title,purpose,issue_type,face_value,max_quantity,
       yield_basis_points,offer_start_at,offer_end_at,maturity_at,
