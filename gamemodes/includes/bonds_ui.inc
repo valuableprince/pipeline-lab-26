@@ -433,6 +433,9 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
     {
         if(gBondsUIStage[playerid]!=BONDS_UI_PENDING_BUY)return 1;
         if(!response)return BondsUI_LoadList(playerid,BONDS_UI_OFFERS,gBondsUIPage[playerid]);
+        // Consume confirmation BEFORE queueing: forged/replayed dialog responses
+        // cannot create a second event_key and purchase a second bond.
+        gBondsUIStage[playerid]=BONDS_UI_NONE;
 #if defined TARKENSO_DB_PRIMARY
         new eventKey[65];
         BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));
@@ -460,6 +463,7 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
     {
         if(gBondsUIStage[playerid]!=BONDS_UI_POSITION)return 1;
         if(!response)return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        gBondsUIStage[playerid]=BONDS_UI_NONE;
 #if defined TARKENSO_DB_PRIMARY
         new eventKey[65];
         BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));
