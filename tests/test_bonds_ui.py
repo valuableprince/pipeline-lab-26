@@ -36,19 +36,63 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn("mysql_tquery(gDBPrimary, query",UI)
         self.assertNotIn("mysql_query(gDBPrimary, query)",UI)
 
-    def test_buy_one_only_and_sql_amount_authority(self):
-        self.assertIn("BondSettlement_Buy(playerid,eventKey,gBondsUISelectedCode[playerid],1)",UI)
+    def test_batch_quantity_is_user_entered_and_sql_authoritative(self):
+        for token in (
+            "BONDS_DLG_QUANTITY   (6707)",
+            "BONDS_DLG_QUANTITY,DIALOG_STYLE_INPUT",
+            "Введите количество облигаций от 1 до %d",
+            "stock BondsUI_ShowQuantity(playerid)",
+            "if(dialogid==BONDS_DLG_QUANTITY)",
+            "gBondsUIStage[playerid]!=BONDS_UI_QUANTITY",
+            "inputtext[i]<'0' || inputtext[i]>'9'",
+            "count>gBondsUIMaxBuy[playerid]",
+            "return BondsUI_StartPurchase(playerid,count)",
+            "gBondsUIPurchaseQty[playerid]=quantity",
+            "gBondsUIPrice[playerid]*quantity",
+            "Итого к оплате:",
+            "gBondsUIPendingQty[playerid]=gBondsUIPurchaseQty[playerid]",
+            "BondSettlement_Buy(playerid,eventKey,gBondsUISelectedCode[playerid],",
+            "gBondsUIPurchaseQty[playerid]))",
+            "gBondsUIStage[playerid]=BONDS_UI_NONE;",
+            "gBondsUIPendingQty[playerid]=0;",
+            "Покупка %d облигаций подтверждена.",
+        ):
+            with self.subTest(token=token): self.assertIn(token,UI)
+        self.assertNotIn("Купить 1",UI)
+        self.assertNotIn("BondSettlement_Buy(playerid,eventKey,gBondsUISelectedCode[playerid],1)",UI)
         self.assertNotIn("Economy_Debit(",UI)
         self.assertNotIn("Economy_Credit(",UI)
         self.assertNotIn("GivePlayerMoney(",UI)
-        self.assertIn("gBondsUIPrice[playerid]",UI)
         self.assertIn("gBondsUIEventSerial++",UI)
-        self.assertIn("new eventKey[65];",UI)
         self.assertIn("BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));",UI)
         self.assertIn("SET v_payment=CAST(v_face AS UNSIGNED)*p_quantity",SCHEMA)
         self.assertIn("FROM accounts WHERE account_id=p_account_id FOR UPDATE;",SCHEMA)
         self.assertIn("FROM government_bond_issues WHERE issue_code=p_issue_code FOR UPDATE;",SCHEMA)
         self.assertIn("FROM government_bond_orders WHERE event_key=p_event_key",SCHEMA)
+
+    def test_strict_per_issue_twenty_percent_and_cross_issue_portfolio(self):
+        for token in (
+            "LEFT JOIN government_bond_holdings h ON h.issue_id=i.issue_id AND h.account_id=%d",
+            "i.max_quantity DIV 5 AS per_account_limit",
+            "COALESCE(h.quantity,0) AS owned",
+            "i.max_quantity-i.sold_quantity AS remaining",
+            "LEAST(max_transaction,1000000000)",
+            "new capacity=holdLimit-owned;",
+            "new affordable=gAccountMoney[playerid]/face;",
+            "if(maxBuy>capacity)maxBuy=capacity;",
+            "if(maxBuy>affordable)maxBuy=affordable;",
+            "if(maxBuy>purchaseCap/face)maxBuy=purchaseCap/face;",
+            "gBondsUIMaxBuy[playerid]=maxBuy;",
+            "gBondsUIHoldLimit[playerid]=holdLimit;",
+            "gBondsUIOwned[playerid]=owned;",
+            "gBondsUISelectedIssue[playerid] = issueId;",
+            "WHERE h.account_id=%d ORDER BY i.issue_id DESC",
+        ):
+            with self.subTest(token=token): self.assertIn(token,UI)
+        self.assertIn("v_existing_qty+p_quantity > v_max_qty DIV 5",SCHEMA)
+        self.assertNotIn("GREATEST(1,v_max_qty DIV 5)",SCHEMA)
+        self.assertIn("PRIMARY KEY (issue_id, account_id)",
+            (ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8"))
 
     def test_portfolio_debt_statuses_are_localized_without_changing_sql(self):
         issue_schema=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
@@ -129,9 +173,9 @@ class BondInvestorUiContracts(unittest.TestCase):
 
     def test_dialog_constants_are_separate_and_stable(self):
         constants=re.findall(r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI)
-        self.assertEqual(len(constants),7)
+        self.assertEqual(len(constants),8)
         self.assertEqual(len(set(constants)),7)
-        self.assertEqual(set(map(int,constants)),set(range(6700,6707)))
+        self.assertEqual(set(map(int,constants)),set(range(6700,6708)))
         self.assertIn("gBondsUILoading[playerid] || gGovTransferBusy[playerid]",UI)
 
 
