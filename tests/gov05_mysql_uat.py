@@ -162,6 +162,52 @@ def main():
     except mysql.connector.Error: mutated=True
     assert mutated
 
+    # Rejection is a separate audited DRAFT -> REJECTED decision.
+    # The originating specialist must be able to read the persisted reason.
+    reason="Расходы по проекту не подтверждены сметой и графиком выплат"
+    rejects("gov_bond_official_reject","bond:minfin:reject:trainee",
+            ninth[1],trainee,reason)
+    rejects("gov_bond_official_reject","bond:minfin:reject:spec",
+            ninth[1],specialist,reason)
+    rejects("gov_bond_official_reject","bond:minfin:reject:blank",
+            ninth[1],minister,"    ")
+    rejects("gov_bond_official_reject","bond:minfin:reject:approved",
+            tenth[1],minister,reason)
+    insurance_before_reject=query(
+        "SELECT balance,bond_fund_reserved,bond_fund_committed,"
+        "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
+    decision=call("gov_bond_official_reject",
+                  "bond:minfin:reject:ninth",ninth[1],minister,reason)
+    assert decision[0:4]==(ninth[0],"REJECTED",specialist,reason),decision
+    assert decision[-1]==0
+    assert call("gov_bond_official_reject",
+                "bond:minfin:reject:ninth",ninth[1],minister,reason)[-1]==1
+    rejects("gov_bond_official_reject","bond:minfin:reject:ninth",
+            ninth[1],minister,"Другая причина отклонения")
+    rejects("gov_bond_official_reject","bond:minfin:reject:again",
+            ninth[1],minister,reason)
+    rejects("gov_bond_official_approve","bond:minfin:sign:rejected",
+            ninth[1],minister)
+    assert query("SELECT i.status,i.rejection_reason,i.rejected_by_account_id,"
+                 "i.created_by_account_id,i.rejected_at IS NOT NULL,"
+                 "a.username FROM government_bond_issues i JOIN accounts a "
+                 "ON a.account_id=i.created_by_account_id "
+                 "WHERE i.issue_id=%s",(ninth[0],)) == [
+                     ("REJECTED",reason,minister,specialist,1,"gov00uat")]
+    assert query("SELECT action,actor_account_id,from_status,to_status "
+                 "FROM government_bond_issue_audit WHERE event_key=%s",
+                 ("bond:minfin:reject:ninth",))==[(
+                     "REJECT",minister,"DRAFT","REJECTED")]
+    assert query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
+                 "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0] == insurance_before_reject
+    # The rejected reason cannot be edited directly, including on a closed issue.
+    protected=False
+    try:
+        query("UPDATE government_bond_issues SET rejection_reason='Подмена' "
+              "WHERE issue_id=%s",(ninth[0],))
+    except mysql.connector.Error: protected=True
+    assert protected
+
     # Promotions and revocations in the regular roster are authoritative NOW.
     query("UPDATE faction_members SET rank_id=1 WHERE account_id=%s "
           "AND faction_id=5",(deputy,))
@@ -197,6 +243,6 @@ def main():
                  (tax_id,))==[(50,500)]
     print("GOV-05 MariaDB UAT: PASS (standard Ministry of Finance ranks 1/2/3/4, "
           "specialist approval by leadership and explicit self-signature for ranks 3/4, "
-          "concurrency and continuous GOV codes, real 5pct tax)")
+          "rejection reasons and immutable audit, continuous GOV codes, real 5pct tax)")
 if __name__=="__main__":
     main()
