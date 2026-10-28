@@ -38,7 +38,8 @@ def main():
     baseline=call_audit()
     assert baseline[1]>=baseline[2]+baseline[4]
     assert baseline[3]<=baseline[2]
-    assert baseline[7]>=9
+    assert baseline[6]>=9   # at least nine state bond issues
+    assert baseline[7]>=2   # at least two actual GOV-03 purchase orders
 
     # No app user should be able to mutate immutable proof rows, even if it has
     # inherited table DML privileges. The triggers guard the finance journals.
