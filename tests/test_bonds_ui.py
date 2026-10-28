@@ -17,7 +17,7 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertRegex(COMMANDS,r"cmd:bonds\(playerid, params\[\]\)")
         self.assertIn("return BondsUI_Main(playerid);",COMMANDS)
         self.assertIn('#include "bonds_ui.inc"',MAIN)
-        self.assertIn("BondsUI_OnDialog(playerid, dialogid, response, listitem)",MAIN)
+        self.assertIn("BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)",MAIN)
         self.assertIn("BondsUI_Reset(playerid);",MAIN)
         self.assertIn("BondsUI_OnSettlement(playerid, replayed != 0)",BACKEND)
         assert_staged(self,"bonds_ui.inc")
