@@ -195,6 +195,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "treasury.inc"
 #include "gov_transfer.inc"
 #include "bond_fund.inc"
+#include "government_bonds.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -827,6 +828,7 @@ public OnGameModeInit()
     Treasury_Init();
     GovTransfer_Init();
     BondFund_Init();
+    BondIssues_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -885,6 +887,7 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    BondIssues_Shutdown();
     BondFund_Shutdown();
     GovTransfer_Shutdown();
     Treasury_Shutdown();
@@ -964,6 +967,7 @@ public OnPlayerConnect(playerid)
     DBShadow_OnConnect(playerid);
     DBPrimary_OnConnect(playerid);
     GovTransfer_OnConnect(playerid);
+    BondIssues_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
@@ -981,6 +985,7 @@ public OnPlayerDisconnect(playerid, reason)
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
     DBShadow_OnDisconnect(playerid);
+    BondIssues_Reset(playerid);
     GovTransfer_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
