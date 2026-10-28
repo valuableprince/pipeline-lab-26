@@ -644,7 +644,8 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         !gDBPrimaryLoaded[playerid] || gDBPrimaryAccountId[playerid]!=accountId ||
         gGovUIPendingAccount[playerid]!=accountId ||
         gGovUIWriteSerial[playerid]!=serial) return 1;
-    new rows=0,replayed,issueId=0,code[65];
+    new rows=0,replayed,issueId=0,code[65],creatorId=0;
+    new rejectionReason[256],decisionStatus[20];
     new action=gGovUIPendingAction[playerid];
     new bool:valid=mysql_errno(gDBPrimary)==0 &&
         cache_get_row_count(rows) && rows==1 &&
@@ -652,6 +653,13 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     if (valid && action==1)
         valid=cache_get_value_name_int(0,"issue_id",issueId) &&
               cache_get_value_name(0,"issue_code",code,sizeof(code));
+    if (valid && action==5)
+        valid=cache_get_value_name_int(0,"creator_account_id",creatorId) &&
+              cache_get_value_name_int(0,"issue_id",issueId) &&
+              cache_get_value_name(0,"rejection_reason",rejectionReason,sizeof(rejectionReason)) &&
+              cache_get_value_name(0,"issue_status",decisionStatus,sizeof(decisionStatus)) &&
+              !strcmp(decisionStatus,"REJECTED") &&
+              issueId==gGovUISelectedIssue[playerid];
     // Unknown result may have COMMITTED. Disable retry for this session.
     if (!valid || (replayed!=0 && replayed!=1))
     {
@@ -689,6 +697,33 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
                 if(Leader_PlayerOrg(i)==FACTION_FINANCE)
                     SendClientMessage(i,FACTION_COLOR,notice);
         }
+    }
+    else if(action==5)
+    {
+        new notice[150];
+        format(notice,sizeof(notice),
+            "Заявка %s отклонена. Причина сохранена в реестре.",
+            gGovUISelectedCode[playerid]);
+        SendClientMessage(playerid,COLOR_AMBER,notice);
+        if(replayed==0)
+        {
+            // Online author sees the decision immediately. The FULL reason is
+            // also stored in the issue and is readable after relogging.
+            for(new i=0;i<MAX_PLAYERS;i++)
+                if(IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+                   gAuthState[i]==AUTH_READY &&
+                   gDBPrimaryAccountId[i]==creatorId)
+                {
+                    SendClientMessage(i,COLOR_RED,notice);
+                    format(notice,sizeof(notice),
+                        "Причина отказа: %.96s",rejectionReason);
+                    SendClientMessage(i,COLOR_AMBER,notice);
+                    SendClientMessage(i,COLOR_AMBER,
+                        "Полная причина: /bondgov -> Реестр выпусков -> Отклонено.");
+                    break;
+                }
+        }
+        return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
     }
     else
     {
