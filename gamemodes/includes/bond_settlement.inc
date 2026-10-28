@@ -281,7 +281,9 @@ public BondSettlement_OnError(errorid, const query[])
 #else
     #pragma unused errorid, query
 #endif
-    return 0;
+    // SQL explicitly rolled back. The original player may have disconnected
+    // before OnQueryError; never disconnect unrelated players in that case.
+    return 1;
 }
 
 // Scan due issues. Server UTC + DB real time determine maturity/grace.
