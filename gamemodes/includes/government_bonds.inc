@@ -4,7 +4,7 @@
 #define _tarkenso_bond_issues_included
 
 // GOV-02: state bond issue lifecycle; NO purchases, payoffs, or public commands.
-// Internal founder-only staging adapter. GOV-05 will replace this with
+// Internal senior-admin staging adapter. GOV-05 will replace this with
 // auditable, role-based government approvals and a user interface.
 #define BOND_ISSUES_QUERY_MAX (1500)
 new bool:gBondIssuesReady;
@@ -72,7 +72,8 @@ stock bool:BondIssues_CheckActor(playerid, const eventKey[], const issueCode[])
         IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
         gAuthState[playerid] == AUTH_READY && gDBPrimaryLoaded[playerid] &&
         gDBPrimaryAccountId[playerid] > 0 &&
-        Admin_IsFounder(playerid) && !gBondIssuesBusy[playerid] &&
+        Admin_Allowed(playerid, PERM_MANAGE_STAFF) && gAdminDuty[playerid] &&
+        !gBondIssuesBusy[playerid] &&
         strlen(eventKey) >= 6 && strlen(eventKey) <= 64 &&
         !strcmp(eventKey,"bond:",false,5) &&
         Treasury_ValidToken(eventKey,64) &&
