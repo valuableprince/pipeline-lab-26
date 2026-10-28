@@ -293,7 +293,20 @@ BEGIN
    SET v_replayed=1;
    SET v_exposure=v_saved_exposure;
  ELSE
-   IF v_status <> 'DRAFT' OR v_creator=p_actor_id OR v_sold <> 0
+   -- After GOV-05, only finance deputy/minister may approve; they may
+   -- approve their own draft. Before 023, preserve GOV-02 legacy UAT rule.
+   IF v_status <> 'DRAFT' OR v_sold <> 0
+      OR (v_creator=p_actor_id AND NOT EXISTS (
+            SELECT 1 FROM faction_members m JOIN factions f
+            ON f.faction_id=m.faction_id WHERE m.account_id=p_actor_id
+            AND m.faction_id=5 AND m.rank_id IN (9,10) AND f.is_enabled=1
+            AND f.term_end>UNIX_TIMESTAMP()))
+      OR (EXISTS (SELECT 1 FROM schema_migrations WHERE version=23)
+          AND NOT EXISTS (
+            SELECT 1 FROM faction_members m JOIN factions f
+            ON f.faction_id=m.faction_id WHERE m.account_id=p_actor_id
+            AND m.faction_id=5 AND m.rank_id IN (9,10) AND f.is_enabled=1
+            AND f.term_end>UNIX_TIMESTAMP()))
       OR v_end <= UTC_TIMESTAMP() OR v_enabled <> 1
       OR v_version >= 2147483646 THEN
      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond approval not allowed';
