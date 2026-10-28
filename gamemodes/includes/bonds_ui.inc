@@ -434,7 +434,7 @@ stock BondsUI_ShowQuantity(playerid)
     }
     new body[430];
     format(body,sizeof(body),
-        "{E9C67E}Введите количество облигаций от 1 до %d.\\n\\n{B8C6D7}Выпуск: {F1F4F8}%s\\n{B8C6D7}Номинал: {E9C67E}$%d\\n{B8C6D7}Ваш лимит (20%%): {F1F4F8}%d шт.\\n{B8C6D7}Уже принадлежит вам: {F1F4F8}%d шт.\\n\\n{92A0AF}Ограничение считается отдельно по каждому выпуску.",
+        "{E9C67E}Введите количество облигаций от 1 до %d.\n\n{B8C6D7}Выпуск: {F1F4F8}%s\n{B8C6D7}Номинал: {E9C67E}$%d\n{B8C6D7}Ваш лимит (20%%): {F1F4F8}%d шт.\n{B8C6D7}Уже принадлежит вам: {F1F4F8}%d шт.\n\n{92A0AF}Ограничение считается отдельно по каждому выпуску.",
         gBondsUIMaxBuy[playerid],gBondsUISelectedCode[playerid],
         gBondsUIPrice[playerid],gBondsUIHoldLimit[playerid],
         gBondsUIOwned[playerid]);
@@ -457,7 +457,7 @@ stock BondsUI_StartPurchase(playerid,quantity)
     gBondsUIPurchaseQty[playerid]=quantity;
     new body[430],total=gBondsUIPrice[playerid]*quantity;
     format(body,sizeof(body),
-        "{DDBB77}ПОДТВЕРЖДЕНИЕ ПОКУПКИ\\n\\n{F1F4F8}Выпуск: %s\\n{B8C6D7}Количество: {F1F4F8}%d шт.\\n{B8C6D7}Номинал одной: {E9C67E}$%d\\n{B8C6D7}Итого к оплате: {E9C67E}$%d\\n{B8C6D7}На кошельке: {F1F4F8}$%d\\n\\n{92A0AF}Цена и лимит будут проверены MySQL перед списанием.",
+        "{DDBB77}ПОДТВЕРЖДЕНИЕ ПОКУПКИ\n\n{F1F4F8}Выпуск: %s\n{B8C6D7}Количество: {F1F4F8}%d шт.\n{B8C6D7}Номинал одной: {E9C67E}$%d\n{B8C6D7}Итого к оплате: {E9C67E}$%d\n{B8C6D7}На кошельке: {F1F4F8}$%d\n\n{92A0AF}Цена и лимит будут проверены MySQL перед списанием.",
         gBondsUISelectedCode[playerid],quantity,gBondsUIPrice[playerid],
         total,gAccountMoney[playerid]);
     gBondsUIStage[playerid]=BONDS_UI_PENDING_BUY;
@@ -498,7 +498,7 @@ stock BondsUI_StartCollect(playerid)
 
 stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
 {
-    if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_COLLECT) return 0;
+    if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_QUANTITY) return 0;
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY) return 1;
     if(gBondsUILoading[playerid] || gGovTransferBusy[playerid]) return 1;
     if(dialogid==BONDS_DLG_MAIN)
@@ -559,12 +559,47 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
         if(gBondsUIStage[playerid]==BONDS_UI_NONE)return BondsUI_Main(playerid);
         if(gBondsUIStage[playerid]!=BONDS_UI_OFFER)return 1;
         if(!response)return BondsUI_LoadList(playerid,BONDS_UI_OFFERS,gBondsUIPage[playerid]);
-        return BondsUI_StartPurchase(playerid);
+        return BondsUI_ShowQuantity(playerid);
+    }
+    if(dialogid==BONDS_DLG_QUANTITY)
+    {
+        if(gBondsUIStage[playerid]!=BONDS_UI_QUANTITY)return 1;
+        if(!response)
+            return BondsUI_LoadDetail(playerid,BONDS_UI_OFFER,gBondsUISelectedIssue[playerid]);
+        // Digits only, never accept signs, whitespace, huge numbers or formatting.
+        new count=0,len=strlen(inputtext),bool:valid=(len>=1 && len<=7);
+        if(valid)
+        {
+            for(new i=0;i<len;i++)
+            {
+                if(inputtext[i]<'0' || inputtext[i]>'9')
+                {
+                    valid=false;
+                    break;
+                }
+                count=count*10+(inputtext[i]-'0');
+                if(count>gBondsUIMaxBuy[playerid])
+                {
+                    valid=false;
+                    break;
+                }
+            }
+        }
+        if(!valid || count<1 || count>gBondsUIMaxBuy[playerid])
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "Неверное количество. Введите целое число в указанном диапазоне.");
+            return BondsUI_ShowQuantity(playerid);
+        }
+        return BondsUI_StartPurchase(playerid,count);
     }
     if(dialogid==BONDS_DLG_CONFIRM)
     {
         if(gBondsUIStage[playerid]!=BONDS_UI_PENDING_BUY)return 1;
-        if(!response)return BondsUI_LoadList(playerid,BONDS_UI_OFFERS,gBondsUIPage[playerid]);
+        if(!response)return BondsUI_LoadDetail(playerid,BONDS_UI_OFFER,gBondsUISelectedIssue[playerid]);
+        if(gBondsUIPurchaseQty[playerid]<1 ||
+           gBondsUIPurchaseQty[playerid]>gBondsUIMaxBuy[playerid])
+            return 1;
         // Consume confirmation BEFORE queueing: forged/replayed dialog responses
         // cannot create a second event_key and purchase a second bond.
         gBondsUIStage[playerid]=BONDS_UI_NONE;
@@ -572,14 +607,23 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
         new eventKey[65];
         BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));
         gBondsUIPendingAction[playerid]=1;
-        if(!BondSettlement_Buy(playerid,eventKey,gBondsUISelectedCode[playerid],1))
+        gBondsUIPendingQty[playerid]=gBondsUIPurchaseQty[playerid];
+        if(!BondSettlement_Buy(playerid,eventKey,gBondsUISelectedCode[playerid],
+            gBondsUIPurchaseQty[playerid]))
         {
             gBondsUIPendingAction[playerid]=0;
+            gBondsUIPendingQty[playerid]=0;
             SendClientMessage(playerid,COLOR_RED,
                 "Покупка не принята. Проверьте баланс, лимит или выпуск.");
         }
-        else SendClientMessage(playerid,COLOR_AMBER,
-            "Заявка на 1 облигацию отправлена. Ожидается подтверждение казначейства.");
+        else
+        {
+            new notice[150];
+            format(notice,sizeof(notice),
+                "Заявка на покупку %d шт. отправлена в казначейство.",
+                gBondsUIPendingQty[playerid]);
+            SendClientMessage(playerid,COLOR_AMBER,notice);
+        }
 #endif
         return 1;
     }
@@ -618,6 +662,7 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
 public BondsUI_OnRejected(playerid)
 {
     gBondsUIPendingAction[playerid]=0;
+    gBondsUIPendingQty[playerid]=0;
     if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
         SendClientMessage(playerid,COLOR_RED,
             "Казначейство отклонило операцию. Проверьте баланс, лимит и срок выпуска; откройте /bonds снова.");
@@ -628,11 +673,18 @@ public BondsUI_OnSettlement(playerid,bool:replayed)
 {
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY)
         return 1;
-    new action=gBondsUIPendingAction[playerid];
+    new action=gBondsUIPendingAction[playerid],quantity=gBondsUIPendingQty[playerid];
     gBondsUIPendingAction[playerid]=0;
-    if(action==1)
-        SendClientMessage(playerid,COLOR_AMBER,
-            replayed?"Покупка уже проведена ранее.":"Покупка 1 облигации подтверждена. Проверьте портфель.");
+    gBondsUIPendingQty[playerid]=0;
+    if(action==1 && quantity>0)
+    {
+        new notice[150];
+        format(notice,sizeof(notice),
+            replayed?"Покупка %d шт. уже проведена ранее.":
+                "Покупка %d облигаций подтверждена. Проверьте портфель.",
+            quantity);
+        SendClientMessage(playerid,COLOR_AMBER,notice);
+    }
     else if(action==2)
         SendClientMessage(playerid,COLOR_AMBER,
             replayed?"Выплата уже была перечислена.":"Выплата подтверждена и зачислена на кошелёк.");
