@@ -57,7 +57,7 @@ def main():
     assert start[1:] == (0,0,0,8000), start
 
     # Fund has no artificial starting cash and must not create cash on capitalization.
-    rejects(CAP, "fund:insufficient", 1, None)
+    rejects(CAP, "fund:insufficient", start[0] + 1, None)
     rejects(COMMIT, "fund:disabled", "GOV-TEST-A", 1, None)
     new_cash = call(POST, ("gov01:capital", 150000, "uat", None, "staging_seed"))
     assert int(new_cash[0]) == start[0] + 150000
