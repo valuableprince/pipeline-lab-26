@@ -64,6 +64,23 @@ class LeaderCoreContract(unittest.TestCase):
                       'gFactionInviteCooldown[playerid] > gettime()'):
             self.assertIn(value, CORE)
 
+    def test_solo_qa_admin_may_assign_or_renew_self(self):
+        # Leader_Command shares this online-target validation between
+        # /setleader and /renewleader. Self is now an authorized target.
+        guard = CORE.split('if (!strcmp(command, "setleader", true) || !strcmp(command, "renewleader", true))',1)[1].split('if (!strcmp(command, "unleader", true))',1)[0]
+        self.assertIn("if (!Leader_RequireAdmin(playerid)) return 1;",guard)
+        self.assertIn("!Admin_Ready(first)",guard)
+        self.assertNotIn("first == playerid",guard)
+        self.assertIn('if (!Leader_AssignLeader(org, gAccountName[target]))',guard)
+        self.assertIn('Leader_AuditPlayer(playerid, "SET_LEADER_INTENT", detail)',guard)
+        self.assertIn('Leader_AuditPlayer(playerid, "SET_LEADER", detail)',guard)
+        self.assertIn('Leader_AuditPlayer(playerid, "RENEW_LEADER_INTENT", detail)',guard)
+        self.assertIn('Leader_AuditPlayer(playerid, "RENEW_LEADER", detail)',guard)
+        self.assertIn('gFactionTermEnd[o] = gettime() + FACTION_TERM_SECONDS;',guard)
+        self.assertIn('Leader_Save(org)',guard)
+        self.assertIn('return gAdminLevel[playerid] >= 5;', (ROOT / "gamemodes/includes/admin_system.inc").read_text("utf-8"))
+        self.assertIn('gAdminDuty[playerid]',CORE)
+
     def test_chat_and_activity(self):
         self.assertIn('gAdminMuteUntil[playerid] > gettime()', CORE)
         self.assertIn('gFactionMemberSeen[o][index] = gettime()', CORE)
