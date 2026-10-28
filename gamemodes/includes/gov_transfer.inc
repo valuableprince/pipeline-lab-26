@@ -136,8 +136,21 @@ public GovTransfer_OnComplete(playerid, authToken, accountId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if (gGovTransferPendingCount > 0) gGovTransferPendingCount--;
+    if (playerid < 0 || playerid >= MAX_PLAYERS) return 1;
+    // If the same account has already reconnected, its loaded snapshot might
+    // predate this commit. Force another login; NEVER overwrite the new session.
+    if (IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
+        gAuthToken[playerid] != authToken &&
+        gAuthState[playerid] == AUTH_READY && gDBPrimaryLoaded[playerid] &&
+        gDBPrimaryAccountId[playerid] == accountId)
+    {
+        gGovTransferBusy[playerid] = true;
+        print("[GOV-00] Late settlement of same account: forcing authoritative reconnect.");
+        Kick(playerid);
+        return 1;
+    }
     // Player ID may have been reused after reconnect. Never credit that session.
-    if (playerid < 0 || playerid >= MAX_PLAYERS ||
+    if (
         !IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
         gAuthToken[playerid] != authToken || gAuthState[playerid] != AUTH_READY ||
         !gDBPrimaryLoaded[playerid] || gDBPrimaryAccountId[playerid] != accountId ||
