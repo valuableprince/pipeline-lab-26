@@ -16,6 +16,7 @@ SAFE_SCHEMA = {"USAGE", "SELECT", "SHOW VIEW"}
 SAFE_FINANCE = {"USAGE", "SELECT", "SHOW VIEW"}
 FINANCE_PREFIXES = ("treasury_", "bond_", "government_bond_")
 FINANCE_TABLES = {"gov_transfers", "gov_transfer_post"}
+AUTHORITY_TABLES = {"faction_members", "factions", "admin_roles"}
 
 
 def _split_privileges(raw):
@@ -99,6 +100,11 @@ def assess_grants(grants, database):
             for name, _ in parsed:
                 if name not in SAFE_FINANCE:
                     violations.add("direct finance table privilege: "
+                                   + name + " on " + obj)
+        elif obj in AUTHORITY_TABLES:
+            for name, _ in parsed:
+                if name not in SAFE_FINANCE:
+                    violations.add("direct organization/authority privilege: "
                                    + name + " on " + obj)
         elif obj == "accounts":
             for name, columns in parsed:
