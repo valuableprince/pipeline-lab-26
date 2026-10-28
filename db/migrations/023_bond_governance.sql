@@ -2,7 +2,7 @@
 -- Requires migrations 017-022, staging only. Full finance acceptance after GOV-06.
 
 -- Government organization #5 uses the EXISTING faction/roster infrastructure.
--- Rank 1 trainee, 2 specialist, 9 deputy (display 3), 10 minister (display 4).
+-- Rank 1 trainee, 2 specialist, 3 deputy, 4 minister (stored exactly).
 INSERT INTO factions(faction_id,is_enabled,term_start,term_end)
  VALUES(5,1,0,0) ON DUPLICATE KEY UPDATE is_enabled=1;
 
@@ -101,7 +101,7 @@ BEGIN
    FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id
    WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
      AND f.term_end>UNIX_TIMESTAMP() FOR UPDATE;
- IF v_rank IS NULL OR v_rank NOT IN (2,9,10) THEN
+ IF v_rank IS NULL OR v_rank NOT IN (2,3,4) THEN
    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance ministry specialist rank required';
  END IF;
  SELECT issue_id,issue_code,title,purpose,issue_type,face_value,max_quantity,
@@ -149,7 +149,7 @@ BEGIN
 END$$
 
 -- Finance actions check REAL faction rank on each call, not stored SQL roles.
--- A deputy or minister may approve their OWN draft (GOV-02 permits rank 9/10).
+-- A deputy or minister may approve their OWN draft (GOV-02 permits rank 3/4).
 CREATE PROCEDURE gov_bond_official_approve(
  IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),IN p_actor BIGINT UNSIGNED
 )
@@ -160,7 +160,7 @@ BEGIN
    ON f.faction_id=m.faction_id
    WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
      AND f.term_end>UNIX_TIMESTAMP();
- IF v_rank IS NULL OR v_rank NOT IN (9,10) THEN
+ IF v_rank IS NULL OR v_rank NOT IN (3,4) THEN
    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
  END IF;
  CALL gov_bond_issue_approve(p_event_key,p_issue_code,p_actor);
@@ -176,7 +176,7 @@ BEGIN
    ON f.faction_id=m.faction_id
    WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
      AND f.term_end>UNIX_TIMESTAMP();
- IF v_rank IS NULL OR v_rank NOT IN (9,10) THEN
+ IF v_rank IS NULL OR v_rank NOT IN (3,4) THEN
    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
  END IF;
  CALL gov_bond_issue_open(p_event_key,p_issue_code,p_actor);
@@ -192,7 +192,7 @@ BEGIN
    ON f.faction_id=m.faction_id
    WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
      AND f.term_end>UNIX_TIMESTAMP();
- IF v_rank IS NULL OR v_rank NOT IN (9,10) THEN
+ IF v_rank IS NULL OR v_rank NOT IN (3,4) THEN
    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
  END IF;
  CALL gov_bond_issue_cancel(p_event_key,p_issue_code,p_actor);
