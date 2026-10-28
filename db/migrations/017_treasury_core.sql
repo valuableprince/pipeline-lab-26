@@ -7,30 +7,26 @@ CREATE TABLE treasury_accounts (
   code VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   balance BIGINT UNSIGNED NOT NULL DEFAULT 0,
   enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
-  row_version INT UNSIGNED NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_treasury_code (code),
-  CONSTRAINT chk_treasury_balance CHECK (balance <= 2000000000),
-  CONSTRAINT chk_treasury_enabled CHECK (enabled IN (0,1)),
-  CONSTRAINT chk_treasury_version CHECK (row_version <= 2147483646)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE treasury_settings (
-  treasury_id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   income_enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
   expense_enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
   minimum_reserve BIGINT UNSIGNED NOT NULL DEFAULT 0,
   max_transaction BIGINT UNSIGNED NOT NULL DEFAULT 1000000000,
   income_tax_basis_points SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  row_version INT UNSIGNED NOT NULL DEFAULT 0,
   config_version INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_treasury_settings FOREIGN KEY (treasury_id)
-    REFERENCES treasury_accounts(treasury_id) ON DELETE RESTRICT,
-  CONSTRAINT chk_treasury_settings_flags CHECK (income_enabled IN (0,1) AND expense_enabled IN (0,1)),
-  CONSTRAINT chk_treasury_settings_values CHECK (
+  UNIQUE KEY uq_treasury_code (code),
+  CONSTRAINT chk_treasury_balance CHECK (balance <= 2000000000),
+  CONSTRAINT chk_treasury_enabled CHECK (
+    enabled IN (0,1) AND income_enabled IN (0,1) AND expense_enabled IN (0,1)
+  ),
+  CONSTRAINT chk_treasury_policy CHECK (
     minimum_reserve <= 2000000000 AND max_transaction BETWEEN 1 AND 1000000000
-    AND income_tax_basis_points <= 10000 AND config_version <= 2147483646
+    AND income_tax_basis_points <= 10000
+  ),
+  CONSTRAINT chk_treasury_version CHECK (
+    row_version <= 2147483646 AND config_version <= 2147483646
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -56,7 +52,6 @@ CREATE TABLE treasury_ledger (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO treasury_accounts(treasury_id,code,balance) VALUES (1,'state',0);
-INSERT INTO treasury_settings(treasury_id) VALUES (1);
 
 DELIMITER $$
 CREATE PROCEDURE treasury_post(
@@ -98,12 +93,11 @@ BEGIN
   END IF;
 
   START TRANSACTION;
-  SELECT a.balance,a.enabled,a.row_version,s.income_enabled,s.expense_enabled,
-         s.minimum_reserve,s.max_transaction
+  SELECT balance,enabled,row_version,income_enabled,expense_enabled,
+         minimum_reserve,max_transaction
     INTO v_balance,v_enabled,v_version,v_income,v_expense,v_reserve,v_max_transaction
-    FROM treasury_accounts a
-    JOIN treasury_settings s ON s.treasury_id=a.treasury_id
-    WHERE a.treasury_id=p_treasury_id FOR UPDATE;
+    FROM treasury_accounts
+    WHERE treasury_id=p_treasury_id FOR UPDATE;
 
   IF v_balance IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'treasury not initialized';
