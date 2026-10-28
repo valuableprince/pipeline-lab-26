@@ -169,8 +169,11 @@ def main():
             500,10,200,2,14)
     assert query("SELECT COUNT(*) FROM government_bond_issues "
                  "WHERE issue_code REGEXP '^GOV-[0-9]{6}$'")==[(9,)]
-    assert query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
-                 "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]==before
+    now=query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
+              "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
+    # Approving active issues commits risk E, but must never mint cash or move F/P.
+    assert now[0]==before[0] and now[1]==before[1] and now[3]==before[3]
+    assert now[2]>before[2],(before,now)
 
     # 5% of real tax receipts funds insurance without minting cash.
     call("treasury_post","minfin:tax:real",1001,"tax",None,"income_tax")
