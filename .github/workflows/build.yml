@@ -168,6 +168,9 @@ jobs:
           set -euo pipefail
           mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/025_bond_application_revisions.sql
 
+      - name: GOV-05 CP1251 client to UTF8MB4 Cyrillic roundtrip MariaDB UAT
+        run: python3 tests/gov05_charset_mysql_uat.py
+
       - name: GOV-05.1 returned applications and delayed opening MariaDB UAT
         run: python3 tests/gov05_revision_mysql_uat.py
 
