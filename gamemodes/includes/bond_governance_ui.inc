@@ -13,6 +13,7 @@
 #define GOVUI_ISSUE (6805)
 #define GOVUI_ACTION (6806)
 #define GOVUI_REPORT (6807)
+#define GOVUI_APPROVAL_REASON (6808)
 #define GOVUI_ROWS (10)
 
 // UI-only mapping. SQL statuses remain ASCII for financial procedures and checks.
@@ -319,6 +320,25 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     return 1;
 }
 
+// Read-only diagnostics after an ACTUAL rejected SQL signing transaction.
+// The signing procedure remains the only authority: no reservation or approval
+// is performed here. A fresh snapshot is important after concurrent changes.
+stock bool:GovBond_UI_LoadApprovalReason(playerid)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (!GovBond_UI_Authorized(playerid) ||
+        !gGovUISelectedCode[playerid][0]) return false;
+    new query[1950];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "SELECT x.issue_code,x.status,x.sold_quantity,x.signed,x.enabled,x.reserved,x.committed,x.util_bps,x.row_version,x.role_rank,CAST(x.exposure AS CHAR) AS exposure,CAST(CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0)) AS CHAR) AS reserve_min,CAST(GREATEST(0,CEIL((x.committed+x.exposure)*10000/NULLIF(x.util_bps,0))-x.reserved) AS CHAR) AS reserve_short FROM (SELECT i.issue_code,i.status,i.sold_quantity,(i.approve_event_key IS NOT NULL) AS signed,t.bond_fund_enabled AS enabled,t.bond_fund_reserved AS reserved,t.bond_fund_committed AS committed,t.bond_fund_utilization_bps AS util_bps,t.row_version,COALESCE((SELECT m.rank_id FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id WHERE m.account_id=%d AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP() LIMIT 1),0) AS role_rank,CEIL(CAST(i.face_value AS DECIMAL(20,0))*t.bond_fund_coverage_bps/10000)*i.max_quantity AS exposure FROM government_bond_issues i JOIN treasury_accounts t ON t.code='state' WHERE i.issue_code='%e' LIMIT 1) x",
+        gDBPrimaryAccountId[playerid],gGovUISelectedCode[playerid]);
+    return GovBond_UI_Query(playerid,query,5);
+#else
+    #pragma unused playerid
+    return false;
+#endif
+}
+
 stock GovBond_UI_Report(playerid)
 {
 #if defined TARKENSO_DB_PRIMARY
@@ -354,6 +374,77 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows))
     {
         SendClientMessage(playerid,COLOR_RED,"Ошибка чтения данных казначейства.");
+        return 1;
+    }
+    if (kind==5)
+    {
+        // SQL read after rollback: no assumptions from an earlier UI snapshot.
+        new code[65],status[20],reserve[32],minimum[32],shortage[32];
+        new exposure[32],signed,sold,enabled,rank,util,version;
+        if (rows!=1 || !cache_get_value_name(0,"issue_code",code,sizeof(code)) ||
+            strcmp(code,gGovUISelectedCode[playerid]) ||
+            !cache_get_value_name(0,"status",status,sizeof(status)) ||
+            !cache_get_value_name(0,"reserved",reserve,sizeof(reserve)) ||
+            !cache_get_value_name(0,"reserve_min",minimum,sizeof(minimum)) ||
+            !cache_get_value_name(0,"reserve_short",shortage,sizeof(shortage)) ||
+            !cache_get_value_name(0,"exposure",exposure,sizeof(exposure)) ||
+            !cache_get_value_name_int(0,"signed",signed) ||
+            !cache_get_value_name_int(0,"sold_quantity",sold) ||
+            !cache_get_value_name_int(0,"enabled",enabled) ||
+            !cache_get_value_name_int(0,"role_rank",rank) ||
+            !cache_get_value_name_int(0,"util_bps",util) ||
+            !cache_get_value_name_int(0,"row_version",version))
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "Подпись отклонена. Причину сейчас не удалось уточнить. Обновите реестр.");
+            return 1;
+        }
+        new body[950],reason[370];
+        reason[0]=EOS;
+        if(rank<3)
+            format(reason,sizeof(reason),
+                "У вас нет права подписывать облигации.\nЭто может сделать только заместитель или министр финансов (ранг 3-4).");
+        else if(signed || strcmp(status,"DRAFT"))
+            format(reason,sizeof(reason),
+                "Выпуск уже подписан или больше не ожидает подписи.\nОбновите реестр и проверьте его состояние.");
+        else if(sold>0)
+            format(reason,sizeof(reason),
+                "По этому выпуску уже есть покупки.\nПодписывать выпуск после начала продажи нельзя.");
+        else if(util<=0 || !minimum[0] || !exposure[0])
+            format(reason,sizeof(reason),
+                "Не удалось рассчитать страховое обеспечение.\nПроверьте настройки страхового фонда.");
+        else if(!enabled || strcmp(shortage,"0") || !strcmp(exposure,"0"))
+        {
+            // This is a friendly explanation of the current DB state,
+            // not a way to bypass the locked financial SQL transaction.
+            format(reason,sizeof(reason),
+                "Недостаточно страховой базы для подписания.\n\n"
+                "Сейчас в резерве: $%s\n"
+                "Нужно минимум: $%s\n"
+                "Не хватает: $%s\n\n"
+                "Нужно выделить недостающие деньги из казны в страховой фонд.",
+                reserve,minimum,shortage);
+            if(!enabled)
+                strcat(reason,"\nКроме того, страховой фонд выключен. Его нужно включить.",
+                    sizeof(reason));
+        }
+        else if(version>=2147483646)
+            format(reason,sizeof(reason),
+                "Казначейство достигло предела номера операции.\n"
+                "Обратитесь к администратору: повторная подпись не поможет.");
+        else
+            format(reason,sizeof(reason),
+                "Казначейство не подтвердило подпись.\n"
+                "Возможно, состояние выпуска или казны изменилось.\n"
+                "Обновите реестр. Если ошибка повторится, сообщите администратору.");
+        format(body,sizeof(body),
+            "{E8EDF3}ВЫПУСК %s НЕ ПОДПИСАН\n\n{E8EDF3}%s\n\n"
+            "{E8EDF3}Деньги с казны не списаны, выпуск не утверждён.\n"
+            "{E8EDF3}Показано состояние казны на момент проверки.",
+            code,reason);
+        gGovUIStage[playerid]=13;
+        ShowPlayerDialog(playerid,GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX,
+            "{E8EDF3}Минфин | Почему отказано в подписи",body,"Понятно","");
         return 1;
     }
     if (kind==1)
@@ -1050,14 +1141,24 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
         new needle[68];
         format(needle,sizeof(needle),"'%s'",gGovUIPendingEvent[playerid]);
         if(strfind(query,needle,true)<0)continue;
+        new failedAction=gGovUIPendingAction[playerid];
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
         gGovUIPendingIssue[playerid]=0;
         gGovUIPendingCode[playerid][0]=EOS;
         if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
-            SendClientMessage(playerid,COLOR_RED,
-                "Казначейство отклонило решение: проверяйте роль, статус, фонд и подписи.");
+        {
+            if(failedAction==2)
+            {
+                if(!GovBond_UI_LoadApprovalReason(playerid))
+                    SendClientMessage(playerid,COLOR_RED,
+                        "Подпись отклонена. Не удалось проверить причину. Обновите реестр.");
+            }
+            else
+                SendClientMessage(playerid,COLOR_RED,
+                    "Казначейство отклонило действие. Обновите выпуск и проверьте полномочия.");
+        }
         break;
     }
 #else
@@ -1068,7 +1169,7 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
 
 stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 {
-    if (dialogid<GOVUI_MAIN || dialogid>GOVUI_REPORT)return 0;
+    if (dialogid<GOVUI_MAIN || dialogid>GOVUI_APPROVAL_REASON)return 0;
     if(!GovBond_UI_Authorized(playerid) || gGovUILoading[playerid] ||
        gGovUIBusy[playerid]) return 1;
     if(dialogid==GOVUI_MAIN)
@@ -1301,6 +1402,11 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         if(!response)return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
         if(listitem>=0 && listitem<=2)
             return GovBond_UI_ConfirmAction(playerid,listitem+2);
+        return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
+    }
+    if(dialogid==GOVUI_APPROVAL_REASON)
+    {
+        if(gGovUIStage[playerid]!=13)return 1;
         return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
     }
     if(dialogid==GOVUI_REPORT)
