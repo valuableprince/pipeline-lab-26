@@ -239,6 +239,7 @@ public BondSettlement_OnPlayerDone(playerid,authToken,accountId,serial)
     if (!BondFund_Reload())
         print("[GOV-03] ERROR: fund snapshot reload failed after player cash settlement.");
     if (replayed) print("[GOV-03] Settlement event replay acknowledged.");
+    BondsUI_OnSettlement(playerid, replayed != 0);
 #else
     #pragma unused playerid,authToken,accountId,serial
 #endif
