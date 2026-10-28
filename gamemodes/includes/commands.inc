@@ -102,15 +102,7 @@ cmd:bondgov(playerid, params[])
     return GovBond_UI_Main(playerid);
 }
 
-// Первоначальное назначение финансовых должностей основателем проекта.
-cmd:bondgovrole(playerid, params[])
-{
-    new target,role,enabled;
-    if (sscanf(params,"iii",target,role,enabled))
-        return SendClientMessage(playerid,COLOR_AMBER,
-            "Использование: /bondgovrole [ID] [1=казначей/2=контролёр/3=руководитель] [1/0].");
-    return GovBond_UI_Grant(playerid,target,role,enabled);
-}
+
 
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
