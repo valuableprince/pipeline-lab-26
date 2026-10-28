@@ -249,9 +249,9 @@ class BondGovernanceContracts(unittest.TestCase):
             'if (action==3 && replayed==0)',
             'SendClientMessageToAll(COLOR_AMBER,notice);',
             'SendClientMessageToAll(FACTION_COLOR,',
-            '[Министерство финансов] Открыто размещение облигаций {F1F4F8}%s{E6BB79}.',
+            '[Министерство финансов] Открыто размещение облигаций {FFFFFF}%s{D9AA55}.',
             'gGovUIPendingCode[playerid]);',
-            '[Министерство финансов] Облигации доступны для покупки: {F1F4F8}/bonds.',
+            '[Министерство финансов] Облигации доступны для покупки: {FFFFFF}/bonds.',
         ):
             with self.subTest(term=term): self.assertIn(term,block)
         self.assertNotIn("[Госзаймы]",UI)
