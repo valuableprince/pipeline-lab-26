@@ -1,5 +1,6 @@
 """GOV-05 official console, automatic issue codes and role separation contracts."""
 from pathlib import Path
+import re
 import unittest
 from build_contracts import assert_staged
 
@@ -48,6 +49,42 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("tax_ledger_id BIGINT UNSIGNED NOT NULL PRIMARY KEY",SQL)
         self.assertNotIn("UPDATE treasury_accounts",create)
         self.assertNotIn("UPDATE accounts SET balance",create)
+
+    def test_issue_and_crisis_statuses_are_localized_at_display_only(self):
+        issue_schema=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
+        crisis_schema=(ROOT/"db/migrations/022_bond_debt_crisis.sql").read_text("utf-8")
+        issue_codes=set(re.findall(
+            r"'([A-Z_]+)'",
+            re.search(r"chk_government_bond_status CHECK\s*\(status IN \((.*?)\)\)",issue_schema,re.S).group(1)))
+        crisis_codes=set(re.findall(
+            r"'([A-Z_]+)'",
+            re.search(r"chk_bond_crisis_state CHECK\s*\(bond_crisis_state IN \((.*?)\)\)",crisis_schema,re.S).group(1)))
+        issue_map=UI.split("stock GovBond_UI_IssueStatusLabel(",1)[1].split(
+            "stock GovBond_UI_CrisisStatusLabel(",1)[0]
+        crisis_map=UI.split("stock GovBond_UI_CrisisStatusLabel(",1)[1].split(
+            "new bool:gGovUIReady;",1)[0]
+        expected_issues={
+            "DRAFT":"На подпись","APPROVED":"Утверждён",
+            "OFFERING":"Размещается","CLOSED":"Размещение закрыто",
+            "CANCELLED":"Отменён","REJECTED":"Отклонён"
+        }
+        expected_crisis={
+            "NORMAL":"Норма","STRESSED":"Напряжённый",
+            "DEFAULT":"Дефолт","RECOVERY":"Восстановление"
+        }
+        self.assertEqual(issue_codes,set(expected_issues))
+        self.assertEqual(crisis_codes,set(expected_crisis))
+        for code,label in expected_issues.items():
+            self.assertIn(f'!strcmp(status,"{code}")) format(output,size,"{label}")',issue_map)
+        for code,label in expected_crisis.items():
+            self.assertIn(f'!strcmp(status,"{code}")) format(output,size,"{label}")',crisis_map)
+        self.assertIn("GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));",UI)
+        self.assertEqual(UI.count("GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));"),2)
+        self.assertIn("code,applicant,quantity,face,statusLabel);",UI)
+        self.assertIn("code,applicant,minister,statusLabel,title,purpose",UI)
+        self.assertIn("format(gGovUISelectedStatus[playerid],20,\"%s\",status);",UI)
+        self.assertIn("GovBond_UI_CrisisStatusLabel(crisis,crisisLabel,sizeof(crisisLabel));",UI)
+        self.assertIn("cash,fund,committed,payout,crisisLabel,issues",UI)
 
     def test_ministry_approval_requires_explicit_signature_for_every_issue(self):
         block=SQL.split("CREATE PROCEDURE gov_bond_official_approve(",1)[1].split("END$$",1)[0]
