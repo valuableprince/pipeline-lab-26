@@ -701,7 +701,10 @@ stock Leader_Command(playerid, const command[], const params[])
         }
         else if (sscanf(params, "i", first))
             return SendClientMessage(playerid, FACTION_ERROR, "Использование: /renewleader ID.");
-        if (first < 0 || first >= MAX_PLAYERS || !Admin_Ready(first) || first == playerid)
+        // SOLO-UAT: a level-5+ admin on /aduty may appoint or renew
+        // their own leadership. All organization, term, uniqueness,
+        // audit and durable-save checks below still apply.
+        if (first < 0 || first >= MAX_PLAYERS || !Admin_Ready(first))
             return SendClientMessage(playerid, FACTION_ERROR, "Некорректный ID игрока.");
         target = first;
         org = !strcmp(command, "setleader", true) ? second : Leader_PlayerOrg(target);
