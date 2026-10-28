@@ -590,17 +590,18 @@ stock GovBond_UI_Wizard(playerid,step)
 
 stock GovBond_UI_ConfirmDraft(playerid)
 {
-    new body[900];
+    new body[900],typeLabel[48];
+    GovBond_UI_TypeLabel(gGovUIType[playerid],typeLabel,sizeof(typeLabel));
     format(body,sizeof(body),
         "{DDBB77}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Цель: {F1F4F8}%s\n{BAC6D4}Тип: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Количество: {F1F4F8}%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Размещение: %d дней\n{BAC6D4}Погашение через: %d дней после размещения\n\n{78D8AA}Код GOV-000001 и далее назначит MySQL.\n{E48A8A}Создание НЕ открывает продажу и НЕ расходует бюджет.",
-        gGovUITitle[playerid],gGovUIPurpose[playerid],gGovUIType[playerid],
+        gGovUITitle[playerid],gGovUIPurpose[playerid],typeLabel,
         gGovUIFace[playerid],gGovUIQuantity[playerid],
         gGovUIYield[playerid]/100,gGovUIYield[playerid]%100,
         gGovUIOfferDays[playerid],gGovUIMaturityDays[playerid]);
     gGovUIStage[playerid]=6;
     ShowPlayerDialog(playerid,GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX,
         "{D9B872}TARKENSO | Подтверждение проекта",body,
-        "Создать","Отмена");
+        gGovUIEditing[playerid]?"Отправить":"Создать","Отмена");
     return 1;
 }
 
@@ -657,6 +658,67 @@ stock GovBond_UI_Create(playerid)
     gGovUIStage[playerid]=0;
     if (!GovBond_UI_Write(playerid,query,1,eventKey))
         SendClientMessage(playerid,COLOR_RED,"Проект не принят на создание.");
+#else
+    #pragma unused playerid
+#endif
+    return 1;
+}
+
+stock GovBond_UI_ReturnReason(playerid)
+{
+    if (!GovBond_UI_Authorized(playerid) ||
+        !Leader_FinanceAuthorized(playerid,3) ||
+        strcmp(gGovUISelectedStatus[playerid],"DRAFT"))return 1;
+    gGovUIStage[playerid]=13;
+    ShowPlayerDialog(playerid,GOVUI_INPUT,DIALOG_STYLE_INPUT,
+        "{D9B872}Минфин | Возврат на доработку",
+        "{E9C67E}Укажите, что должен исправить заявитель (5—160 символов).\n{BAC6D4}Причина будет видна в карточке выпуска.",
+        "Вернуть","Назад");
+    return 1;
+}
+
+stock GovBond_UI_Return(playerid,const reason[])
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (!GovBond_UI_Authorized(playerid) ||
+        !Leader_FinanceAuthorized(playerid,3) ||
+        strcmp(gGovUISelectedStatus[playerid],"DRAFT") ||
+        gGovUISelectedIssue[playerid]<=0)return 1;
+    new query[950],eventKey[65];
+    GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_official_return('%e','%e',%d,'%e')",
+        eventKey,gGovUISelectedCode[playerid],
+        gDBPrimaryAccountId[playerid],reason);
+    gGovUIStage[playerid]=0;
+    if (!GovBond_UI_Write(playerid,query,7,eventKey))
+        SendClientMessage(playerid,COLOR_RED,"Возврат заявки не принят.");
+#else
+    #pragma unused playerid,reason
+#endif
+    return 1;
+}
+
+stock GovBond_UI_Resubmit(playerid)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (!GovBond_UI_Authorized(playerid) || !GovBond_UI_CanCreate(playerid) ||
+        !gGovUIEditing[playerid] ||
+        gGovUIReviewCreator[playerid]!=gDBPrimaryAccountId[playerid] ||
+        strcmp(gGovUISelectedStatus[playerid],"RETURNED") ||
+        gGovUISelectedIssue[playerid]<=0)return 1;
+    new query[1500],eventKey[65];
+    GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_issue_resubmit('%e','%e',%d,'%e','%e','%e',%d,%d,%d,%d,%d)",
+        eventKey,gGovUISelectedCode[playerid],gDBPrimaryAccountId[playerid],
+        gGovUITitle[playerid],gGovUIPurpose[playerid],gGovUIType[playerid],
+        gGovUIFace[playerid],gGovUIQuantity[playerid],gGovUIYield[playerid],
+        gGovUIOfferDays[playerid],gGovUIMaturityDays[playerid]);
+    gGovUIStage[playerid]=0;
+    if(!GovBond_UI_Write(playerid,query,6,eventKey))
+        SendClientMessage(playerid,COLOR_RED,"Доработанная заявка не отправлена.");
+    else gGovUIEditing[playerid]=false;
 #else
     #pragma unused playerid
 #endif
@@ -970,6 +1032,7 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         {
             case 0:
             {
+                gGovUIEditing[playerid]=false;
                 if (!GovBond_UI_CanCreate(playerid))
                     return SendClientMessage(playerid,COLOR_RED,
                         "Создавать займы могут специалисты и руководство Минфина.");
@@ -1088,7 +1151,11 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         new mode=gGovUIStage[playerid];
         gGovUIStage[playerid]=0; // consume confirmation before any SQL enqueue
         if(!response)return GovBond_UI_Main(playerid);
-        if(mode==6)return GovBond_UI_Create(playerid);
+        if(mode==6)
+        {
+            if(gGovUIEditing[playerid])return GovBond_UI_Resubmit(playerid);
+            return GovBond_UI_Create(playerid);
+        }
         return GovBond_UI_ExecuteAction(playerid);
     }
     if(dialogid==GOVUI_LIST)
@@ -1119,6 +1186,19 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     if(dialogid==GOVUI_ISSUE)
     {
         if(gGovUIStage[playerid]!=3)return 1;
+        if(!strcmp(gGovUISelectedStatus[playerid],"RETURNED"))
+        {
+            if(!response)return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
+            if(gGovUIReviewCreator[playerid]!=gDBPrimaryAccountId[playerid])
+                return 1;
+            gGovUIEditing[playerid]=true;
+            gGovUIStage[playerid]=9;
+            ShowPlayerDialog(playerid,GOVUI_TYPE,DIALOG_STYLE_LIST,
+                "{D9B872}Минфин | Тип доработанного займа",
+                "Общий бюджетный заём\nЦелевое финансирование\nАнтикризисный выпуск",
+                "Выбрать","Назад");
+            return 1;
+        }
         if(!strcmp(gGovUISelectedStatus[playerid],"DRAFT") &&
             GovBond_UI_CanApprove(playerid) &&
             Leader_FinanceAuthorized(playerid,3))
@@ -1130,8 +1210,13 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
                 gGovUIStage[playerid]=0;
                 return GovBond_UI_ExecuteAction(playerid);
             }
-            // "Отклонить" opens mandatory free-text reason input.
-            return GovBond_UI_RejectReason(playerid);
+            // "Отклонить" lets leadership reject finally or return to author.
+            gGovUIStage[playerid]=12;
+            ShowPlayerDialog(playerid,GOVUI_ACTION,DIALOG_STYLE_LIST,
+                "{D9B872}Минфин | Решение по заявке",
+                "{E48A8A}Отклонить окончательно (с причиной)\n{E9C67E}Вернуть автору на доработку (с причиной)",
+                "Выбрать","Назад");
+            return 1;
         }
         if(!response || !GovBond_UI_CanApprove(playerid) ||
             !strcmp(gGovUISelectedStatus[playerid],"REJECTED") ||
@@ -1141,6 +1226,15 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_ACTION)
     {
+        if(gGovUIStage[playerid]==12)
+        {
+            if(!response)return GovBond_UI_LoadIssue(playerid,gGovUISelectedIssue[playerid]);
+            if(!Leader_FinanceAuthorized(playerid,3) ||
+                strcmp(gGovUISelectedStatus[playerid],"DRAFT"))return 1;
+            if(listitem==0)return GovBond_UI_RejectReason(playerid);
+            if(listitem==1)return GovBond_UI_ReturnReason(playerid);
+            return 1;
+        }
         if(gGovUIStage[playerid]!=7)return 1;
         if(!response)return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
         if(listitem>=0 && listitem<=2)
