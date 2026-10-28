@@ -16,7 +16,6 @@
 #define GOVUI_ROWS (10)
 
 new bool:gGovUIReady;
-new MySQL:gGovBondAdminSQL = MYSQL_INVALID_HANDLE;
 new gGovUITaxTimer;
 new bool:gGovUITaxScanBusy;
 new bool:gGovUITaxPostBusy;
@@ -82,11 +81,6 @@ stock GovBond_UI_Reset(playerid)
 stock GovBond_UI_Shutdown()
 {
     gGovUIReady=false;
-#if defined TARKENSO_DB_PRIMARY
-    if (gGovBondAdminSQL != MYSQL_INVALID_HANDLE)
-        mysql_close(gGovBondAdminSQL);
-    gGovBondAdminSQL=MYSQL_INVALID_HANDLE;
-#endif
     if(gGovUITaxTimer) KillTimer(gGovUITaxTimer);
     gGovUITaxTimer=0;
     gGovUITaxScanBusy=false;
@@ -110,17 +104,6 @@ stock GovBond_UI_Init()
     {
         print("[GOV-05] Migration 023 missing; government issue UI disabled.");
         return 1;
-    }
-    // Founder appointment uses a SEPARATE least-privilege SQL identity.
-    // Never fall back to the ordinary gameplay DB handle if credentials are absent.
-    gGovBondAdminSQL=mysql_connect_file("mysql-govadmin.ini");
-    if (gGovBondAdminSQL==MYSQL_INVALID_HANDLE ||
-        mysql_errno(gGovBondAdminSQL)!=0)
-    {
-        if (gGovBondAdminSQL!=MYSQL_INVALID_HANDLE)
-            mysql_close(gGovBondAdminSQL);
-        gGovBondAdminSQL=MYSQL_INVALID_HANDLE;
-        print("[GOV-06] Privileged bond-role bootstrap OFF (mysql-govadmin.ini unavailable).");
     }
     gGovUIReady=true;
     gGovUITaxScanBusy=false;
@@ -194,15 +177,7 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     gGovUIPendingAccount[playerid]=gDBPrimaryAccountId[playerid];
     format(gGovUIPendingEvent[playerid],65,"%s",eventKey);
     gGovUIWriteSerial[playerid]++;
-    if (action==5 && gGovBondAdminSQL==MYSQL_INVALID_HANDLE)
-    {
-        gGovUIBusy[playerid]=false;
-        gGovUIPendingAction[playerid]=0;
-        gGovUIPendingEvent[playerid][0]=EOS;
-        return false;
-    }
-    new MySQL:connection=action==5?gGovBondAdminSQL:gDBPrimary;
-    if (!mysql_tquery(connection,sql,"GovBond_UI_OnWrite","iiii",
+    if (!mysql_tquery(gDBPrimary,sql,"GovBond_UI_OnWrite","iiii",
         playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
         gGovUIWriteSerial[playerid]))
     {
@@ -229,7 +204,7 @@ stock GovBond_UI_Main(playerid)
 #if defined TARKENSO_DB_PRIMARY
     new query[440];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT COALESCE((SELECT role_code FROM government_bond_officials WHERE account_id=%d AND enabled=1),'NONE') AS role_code",
+        "SELECT COALESCE((SELECT m.rank_id FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id WHERE m.account_id=%d AND m.faction_id=5 AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP()),0) AS finance_rank",
         gDBPrimaryAccountId[playerid]);
     if (!GovBond_UI_Query(playerid,query,1))
         SendClientMessage(playerid,COLOR_RED,"Реестр полномочий недоступен.");
@@ -239,18 +214,18 @@ stock GovBond_UI_Main(playerid)
 
 stock bool:GovBond_UI_CanCreate(playerid)
 {
-    return gGovUIRole[playerid]==1 || gGovUIRole[playerid]==3;
+    return gGovUIRole[playerid]>=2;
 }
 stock bool:GovBond_UI_CanApprove(playerid)
 {
-    return gGovUIRole[playerid]==2 || gGovUIRole[playerid]==3;
+    return gGovUIRole[playerid]>=3;
 }
 
 stock GovBond_UI_DrawMain(playerid)
 {
     new body[360];
     format(body,sizeof(body),
-        "{E9C67E}Новый государственный заём\n{F1F4F8}Реестр выпусков и решения\n{78D8AA}Финансовая отчётность\n{B7C4D3}Назначение финансовых должностей");
+        "{E9C67E}Новый государственный заём\n{F1F4F8}Реестр выпусков и решения\n{78D8AA}Финансовая отчётность\n{B7C4D3}Обучение и полномочия министерства");
     gGovUIStage[playerid]=1;
     ShowPlayerDialog(playerid,GOVUI_MAIN,DIALOG_STYLE_LIST,
         "{D9B872}TARKENSO {A6B5C6}| {F1F4F8}Государственное казначейство",
@@ -331,14 +306,14 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     }
     if (kind==1)
     {
-        new role[24];
-        if (rows!=1 || !cache_get_value_name(0,"role_code",role,sizeof(role)))
+        new internalRank=0;
+        if (rows!=1 || !cache_get_value_name_int(0,"finance_rank",internalRank))
             return 1;
-        gGovUIRole[playerid]=0;
-        if (!strcmp(role,"TREASURER",true)) gGovUIRole[playerid]=1;
-        else if (!strcmp(role,"CONTROLLER",true)) gGovUIRole[playerid]=2;
-        else if (!strcmp(role,"DIRECTOR",true)) gGovUIRole[playerid]=3;
-        if (!gGovUIRole[playerid] && !Admin_IsFounder(playerid))
+        if (Leader_PlayerOrg(playerid)!=FACTION_FINANCE ||
+            !Leader_ActiveTerm(FACTION_FINANCE) ||
+            Leader_PlayerRank(playerid)!=internalRank) return 1;
+        gGovUIRole[playerid]=Leader_PublicRank(FACTION_FINANCE,internalRank);
+        if (!gGovUIRole[playerid])
         {
             SendClientMessage(playerid,COLOR_RED,
                 "У вас нет должности государственного казначейства.");
@@ -536,7 +511,7 @@ stock GovBond_UI_ConfirmAction(playerid,action)
         return 1;
     if ((action==2 || action==4) && !GovBond_UI_CanApprove(playerid))
         return SendClientMessage(playerid,COLOR_RED,"Требуется должность контролёра.");
-    if (action==3 && !GovBond_UI_CanCreate(playerid))
+    if (action==3 && !GovBond_UI_CanApprove(playerid))
         return SendClientMessage(playerid,COLOR_RED,"Требуется должность казначея.");
     gGovUIAction[playerid]=action;
     gGovUIStage[playerid]=8;
@@ -565,7 +540,7 @@ stock GovBond_UI_ExecuteAction(playerid)
         (action!=2 && action!=3 && action!=4)) return 1;
     if ((action==2 || action==4) && !GovBond_UI_CanApprove(playerid))
         return 1;
-    if (action==3 && !GovBond_UI_CanCreate(playerid)) return 1;
+    if (action==3 && !GovBond_UI_CanApprove(playerid)) return 1;
     new query[440],eventKey[65];
     GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
     switch(action)
@@ -589,45 +564,6 @@ stock GovBond_UI_ExecuteAction(playerid)
     return 1;
 }
 
-// Founder bootstraps roles on a CONNECTED SQL account; appointment is audited.
-// Syntax: /bondgovrole <player-id> <role=1..3> <enabled=0|1>
-stock GovBond_UI_Grant(playerid,targetId,role,enabled)
-{
-#if defined TARKENSO_DB_PRIMARY
-    if (!GovBond_UI_Authorized(playerid) ||
-        !Admin_IsFounder(playerid) || !gAdminDuty[playerid])
-        return SendClientMessage(playerid,COLOR_RED,
-            "Назначения доступны только основателю в /aduty.");
-    if (targetId<0 || targetId>=MAX_PLAYERS ||
-        !IsPlayerConnected(targetId) || IsPlayerNPC(targetId) ||
-        !gDBPrimaryLoaded[targetId] ||
-        gAuthState[targetId]!=AUTH_READY || role<1 || role>3 ||
-        enabled<0 || enabled>1)
-        return SendClientMessage(playerid,COLOR_RED,
-            "Нужен онлайн-игрок с SQL-аккаунтом, роль 1..3 и доступ 0/1.");
-    new eventKey[65],query[410],roleCode[17];
-    switch(role)
-    {
-        case 1: format(roleCode,sizeof(roleCode),"TREASURER");
-        case 2: format(roleCode,sizeof(roleCode),"CONTROLLER");
-        case 3: format(roleCode,sizeof(roleCode),"DIRECTOR");
-    }
-    if (gGovBondAdminSQL==MYSQL_INVALID_HANDLE)
-        return SendClientMessage(playerid,COLOR_RED,
-            "Отдельное SQL-подключение казначея не настроено (mysql-govadmin.ini).");
-    GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
-    mysql_format(gGovBondAdminSQL,query,sizeof(query),
-       "CALL gov_bond_role_set('%e',%d,%d,'%e',%d)",
-       eventKey,gDBPrimaryAccountId[playerid],gDBPrimaryAccountId[targetId],
-       roleCode,enabled);
-    if (!GovBond_UI_Write(playerid,query,5,eventKey))
-        SendClientMessage(playerid,COLOR_RED,"Роль не поставлена на согласование.");
-#else
-    #pragma unused playerid,targetId,role,enabled
-#endif
-    return 1;
-}
-
 public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
 {
 #if defined TARKENSO_DB_PRIMARY
@@ -639,9 +575,7 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         gGovUIWriteSerial[playerid]!=serial) return 1;
     new rows=0,replayed,issueId=0,code[65];
     new action=gGovUIPendingAction[playerid];
-    new MySQL:connection=action==5?gGovBondAdminSQL:gDBPrimary;
-    new bool:valid=connection!=MYSQL_INVALID_HANDLE &&
-        mysql_errno(connection)==0 &&
+    new bool:valid=mysql_errno(gDBPrimary)==0 &&
         cache_get_row_count(rows) && rows==1 &&
         cache_get_value_name_int(0,"replayed",replayed);
     if (valid && action==1)
@@ -668,13 +602,10 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
             "Казначейство: проект %s зарегистрирован (ID %d).",code,issueId);
         SendClientMessage(playerid,COLOR_AMBER,message);
     }
-    else if (action==5)
-        SendClientMessage(playerid,COLOR_AMBER,
-           "Должность казначейства изменена. Решение записано в журнал БД.");
     else
         SendClientMessage(playerid,COLOR_AMBER,
            "Решение по выпуску зафиксировано в казначейском реестре.");
-    if (action==2 || action==4)
+    if (action==2 || action==4 || action==6)
         if (!BondFund_Reload())
             print("[GOV-05] Fund snapshot refresh failed after issuer decision.");
 #else
@@ -744,29 +675,6 @@ public GovBond_UI_OnTaxPost()
 public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
 {
 #if defined TARKENSO_DB_PRIMARY
-    // A restricted bootstrap SQL connection can fail independently of gameplay.
-    // Never disconnect all players because role appointment has been denied.
-    if (!strcmp(callback,"GovBond_UI_OnWrite",true) &&
-        strfind(query,"CALL gov_bond_role_set(",true)>=0)
-    {
-        for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
-        {
-            if(!gGovUIBusy[playerid] || gGovUIPendingAction[playerid]!=5)
-                continue;
-            new token[68];
-            format(token,sizeof(token),"'%s'",gGovUIPendingEvent[playerid]);
-            if(strfind(query,token,true)<0) continue;
-            gGovUIBusy[playerid]=false;
-            gGovUIPendingEvent[playerid][0]=EOS;
-            gGovUIPendingAction[playerid]=0;
-            if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
-                SendClientMessage(playerid,COLOR_RED,
-                    "Назначение роли отклонено SQL: проверьте отдельный доступ казначейства.");
-            break;
-        }
-        printf("[GOV-06] Founder-only SQL appointment failed, code=%d.",errorid);
-        return true;
-    }
     if (errorid!=1644 && errorid!=1062) return false;
     if (!strcmp(callback,"GovBond_UI_OnTaxPost",true))
     {
@@ -822,11 +730,12 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             case 2:return GovBond_UI_Report(playerid);
             case 3:
             {
-                if(!Admin_IsFounder(playerid) || !gAdminDuty[playerid])
-                    return SendClientMessage(playerid,COLOR_RED,
-                        "Доступно только основателю в режиме администратора.");
-                return SendClientMessage(playerid,COLOR_AMBER,
-                    "Назначение: /bondgovrole [ID онлайн-игрока] [1=казначей/2=контролёр/3=руководитель] [1=вкл/0=выкл].");
+                gGovUIStage[playerid]=10;
+                ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
+                    "{D9B872}Минфин | Обучение",
+                    "{B8C6D7}1. Стажёр: изучение отчётов.\n{F1F4F8}2. Специалист: создаёт проект, руководство утверждает.\n{E9C67E}3. Заместитель: выпускает без второй подписи.\n{78D8AA}4. Министр: руководство, эмиссия и кадры.\n\n{B8C6D7}/setleader, /finvite, /faccept, /frank.",
+                    "Назад","");
+                return 1;
             }
         }
         return 1;
@@ -942,7 +851,7 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_REPORT)
     {
-        if(gGovUIStage[playerid]==4)
+        if(gGovUIStage[playerid]==4 || gGovUIStage[playerid]==10)
         {
             if(gGovUIPublicReport[playerid])
             {
