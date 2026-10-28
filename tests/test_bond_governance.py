@@ -13,7 +13,7 @@ CI=(ROOT/".github/workflows/build.yml").read_text("utf-8")
 
 
 class BondGovernanceContracts(unittest.TestCase):
-    def test_schema_and_atomic_yearly_code(self):
+    def test_schema_and_atomic_global_sequence(self):
         for phrase in ("CREATE TABLE government_bond_officials",
             "CREATE TABLE government_bond_role_audit",
             "CREATE TABLE government_bond_code_sequences",
@@ -31,13 +31,19 @@ class BondGovernanceContracts(unittest.TestCase):
         for phrase in ("START TRANSACTION;","ROLLBACK;","COMMIT;",
           "enabled=1 FOR UPDATE","v_role NOT IN ('TREASURER','DIRECTOR')",
           "FROM government_bond_issues WHERE create_event_key=p_event_key",
-          "FROM government_bond_code_sequences WHERE issue_year=v_year FOR UPDATE",
+          "FROM government_bond_code_sequences WHERE sequence_id=1 FOR UPDATE",
           "SET v_number=v_number+1",
-          "SET v_code=CONCAT('GOV-',v_year,'-',LPAD(v_number,4,'0'))",
+          "SET v_code=CONCAT('GOV-',LPAD(v_number,6,'0'))",
           "INSERT INTO government_bond_issues",
           "INSERT INTO government_bond_issue_audit",
           "DATE_ADD(v_start_new,INTERVAL p_offer_days DAY)"):
             with self.subTest(phrase=phrase):self.assertIn(phrase,create)
+        self.assertIn("CONSTRAINT chk_bond_sequence_singleton CHECK (sequence_id = 1)",SQL)
+        self.assertIn("CONSTRAINT chk_bond_sequence_max CHECK (last_number <= 999999)",SQL)
+        self.assertIn("SELECT 1, COALESCE(MAX(CAST(SUBSTRING(issue_code,5) AS UNSIGNED)),0)",SQL)
+        self.assertNotIn("issue_year",SQL)
+        self.assertNotIn("v_year",create)
+        self.assertNotIn("YEAR(v_start_new)",create)
         self.assertIn("TAX_EARMARK",SQL)
         self.assertIn("v_amount=(CAST(v_tax_amount AS UNSIGNED)*v_rate) DIV 10000",SQL)
         self.assertIn("v_balance-v_min-v_fund-v_payout",SQL)
