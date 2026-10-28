@@ -744,6 +744,29 @@ public GovBond_UI_OnTaxPost()
 public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
 {
 #if defined TARKENSO_DB_PRIMARY
+    // A restricted bootstrap SQL connection can fail independently of gameplay.
+    // Never disconnect all players because role appointment has been denied.
+    if (!strcmp(callback,"GovBond_UI_OnWrite",true) &&
+        strfind(query,"CALL gov_bond_role_set(",true)>=0)
+    {
+        for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
+        {
+            if(!gGovUIBusy[playerid] || gGovUIPendingAction[playerid]!=5)
+                continue;
+            new token[68];
+            format(token,sizeof(token),"'%s'",gGovUIPendingEvent[playerid]);
+            if(strfind(query,token,true)<0) continue;
+            gGovUIBusy[playerid]=false;
+            gGovUIPendingEvent[playerid][0]=EOS;
+            gGovUIPendingAction[playerid]=0;
+            if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
+                SendClientMessage(playerid,COLOR_RED,
+                    "Назначение роли отклонено SQL: проверьте отдельный доступ казначейства.");
+            break;
+        }
+        printf("[GOV-06] Founder-only SQL appointment failed, code=%d.",errorid);
+        return true;
+    }
     if (errorid!=1644 && errorid!=1062) return false;
     if (!strcmp(callback,"GovBond_UI_OnTaxPost",true))
     {
