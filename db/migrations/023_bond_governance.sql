@@ -89,7 +89,7 @@ BEGIN
     OR p_purpose IS NULL OR CHAR_LENGTH(TRIM(p_purpose)) NOT BETWEEN 3 AND 512
     OR p_type NOT IN ('GENERAL','TARGETED','CRISIS')
     OR p_face IS NULL OR p_face<1 OR p_face>1000000000
-    OR p_quantity IS NULL OR p_quantity<1 OR p_quantity>1000000
+    OR p_quantity IS NULL OR p_quantity<5 OR p_quantity>1000000
     OR CAST(p_face AS UNSIGNED)*p_quantity>1000000000
     OR p_yield_bps IS NULL OR p_yield_bps<0 OR p_yield_bps>10000
     OR p_offer_days IS NULL OR p_offer_days NOT BETWEEN 1 AND 30
