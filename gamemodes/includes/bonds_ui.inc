@@ -94,7 +94,7 @@ stock BondsUI_Main(playerid)
     gBondsUIStage[playerid] = BONDS_UI_NONE;
     ShowPlayerDialog(playerid, BONDS_DLG_MAIN, DIALOG_STYLE_LIST,
         "{D9B872}TARKENSO {98A6B9}| {F2F4F8}Государственные облигации",
-        "{E9C783}Государственные займы {AAB5C4}— купить облигацию\n{79D5AD}Мой инвестиционный портфель\n{AAB5C4}Условия и инвестиционные риски",
+        "{E9C783}Государственные займы {AAB5C4}— купить облигацию\n{79D5AD}Мой инвестиционный портфель\n{AAB5C4}Условия и инвестиционные риски\n{DDBB77}Публичная отчётность казны",
         "Выбрать", "Закрыть");
     return 1;
 }
@@ -427,11 +427,12 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
     if(gBondsUILoading[playerid] || gGovTransferBusy[playerid]) return 1;
     if(dialogid==BONDS_DLG_MAIN)
     {
-        if(!response || listitem<0 || listitem>2)return 1;
+        if(!response || listitem<0 || listitem>3)return 1;
         switch(listitem)
         {
             case 0:return BondsUI_LoadList(playerid,BONDS_UI_OFFERS);
             case 1:return BondsUI_LoadList(playerid,BONDS_UI_PORTFOLIO);
+            case 3:return GovBond_UI_PublicReport(playerid);
             case 2:
             {
                 ShowPlayerDialog(playerid,BONDS_DLG_OFFER,DIALOG_STYLE_MSGBOX,
