@@ -92,12 +92,13 @@ stock bool:BondFund_Reload()
     cache_delete(c);
     if (!found) return false;
 
-    c = mysql_query(gDBPrimary,
-        "SELECT balance,row_version,bond_fund_reserved,bond_fund_committed,"
-        "bond_fund_enabled,bond_fund_coverage_bps,bond_fund_premium_bps,"
-        "bond_fund_utilization_bps,bond_fund_tax_allocation_bps,"
-        "bond_fund_grace_seconds,bond_fund_config_version"
-        " FROM treasury_accounts WHERE code='state' LIMIT 1");
+    new query[512];
+    format(query, sizeof(query),
+        "SELECT balance,row_version,bond_fund_reserved,bond_fund_committed,bond_fund_enabled,bond_fund_coverage_bps,bond_fund_premium_bps");
+    strcat(query,
+        ",bond_fund_utilization_bps,bond_fund_tax_allocation_bps,bond_fund_grace_seconds,bond_fund_config_version FROM treasury_accounts WHERE code='state' LIMIT 1",
+        sizeof(query));
+    c = mysql_query(gDBPrimary, query);
     if (c == Cache:0) return false;
 
     new balance, version, reserved, committed, enabled;
