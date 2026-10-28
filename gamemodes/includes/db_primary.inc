@@ -529,6 +529,7 @@
         if (!strcmp(callback,"BondSettlement_OnPlayerDone",true) &&
             BondSettlement_OnError(errorid, query)) return 1;
         if (GovDebt_OnError(errorid, callback, query)) return 1;
+        if (GovBond_UI_OnError(errorid, callback, query)) return 1;
         printf("[DB-PRIMARY] Asynchronous SQL query failed with error %d.", errorid);
         gDBPrimaryReady = false;
         for (new i = 0; i < MAX_PLAYERS; i++)
