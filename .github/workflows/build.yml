@@ -13,6 +13,7 @@ on:
       - "tools/check_chat_style.py"
       - "tools/check_dialog_ids.py"
       - "tools/check_sql_security.py"
+      - "tools/check_finance_sql_acl.py"
       - "tools/check_pawn_static.py"
       - "tools/check_pawn_complexity.py"
       - "tools/run_pawn_benchmark.py"
@@ -140,6 +141,20 @@ jobs:
 
       - name: GOV-06 audit financial invariants, privileges and concurrent reads
         run: python3 tests/gov06_mysql_uat.py
+
+      - name: GOV-06 runtime SQL ACL smoke (read-only; least-privilege vs root)
+        env:
+          GOV_ACL_DB_HOST: 127.0.0.1
+          GOV_ACL_DB_NAME: tarkenso_gov00
+          GOV_ACL_DB_USER: gov06_auditor
+          GOV_ACL_DB_PASSWORD: ci-isolated-auditor-only
+        run: |
+          set -euo pipefail
+          python3 tools/check_finance_sql_acl.py
+          if GOV_ACL_DB_USER=root GOV_ACL_DB_PASSWORD="$GOV00_TEST_PASSWORD" python3 tools/check_finance_sql_acl.py; then
+            echo "Overprivileged DBA account incorrectly passed finance ACL gate"
+            exit 1
+          fi
 
   compile:
     name: Compile
