@@ -15,6 +15,29 @@
 #define GOVUI_REPORT (6807)
 #define GOVUI_ROWS (10)
 
+// UI-only mapping. SQL statuses remain ASCII for financial procedures and checks.
+stock GovBond_UI_IssueStatusLabel(const status[],output[],size)
+{
+    if (!strcmp(status,"DRAFT")) format(output,size,"На подпись");
+    else if (!strcmp(status,"APPROVED")) format(output,size,"Утверждён");
+    else if (!strcmp(status,"OFFERING")) format(output,size,"Размещается");
+    else if (!strcmp(status,"CLOSED")) format(output,size,"Размещение закрыто");
+    else if (!strcmp(status,"CANCELLED")) format(output,size,"Отменён");
+    else if (!strcmp(status,"REJECTED")) format(output,size,"Отклонён");
+    else format(output,size,"Неизвестный статус");
+    return 1;
+}
+
+stock GovBond_UI_CrisisStatusLabel(const status[],output[],size)
+{
+    if (!strcmp(status,"NORMAL")) format(output,size,"Норма");
+    else if (!strcmp(status,"STRESSED")) format(output,size,"Напряжённый");
+    else if (!strcmp(status,"DEFAULT")) format(output,size,"Дефолт");
+    else if (!strcmp(status,"RECOVERY")) format(output,size,"Восстановление");
+    else format(output,size,"Неизвестный статус");
+    return 1;
+}
+
 new bool:gGovUIReady;
 new gGovUITaxTimer;
 new bool:gGovUITaxScanBusy;
@@ -326,7 +349,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         new shown=rows>GOVUI_ROWS?GOVUI_ROWS:rows;
         gGovUICount[playerid]=shown;
         gGovUIHasMore[playerid]=rows>GOVUI_ROWS;
-        new body[2700],line[225],code[65],status[20],applicant[40];
+        new body[2700],line[225],code[65],status[20],statusLabel[40],applicant[40];
         new id,face,quantity,yield;
         format(body,sizeof(body),"{DDBB77}Код\tЗаявитель\tКол-во\tНоминал\tСтатус\n");
         for(new i=0;i<shown;i++)
@@ -339,11 +362,10 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
                 !cache_get_value_name_int(i,"max_quantity",quantity) ||
                 !cache_get_value_name_int(i,"yield_basis_points",yield)) return 1;
             gGovUIRows[playerid][i]=id;
-            if(!strcmp(status,"DRAFT")) format(status,sizeof(status),"На подпись");
-            else if(!strcmp(status,"REJECTED")) format(status,sizeof(status),"Отклонено");
+            GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
             format(line,sizeof(line),
                 "{F1F4F8}%s\t{B8C6D7}%s\t{78D8AA}%d\t{DDBB77}$%d\t{AAB6C6}%s\n",
-                code,applicant,quantity,face,status);
+                code,applicant,quantity,face,statusLabel);
             strcat(body,line,sizeof(body));
         }
         if(!shown)
@@ -362,7 +384,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     {
         new id,code[65],title[129],purpose[193],status[20];
         new face,total,sold,yield,exposure;
-        new applicant[40],minister[40],rejector[40],reason[256];
+        new applicant[40],minister[40],rejector[40],reason[256],statusLabel[40];
         new createdAt[32],offerStart[32],offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
             id!=gGovUISelectedIssue[playerid] ||
@@ -389,9 +411,10 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         format(gGovUISelectedCode[playerid],65,"%s",code);
         format(gGovUISelectedStatus[playerid],20,"%s",status);
         new body[1700],extra[400];
+        GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
         format(body,sizeof(body),
             "{DDBB77}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{BAC6D4}Код выпуска: {F1F4F8}%s\n{BAC6D4}Подал заявку: {E9C67E}%s\n{BAC6D4}Действующий министр: {F1F4F8}%s\n{BAC6D4}Состояние: {F1F4F8}%s\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Назначение: {F1F4F8}%s\n{BAC6D4}Количество облигаций: {78D8AA}%d\n{BAC6D4}Номинал: {DDBB77}$%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Продано: %d\n{BAC6D4}Гарантия: $%d\n\n{BAC6D4}Дата подачи (UTC): {F1F4F8}%s\n{BAC6D4}Дата выпуска (UTC): {F1F4F8}%s\n{BAC6D4}Окончание размещения: {F1F4F8}%s\n{BAC6D4}Погашение (UTC): {F1F4F8}%s",
-            code,applicant,minister,status,title,purpose,total,face,
+            code,applicant,minister,statusLabel,title,purpose,total,face,
             face*total,yield/100,yield%100,sold,exposure,
             createdAt,offerStart,offerEnd,maturity);
         if(!strcmp(status,"REJECTED"))
@@ -416,7 +439,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     }
     if (kind==4)
     {
-        new cash,fund,committed,payout,issues,offering,sold,overdue,crisis[20],body[900];
+        new cash,fund,committed,payout,issues,offering,sold,overdue,crisis[20],crisisLabel[40],body[900];
         if(rows!=1 || !cache_get_value_name_int(0,"balance",cash) ||
             !cache_get_value_name_int(0,"bond_fund_reserved",fund) ||
             !cache_get_value_name_int(0,"bond_fund_committed",committed) ||
@@ -427,9 +450,10 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name_int(0,"overdue",overdue) ||
             !cache_get_value_name(0,"bond_crisis_state",crisis,sizeof(crisis)))
             return 1;
+        GovBond_UI_CrisisStatusLabel(crisis,crisisLabel,sizeof(crisisLabel));
         format(body,sizeof(body),
             "{DDBB77}ФИНАНСОВАЯ ОТЧЁТНОСТЬ\n\n{BAC6D4}Баланс казны: {E9C67E}$%d\n{BAC6D4}Страховой резерв: {78D8AA}$%d\n{BAC6D4}Принятые гарантии: {E9C67E}$%d\n{BAC6D4}Резерв выплат: {78D8AA}$%d\n\n{BAC6D4}Кризисный статус: {F1F4F8}%s\n{BAC6D4}Всего выпусков: %d\n{BAC6D4}На размещении: %d\n{BAC6D4}Продано облигаций: %d\n{BAC6D4}Необеспеченный долг: {E48A8A}$%d\n\n{92A0AF}Суммы получены из MySQL; отчёт без права списания.",
-            cash,fund,committed,payout,crisis,issues,offering,sold,overdue);
+            cash,fund,committed,payout,crisisLabel,issues,offering,sold,overdue);
         gGovUIStage[playerid]=4;
         ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
             "{D9B872}TARKENSO | Отчёт казначейства",body,"Назад","");
