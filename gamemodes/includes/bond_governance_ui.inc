@@ -43,6 +43,7 @@ new gGovUISelectedCode[MAX_PLAYERS][65];
 new gGovUISelectedStatus[MAX_PLAYERS][20];
 new gGovUIAction[MAX_PLAYERS];
 new gGovUIPendingEvent[MAX_PLAYERS][65];
+new bool:gGovUIPublicReport[MAX_PLAYERS];
 
 forward GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind);
 forward GovBond_UI_OnWrite(playerid,authToken,accountId,serial);
@@ -67,6 +68,7 @@ stock GovBond_UI_Reset(playerid)
     gGovUISelectedStatus[playerid][0]=EOS;
     gGovUIAction[playerid]=0;
     gGovUIPendingEvent[playerid][0]=EOS;
+    gGovUIPublicReport[playerid]=false;
     return 1;
 }
 
@@ -243,6 +245,13 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     #pragma unused playerid,issueId
 #endif
     return 1;
+}
+
+stock GovBond_UI_PublicReport(playerid)
+{
+    if (!GovBond_UI_Authorized(playerid)) return 1;
+    gGovUIPublicReport[playerid]=true;
+    return GovBond_UI_Report(playerid);
 }
 
 stock GovBond_UI_Report(playerid)
@@ -792,7 +801,15 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_REPORT)
     {
-        if(gGovUIStage[playerid]==4)return GovBond_UI_Main(playerid);
+        if(gGovUIStage[playerid]==4)
+        {
+            if(gGovUIPublicReport[playerid])
+            {
+                gGovUIPublicReport[playerid]=false;
+                return BondsUI_Main(playerid);
+            }
+            return GovBond_UI_Main(playerid);
+        }
         return 1;
     }
     return 1;
