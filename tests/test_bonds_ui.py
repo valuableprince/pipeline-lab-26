@@ -50,6 +50,32 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn("FROM government_bond_issues WHERE issue_code=p_issue_code FOR UPDATE;",SCHEMA)
         self.assertIn("FROM government_bond_orders WHERE event_key=p_event_key",SCHEMA)
 
+    def test_portfolio_debt_statuses_are_localized_without_changing_sql(self):
+        issue_schema=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
+        allowed=set(re.findall(
+            r"'([A-Z_]+)'",
+            re.search(r"chk_government_bond_debt CHECK\s*\(debt_status IN \((.*?)\)\)",issue_schema,re.S).group(1)))
+        expected={
+            "NOT_DUE":"Срок не наступил",
+            "DUE":"К погашению",
+            "PARTIALLY_PAID":"Частично погашен",
+            "OVERDUE":"Просрочен",
+            "DEFAULTED":"Дефолт",
+            "RESTRUCTURED":"Реструктурирован",
+            "SETTLED":"Погашен полностью",
+        }
+        self.assertEqual(allowed,set(expected))
+        label_map=UI.split("stock BondsUI_DebtStatusLabel(",1)[1].split(
+            "new gBondsUIStage",1)[0]
+        for code,label in expected.items():
+            self.assertIn(f'!strcmp(status,"{code}")) format(output,size,"{label}")',label_map)
+        self.assertIn("BondsUI_DebtStatusLabel(debt,debtLabel,sizeof(debtLabel));",UI)
+        self.assertIn("debtColor,debtLabel,remaining,available",UI)
+        self.assertNotIn("debtColor,debt,remaining,available",UI)
+        self.assertIn('!strcmp(debt,"DEFAULTED",true)',UI)
+        self.assertIn('!strcmp(debt,"OVERDUE",true)',UI)
+        self.assertIn('!strcmp(debt,"SETTLED",true)',UI)
+
     def test_portfolio_and_escrow_collect(self):
         self.assertIn("FROM government_bond_holdings h INNER JOIN government_bond_issues i",UI)
         self.assertIn("government_bond_claims c",UI)
