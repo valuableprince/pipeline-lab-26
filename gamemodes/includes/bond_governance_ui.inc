@@ -316,7 +316,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         if (!gGovUIRole[playerid])
         {
             SendClientMessage(playerid,COLOR_RED,
-                "У вас нет должности государственного казначейства.");
+                "Вы не состоите в Министерстве финансов или срок лидерства истёк.");
             return 1;
         }
         return GovBond_UI_DrawMain(playerid);
@@ -497,10 +497,16 @@ stock GovBond_UI_Actions(playerid)
 {
     if (!GovBond_UI_Authorized(playerid) || gGovUISelectedIssue[playerid]<=0)
         return 1;
+    if (!GovBond_UI_CanApprove(playerid))
+    {
+        SendClientMessage(playerid,COLOR_AMBER,
+            "Стажёрам и специалистам доступен только просмотр. Решения принимает руководство.");
+        return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
+    }
     gGovUIStage[playerid]=7;
     ShowPlayerDialog(playerid,GOVUI_ACTION,DIALOG_STYLE_LIST,
         "{D9B872}Казначейство | Действия по выпуску",
-        "{78D8AA}Утвердить выпуск (контролёр)\n{E9C67E}Открыть размещение (казначей)\n{E48A8A}Отменить непроданный выпуск (контролёр)\n{AAB6C6}Вернуться к реестру",
+        "{78D8AA}Утвердить выпуск (заместитель/министр)\n{E9C67E}Открыть размещение (заместитель/министр)\n{E48A8A}Отменить непроданный выпуск (заместитель/министр)\n{AAB6C6}Вернуться к реестру",
         "Выбрать","Закрыть");
     return 1;
 }
@@ -510,9 +516,9 @@ stock GovBond_UI_ConfirmAction(playerid,action)
     if (!GovBond_UI_Authorized(playerid) || !gGovUISelectedCode[playerid][0])
         return 1;
     if ((action==2 || action==4) && !GovBond_UI_CanApprove(playerid))
-        return SendClientMessage(playerid,COLOR_RED,"Требуется должность контролёра.");
+        return SendClientMessage(playerid,COLOR_RED,"Действие доступно заместителю или министру финансов.");
     if (action==3 && !GovBond_UI_CanApprove(playerid))
-        return SendClientMessage(playerid,COLOR_RED,"Требуется должность казначея.");
+        return SendClientMessage(playerid,COLOR_RED,"Действие доступно заместителю или министру финансов.");
     gGovUIAction[playerid]=action;
     gGovUIStage[playerid]=8;
     new body[480],verb[60];
@@ -741,7 +747,7 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             {
                 if (!GovBond_UI_CanCreate(playerid))
                     return SendClientMessage(playerid,COLOR_RED,
-                        "Для создания выпуска нужна должность казначея.");
+                        "Создавать займы могут специалисты и руководство Минфина.");
                 gGovUIStage[playerid]=9;
                 ShowPlayerDialog(playerid,GOVUI_TYPE,DIALOG_STYLE_LIST,
                     "{D9B872}Казначейство | Тип государственного займа",
