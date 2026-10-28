@@ -124,7 +124,7 @@ class CouponContracts(unittest.TestCase):
             "Всего начислено",
             "Подробнее: /bonds",
             "INSERT IGNORE INTO government_bond_coupon_notice_deliveries",
-            "q.notice_id<=%s",
+            "q.notice_id<=CAST(\'%e\' AS UNSIGNED)",
             "BondCoupon_OnNoticeMarked",
         ):
             with self.subTest(value=value):
