@@ -5,7 +5,8 @@
 
 // LEADER-01. Организации независимы от административных уровней.
 #define FACTION_DIRECTORY "signal_factions"
-#define FACTION_COUNT (4)
+#define FACTION_COUNT (5)
+#define FACTION_FINANCE (5)
 #define FACTION_ROSTER_MAX (64)
 #define FACTION_DEPUTY_MAX (2)
 #define FACTION_TERM_DAYS (30)
@@ -44,6 +45,7 @@ stock Leader_OrgTitle(org, output[], size)
         case 2: format(output, size, "Медицинская служба");
         case 3: format(output, size, "Радиостанция 03:17");
         case 4: format(output, size, "Исследовательский отдел");
+        case FACTION_FINANCE: format(output, size, "Министерство финансов");
         default: format(output, size, "Неизвестная организация");
     }
     return 1;
@@ -126,6 +128,9 @@ stock bool:Leader_ValidateRoster(org)
             strcmp(gFactionMemberName[o][i], normalized, true) ||
             gFactionMemberRank[o][i] < 1 || gFactionMemberRank[o][i] > 10)
             return false;
+        if (org == FACTION_FINANCE && gFactionMemberRank[o][i] != 1 &&
+            gFactionMemberRank[o][i] != 2 && gFactionMemberRank[o][i] != 9 &&
+            gFactionMemberRank[o][i] != 10) return false;
         if (gFactionMemberRank[o][i] == 10) leaders++;
         if (gFactionMemberRank[o][i] == 9) deputies++;
         for (new j = 0; j < i; j++)
@@ -329,6 +334,22 @@ stock Leader_PlayerRank(playerid)
     return gFactionCachedRank[playerid];
 }
 
+// Finance shows 4 ranks but uses the standard leader/deputy storage (10/9).
+stock Leader_PublicRank(org, internalRank)
+{
+    if (org != FACTION_FINANCE) return internalRank;
+    if (internalRank == 10) return 4;
+    if (internalRank == 9) return 3;
+    return internalRank;
+}
+
+stock bool:Leader_FinanceAuthorized(playerid, minPublicRank)
+{
+    if (Leader_PlayerOrg(playerid) != FACTION_FINANCE ||
+        !Leader_ActiveTerm(FACTION_FINANCE)) return false;
+    return Leader_PublicRank(FACTION_FINANCE,Leader_PlayerRank(playerid)) >= minPublicRank;
+}
+
 stock bool:Leader_ActiveTerm(org)
 {
     if (!Leader_OrgValid(org) || gFactionTermEnd[org - 1] <= gettime()) return false;
@@ -370,7 +391,8 @@ stock Leader_Init()
     for (new o = 0; o < FACTION_COUNT; o++)
     {
         // Исследовательский отдел зарезервирован для сюжетного открытия.
-        gFactionAvailable[o] = o < 3;
+        // Research department remains reserved; finance is a normal faction.
+        gFactionAvailable[o] = o < 3 || o == FACTION_FINANCE - 1;
         if (!gFactionAvailable[o]) continue;
         if (!Leader_Load(o + 1))
         {
@@ -446,7 +468,8 @@ stock Leader_OnReady(playerid)
 stock bool:Leader_AddMember(org, const name[], rank)
 {
     if (!Leader_OrgValid(org) || gFactionCount[org - 1] >= FACTION_ROSTER_MAX ||
-        rank < 1 || rank > 10) return false;
+        rank < 1 || rank > 10 ||
+        (org == FACTION_FINANCE && rank != 1 && rank != 2 && rank != 9 && rank != 10)) return false;
     new o = org - 1, i = gFactionCount[o]++;
     format(gFactionMemberName[o][i], MAX_PLAYER_NAME, "%s", name);
     gFactionMemberRank[o][i] = rank;
@@ -548,7 +571,8 @@ stock bool:Leader_AssignLeader(org, const name[])
 stock bool:Leader_ChangeRank(org, index, rank)
 {
     if (!Leader_OrgValid(org) || index < 0 || index >= gFactionCount[org - 1] ||
-        rank < 1 || rank > 9) return false;
+        rank < 1 || rank > 9 ||
+        (org == FACTION_FINANCE && rank != 1 && rank != 2 && rank != 9)) return false;
     new o = org - 1, previous = gFactionMemberRank[o][index];
     gFactionMemberRank[o][index] = rank;
     if (!Leader_Save(org))
@@ -574,12 +598,12 @@ stock Leader_List(playerid)
     new o = org - 1, title[48], message[128];
     Leader_OrgTitle(org, title, sizeof(title));
     format(message, sizeof(message), "%s | участников: %d | ваш ранг: %d",
-        title, gFactionCount[o], Leader_PlayerRank(playerid));
+        title, gFactionCount[o], Leader_PublicRank(org,Leader_PlayerRank(playerid)));
     SendClientMessage(playerid, FACTION_COLOR, message);
     for (new i = 0; i < gFactionCount[o] && i < 12; i++)
     {
         format(message, sizeof(message), "%s: ранг %d%s", gFactionMemberName[o][i],
-            gFactionMemberRank[o][i], Leader_FindOnline(gFactionMemberName[o][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
+            Leader_PublicRank(org,gFactionMemberRank[o][i]), Leader_FindOnline(gFactionMemberName[o][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
         SendClientMessage(playerid, COLOR_GREY, message);
     }
     return 1;
@@ -667,7 +691,7 @@ stock Leader_Command(playerid, const command[], const params[])
         if (!strcmp(command, "setleader", true))
         {
             if (sscanf(params, "ii", first, second))
-                return SendClientMessage(playerid, FACTION_ERROR, "Использование: /setleader ID организация(1-3).");
+                return SendClientMessage(playerid, FACTION_ERROR, "Использование: /setleader ID организация(1-3, 5=Минфин).");
         }
         else if (sscanf(params, "i", first))
             return SendClientMessage(playerid, FACTION_ERROR, "Использование: /renewleader ID.");
@@ -806,6 +830,13 @@ stock Leader_Command(playerid, const command[], const params[])
                 return SendClientMessage(playerid, FACTION_ERROR, "Ошибка сохранения увольнения.");
             SendClientMessage(target, FACTION_ERROR, "Вы уволены из организации.");
             return SendClientMessage(playerid, FACTION_COLOR, "Сотрудник уволен.");
+        }
+        if (org == FACTION_FINANCE)
+        {
+            if (second < 1 || second > 3)
+                return SendClientMessage(playerid,FACTION_ERROR,
+                    "Минфин: 1=стажёр, 2=специалист, 3=заместитель.");
+            if (second == 3) second=9;
         }
         if (second < 1 || second >= myRank || second > 9)
             return SendClientMessage(playerid, FACTION_ERROR, "Недопустимый ранг.");
