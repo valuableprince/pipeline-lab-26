@@ -47,6 +47,15 @@ class FinanceAclTests(unittest.TestCase):
         ], "PASS_FINANCE_ACL_ONLY")
         self.assertTrue(any("column-limited" in w for w in result["warnings"]))
 
+    def test_faction_and_admin_role_dml_are_rejected(self):
+        for table in ("faction_members", "factions", "admin_roles"):
+            with self.subTest(table=table):
+                result = self.check([
+                    "GRANT UPDATE ON \\x60tarkenso_gov00\\x60.\\x60" + table +
+                    "\\x60 TO 'app'@'%'"
+                ], "FAIL")
+                self.assertTrue(any("authority" in v for v in result["violations"]))
+
     def test_account_insert_is_rejected(self):
         self.check([
             "GRANT INSERT ON \x60tarkenso_gov00\x60.\x60accounts\x60 TO 'app'@'%'"
