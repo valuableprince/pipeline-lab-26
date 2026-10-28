@@ -542,7 +542,7 @@
             case 1042,2002,2003,2006,2013,2055:
             {
                 print("[DB-PRIMARY] MySQL transport lost; disabling DB to prevent unsafe writes.");
-                gDBPrimaryReady=false;
+                gDBPrimaryReady = false;
                 for(new i=0;i<MAX_PLAYERS;i++)
                     if(IsPlayerConnected(i) && !IsPlayerNPC(i))
                         Kick(i);
