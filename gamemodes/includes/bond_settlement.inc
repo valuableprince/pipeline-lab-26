@@ -181,6 +181,28 @@ stock bool:BondSettlement_Collect(playerid, const eventKey[], claimId, amount)
 #endif
 }
 
+// Manual transfer from conditional coupon balance to the player's wallet.
+// Does not run during PayDay; queued through the existing settlement guard.
+stock bool:BondSettlement_CollectCoupon(playerid,const eventKey[],issueId,amount)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(!BondSettlement_IsReady() || !Treasury_ValidToken(eventKey,64) ||
+        strlen(eventKey)<7 || strcmp(eventKey,"bond:",false,5)!=0 ||
+        issueId<=0 || amount<=0 || amount>TREASURY_MAX_CHANGE ||
+        !IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY ||
+        !gDBPrimaryLoaded[playerid])return false;
+    new query[420];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_coupon_collect('%e',%d,%d,%d,%d)",
+        eventKey,issueId,gDBPrimaryAccountId[playerid],amount,
+        gDBPrimaryVersion[playerid]);
+    return BondSettlement_Queue(playerid,query,eventKey);
+#else
+    #pragma unused playerid,eventKey,issueId,amount
+    return false;
+#endif
+}
+
 public BondSettlement_OnPlayerDone(playerid,authToken,accountId,serial)
 {
 #if defined TARKENSO_DB_PRIMARY
