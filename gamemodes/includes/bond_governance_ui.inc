@@ -441,7 +441,7 @@ stock GovBond_UI_Wizard(playerid,step)
         case 3: format(prompt,sizeof(prompt),
             "{E9C67E}Номинал одной облигации ($)\n{AAB6C6}Целое число 1—1000000000.");
         case 4: format(prompt,sizeof(prompt),
-            "{E9C67E}Количество облигаций в выпуске\n{AAB6C6}Целое число 1—1000000. Общий номинал ≤ 1 млрд.");
+            "{E9C67E}Количество облигаций в выпуске\n{AAB6C6}Целое число 1—1000000. Общий номинал не более 1 млрд.");
         case 5: format(prompt,sizeof(prompt),
             "{E9C67E}Доходность за весь срок (базисные пункты)\n{AAB6C6}0—10000; например, 150 = 1.50%%.");
         case 6: format(prompt,sizeof(prompt),
