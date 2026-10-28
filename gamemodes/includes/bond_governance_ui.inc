@@ -415,18 +415,29 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
                 "Не удалось рассчитать страховое обеспечение.\nПроверьте настройки страхового фонда.");
         else if(!enabled || strcmp(shortage,"0") || !strcmp(exposure,"0"))
         {
-            // This is a friendly explanation of the current DB state,
-            // not a way to bypass the locked financial SQL transaction.
-            format(reason,sizeof(reason),
-                "Недостаточно страховой базы для подписания.\n\n"
-                "Сейчас в резерве: $%s\n"
-                "Нужно минимум: $%s\n"
-                "Не хватает: $%s\n\n"
-                "Нужно выделить недостающие деньги из казны в страховой фонд.",
-                reserve,minimum,shortage);
-            if(!enabled)
-                strcat(reason,"\nКроме того, страховой фонд выключен. Его нужно включить.",
-                    sizeof(reason));
+            // Read-only snapshot; the SQL approval transaction is authoritative.
+            if(!strcmp(exposure,"0"))
+                format(reason,sizeof(reason),
+                    "Страховые правила сейчас не позволяют обеспечить выпуск.\n"
+                    "Попросите администратора проверить настройки фонда.");
+            else
+            {
+                format(reason,sizeof(reason),
+                    "Страховая база для этого выпуска:\n\n"
+                    "Сейчас в резерве: $%s\n"
+                    "Нужно минимум: $%s\n"
+                    "Не хватает: $%s\n\n",
+                    reserve,minimum,shortage);
+                if(strcmp(shortage,"0"))
+                    strcat(reason,
+                        "Недостаточно денег в страховом фонде.\n"
+                        "Выделите недостающую сумму из казны.",
+                        sizeof(reason));
+                if(!enabled)
+                    strcat(reason,
+                        "\nСтраховой фонд выключен. Его также нужно включить.",
+                        sizeof(reason));
+            }
         }
         else if(version>=2147483646)
             format(reason,sizeof(reason),
