@@ -201,6 +201,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "bond_fund.inc"
 #include "government_bonds.inc"
 #include "bond_settlement.inc"
+#include "bond_coupon.inc"
 #include "bonds_ui.inc"
 #include "gov_debt.inc"
 #include "bond_governance_ui.inc"
@@ -839,6 +840,7 @@ public OnGameModeInit()
     BondFund_Init();
     BondIssues_Init();
     BondSettlement_Init();
+    BondCoupon_Init();
     GovDebt_Init();
     GovBond_UI_Init();
     RP_Init();
@@ -901,6 +903,7 @@ public OnGameModeExit()
     Studio_Shutdown();
     GovBond_UI_Shutdown();
     GovDebt_Shutdown();
+    BondCoupon_Shutdown();
     BondSettlement_Shutdown();
     BondIssues_Shutdown();
     BondFund_Shutdown();
