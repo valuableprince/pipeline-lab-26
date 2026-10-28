@@ -11,6 +11,7 @@ on:
       - "tools/check_pawn_output.py"
       - "tools/check_chat_style.py"
       - "tools/check_dialog_ids.py"
+      - "tools/check_sql_security.py"
       - "tools/check_pawn_static.py"
       - "tools/check_pawn_complexity.py"
       - "tools/run_pawn_benchmark.py"
@@ -30,8 +31,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sql_security:
+    name: SQL Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Test SQL injection detection
+        run: python3 -m unittest discover -s tests -p 'test_sql_security.py' -v
+
+      - name: Enforce SQL construction policy
+        run: python3 tools/check_sql_security.py --output build/sql_security_report.json
+
+      - name: Upload SQL security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sql-security-report
+          path: build/sql_security_report.json
+          if-no-files-found: warn
+          retention-days: 14
+
   compile:
     name: Compile
+    needs: sql_security
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

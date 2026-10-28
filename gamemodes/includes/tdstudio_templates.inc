@@ -199,7 +199,7 @@ stock TDS_TplRequest(playerid, operation, id = 0)
         case TDS_DB_TEMPLATE_SAVE:
         {
             mysql_format(gDBPrimary, gTDSQuery, sizeof(gTDSQuery),
-                "/*TDS:%d*/ CALL tds_template_save(%d,%d,X'%s',X'%s',%d,%d,%d,%d,CONVERT(X'",
+                "/*TDS:%d*/ CALL tds_template_save(%d,%d,X'%e',X'%e',%d,%d,%d,%d,CONVERT(X'",
                 gTDSJob[j][tjSerial], actor, priv, name, description, gTDS[s][tsTplCategory], gTDS[s][tsTplVisibility],
                 gTDS[s][tsInterface], gTDSTemplateNext);
             if (!TDSDB_QueryHex(gTDSWire)) return TDSDB_Fail(j, "Шаблон превышает размер запроса.");
@@ -215,7 +215,7 @@ stock TDS_TplRequest(playerid, operation, id = 0)
         case TDS_DB_TEMPLATE_INSERT: mysql_format(gDBPrimary, gTDSQuery, sizeof(gTDSQuery),
             "/*TDS:%d*/ CALL tds_template_load(%d,%d,%d)", gTDSJob[j][tjSerial], id, actor, priv);
         case TDS_DB_TEMPLATE_UPDATE: mysql_format(gDBPrimary, gTDSQuery, sizeof(gTDSQuery),
-            "/*TDS:%d*/ CALL tds_template_update(%d,%d,%d,%d,X'%s',X'%s')", gTDSJob[j][tjSerial], id, actor, priv, gTDS[s][tsTplRevision], name, description);
+            "/*TDS:%d*/ CALL tds_template_update(%d,%d,%d,%d,X'%e',X'%e')", gTDSJob[j][tjSerial], id, actor, priv, gTDS[s][tsTplRevision], name, description);
         case TDS_DB_TEMPLATE_DELETE: mysql_format(gDBPrimary, gTDSQuery, sizeof(gTDSQuery),
             "/*TDS:%d*/ CALL tds_template_delete(%d,%d,%d,%d)", gTDSJob[j][tjSerial], id, actor, priv, gTDS[s][tsTplRevision]);
     }
