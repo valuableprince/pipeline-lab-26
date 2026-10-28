@@ -48,6 +48,9 @@ new gGovUIReadSerial[MAX_PLAYERS];
 new gGovUIWriteSerial[MAX_PLAYERS];
 new gGovUIPendingAccount[MAX_PLAYERS];
 new gGovUIPendingAction[MAX_PLAYERS];
+// Snapshot the issue being opened; asynchronous dialog clicks cannot rename it.
+new gGovUIPendingIssue[MAX_PLAYERS];
+new gGovUIPendingCode[MAX_PLAYERS][65];
 new gGovUIStage[MAX_PLAYERS];
 new gGovUIWizardStep[MAX_PLAYERS];
 new gGovUIRole[MAX_PLAYERS];
@@ -86,6 +89,8 @@ stock GovBond_UI_Reset(playerid)
     gGovUIWriteSerial[playerid]++;
     gGovUIPendingAccount[playerid]=0;
     gGovUIPendingAction[playerid]=0;
+    gGovUIPendingIssue[playerid]=0;
+    gGovUIPendingCode[playerid][0]=EOS;
     gGovUIStage[playerid]=0;
     gGovUIWizardStep[playerid]=0;
     gGovUIRole[playerid]=0;
@@ -198,6 +203,14 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     gGovUIBusy[playerid]=true;
     gGovUIPendingAction[playerid]=action;
     gGovUIPendingAccount[playerid]=gDBPrimaryAccountId[playerid];
+    gGovUIPendingIssue[playerid]=0;
+    gGovUIPendingCode[playerid][0]=EOS;
+    if (action==3)
+    {
+        // These values must match the committed SQL result in OnWrite.
+        gGovUIPendingIssue[playerid]=gGovUISelectedIssue[playerid];
+        format(gGovUIPendingCode[playerid],65,"%s",gGovUISelectedCode[playerid]);
+    }
     format(gGovUIPendingEvent[playerid],65,"%s",eventKey);
     gGovUIWriteSerial[playerid]++;
     if (!mysql_tquery(gDBPrimary,sql,"GovBond_UI_OnWrite","iiii",
@@ -206,6 +219,8 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     {
         gGovUIBusy[playerid]=false;
         gGovUIPendingAction[playerid]=0;
+        gGovUIPendingIssue[playerid]=0;
+        gGovUIPendingCode[playerid][0]=EOS;
         gGovUIPendingEvent[playerid][0]=EOS;
         return false;
     }
@@ -675,6 +690,12 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     if (valid && action==1)
         valid=cache_get_value_name_int(0,"issue_id",issueId) &&
               cache_get_value_name(0,"issue_code",code,sizeof(code));
+    if (valid && action==3)
+        valid=cache_get_value_name_int(0,"issue_id",issueId) &&
+              cache_get_value_name(0,"issue_status",decisionStatus,sizeof(decisionStatus)) &&
+              issueId==gGovUIPendingIssue[playerid] &&
+              gGovUIPendingCode[playerid][0] &&
+              (replayed==1 || !strcmp(decisionStatus,"OFFERING"));
     if (valid && action==5)
         valid=cache_get_value_name_int(0,"creator_account_id",creatorId) &&
               cache_get_value_name_int(0,"issue_id",issueId) &&
@@ -689,6 +710,8 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
+        gGovUIPendingIssue[playerid]=0;
+        gGovUIPendingCode[playerid][0]=EOS;
         SendClientMessage(playerid,COLOR_RED,
             "Неизвестный результат операции. Проверьте реестр и журнал перед повтором.");
         return 1;
@@ -696,6 +719,20 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     gGovUIBusy[playerid]=false;
     gGovUIPendingEvent[playerid][0]=EOS;
     gGovUIPendingAction[playerid]=0;
+    if (action==3 && replayed==0)
+    {
+        // First committed APPROVED -> OFFERING transition only. Do not
+        // advertise DRAFTs, signatures, failed calls, or idempotent replays.
+        new notice[160];
+        format(notice,sizeof(notice),
+            "[Госзаймы] Министерство финансов открыло размещение %s.",
+            gGovUIPendingCode[playerid]);
+        SendClientMessageToAll(COLOR_AMBER,notice);
+        SendClientMessageToAll(FACTION_COLOR,
+            "[Госзаймы] Облигации доступны для покупки: /bonds.");
+    }
+    gGovUIPendingIssue[playerid]=0;
+    gGovUIPendingCode[playerid][0]=EOS;
     if (action==1)
     {
         new message[150];
@@ -839,6 +876,8 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
+        gGovUIPendingIssue[playerid]=0;
+        gGovUIPendingCode[playerid][0]=EOS;
         if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
             SendClientMessage(playerid,COLOR_RED,
                 "Казначейство отклонило решение: проверяйте роль, статус, фонд и подписи.");
