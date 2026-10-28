@@ -160,6 +160,14 @@ jobs:
             exit 1
           fi
 
+      - name: Apply GOV-05.1 revision + opening-clock migration 025 on disposable MariaDB
+        run: |
+          set -euo pipefail
+          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/025_bond_application_revisions.sql
+
+      - name: GOV-05.1 returned applications and delayed opening MariaDB UAT
+        run: python3 tests/gov05_revision_mysql_uat.py
+
   compile:
     name: Compile
     needs: sql_security
