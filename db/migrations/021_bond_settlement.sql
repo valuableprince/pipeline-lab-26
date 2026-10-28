@@ -450,7 +450,9 @@ BEGIN
    END IF;
    SELECT COALESCE(MAX(quantity),0) INTO v_existing_qty
      FROM government_bond_holdings WHERE issue_id=v_issue AND account_id=p_account_id;
-   IF v_existing_qty+p_quantity > GREATEST(1,v_max_qty DIV 5) THEN
+   -- Floor to whole units; each issue has an independent strict 20% cap.
+   -- Issues under five bonds have zero buyable units under this policy.
+   IF v_existing_qty+p_quantity > v_max_qty DIV 5 THEN
      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond concentration limit';
    END IF;
    UPDATE accounts SET balance=balance-v_payment,txn_serial=txn_serial+1,
