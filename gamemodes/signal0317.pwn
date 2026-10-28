@@ -197,6 +197,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "bond_fund.inc"
 #include "government_bonds.inc"
 #include "bond_settlement.inc"
+#include "bonds_ui.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -972,6 +973,7 @@ public OnPlayerConnect(playerid)
     GovTransfer_OnConnect(playerid);
     BondIssues_Reset(playerid);
     BondSettlement_OnConnect(playerid);
+    BondsUI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
@@ -991,6 +993,7 @@ public OnPlayerDisconnect(playerid, reason)
     DBShadow_OnDisconnect(playerid);
     BondIssues_Reset(playerid);
     BondSettlement_OnDisconnect(playerid);
+    BondsUI_Reset(playerid);
     GovTransfer_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
@@ -1273,6 +1276,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (BondsUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
         dialogid != DIALOG_CONFIRM && dialogid != DIALOG_BACKGROUND &&
         dialogid != DIALOG_LOGIN && dialogid != DIALOG_SUCCESS &&
