@@ -65,6 +65,9 @@ new gAccountHash[MAX_PLAYERS][61];
 new gBackground[MAX_PLAYERS];
 new gStartRegion[MAX_PLAYERS];
 new gAccountMoney[MAX_PLAYERS];
+#if defined TARKENSO_DB_PRIMARY
+new bool:gGovTransferBusy[MAX_PLAYERS]; // prevent all other wallet writes until SQL settlement
+#endif
 new gCharacterLevel[MAX_PLAYERS];
 new gCharacterEXP[MAX_PLAYERS];
 new gCharacterLastPaydayHour[MAX_PLAYERS];
@@ -190,6 +193,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "db_shadow.inc"
 #include "db_primary.inc"
 #include "treasury.inc"
+#include "gov_transfer.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -820,6 +824,7 @@ public OnGameModeInit()
         return 0;
     }
     Treasury_Init();
+    GovTransfer_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -878,6 +883,7 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    GovTransfer_Shutdown();
     Treasury_Shutdown();
     DBShadow_Shutdown();
     DBPrimary_Shutdown();
@@ -954,6 +960,7 @@ public OnPlayerConnect(playerid)
 
     DBShadow_OnConnect(playerid);
     DBPrimary_OnConnect(playerid);
+    GovTransfer_OnConnect(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
@@ -971,6 +978,7 @@ public OnPlayerDisconnect(playerid, reason)
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
     DBShadow_OnDisconnect(playerid);
+    GovTransfer_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
     Race_OnDisconnect(playerid);
