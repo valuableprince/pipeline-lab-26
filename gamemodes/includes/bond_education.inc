@@ -4,8 +4,8 @@
 #define _tarkenso_bond_education_included
 
 // One source of truth for /mn and /bondgov learning.
-#define BOND_EDU_CATALOG (6440)
-#define BOND_EDU_DETAIL (6441)
+#define BOND_EDU_CATALOG (7900)
+#define BOND_EDU_DETAIL (7901)
 #define BOND_EDU_TOPIC_COUNT (11)
 
 new gBondEduSource[MAX_PLAYERS]; // 0=player menu, 1=Ministry
