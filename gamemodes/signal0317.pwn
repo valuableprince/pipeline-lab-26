@@ -210,6 +210,8 @@ forward GovBond_UI_PublicReport(playerid);
 #include "loadnet_jobs.inc"
 #include "payday.inc"
 #include "story_prologue.inc"
+#include "bond_education.inc"
+#include "player_command_help.inc"
 #include "player_menu.inc"
 #include "db_world.inc"
 #include "cleaner_container.inc"
@@ -1289,6 +1291,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CommandHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (BondEducation_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (AdminTP_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (CleanerEditor_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Truck_OnDialog(playerid, dialogid, response, listitem)) return 1;

@@ -1345,12 +1345,8 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             }
             case 3:
             {
-                gGovUIStage[playerid]=10;
-                ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
-                    "{E8EDF3}Минфин | Обучение",
-                    "{E8EDF3}1. Стажёр: изучение отчётов.\n{E8EDF3}2. Специалист: создаёт заявку.\n{E8EDF3}3. Заместитель: подписывает или отклоняет с причиной.\n{E8EDF3}4. Министр: подписывает или отклоняет с причиной.\n\n{E8EDF3}Подпись только в /bondgov -> Реестр выпусков.",
-                    "Назад","");
-                return 1;
+                // Full tutorial is shared with /mn, without duplicated text.
+                return BondEducation_Open(playerid,1);
             }
         }
         return 1;

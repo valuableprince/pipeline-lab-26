@@ -1,0 +1,70 @@
+#if defined _tarkenso_bond_education_included
+    #endinput
+#endif
+#define _tarkenso_bond_education_included
+
+// One source of truth for /mn and /bondgov learning.
+#define BOND_EDU_CATALOG (7900)
+#define BOND_EDU_DETAIL (7901)
+#define BOND_EDU_TOPIC_COUNT (11)
+
+new gBondEduSource[MAX_PLAYERS]; // 0=player menu, 1=Ministry
+new gBondEduTopic[MAX_PLAYERS];
+
+stock BondEducation_Open(playerid,fromMinfin=0)
+{
+    if(gAuthState[playerid]!=AUTH_READY)return 1;
+    gBondEduSource[playerid]=fromMinfin;
+    gBondEduTopic[playerid]=-1;
+    return ShowPlayerDialog(playerid,BOND_EDU_CATALOG,DIALOG_STYLE_LIST,
+        "{FFD15C}TARKENSO | Обучение облигациям",
+        "1. Начало: что такое облигации\n2. Словарь: казна и выпуск\n3. Словарь: проценты и купоны\n4. Страховой фонд и гарантии\n5. Как игроку купить облигации\n6. Купонный счёт и погашение\n7. Минфин: создание заявки\n8. Минфин: подпись и размещение\n9. Минфин: пополнение фонда\n10. Минфин: отчёт и полномочия\n11. Ошибки и частые вопросы", "Читать","Назад");
+}
+
+stock BondEducation_Topic(playerid,topic)
+{
+    if(gAuthState[playerid]!=AUTH_READY || topic<0 ||
+       topic>=BOND_EDU_TOPIC_COUNT)return 1;
+    new body[1700];
+    switch(topic)
+    {
+        case 0: format(body,sizeof(body),"{FFD15C}ОБЛИГАЦИЯ{FFFFFF} — способ одолжить государству деньги. Игрок покупает облигацию; казна обязуется вернуть основной долг и доход по условиям выпуска.\n\n{FFD15C}ЭМИТЕНТ{FFFFFF} — государство, которое берёт деньги в долг.\n{FFD15C}ИНВЕСТОР{FFFFFF} — игрок, который покупает облигации.\n\n{FFD15C}/bonds{FFFFFF} — купить бумагу, посмотреть портфель, проверить и получить купоны.\n{FFD15C}/bondgov{FFFFFF} — работа Минфина: создать выпуск, подписать, открыть продажу, посмотреть отчёт и пополнить фонд.\n\n{FFD15C}ПЕРЕД ПОКУПКОЙ{FFFFFF} проверь цену, доходность за весь срок, дату погашения и риск невыплаты.");
+        case 1: format(body,sizeof(body),"{FFD15C}КАЗНА{FFFFFF} — общий бюджет государства.\n{FFD15C}ВЫПУСК{FFFFFF} — партия облигаций с одинаковыми условиями и кодом, например GOV-000001.\n{FFD15C}НОМИНАЛ{FFFFFF} — основной долг государства по одной бумаге: например, $1000.\n{FFD15C}КОЛИЧЕСТВО{FFFFFF} — сколько бумаг выпускают. 20 бумаг по $1000 означают заём на $20000.\n{FFD15C}ЗАЯВКА{FFFFFF} — проект выпуска, ещё не одобренный руководством.\n{FFD15C}РЕЕСТР{FFFFFF} — список выпусков, их создателей и состояний.\n{FFD15C}РАЗМЕЩЕНИЕ{FFFFFF} — период продажи облигаций.\n{FFD15C}ПОГАШЕНИЕ{FFFFFF} — срок возврата долга и оставшегося дохода.");
+        case 2: format(body,sizeof(body),"{FFD15C}ДОХОДНОСТЬ{FFFFFF} — процент прибыли за {FFD15C}весь срок займа{FFFFFF}, а не за один час.\n{FFD15C}КУПОН{FFFFFF} — постепенно начисляемая часть этой прибыли.\n{FFD15C}PAYDAY{FFFFFF} — регулярное игровое событие. Покупка даже за 5 минут до ближайшего PayDay участвует в следующем расчёте. MySQL должен подтвердить начисление.\n\n{FFD15C}ПРИМЕР{FFFFFF} Облигация за $1000 с доходностью 10%% за весь срок принесёт всего $100 процентов при исполнении условий, а не $100 каждый PayDay.\n\n{FFD15C}ПРОСРОЧКА{FFFFFF} — долг не выплачен в срок.\n{FFD15C}ДЕФОЛТ{FFFFFF} — казна не может выполнить обязательства по установленным правилам.");
+        case 3: format(body,sizeof(body),"{FFD15C}СТРАХОВОЙ ФОНД{FFFFFF} — часть денег казны, выделенная на защиту инвесторов. Пополнение не создаёт денег.\n{FFD15C}СТРАХОВОЕ ПОКРЫТИЕ{FFFFFF} — доля основного долга, которую защищают гарантии. {FFD15C}Проценты не застрахованы.{FFFFFF}\n{FFD15C}РЕЗЕРВ{FFFFFF} — деньги, которые нельзя расходовать как обычную свободную казну.\n{FFD15C}ПРИНЯТЫЕ ГАРАНТИИ{FFFFFF} — защита, уже обещанная по выпускам.\n{FFD15C}ЗАГРУЗКА ФОНДА{FFFFFF} — допустимая доля обязательств относительно размера фонда.\n\n{FFD15C}ПРИМЕР{FFFFFF} 20 бумаг по $1000 = $20000. Покрытие 20%% защищает $4000. При загрузке фонда 80%% и отсутствии других обязательств нужно отложить {FFD15C}не менее $5000{FFFFFF}. Если гарантии уже есть, требуется больше.");
+        case 4: format(body,sizeof(body),"{FFD15C}ШАГ 1.{FFFFFF} Введи {FFD15C}/bonds{FFFFFF}.\n{FFD15C}ШАГ 2.{FFFFFF} Выбери выпуск с открытым размещением.\n{FFD15C}ШАГ 3.{FFFFFF} Прочитай номинал, доходность, сроки и условия страхования.\n{FFD15C}ШАГ 4.{FFFFFF} Выбери число облигаций и подтверди покупку.\n{FFD15C}ШАГ 5.{FFFFFF} Открой портфель и проверь покупку.\n\n{FFD15C}ЛИМИТ 20%%{FFFFFF} — один игрок может владеть максимум пятой частью бумаг одного выпуска. Если их 20, можно купить не более 4 суммарно.\n\nПри отказе проверь срок продажи, остаток бумаг, деньги и свой лимит.");
+        case 5: format(body,sizeof(body),"{FFD15C}КАК ПОЛУЧИТЬ КУПОН{FFFFFF}\n{FFD15C}1.{FFFFFF} Купи облигацию до PayDay.\n{FFD15C}2.{FFFFFF} Дождись ближайшего PayDay: даже покупка за несколько минут участвует.\n{FFD15C}3.{FFFFFF} Открой {FFD15C}/bonds -> Купонный счёт{FFFFFF}.\n{FFD15C}4.{FFFFFF} Выбери выпуск и нажми {FFD15C}«Получить»{FFFFFF}. Начисление на купонный счёт и перевод на кошелёк — разные действия.\n\n{FFD15C}ПОГАШЕНИЕ{FFFFFF} — в конце срока казна должна вернуть номинал и остаток дохода. Уже полученные купоны второй раз не выдаются.\n\nЕсли в портфеле написано «К выплате $0», это не обязательно означает отсутствие начисленных купонов: проверь отдельный купонный счёт.");
+        case 6: format(body,sizeof(body),"{FFD15C}КТО МОЖЕТ?{FFFFFF} Специалист (ранг 2), заместитель (3), министр (4).\n\n{FFD15C}1.{FFFFFF} Открой {FFD15C}/bondgov -> Новый государственный заём{FFFFFF}.\n{FFD15C}2.{FFFFFF} Выбери общий, целевой или антикризисный выпуск.\n{FFD15C}3.{FFFFFF} Укажи название, цель, номинал и количество.\n{FFD15C}4.{FFFFFF} Введи доходность {FFD15C}за весь срок{FFFFFF}, срок размещения и срок займа.\n{FFD15C}5.{FFFFFF} Проверь условия и подай заявку.\n\n{FFD15C}«НА ПОДПИСЬ»{FFFFFF} — выпуск ещё не продаётся. Руководству придёт сообщение в чат Минфина. В случае возврата автор может доработать заявку.");
+        case 7: format(body,sizeof(body),"{FFD15C}КТО ПОДПИСЫВАЕТ?{FFFFFF} Заместитель (ранг 3) или министр (4). Они могут подписать собственную заявку.\n\n{FFD15C}1.{FFFFFF} Открой {FFD15C}/bondgov -> Реестр выпусков{FFFFFF}.\n{FFD15C}2.{FFFFFF} Выбери заявку «На подпись», проверь сумму, сроки и цель.\n{FFD15C}3.{FFFFFF} Нажми {FFD15C}«Подписать»{FFFFFF} или отклони/верни с причиной.\n{FFD15C}4.{FFFFFF} После успешной подписи открой действия и выбери {FFD15C}«Открыть размещение»{FFFFFF}.\n\nЕсли казначейство отказало, оно объяснит причину и покажет, сколько не хватает страхового резерва. {FFD15C}Подпись ещё не начинает продажу!{FFFFFF}");
+        case 8: format(body,sizeof(body),"{FFD15C}КТО МОЖЕТ?{FFFFFF} Только действующий министр финансов (ранг 4).\n\n{FFD15C}1.{FFFFFF} Открой {FFD15C}/bondgov -> Пополнить страховой фонд{FFFFFF}.\n{FFD15C}2.{FFFFFF} Проверь свободные средства казны, размер резерва и принятые гарантии.\n{FFD15C}3.{FFFFFF} Введи сумму не больше разрешённого максимума.\n{FFD15C}4.{FFFFFF} Проверь число и нажми {FFD15C}«Подтвердить»{FFFFFF}.\n{FFD15C}5.{FFFFFF} После подтверждения MySQL чат Минфина сообщит, кто и сколько выделил, а также новый резерв.\n\n{FFD15C}ВАЖНО{FFFFFF} Деньги не исчезают из казны, а становятся защищёнными. Если фонд выключен, одно пополнение {FFD15C}не включает{FFFFFF} его автоматически.");
+        case 9: format(body,sizeof(body),"{FFD15C}ОТЧЁТ КАЗНЫ{FFFFFF} доступен в {FFD15C}/bondgov -> Финансовая отчётность{FFFFFF}. Там показаны баланс, резерв страховки, гарантии, выплаты и состояние долга. Просмотр не списывает деньги.\n\n{FFD15C}РАНГ 1: СТАЖЁР{FFFFFF} — изучает систему и отчёты.\n{FFD15C}РАНГ 2: СПЕЦИАЛИСТ{FFFFFF} — создаёт проекты займов.\n{FFD15C}РАНГ 3: ЗАМЕСТИТЕЛЬ{FFFFFF} — дополнительно подписывает и отклоняет с причиной.\n{FFD15C}РАНГ 4: МИНИСТР{FFFFFF} — руководит выпусками и может пополнять страховой фонд.\n\n{FFD15C}РЕЕСТР{FFFFFF} позволяет посмотреть создателя, условия, состояние и сроки каждого выпуска.");
+        case 10: format(body,sizeof(body),"{FFD15C}НЕ МОГУ КУПИТЬ{FFFFFF} — проверь, открыта ли продажа, есть ли бумаги и деньги и не достигнут ли лимит 20%%.\n\n{FFD15C}НЕ МОГУ ПОДПИСАТЬ{FFFFFF} — прочитай окно отказа: оно объясняет полномочия, статус и минимальную страховую сумму.\n\n{FFD15C}КУПОН НЕ ПОЯВИЛСЯ{FFFFFF} — открой {FFD15C}/bonds -> Купонный счёт{FFFFFF} после PayDay. Расчёт асинхронный, но не требует целого часа владения.\n\n{FFD15C}ФОНД ПОПОЛНЕН, А ПОДПИСЬ НЕ ПРОХОДИТ{FFFFFF} — фонд может быть выключен или резерв недостаточен для всех действующих гарантий.\n\n{FFD15C}НЕЯСНЫЙ РЕЗУЛЬТАТ ПЕРЕВОДА{FFFFFF} — сначала проверь отчёт и журнал. Не повторяй финансовую операцию вслепую.");
+    }
+    gBondEduTopic[playerid]=topic;
+    new title[100];
+    format(title,sizeof(title),"{FFD15C}Облигации | Урок %d/%d",
+        topic+1,BOND_EDU_TOPIC_COUNT);
+    return ShowPlayerDialog(playerid,BOND_EDU_DETAIL,DIALOG_STYLE_MSGBOX,
+        title,body,topic==BOND_EDU_TOPIC_COUNT-1?"К разделам":"Далее",
+        "Оглавление");
+}
+
+stock BondEducation_OnDialog(playerid,dialogid,response,listitem)
+{
+    if(dialogid!=BOND_EDU_CATALOG && dialogid!=BOND_EDU_DETAIL)return 0;
+    if(gAuthState[playerid]!=AUTH_READY)return 1;
+    if(dialogid==BOND_EDU_CATALOG)
+    {
+        if(!response)
+        {
+            if(gBondEduSource[playerid])return GovBond_UI_Main(playerid);
+            return PlayerMenu_GameHelp(playerid);
+        }
+        if(listitem<0 || listitem>=BOND_EDU_TOPIC_COUNT)return 1;
+        return BondEducation_Topic(playerid,listitem);
+    }
+    if(!response)return BondEducation_Open(playerid,gBondEduSource[playerid]);
+    if(gBondEduTopic[playerid]<0 || gBondEduTopic[playerid]>=BOND_EDU_TOPIC_COUNT-1)
+        return BondEducation_Open(playerid,gBondEduSource[playerid]);
+    return BondEducation_Topic(playerid,gBondEduTopic[playerid]+1);
+}

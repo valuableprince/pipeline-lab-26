@@ -7,13 +7,15 @@
 // The dossier number is the actual MariaDB account_id.
 #define PLAYER_MENU_MAIN      (6430)
 #define PLAYER_MENU_STATS     (6431)
+#define PLAYER_MENU_GAME_HELP (6432)
+#define PLAYER_MENU_GAME_TOPIC (6433)
 
 stock PlayerMenu_Open(playerid)
 {
     if (gAuthState[playerid] != AUTH_READY) return 1;
     ShowPlayerDialog(playerid, PLAYER_MENU_MAIN, DIALOG_STYLE_LIST,
         "Tarkenso RPG | Меню персонажа",
-        "1. Статистика персонажа",
+        "1. Статистика персонажа\n2. Помощь по командам\n3. Помощь по игре",
         "Открыть", "Закрыть");
     return 1;
 }
@@ -54,14 +56,56 @@ stock PlayerMenu_Statistics(playerid)
 #endif
 }
 
+stock PlayerMenu_GameHelp(playerid)
+{
+    if(gAuthState[playerid]!=AUTH_READY)return 1;
+    return ShowPlayerDialog(playerid,PLAYER_MENU_GAME_HELP,DIALOG_STYLE_LIST,
+        "{FFD15C}TARKENSO | Помощь по игре",
+        "{FFFFFF}1. Государственные облигации: обучение\n{FFFFFF}2. PayDay и развитие персонажа\n{FFFFFF}3. Ролевая игра и общение",
+        "Читать","Назад");
+}
+
+stock PlayerMenu_GameTopic(playerid,topic)
+{
+    if(gAuthState[playerid]!=AUTH_READY)return 1;
+    new body[800];
+    switch(topic)
+    {
+        case 1: format(body,sizeof(body),
+            "{FFD15C}PAYDAY{FFFFFF} — регулярное событие сервера. При нём начисляется опыт (EXP), связанный с ростом уровня персонажа.\n\n{FFD15C}EXP{FFFFFF} — очки опыта. Текущий прогресс смотри через /mn -> Статистика персонажа.\n\n{FFD15C}ОБЛИГАЦИИ{FFFFFF} — купонный доход пересчитывается на ближайшем PayDay после покупки. Проверяй /bonds -> Купонный счёт; это не то же самое, что EXP.");
+        case 2: format(body,sizeof(body),
+            "{FFD15C}RP{FFFFFF} — ролевая игра: общайся и действуй так, как поступал бы твой персонаж.\n\n{FFD15C}/me{FFFFFF} — действие: /me открыл папку.\n{FFD15C}/do{FFFFFF} — обстановка: /do Папка лежит на столе.\n{FFD15C}/try{FFFFFF} — попытка со случайным результатом.\n{FFD15C}/b{FFFFFF} — сообщение вне роли (OOC).\n\nДругие команды с примерами смотри в /mn -> Помощь по командам.");
+        default: return PlayerMenu_GameHelp(playerid);
+    }
+    return ShowPlayerDialog(playerid,PLAYER_MENU_GAME_TOPIC,DIALOG_STYLE_MSGBOX,
+        "{FFD15C}TARKENSO | Помощь по игре",body,"К разделам","Закрыть");
+}
+
 stock PlayerMenu_OnDialog(playerid, dialogid, response, listitem)
 {
-    if (dialogid != PLAYER_MENU_MAIN && dialogid != PLAYER_MENU_STATS)
-        return 0;
+    if (dialogid != PLAYER_MENU_MAIN && dialogid != PLAYER_MENU_STATS &&
+        dialogid != PLAYER_MENU_GAME_HELP &&
+        dialogid != PLAYER_MENU_GAME_TOPIC)return 0;
     if (gAuthState[playerid] != AUTH_READY) return 1;
     if (dialogid == PLAYER_MENU_MAIN)
     {
-        if (response && listitem == 0) return PlayerMenu_Statistics(playerid);
+        if (!response)return 1;
+        if(listitem==0)return PlayerMenu_Statistics(playerid);
+        if(listitem==1)return CommandHelp_Categories(playerid);
+        if(listitem==2)return PlayerMenu_GameHelp(playerid);
+        return 1;
+    }
+    if(dialogid==PLAYER_MENU_GAME_HELP)
+    {
+        if(!response)return PlayerMenu_Open(playerid);
+        if(listitem==0)return BondEducation_Open(playerid,0);
+        if(listitem==1 || listitem==2)
+            return PlayerMenu_GameTopic(playerid,listitem);
+        return 1;
+    }
+    if(dialogid==PLAYER_MENU_GAME_TOPIC)
+    {
+        if(response)return PlayerMenu_GameHelp(playerid);
         return 1;
     }
     if (response) return PlayerMenu_Open(playerid);
