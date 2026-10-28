@@ -343,13 +343,6 @@ stock Leader_PublicRank(org, internalRank)
     return internalRank;
 }
 
-stock bool:Leader_FinanceAuthorized(playerid, minPublicRank)
-{
-    if (Leader_PlayerOrg(playerid) != FACTION_FINANCE ||
-        !Leader_ActiveTerm(FACTION_FINANCE)) return false;
-    return Leader_PublicRank(FACTION_FINANCE,Leader_PlayerRank(playerid)) >= minPublicRank;
-}
-
 stock bool:Leader_ActiveTerm(org)
 {
     if (!Leader_OrgValid(org) || gFactionTermEnd[org - 1] <= gettime()) return false;
@@ -357,6 +350,13 @@ stock bool:Leader_ActiveTerm(org)
     for (new i = 0; i < gFactionCount[o]; i++)
         if (gFactionMemberRank[o][i] == 10) return true;
     return false;
+}
+
+stock bool:Leader_FinanceAuthorized(playerid, minPublicRank)
+{
+    if (Leader_PlayerOrg(playerid) != FACTION_FINANCE ||
+        !Leader_ActiveTerm(FACTION_FINANCE)) return false;
+    return Leader_PublicRank(FACTION_FINANCE,Leader_PlayerRank(playerid)) >= minPublicRank;
 }
 
 stock bool:Leader_StaffAccess(playerid)
