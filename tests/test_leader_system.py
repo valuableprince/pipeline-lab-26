@@ -15,12 +15,27 @@ DOC = (ROOT / "docs/LEADER_SYSTEM.md").read_text(encoding="utf-8")
 
 
 class LeaderCoreContract(unittest.TestCase):
-    def test_three_active_one_reserved_and_ten_ranks(self):
-        for value in ('FACTION_COUNT (4)', 'FACTION_DEPUTY_MAX (2)',
+    def test_three_original_one_reserved_and_finance_ministry(self):
+        for value in ('FACTION_COUNT (5)', 'FACTION_DEPUTY_MAX (2)',
                       'FACTION_ROSTER_MAX (64)', 'FACTION_TERM_DAYS (30)',
-                      'FACTION_TERM_SECONDS (2592000)', 'gFactionAvailable[o] = o < 3',
-                      'rank < 1 || rank > 10', 'gFactionMemberRank[o][i] == 10'):
+                      'FACTION_TERM_SECONDS (2592000)', 'gFactionAvailable[o] = o < 3 || o == FACTION_FINANCE - 1',
+                      'rank < 1 || rank > 10', 'Leader_LeaderRank(org)'):
             self.assertIn(value, CORE)
+
+    def test_ministry_is_fifth_org_with_four_visible_ranks(self):
+        for v in ("#define FACTION_FINANCE (5)",
+                  'case FACTION_FINANCE: format(output, size, "Министерство финансов");',
+                  "stock Leader_PublicRank(org, internalRank)",
+                  "return org == FACTION_FINANCE ? 4 : 10;",
+                  "return org == FACTION_FINANCE ? 3 : 9;",
+                  "return internalRank;",
+                  "stock bool:Leader_FinanceAuthorized(playerid, minPublicRank)",
+                  "(org == FACTION_FINANCE && rank > 4)) return false;",
+                  "gFactionMemberRank[o][idx] = Leader_LeaderRank(org);",
+                  "org == FACTION_FINANCE && rank > 4",
+                  "Leader_ActiveTerm(FACTION_FINANCE)"):
+            self.assertIn(v,CORE)
+        self.assertIn("Leader_PublicRank(org,Leader_PlayerRank(playerid))",UI)
 
     def test_independent_lifecycle_and_auth(self):
         for token in ('#include "leader_system.inc"', '#include "leader_ui.inc"',
@@ -56,12 +71,15 @@ class LeaderCoreContract(unittest.TestCase):
         self.assertIn('days >= 7', CORE)
 
     def test_pawncmd_commands_and_native_dialogs(self):
-        cmds = ['leaders', 'fmenu', 'leader', 'fstats', 'fchat', 'finvite',
+        cmds = ['leaders', 'fmenu', 'leader', 'fstats', 'r', 'finvite',
                 'faccept', 'funinvite', 'frank', 'fleave', 'setleader', 'unleader',
                 'renewleader']
         for cmd in cmds:
             self.assertRegex(COMMANDS, rf'(?m)^cmd:{cmd}\(playerid, params\[\]\)')
             self.assertIn(f'Leader_Command(playerid, "{cmd}", params)', COMMANDS)
+        self.assertNotIn("cmd:fchat(", COMMANDS)
+        self.assertNotIn('"fchat"', CORE)
+        self.assertIn('"Использование: /r сообщение."', CORE)
         self.assertIn("DIALOG_STYLE_INPUT", UI)
         self.assertIn("DIALOG_STYLE_LIST", UI)
         self.assertNotIn("PlayerTextDraw", UI)

@@ -88,6 +88,20 @@ cmd:play(playerid, params[])
     return Radio_Open(playerid);
 }
 
+// Государственные облигации: открытые выпуски, покупка 1 бумаги, портфель.
+cmd:bonds(playerid, params[])
+{
+    #pragma unused params
+    return BondsUI_Main(playerid);
+}
+
+// Должностное управление государственными займами. Данные — только из SQL.
+cmd:bondgov(playerid, params[])
+{
+    #pragma unused params
+    return GovBond_UI_Main(playerid);
+}
+
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
 {
@@ -109,7 +123,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /mn (/mm, /menu), /story, /position, /play, /hudlogo, /report, /admins.");
+            "Игрок: /mn, /story, /bonds, /bondgov, /position, /play, /report, /admins.");
         return 1;
     }
     if (!strcmp(category, "rp", true))
@@ -140,7 +154,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "factions", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Организации: /leaders, /fmenu, /fstats, /leader, /fchat.");
+            "Организации: /leaders, /fmenu, /fstats, /leader, /r.");
         SendClientMessage(playerid, COLOR_WHITE,
             "Управление: /finvite, /faccept, /funinvite, /frank, /fleave.");
         return 1;
@@ -155,6 +169,9 @@ cmd:help(playerid, params[])
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
             "Транспорт: /veh del ID, /delveh ID. Инструменты: /unmute, /history, /respawn, /setskin, /settime, /clearchat, /setvw, /setint.");
+        if (gAdminLevel[playerid] >= 5)
+            SendClientMessage(playerid, ADMIN_COLOR,
+                "Финансы: /givemoney ID сумма, /addtreasury сумма (до $1 000 000 за операцию).");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
@@ -349,6 +366,16 @@ cmd:position(playerid, params[])
 
 // Названия команд проверяются Pawn.CMD, права на действия — Admin_Execute.
 // Для числовых параметров добавлена строгая типовая проверка через sscanf.
+cmd:givemoney(playerid, params[])
+{
+    return AdminMoney_Give(playerid,params);
+}
+
+cmd:addtreasury(playerid, params[])
+{
+    return AdminMoney_TopUpTreasury(playerid,params);
+}
+
 cmd:setadmin(playerid, params[])
 {
     new target, level;
@@ -603,9 +630,9 @@ cmd:fstats(playerid, params[])
 {
     return Leader_Command(playerid, "fstats", params);
 }
-cmd:fchat(playerid, params[])
+cmd:r(playerid, params[])
 {
-    return Leader_Command(playerid, "fchat", params);
+    return Leader_Command(playerid, "r", params);
 }
 cmd:finvite(playerid, params[])
 {

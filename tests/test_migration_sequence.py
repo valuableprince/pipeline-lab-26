@@ -11,7 +11,9 @@ class MigrationVersionContracts(unittest.TestCase):
         numbers = [int(p.name[:3]) for p in files]
         self.assertEqual(len(numbers), len(set(numbers)),
                          "Two migration files claim the same version")
-        self.assertEqual(sorted(numbers), list(range(1, 18)))
+        self.assertTrue(numbers, "No migrations were found")
+        self.assertEqual(sorted(numbers), list(range(1, max(numbers) + 1)),
+                         "Migration versions must be contiguous")
 
     def test_12_is_exact_textdraw_schema(self):
         td = (M / "012_tdstudio_projects.sql").read_text(encoding="utf-8")

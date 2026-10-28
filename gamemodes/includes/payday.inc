@@ -4,6 +4,15 @@
 #define _tarkenso_payday_included
 
 // PAYDAY-01: one EXP at each server-clock HH:00; no AFK checks or wages.
+// Synthetic isolated-payday scaling builds intentionally omit the coupon module.
+// The full game always includes bond_coupon.inc before payday.inc.
+#if !defined _tarkenso_bond_coupon_included
+stock BondCoupon_OnPayday(hourKey)
+{
+    #pragma unused hourKey
+    return 1;
+}
+#endif
 // EXP needed for next level = current level * 4.
 #define PAYDAY_EXP_PER_HOUR (1)
 #define PAYDAY_COLOR (0xFFFFFFFF)
@@ -188,6 +197,7 @@ public PayDay_Tick()
     if (minute != 0 || currentHourKey == gPayDayLastHour) return 1;
     // Update the process-wide clock before granting to prevent repeated awards.
     gPayDayLastHour = currentHourKey;
+    BondCoupon_OnPayday(currentHourKey);
     printf("[PayDay] Processing %02d:%02d, hour key %d.", hour, second, currentHourKey);
     for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
     {

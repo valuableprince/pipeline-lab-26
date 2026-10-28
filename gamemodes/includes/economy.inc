@@ -78,6 +78,9 @@ stock Economy_SyncHUD(playerid)
 // Ошибка сохранения возвращает весь объём транзакции в памяти.
 stock bool:Economy_Change(playerid, amount, const reason[])
 {
+#if defined TARKENSO_DB_PRIMARY
+    if (gGovTransferBusy[playerid]) return false;
+#endif
     if (gAuthState[playerid] != AUTH_READY || amount == 0 ||
         gAccountTxnSerial[playerid] >= ACCOUNT_MAX_MONEY) return false;
     if (amount > 0)
@@ -130,6 +133,9 @@ stock bool:Economy_CleanerInitialize(playerid, earned)
 // Ровно один раз по монотонному earned: баланс и watermark в одном .acc.
 stock bool:Economy_CleanerSettle(playerid, earned)
 {
+#if defined TARKENSO_DB_PRIMARY
+    if (gGovTransferBusy[playerid]) return false;
+#endif
     if (gAuthState[playerid] != AUTH_READY ||
         earned < 0 || earned > ECONOMY_CLEANER_LIMIT ||
         gAccountCleanerPaid[playerid] < 0 ||

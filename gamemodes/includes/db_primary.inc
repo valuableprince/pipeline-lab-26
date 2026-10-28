@@ -293,6 +293,8 @@
 
     stock bool:DBPrimary_WriteAccount(playerid, bool:create = false)
     {
+        // Never overwrite money while an async account/treasury transfer is pending.
+        if (gGovTransferBusy[playerid]) return false;
         if (!DBPrimary_IsReady() || !gAccountName[playerid][0] ||
             strlen(gAccountHash[playerid]) != 60 || gBackground[playerid] < 1 ||
             gBackground[playerid] > 3 ||
@@ -524,6 +526,10 @@
         // Never log raw SQL (password hash can be present).
         #pragma unused error, handle
         if (TDSDB_OnError(callback, query)) return 1;
+        if (!strcmp(callback,"BondSettlement_OnPlayerDone",true) &&
+            BondSettlement_OnError(errorid, query)) return 1;
+        if (GovDebt_OnError(errorid, callback, query)) return 1;
+        if (GovBond_UI_OnError(errorid, callback, query)) return 1;
         printf("[DB-PRIMARY] Asynchronous SQL query failed with error %d.", errorid);
         gDBPrimaryReady = false;
         for (new i = 0; i < MAX_PLAYERS; i++)

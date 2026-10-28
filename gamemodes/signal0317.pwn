@@ -65,6 +65,9 @@ new gAccountHash[MAX_PLAYERS][61];
 new gBackground[MAX_PLAYERS];
 new gStartRegion[MAX_PLAYERS];
 new gAccountMoney[MAX_PLAYERS];
+#if defined TARKENSO_DB_PRIMARY
+new bool:gGovTransferBusy[MAX_PLAYERS]; // prevent all other wallet writes until SQL settlement
+#endif
 new gCharacterLevel[MAX_PLAYERS];
 new gCharacterEXP[MAX_PLAYERS];
 new gCharacterLastPaydayHour[MAX_PLAYERS];
@@ -188,8 +191,20 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "server_guard.inc"
 #include "load_test.inc"
 #include "db_shadow.inc"
+// GOV-04 tagged SQL rollback helper is used by DBPrimary before its include.
+forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
+forward bool:GovBond_UI_OnError(errorid,const callback[],const query[]);
+forward GovBond_UI_PublicReport(playerid);
 #include "db_primary.inc"
 #include "treasury.inc"
+#include "gov_transfer.inc"
+#include "bond_fund.inc"
+#include "government_bonds.inc"
+#include "bond_settlement.inc"
+#include "bond_coupon.inc"
+#include "bonds_ui.inc"
+#include "gov_debt.inc"
+#include "bond_governance_ui.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -205,6 +220,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "admin_vehicle.inc"
 #include "admin_tools.inc"
 #include "admin_help.inc"
+#include "admin_money.inc"
 #include "admin_tools2.inc"
 #include "admin_punish.inc"
 #include "admin_fly.inc"
@@ -682,6 +698,8 @@ stock Auth_EnterWorld(playerid)
     started = GetTickCount();
     PayDay_OnReady(playerid);
     AuthProfiler_Step(playerid, "payday_ready", started);
+    // AUTH_READY + loaded MySQL account: deliver pending offline coupons.
+    BondCoupon_NotifyPlayer(playerid,true);
 
     started = GetTickCount();
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
@@ -820,6 +838,13 @@ public OnGameModeInit()
         return 0;
     }
     Treasury_Init();
+    GovTransfer_Init();
+    BondFund_Init();
+    BondIssues_Init();
+    BondSettlement_Init();
+    BondCoupon_Init();
+    GovDebt_Init();
+    GovBond_UI_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -878,6 +903,13 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    GovBond_UI_Shutdown();
+    GovDebt_Shutdown();
+    BondCoupon_Shutdown();
+    BondSettlement_Shutdown();
+    BondIssues_Shutdown();
+    BondFund_Shutdown();
+    GovTransfer_Shutdown();
     Treasury_Shutdown();
     DBShadow_Shutdown();
     DBPrimary_Shutdown();
@@ -954,6 +986,13 @@ public OnPlayerConnect(playerid)
 
     DBShadow_OnConnect(playerid);
     DBPrimary_OnConnect(playerid);
+    GovTransfer_OnConnect(playerid);
+    BondIssues_Reset(playerid);
+    BondSettlement_OnConnect(playerid);
+    BondsUI_Reset(playerid);
+    BondCoupon_NotifyReset(playerid);
+    GovDebt_Reset(playerid);
+    GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
@@ -971,6 +1010,13 @@ public OnPlayerDisconnect(playerid, reason)
     if (gAuthState[playerid] == AUTH_READY && !Auth_SaveAccount(playerid))
         printf("[ACCOUNT] Failed to save account for player %d on disconnect.", playerid);
     DBShadow_OnDisconnect(playerid);
+    BondIssues_Reset(playerid);
+    BondSettlement_OnDisconnect(playerid);
+    BondsUI_Reset(playerid);
+    BondCoupon_NotifyReset(playerid);
+    GovDebt_Reset(playerid);
+    GovBond_UI_Reset(playerid);
+    GovTransfer_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
     Race_OnDisconnect(playerid);
@@ -1252,6 +1298,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
         dialogid != DIALOG_CONFIRM && dialogid != DIALOG_BACKGROUND &&
         dialogid != DIALOG_LOGIN && dialogid != DIALOG_SUCCESS &&
