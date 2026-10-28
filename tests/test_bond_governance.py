@@ -22,6 +22,7 @@ class BondGovernanceContracts(unittest.TestCase):
             "CREATE PROCEDURE gov_bond_official_approve(",
             "CREATE PROCEDURE gov_bond_official_open(",
             "CREATE PROCEDURE gov_bond_official_cancel(",
+            "CREATE PROCEDURE gov_bond_official_reject(",
             "INSERT INTO schema_migrations(version) VALUES (23);"):
             with self.subTest(phrase=phrase):self.assertIn(phrase,SQL)
         create=SQL.split("CREATE PROCEDURE gov_bond_issue_create_auto(",1)[1].split("END$$",1)[0]
@@ -57,6 +58,14 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("INSERT INTO factions(faction_id,is_enabled,term_start,term_end)",SQL)
         self.assertNotIn("government_bond_officials",SQL)
         self.assertNotIn("gov_bond_role_set",SQL)
+        reject=SQL.split("CREATE PROCEDURE gov_bond_official_reject(",1)[1].split("END$$",1)[0]
+        for phrase in ("TRIM(p_reason)","v_rank NOT IN (3,4)",
+            "v_status<>'DRAFT'","rejection_reason=p_reason",
+            "SET status='REJECTED'","'REJECT'","'DRAFT','REJECTED'",
+            "START TRANSACTION;","FOR UPDATE;","COMMIT;","v_replayed AS replayed"):
+            with self.subTest(phrase=phrase):self.assertIn(phrase,reject)
+        self.assertNotIn("UPDATE treasury_accounts SET",reject)
+        self.assertIn("('CREATE','APPROVE','OPEN','CANCEL','REJECT')",core if False else (ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf8"))
         core=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
         self.assertIn("v_creator=p_actor_id AND NOT EXISTS",core)
         self.assertIn("m.rank_id IN (3,4)",core)
@@ -84,9 +93,18 @@ class BondGovernanceContracts(unittest.TestCase):
           "finance_rank",
           "Leader_PublicRank(FACTION_FINANCE,internalRank)",
           "Leader_FinanceAuthorized(playerid,3)",
-          "stock GovBond_UI_Sign(playerid,const code[])",
+          "stock GovBond_UI_RejectReason(playerid)",
+          "stock GovBond_UI_Reject(playerid,const reason[])",
+          "gov_bond_official_reject",
+          "DIALOG_STYLE_INPUT",
+          "Подписать","Отклонить",
+          "rejection_reason",
+          "creator_account_id",
+          "Причина отказа:",
+          "minister",
+          "applicant",
           "[Минфин] %s подал заявку на подпись выпуска %s.",
-          "[Минфин] Для подписи: /bondsign %s", 
+          "[Минфин] Для подписи откройте /bondgov -> Реестр выпусков (%s).", 
           "bond_crisis_state",
           "bond_fund_reserved",
           "bond_payout_reserved",
@@ -94,8 +112,12 @@ class BondGovernanceContracts(unittest.TestCase):
           "GOVUI_LIST,DIALOG_STYLE_TABLIST_HEADERS",
           "GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX"):
             with self.subTest(phrase=phrase):self.assertIn(phrase,UI)
-        self.assertIn('cmd:bondsign(playerid, params[])',COMMANDS)
-        self.assertIn('return GovBond_UI_Sign(playerid,code);',COMMANDS)
+        self.assertNotIn('cmd:bondsign(',COMMANDS)
+        self.assertNotIn('GovBond_UI_Sign(',UI)
+        self.assertIn('GOVUI_LIST,DIALOG_STYLE_TABLIST_HEADERS',UI)
+        self.assertIn('GOVUI_ISSUE,DIALOG_STYLE_MSGBOX',UI)
+        self.assertIn('if(gGovUIStage[playerid]==11)',UI)
+        self.assertIn('return GovBond_UI_Reject(playerid,inputtext);',UI)
         self.assertNotIn("bond:gov5:autoapprove:",UI)
         self.assertIn("if (replayed==0 && Leader_PlayerOrg(playerid)==FACTION_FINANCE)",UI)
         self.assertIn("Leader_PlayerOrg(i)==FACTION_FINANCE",UI)
