@@ -174,7 +174,7 @@ class BondInvestorUiContracts(unittest.TestCase):
     def test_dialog_constants_are_separate_and_stable(self):
         constants=re.findall(r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI)
         self.assertEqual(len(constants),8)
-        self.assertEqual(len(set(constants)),7)
+        self.assertEqual(len(set(constants)),8)
         self.assertEqual(set(map(int,constants)),set(range(6700,6708)))
         self.assertIn("gBondsUILoading[playerid] || gGovTransferBusy[playerid]",UI)
 
