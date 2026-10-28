@@ -194,9 +194,12 @@ class BondGovernanceContracts(unittest.TestCase):
             'if (action==3 && replayed==0)',
             'SendClientMessageToAll(COLOR_AMBER,notice);',
             'SendClientMessageToAll(FACTION_COLOR,',
-            'Облигации доступны для покупки: /bonds.',
+            '[Министерство финансов] Открыто размещение облигаций {F1F4F8}%s{E6BB79}.',
+            'gGovUIPendingCode[playerid]);',
+            '[Министерство финансов] Облигации доступны для покупки: {F1F4F8}/bonds.',
         ):
             with self.subTest(term=term): self.assertIn(term,block)
+        self.assertNotIn("[Госзаймы]",UI)
         self.assertEqual(UI.count("SendClientMessageToAll("),2)
         self.assertIn("gGovUIPendingIssue[playerid]=0;",block)
         self.assertIn("gGovUIPendingCode[playerid][0]=EOS;",block)
