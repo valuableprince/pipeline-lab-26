@@ -406,8 +406,8 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         else
             format(debtColor,sizeof(debtColor),"{E9C67E}");
         format(body,sizeof(body),
-            "{DDBB77}ИНВЕСТИЦИОННЫЙ ПОРТФЕЛЬ\n{F1F4F8}%s\n\n{B8C6D7}Облигации: {F1F4F8}%d шт.\n{B8C6D7}Номинал одной: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d bp\n{B8C6D7}Статус долга: %s%s\n{B8C6D7}Непогашенный номинал: {E48A8A}$%d\n\n{B8C6D7}Начислено к получению: {78D8AA}$%d\n{B8C6D7}Можно получить сейчас: {78D8AA}$%d\n\n{92A0AF}Выплаты по оставшейся части долга могут задерживаться.",
-            code,qty,face,rate,debtColor,debtLabel,remaining,available,gBondsUIClaimAmount[playerid]);
+            "{DDBB77}ИНВЕСТИЦИОННЫЙ ПОРТФЕЛЬ\n{F1F4F8}%s\n\n{B8C6D7}Облигации: {F1F4F8}%d шт.\n{B8C6D7}Номинал одной: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d.%02d%%\n{B8C6D7}Статус долга: %s%s\n{B8C6D7}Непогашенный номинал: {E48A8A}$%d\n\n{B8C6D7}Начислено к получению: {78D8AA}$%d\n{B8C6D7}Можно получить сейчас: {78D8AA}$%d\n\n{92A0AF}Выплаты по оставшейся части долга могут задерживаться.",
+            code,qty,face,rate/100,rate%100,debtColor,debtLabel,remaining,available,gBondsUIClaimAmount[playerid]);
         gBondsUIStage[playerid]=BONDS_UI_POSITION;
         ShowPlayerDialog(playerid,BONDS_DLG_POSITION,DIALOG_STYLE_MSGBOX,
             "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Позиция портфеля",body,
