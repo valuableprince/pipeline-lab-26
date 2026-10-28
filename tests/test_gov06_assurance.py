@@ -55,7 +55,7 @@ class Gov06AssuranceContracts(unittest.TestCase):
         self.assertIn("gGovBondAdminSQL==MYSQL_INVALID_HANDLE",PAWN)
         self.assertIn("action==5?gGovBondAdminSQL:gDBPrimary",PAWN)
         self.assertIn("mysql_format(gGovBondAdminSQL,query,sizeof(query)",PAWN)
-        self.assertIn("connection==MYSQL_INVALID_HANDLE",PAWN)
+        self.assertIn("action==5 && gGovBondAdminSQL==MYSQL_INVALID_HANDLE",PAWN)
         self.assertIn('strfind(query,"CALL gov_bond_role_set(",true)>=0',PAWN)
         self.assertIn("mysql_close(gGovBondAdminSQL)",PAWN)
         self.assertIn("GovBond_UI_OnTaxPost",PAWN)
