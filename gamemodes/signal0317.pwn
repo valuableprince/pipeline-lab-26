@@ -219,6 +219,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "admin_vehicle.inc"
 #include "admin_tools.inc"
 #include "admin_help.inc"
+#include "admin_money.inc"
 #include "admin_tools2.inc"
 #include "admin_punish.inc"
 #include "admin_fly.inc"
