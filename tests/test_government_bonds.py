@@ -70,7 +70,7 @@ class GovernmentBondIssueContracts(unittest.TestCase):
                       "stock bool:BondIssues_Approve(",
                       "stock bool:BondIssues_Open(",
                       "stock bool:BondIssues_Cancel(",
-                      "Admin_IsFounder(playerid)",
+                      "Admin_Allowed(playerid, PERM_MANAGE_STAFF)",
                       "mysql_tquery(gDBPrimary, query, \"BondIssues_OnComplete\"",
                       "gBondIssuesPendingAccount[playerid]",
                       "gAuthToken[playerid] != authToken",
