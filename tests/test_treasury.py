@@ -13,7 +13,7 @@ ECON = (ROOT / "gamemodes/includes/economy.inc").read_text("utf-8")
 
 class TreasuryContract(unittest.TestCase):
     def test_schema_and_seed(self):
-        for table in ("treasury_accounts", "treasury_settings", "treasury_ledger"):
+        for table in ("treasury_accounts", "treasury_ledger"):
             self.assertIn("CREATE TABLE " + table, SQL)
         for token in (
             "balance BIGINT UNSIGNED NOT NULL DEFAULT 0",
@@ -26,10 +26,16 @@ class TreasuryContract(unittest.TestCase):
             "UNIQUE KEY uq_treasury_event (treasury_id,event_key)",
             "FOREIGN KEY (actor_account_id)",
             "INSERT INTO treasury_accounts(treasury_id,code,balance) VALUES (1,'state',0);",
-            "INSERT INTO treasury_settings(treasury_id) VALUES (1);",
             "INSERT INTO schema_migrations(version) VALUES (17);",
         ):
             self.assertIn(token, SQL)
+        # State and policy live on the same locked account row.
+        accounts_ddl = SQL.split("CREATE TABLE treasury_accounts (", 1)[1].split("CREATE TABLE treasury_ledger (", 1)[0]
+        for column in ("balance", "income_enabled", "expense_enabled", "minimum_reserve",
+                       "max_transaction", "income_tax_basis_points", "config_version"):
+            self.assertIn(column, accounts_ddl)
+        self.assertNotIn("CREATE TABLE treasury_settings", SQL)
+        self.assertNotIn("JOIN treasury_settings", SQL)
         self.assertNotIn("ALTER TABLE accounts", SQL)
 
     def test_atomic_ledger_and_replay(self):
@@ -75,6 +81,8 @@ class TreasuryContract(unittest.TestCase):
             "gTreasuryReady = false;",
         ):
             self.assertIn(symbol, PAWN)
+        self.assertIn("FROM treasury_accounts WHERE treasury_id=1 LIMIT 1", PAWN)
+        self.assertNotIn("JOIN treasury_settings", PAWN)
         self.assertIn('#include "treasury.inc"', MAIN)
         self.assertLess(MAIN.index('#include "db_primary.inc"'),
                         MAIN.index('#include "treasury.inc"'))
