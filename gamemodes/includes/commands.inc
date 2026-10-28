@@ -363,6 +363,11 @@ cmd:position(playerid, params[])
 
 // Названия команд проверяются Pawn.CMD, права на действия — Admin_Execute.
 // Для числовых параметров добавлена строгая типовая проверка через sscanf.
+cmd:givemoney(playerid, params[])
+{
+    return AdminMoney_Give(playerid,params);
+}
+
 cmd:setadmin(playerid, params[])
 {
     new target, level;
