@@ -23,6 +23,7 @@ forward GovDebt_OnScan();
 forward GovDebt_OnRecovered(issueId);
 forward GovDebt_OnCrisis();
 forward GovDebt_OnAdminAction(playerid, authToken, accountId, requestSerial);
+forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
 
 stock bool:GovDebt_IsReady()
 {
