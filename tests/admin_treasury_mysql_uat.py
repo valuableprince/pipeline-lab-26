@@ -70,7 +70,7 @@ def main():
             integrity=cur.fetchone()
             while cur.nextset():
                 pass
-        assert integrity is not None,integrity
+        assert integrity is not None and integrity[0]=="PASS",integrity
         print("ADMIN-MONEY-02 MariaDB UAT PASS: ledger atomicity, idempotent replay, "
               "validated amount, actor identity, unchanged wallet/reserves")
 
