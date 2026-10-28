@@ -174,6 +174,40 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertNotIn("GivePlayerMoney(",UI)
         assert_staged(self,"bond_governance_ui.inc")
 
+    def test_public_offering_announcement_only_after_first_sql_commit(self):
+        block=UI.split("public GovBond_UI_OnWrite(",1)[1].split(
+            "// Every successful tax credit",1)[0]
+        init=UI.split("stock bool:GovBond_UI_Write(",1)[1].split(
+            "stock GovBond_UI_Main(",1)[0]
+        for term in (
+            "gGovUIPendingIssue[playerid]=gGovUISelectedIssue[playerid]",
+            'format(gGovUIPendingCode[playerid],65,"%s",gGovUISelectedCode[playerid]);',
+        ):
+            self.assertIn(term,init)
+        for term in (
+            'if (valid && action==3)',
+            'cache_get_value_name_int(0,"issue_id",issueId)',
+            'cache_get_value_name(0,"issue_status",decisionStatus,sizeof(decisionStatus))',
+            'issueId==gGovUIPendingIssue[playerid]',
+            'replayed==1 || !strcmp(decisionStatus,"OFFERING")',
+            'if (!valid || (replayed!=0 && replayed!=1))',
+            'if (action==3 && replayed==0)',
+            'SendClientMessageToAll(COLOR_AMBER,notice);',
+            'SendClientMessageToAll(FACTION_COLOR,',
+            'Облигации доступны для покупки: /bonds.',
+        ):
+            with self.subTest(term=term): self.assertIn(term,block)
+        self.assertEqual(UI.count("SendClientMessageToAll("),2)
+        self.assertIn("gGovUIPendingIssue[playerid]=0;",block)
+        self.assertIn("gGovUIPendingCode[playerid][0]=EOS;",block)
+        self.assertLess(block.index("if (!valid || (replayed!=0 && replayed!=1))"),
+                        block.index("if (action==3 && replayed==0)"))
+        opening=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
+        opening=opening.split("CREATE PROCEDURE gov_bond_issue_open(",1)[1].split("END$",1)[0]
+        self.assertIn("IF v_status <> 'APPROVED'",opening)
+        self.assertIn("SET status='OFFERING'",opening)
+        self.assertIn("v_status AS issue_status,v_replayed AS replayed",opening)
+
     def test_distinct_dialog_ids(self):
         import re
         ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT)\s+\((\d+)\)",UI)
