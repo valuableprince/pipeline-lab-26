@@ -526,6 +526,8 @@
         // Never log raw SQL (password hash can be present).
         #pragma unused error, handle
         if (TDSDB_OnError(callback, query)) return 1;
+        if (!strcmp(callback,"BondSettlement_OnPlayerDone",true) &&
+            BondSettlement_OnError(errorid, query)) return 1;
         printf("[DB-PRIMARY] Asynchronous SQL query failed with error %d.", errorid);
         gDBPrimaryReady = false;
         for (new i = 0; i < MAX_PLAYERS; i++)
