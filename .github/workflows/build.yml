@@ -151,8 +151,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/check_finance_sql_acl.py
-          if GOV_ACL_DB_USER=root GOV_ACL_DB_PASSWORD="$GOV00_TEST_PASSWORD" python3 tools/check_finance_sql_acl.py; then
-            echo "Overprivileged DBA account incorrectly passed finance ACL gate"
+          set +e
+          GOV_ACL_DB_USER=root GOV_ACL_DB_PASSWORD="$GOV00_TEST_PASSWORD" python3 tools/check_finance_sql_acl.py
+          acl_code=$?
+          set -e
+          if [ "$acl_code" -ne 1 ]; then
+            echo "Expected explicit ACL rejection (exit 1), got $acl_code"
             exit 1
           fi
 
