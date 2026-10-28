@@ -194,6 +194,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "db_primary.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
+#include "bond_fund.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -825,6 +826,7 @@ public OnGameModeInit()
     }
     Treasury_Init();
     GovTransfer_Init();
+    BondFund_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -883,6 +885,7 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    BondFund_Shutdown();
     GovTransfer_Shutdown();
     Treasury_Shutdown();
     DBShadow_Shutdown();
