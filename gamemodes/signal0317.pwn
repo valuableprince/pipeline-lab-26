@@ -698,6 +698,8 @@ stock Auth_EnterWorld(playerid)
     started = GetTickCount();
     PayDay_OnReady(playerid);
     AuthProfiler_Step(playerid, "payday_ready", started);
+    // AUTH_READY + loaded MySQL account: deliver pending offline coupons.
+    BondCoupon_NotifyPlayer(playerid,true);
 
     started = GetTickCount();
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
@@ -988,6 +990,7 @@ public OnPlayerConnect(playerid)
     BondIssues_Reset(playerid);
     BondSettlement_OnConnect(playerid);
     BondsUI_Reset(playerid);
+    BondCoupon_NotifyReset(playerid);
     GovDebt_Reset(playerid);
     GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
@@ -1010,6 +1013,7 @@ public OnPlayerDisconnect(playerid, reason)
     BondIssues_Reset(playerid);
     BondSettlement_OnDisconnect(playerid);
     BondsUI_Reset(playerid);
+    BondCoupon_NotifyReset(playerid);
     GovDebt_Reset(playerid);
     GovBond_UI_Reset(playerid);
     GovTransfer_OnDisconnect(playerid);
