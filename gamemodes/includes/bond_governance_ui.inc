@@ -277,10 +277,10 @@ stock GovBond_UI_DrawMain(playerid)
 {
     new body[360];
     format(body,sizeof(body),
-        "{E9C67E}Новый государственный заём\n{F1F4F8}Реестр выпусков и решения\n{78D8AA}Финансовая отчётность\n{B7C4D3}Обучение и полномочия министерства");
+        "{E8EDF3}Новый государственный заём\n{E8EDF3}Реестр выпусков и решения\n{E8EDF3}Финансовая отчётность\n{E8EDF3}Обучение и полномочия министерства");
     gGovUIStage[playerid]=1;
     ShowPlayerDialog(playerid,GOVUI_MAIN,DIALOG_STYLE_LIST,
-        "{D9B872}TARKENSO {A6B5C6}| {F1F4F8}Государственное казначейство",
+        "{E8EDF3}TARKENSO {E8EDF3}| {E8EDF3}Государственное казначейство",
         body,"Выбрать","Закрыть");
     return 1;
 }
@@ -380,7 +380,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUIHasMore[playerid]=rows>GOVUI_ROWS;
         new body[2700],line[225],code[65],status[20],statusLabel[40],applicant[40];
         new id,face,quantity,yield;
-        format(body,sizeof(body),"{DDBB77}Код\tЗаявитель\tКол-во\tНоминал\tСтатус\n");
+        format(body,sizeof(body),"{E8EDF3}Код\tЗаявитель\tКол-во\tНоминал\tСтатус\n");
         for(new i=0;i<shown;i++)
         {
             if (!cache_get_value_name_int(i,"issue_id",id) ||
@@ -396,20 +396,20 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             gGovUIRows[playerid][i]=id;
             GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
             format(line,sizeof(line),
-                "{F1F4F8}%s\t{B8C6D7}%s\t{78D8AA}%d\t{DDBB77}$%d\t{AAB6C6}%s\n",
+                "{E8EDF3}%s\t{E8EDF3}%s\t{E8EDF3}%d\t{E8EDF3}$%d\t{E8EDF3}%s\n",
                 code,applicant,quantity,face,statusLabel);
             strcat(body,line,sizeof(body));
         }
         if(!shown)
-            strcat(body,"{AAB6C6}Заявок пока нет\t—\t—\t—\t—\n",sizeof(body));
+            strcat(body,"{E8EDF3}Заявок пока нет\t—\t—\t—\t—\n",sizeof(body));
         if(gGovUIHasMore[playerid])
-            strcat(body,"{E9C67E}Следующая страница\t\t\t\t\n",sizeof(body));
+            strcat(body,"{E8EDF3}Следующая страница\t\t\t\t\n",sizeof(body));
         if(gGovUIPage[playerid]>0)
-            strcat(body,"{E9C67E}Предыдущая страница\t\t\t\t\n",sizeof(body));
-        strcat(body,"{BAC6D5}Назад\t\t\t\t\n",sizeof(body));
+            strcat(body,"{E8EDF3}Предыдущая страница\t\t\t\t\n",sizeof(body));
+        strcat(body,"{E8EDF3}Назад\t\t\t\t\n",sizeof(body));
         gGovUIStage[playerid]=2;
         ShowPlayerDialog(playerid,GOVUI_LIST,DIALOG_STYLE_TABLIST_HEADERS,
-            "{D9B872}Минфин | Заявки и выпуски",body,"Открыть","Назад");
+            "{E8EDF3}Минфин | Заявки и выпуски",body,"Открыть","Назад");
         return 1;
     }
     if (kind==3)
@@ -456,41 +456,41 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
         GovBond_UI_TypeLabel(issueType,typeLabel,sizeof(typeLabel));
         format(body,sizeof(body),
-            "{DDBB77}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{BAC6D4}Код выпуска: {F1F4F8}%s\n{BAC6D4}Подал заявку: {E9C67E}%s\n{BAC6D4}Действующий министр: {F1F4F8}%s\n{BAC6D4}Состояние: {F1F4F8}%s\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Назначение: {F1F4F8}%s\n{BAC6D4}Тип займа: {F1F4F8}%s\n{BAC6D4}Количество облигаций: {78D8AA}%d\n{BAC6D4}Номинал: {DDBB77}$%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Продано: %d\n{BAC6D4}Гарантия: $%d\n\n{BAC6D4}Размещение: {F1F4F8}%d дней\n{BAC6D4}Погашение: {F1F4F8}через %d дней после размещения\n{BAC6D4}Дата подачи (UTC): {F1F4F8}%s\n{BAC6D4}Дата выпуска (UTC): {F1F4F8}%s\n{BAC6D4}Окончание размещения: {F1F4F8}%s\n{BAC6D4}Погашение (UTC): {F1F4F8}%s",
+            "{E8EDF3}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{E8EDF3}Код выпуска: {E8EDF3}%s\n{E8EDF3}Подал заявку: {E8EDF3}%s\n{E8EDF3}Действующий министр: {E8EDF3}%s\n{E8EDF3}Состояние: {E8EDF3}%s\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Назначение: {E8EDF3}%s\n{E8EDF3}Тип займа: {E8EDF3}%s\n{E8EDF3}Количество облигаций: {E8EDF3}%d\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Продано: %d\n{E8EDF3}Гарантия: $%d\n\n{E8EDF3}Размещение: {E8EDF3}%d дней\n{E8EDF3}Погашение: {E8EDF3}через %d дней после размещения\n{E8EDF3}Дата подачи (UTC): {E8EDF3}%s\n{E8EDF3}Дата выпуска (UTC): {E8EDF3}%s\n{E8EDF3}Окончание размещения: {E8EDF3}%s\n{E8EDF3}Погашение (UTC): {E8EDF3}%s",
             code,applicant,minister,statusLabel,title,purpose,typeLabel,total,face,
             face*total,yield/100,yield%100,sold,exposure,
             offerDays,maturityDays,createdAt,offerStart,offerEnd,maturity);
         if(!strcmp(status,"REJECTED"))
         {
             format(extra,sizeof(extra),
-                "\n\n{E48A8A}ОТКЛОНЕНО\n{BAC6D4}Кто отклонил: {F1F4F8}%s\n{BAC6D4}Причина: {E48A8A}%s",
+                "\n\n{E8EDF3}ОТКЛОНЕНО\n{E8EDF3}Кто отклонил: {E8EDF3}%s\n{E8EDF3}Причина: {E8EDF3}%s",
                 rejector,reason);
             strcat(body,extra,sizeof(body));
         }
         if(!strcmp(status,"RETURNED"))
         {
             format(extra,sizeof(extra),
-                "\n\n{E9C67E}ВОЗВРАТ НА ДОРАБОТКУ\n{BAC6D4}Причина: {F1F4F8}%s",
+                "\n\n{E8EDF3}ВОЗВРАТ НА ДОРАБОТКУ\n{E8EDF3}Причина: {E8EDF3}%s",
                 returnReason);
             strcat(body,extra,sizeof(body));
         }
         if(!strcmp(status,"DRAFT") || !strcmp(status,"RETURNED") ||
             !strcmp(status,"APPROVED"))
-            strcat(body,"\n{AAB6C6}Сроки отсчитываются от открытия размещения.",sizeof(body));
+            strcat(body,"\n{E8EDF3}Сроки отсчитываются от открытия размещения.",sizeof(body));
         gGovUIStage[playerid]=3;
         if (!strcmp(status,"RETURNED") && creatorId==gDBPrimaryAccountId[playerid])
             ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
-                "{D9B872}Минфин | Возврат на доработку",body,"Доработать","Назад");
+                "{E8EDF3}Минфин | Возврат на доработку",body,"Доработать","Назад");
         else if (!strcmp(status,"DRAFT") && GovBond_UI_CanApprove(playerid))
             ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
-                "{D9B872}Минфин | Заявка на подпись",body,"Подписать","Отклонить");
+                "{E8EDF3}Минфин | Заявка на подпись",body,"Подписать","Отклонить");
         else if (GovBond_UI_CanApprove(playerid) &&
                  strcmp(status,"REJECTED") && strcmp(status,"CANCELLED"))
             ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
-                "{D9B872}Минфин | Управление выпуском",body,"Действия","Назад");
+                "{E8EDF3}Минфин | Управление выпуском",body,"Действия","Назад");
         else
             ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
-                "{D9B872}Минфин | Информация о выпуске",body,"Назад","");
+                "{E8EDF3}Минфин | Информация о выпуске",body,"Назад","");
         return 1;
     }
     if (kind==4)
@@ -508,11 +508,11 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             return 1;
         GovBond_UI_CrisisStatusLabel(crisis,crisisLabel,sizeof(crisisLabel));
         format(body,sizeof(body),
-            "{DDBB77}ФИНАНСОВАЯ ОТЧЁТНОСТЬ\n\n{BAC6D4}Баланс казны: {E9C67E}$%d\n{BAC6D4}Страховой резерв: {78D8AA}$%d\n{BAC6D4}Принятые гарантии: {E9C67E}$%d\n{BAC6D4}Резерв выплат: {78D8AA}$%d\n\n{BAC6D4}Кризисный статус: {F1F4F8}%s\n{BAC6D4}Всего выпусков: %d\n{BAC6D4}На размещении: %d\n{BAC6D4}Продано облигаций: %d\n{BAC6D4}Необеспеченный долг: {E48A8A}$%d\n\n{92A0AF}Суммы получены из MySQL; отчёт без права списания.",
+            "{E8EDF3}ФИНАНСОВАЯ ОТЧЁТНОСТЬ\n\n{E8EDF3}Баланс казны: {E8EDF3}$%d\n{E8EDF3}Страховой резерв: {E8EDF3}$%d\n{E8EDF3}Принятые гарантии: {E8EDF3}$%d\n{E8EDF3}Резерв выплат: {E8EDF3}$%d\n\n{E8EDF3}Кризисный статус: {E8EDF3}%s\n{E8EDF3}Всего выпусков: %d\n{E8EDF3}На размещении: %d\n{E8EDF3}Продано облигаций: %d\n{E8EDF3}Необеспеченный долг: {E8EDF3}$%d\n\n{E8EDF3}Суммы получены из MySQL; отчёт без права списания.",
             cash,fund,committed,payout,crisisLabel,issues,offering,sold,overdue);
         gGovUIStage[playerid]=4;
         ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
-            "{D9B872}TARKENSO | Отчёт казначейства",body,"Назад","");
+            "{E8EDF3}TARKENSO | Отчёт казначейства",body,"Назад","");
     }
 #else
     #pragma unused playerid,authToken,accountId,serial,kind
@@ -570,23 +570,23 @@ stock GovBond_UI_Wizard(playerid,step)
     gGovUIWizardStep[playerid]=step;
     gGovUIStage[playerid]=5;
     new prompt[330],title[125];
-    format(title,sizeof(title),"{D9B872}Новый выпуск | Этап %d/7",step);
+    format(title,sizeof(title),"{E8EDF3}Новый выпуск | Этап %d/7",step);
     switch(step)
     {
         case 1: format(prompt,sizeof(prompt),
-            "{E9C67E}Название государственного займа\n{AAB6C6}От 3 до 128 символов.");
+            "{E8EDF3}Название государственного займа\n{E8EDF3}От 3 до 128 символов.");
         case 2: format(prompt,sizeof(prompt),
-            "{E9C67E}Назначение займа\n{AAB6C6}От 3 до 192 символов.");
+            "{E8EDF3}Назначение займа\n{E8EDF3}От 3 до 192 символов.");
         case 3: format(prompt,sizeof(prompt),
-            "{E9C67E}Номинал одной облигации ($)\n{AAB6C6}Целое число 1—1000000000.");
+            "{E8EDF3}Номинал одной облигации ($)\n{E8EDF3}Целое число 1—1000000000.");
         case 4: format(prompt,sizeof(prompt),
-            "{E9C67E}Количество облигаций в выпуске\n{AAB6C6}Целое число 5—1000000 (20%% на инвестора). Общий номинал не более 1 млрд.");
+            "{E8EDF3}Количество облигаций в выпуске\n{E8EDF3}Целое число 5—1000000 (20%% на инвестора). Общий номинал не более 1 млрд.");
         case 5: format(prompt,sizeof(prompt),
-            "{E9C67E}Доходность за весь срок (%%)\n{AAB6C6}От 0 до 100%%; например, 1,5 = 1,50%%. До двух знаков после запятой.");
+            "{E8EDF3}Доходность за весь срок (%%)\n{E8EDF3}От 0 до 100%%; например, 1,5 = 1,50%%. До двух знаков после запятой.");
         case 6: format(prompt,sizeof(prompt),
-            "{E9C67E}Продолжительность размещения, дней\n{AAB6C6}От 1 до 30; начинается с открытия размещения.");
+            "{E8EDF3}Продолжительность размещения, дней\n{E8EDF3}От 1 до 30; начинается с открытия размещения.");
         case 7: format(prompt,sizeof(prompt),
-            "{E9C67E}Срок до погашения после завершения продажи, дней\n{AAB6C6}От 1 до 365.");
+            "{E8EDF3}Срок до погашения после завершения продажи, дней\n{E8EDF3}От 1 до 365.");
         default: return 1;
     }
     ShowPlayerDialog(playerid,GOVUI_INPUT,DIALOG_STYLE_INPUT,
@@ -599,7 +599,7 @@ stock GovBond_UI_ConfirmDraft(playerid)
     new body[900],typeLabel[48],codeHint[170];
     GovBond_UI_TypeLabel(gGovUIType[playerid],typeLabel,sizeof(typeLabel));
     format(body,sizeof(body),
-        "{DDBB77}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Цель: {F1F4F8}%s\n{BAC6D4}Тип: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Количество: {F1F4F8}%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Размещение: %d дней\n{BAC6D4}Погашение через: %d дней после размещения\n\n{E48A8A}Отправка заявки не открывает продажу и не расходует бюджет.",
+        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Цель: {E8EDF3}%s\n{E8EDF3}Тип: {E8EDF3}%s\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Количество: {E8EDF3}%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Размещение: %d дней\n{E8EDF3}Погашение через: %d дней после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
         gGovUITitle[playerid],gGovUIPurpose[playerid],typeLabel,
         gGovUIFace[playerid],gGovUIQuantity[playerid],
         gGovUIFace[playerid]*gGovUIQuantity[playerid],
@@ -607,14 +607,14 @@ stock GovBond_UI_ConfirmDraft(playerid)
         gGovUIOfferDays[playerid],gGovUIMaturityDays[playerid]);
     if(gGovUIEditing[playerid])
         format(codeHint,sizeof(codeHint),
-            "\n{78D8AA}Сохраняется код выпуска %s.",
+            "\n{E8EDF3}Сохраняется код выпуска %s.",
             gGovUISelectedCode[playerid]);
     else format(codeHint,sizeof(codeHint),
-            "\n{78D8AA}Уникальный код выпуска назначит MySQL.");
+            "\n{E8EDF3}Уникальный код выпуска назначит MySQL.");
     strcat(body,codeHint,sizeof(body));
     gGovUIStage[playerid]=6;
     ShowPlayerDialog(playerid,GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX,
-        "{D9B872}TARKENSO | Подтверждение проекта",body,
+        "{E8EDF3}TARKENSO | Подтверждение проекта",body,
         gGovUIEditing[playerid]?"Отправить":"Создать","Отмена");
     return 1;
 }
@@ -628,8 +628,8 @@ stock GovBond_UI_RejectReason(playerid)
         strcmp(gGovUISelectedStatus[playerid],"DRAFT")) return 1;
     gGovUIStage[playerid]=11;
     ShowPlayerDialog(playerid,GOVUI_INPUT,DIALOG_STYLE_INPUT,
-        "{D9B872}Минфин | Отклонить заявку",
-        "{E48A8A}Укажите причину отказа (от 5 до 160 символов).\n{BAC6D4}Причину увидит автор заявки в реестре Минфина.\n{BAC6D4}Выпуск будет окончательно закрыт без продажи.",
+        "{E8EDF3}Минфин | Отклонить заявку",
+        "{E8EDF3}Укажите причину отказа (от 5 до 160 символов).\n{E8EDF3}Причину увидит автор заявки в реестре Минфина.\n{E8EDF3}Выпуск будет окончательно закрыт без продажи.",
         "Отклонить","Назад");
     return 1;
 }
@@ -685,8 +685,8 @@ stock GovBond_UI_ReturnReason(playerid)
         strcmp(gGovUISelectedStatus[playerid],"DRAFT"))return 1;
     gGovUIStage[playerid]=13;
     ShowPlayerDialog(playerid,GOVUI_INPUT,DIALOG_STYLE_INPUT,
-        "{D9B872}Минфин | Возврат на доработку",
-        "{E9C67E}Укажите, что должен исправить заявитель (5—160 символов).\n{BAC6D4}Причина будет видна в карточке выпуска.",
+        "{E8EDF3}Минфин | Возврат на доработку",
+        "{E8EDF3}Укажите, что должен исправить заявитель (5—160 символов).\n{E8EDF3}Причина будет видна в карточке выпуска.",
         "Вернуть","Назад");
     return 1;
 }
@@ -751,8 +751,8 @@ stock GovBond_UI_Actions(playerid)
     }
     gGovUIStage[playerid]=7;
     ShowPlayerDialog(playerid,GOVUI_ACTION,DIALOG_STYLE_LIST,
-        "{D9B872}Казначейство | Действия по выпуску",
-        "{78D8AA}Утвердить выпуск (заместитель/министр)\n{E9C67E}Открыть размещение (заместитель/министр)\n{E48A8A}Отменить непроданный выпуск (заместитель/министр)\n{AAB6C6}Вернуться к реестру",
+        "{E8EDF3}Казначейство | Действия по выпуску",
+        "{E8EDF3}Утвердить выпуск (заместитель/министр)\n{E8EDF3}Открыть размещение (заместитель/министр)\n{E8EDF3}Отменить непроданный выпуск (заместитель/министр)\n{E8EDF3}Вернуться к реестру",
         "Выбрать","Закрыть");
     return 1;
 }
@@ -776,10 +776,10 @@ stock GovBond_UI_ConfirmAction(playerid,action)
         default: return 1;
     }
     format(body,sizeof(body),
-        "{DDBB77}ГОСУДАРСТВЕННОЕ РЕШЕНИЕ\n\n{BAC6D4}Выпуск: {F1F4F8}%s\n{BAC6D4}Операция: {E9C67E}%s\n\n{E48A8A}Проверки прав, фонда, сроков и держателей повторит MySQL.\n{BAC6D4}Подтвердить?",
+        "{E8EDF3}ГОСУДАРСТВЕННОЕ РЕШЕНИЕ\n\n{E8EDF3}Выпуск: {E8EDF3}%s\n{E8EDF3}Операция: {E8EDF3}%s\n\n{E8EDF3}Проверки прав, фонда, сроков и держателей повторит MySQL.\n{E8EDF3}Подтвердить?",
         gGovUISelectedCode[playerid],verb);
     ShowPlayerDialog(playerid,GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX,
-        "{D9B872}TARKENSO | Утверждение решения",body,
+        "{E8EDF3}TARKENSO | Утверждение решения",body,
         "Подтвердить","Отмена");
     return 1;
 }
@@ -1085,7 +1085,7 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
                         "Создавать займы могут специалисты и руководство Минфина.");
                 gGovUIStage[playerid]=9;
                 ShowPlayerDialog(playerid,GOVUI_TYPE,DIALOG_STYLE_LIST,
-                    "{D9B872}Казначейство | Тип государственного займа",
+                    "{E8EDF3}Казначейство | Тип государственного займа",
                     "Общий бюджетный заём\nЦелевое финансирование\nАнтикризисный выпуск",
                     "Выбрать","Назад");
                 return 1;
@@ -1096,8 +1096,8 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             {
                 gGovUIStage[playerid]=10;
                 ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
-                    "{D9B872}Минфин | Обучение",
-                    "{B8C6D7}1. Стажёр: изучение отчётов.\n{F1F4F8}2. Специалист: создаёт заявку.\n{E9C67E}3. Заместитель: подписывает или отклоняет с причиной.\n{78D8AA}4. Министр: подписывает или отклоняет с причиной.\n\n{B8C6D7}Подпись только в /bondgov -> Реестр выпусков.",
+                    "{E8EDF3}Минфин | Обучение",
+                    "{E8EDF3}1. Стажёр: изучение отчётов.\n{E8EDF3}2. Специалист: создаёт заявку.\n{E8EDF3}3. Заместитель: подписывает или отклоняет с причиной.\n{E8EDF3}4. Министр: подписывает или отклоняет с причиной.\n\n{E8EDF3}Подпись только в /bondgov -> Реестр выпусков.",
                     "Назад","");
                 return 1;
             }
@@ -1256,7 +1256,7 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             gGovUIEditing[playerid]=true;
             gGovUIStage[playerid]=9;
             ShowPlayerDialog(playerid,GOVUI_TYPE,DIALOG_STYLE_LIST,
-                "{D9B872}Минфин | Тип доработанного займа",
+                "{E8EDF3}Минфин | Тип доработанного займа",
                 "Общий бюджетный заём\nЦелевое финансирование\nАнтикризисный выпуск",
                 "Выбрать","Назад");
             return 1;
@@ -1275,8 +1275,8 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             // "Отклонить" lets leadership reject finally or return to author.
             gGovUIStage[playerid]=12;
             ShowPlayerDialog(playerid,GOVUI_ACTION,DIALOG_STYLE_LIST,
-                "{D9B872}Минфин | Решение по заявке",
-                "{E48A8A}Отклонить окончательно (с причиной)\n{E9C67E}Вернуть автору на доработку (с причиной)",
+                "{E8EDF3}Минфин | Решение по заявке",
+                "{E8EDF3}Отклонить окончательно (с причиной)\n{E8EDF3}Вернуть автору на доработку (с причиной)",
                 "Выбрать","Назад");
             return 1;
         }
