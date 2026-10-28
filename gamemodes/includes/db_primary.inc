@@ -10,6 +10,7 @@
     #endif
     #define MYSQL_INVALID_HANDLE MySQL:0
     native MySQL:mysql_connect_file(const file_name[] = "mysql.ini");
+    native mysql_set_charset(const charset[], MySQL:handle);
     native mysql_close(MySQL:handle);
     native mysql_errno(MySQL:handle);
     native Cache:mysql_query(MySQL:handle, const query[], bool:use_cache = true);
@@ -72,6 +73,18 @@
             gDBPrimary = MYSQL_INVALID_HANDLE;
             return 0;
         }
+        // GTA/open.mp dialog input and compiled Pawn strings are CP1251.
+        // MySQL converts CP1251 client bytes to the utf8mb4 table charset.
+        // mysql_set_charset applies to the plugin connection, including reads.
+        // Fail closed before financial writes if this contract is unavailable.
+        if (!mysql_set_charset("cp1251", gDBPrimary))
+        {
+            print("[DB-PRIMARY] ERROR: could not set CP1251 client charset.");
+            mysql_close(gDBPrimary);
+            gDBPrimary = MYSQL_INVALID_HANDLE;
+            return 0;
+        }
+        print("[DB-PRIMARY] Client charset CP1251; database tables stay utf8mb4.");
         print("[DB-PRIMARY] Connected. Checking schema_migrations version 10...");
         gDBPrimaryReady = true;
         new Cache:c = mysql_query(gDBPrimary, "SELECT version FROM schema_migrations WHERE version=10 LIMIT 1");
