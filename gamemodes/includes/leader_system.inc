@@ -28,7 +28,7 @@ new gFactionPendingInviter[MAX_PLAYERS];
 new gFactionPendingExpiry[MAX_PLAYERS];
 new gFactionPendingToken[MAX_PLAYERS];
 new gFactionInviteCooldown[MAX_PLAYERS];
-// Кеш онлайн-игроков: быстрый доступ для /fchat и проверки полномочий.
+// Кеш онлайн-игроков: быстрый доступ для /r и проверки полномочий.
 new gFactionCachedOrg[MAX_PLAYERS];
 new gFactionCachedRank[MAX_PLAYERS];
 
@@ -653,13 +653,13 @@ stock Leader_Command(playerid, const command[], const params[])
     if (!strcmp(command, "fstats", true)) return Leader_List(playerid);
     if (!strcmp(command, "fmenu", true)) return Leader_UI_Main(playerid);
     if (!strcmp(command, "leader", true)) return Leader_UI_Leader(playerid);
-    if (!strcmp(command, "fchat", true))
+    if (!strcmp(command, "r", true))
     {
         if (gAdminMuteUntil[playerid] > gettime())
             return SendClientMessage(playerid, FACTION_ERROR, "Ваш чат временно заблокирован.");
         org = Leader_PlayerOrg(playerid);
         if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Вы не состоите в организации.");
-        if (isnull(params)) return SendClientMessage(playerid, FACTION_ERROR, "Использование: /fchat сообщение.");
+        if (isnull(params)) return SendClientMessage(playerid, FACTION_ERROR, "Использование: /r сообщение.");
         new text[100];
         format(text, sizeof(text), "%s", params);
         Admin_SafeText(text, sizeof(text));
