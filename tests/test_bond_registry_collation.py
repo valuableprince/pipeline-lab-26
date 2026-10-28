@@ -36,11 +36,11 @@ class FinanceRegistryCollation(unittest.TestCase):
         self.assertIn('printf("[DB-PRIMARY] Async SQL error=%d callback=%s (query redacted)."',handler)
         self.assertIn("case 1042,2002,2003,2006,2013,2055:",handler)
         fatal=handler.split("case 1042,2002,2003,2006,2013,2055:",1)[1].split("default:",1)[0]
-        self.assertIn("gDBPrimaryReady=false;",fatal)
+        self.assertIn("gDBPrimaryReady = false;",fatal)
         self.assertIn("Kick(i);",fatal)
         nonfatal=handler.split("default:",1)[1]
         self.assertNotIn("Kick(i);",nonfatal)
-        self.assertNotIn("gDBPrimaryReady=false;",nonfatal)
+        self.assertNotIn("gDBPrimaryReady = false;",nonfatal)
         self.assertIn("SQL operation rejected; players remain connected.",nonfatal)
         self.assertIn('GovBond_UI_OnError(errorid, callback, query)',handler)
 
