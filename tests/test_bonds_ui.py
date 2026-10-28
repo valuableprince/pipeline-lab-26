@@ -140,8 +140,8 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn(r"Выпуск\tНоминал\tДоходность\tДоступно\n",UI)
         self.assertIn(r"Выпуск\tКоличество\tНоминал\tК выплате\n",UI)
         self.assertIn(r"%d.%02d%%\t",UI)
-        self.assertIn(r"{78D8AA}$%d\n",UI)
-        self.assertIn(r"{8795A5}$0\n",UI)
+        self.assertIn(r"{E8EDF3}$%d\n",UI)
+        self.assertIn(r"{E8EDF3}$0\n",UI)
         self.assertIn("new rows=0, body[3500],line[260]",UI)
         # Every data row is assembled with three tabs and a newline.
         rows = re.findall(r'format\(line,sizeof\(line\),\s*"(.*?)"', UI, re.S)
@@ -163,13 +163,30 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn("gBondsUIPage[playerid]+1",UI)
         self.assertIn("BONDS_UI_PAGE_SIZE   (10)",UI)
 
-    def test_premium_color_scheme_and_risk_visibility(self):
-        for color in ("{D9B872}","{DDBB77}","{E9C67E}",
-                      "{78D8AA}","{E48A8A}","{B8C6D7}","{8795A5}"):
-            self.assertIn(color,UI)
+    def test_monochrome_bonds_ui_and_risk_visibility(self):
+        palette=set(re.findall(r"\\{[0-9A-F]{6}\\}",UI))
+        self.assertEqual(palette,{"{E8EDF3}"})
         self.assertIn("Риск дефолта: доход не застрахован.",UI)
         self.assertIn("Проценты не застрахованы.",UI)
-        self.assertIn("new debtColor[9];",UI)
+
+    def test_zero_buy_limit_has_precise_reason_and_no_purchase_button(self):
+        for token in (
+            "AS offer_open",
+            "Достигнут лимит владения: 20%% выпуска.",
+            "Все облигации этого выпуска распроданы.",
+            "Недостаточно денег для покупки одной облигации.",
+            "Размещение закрыто либо ещё не началось.",
+            "Лимит одной операции казны меньше номинала.",
+            'maxBuy>0?"Купить":"Назад"',
+            'maxBuy>0?"Назад":"Закрыть"',
+            'if(!response || gBondsUIMaxBuy[playerid]<1)',
+            "if(!offerOpen)maxBuy=0;",
+            "return BondsUI_LoadDetail(playerid,BONDS_UI_OFFER,gBondsUISelectedIssue[playerid]);",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token,UI)
+        self.assertNotIn("Покупка недоступна: исчерпан лимит 20%, остаток или баланс.",UI)
+        self.assertIn("gov_bond_buy",SCHEMA)
 
     def test_dialog_constants_are_separate_and_stable(self):
         constants=re.findall(r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI)
