@@ -26,9 +26,6 @@ stock AdminMoney_Give(playerid,const params[])
        !Admin_Ready(target))
         return SendClientMessage(playerid,ADMIN_ERROR,
             "Игрок не найден или ещё не авторизован.");
-    if(target==playerid)
-        return SendClientMessage(playerid,ADMIN_ERROR,
-            "Выдавать деньги самому себе запрещено.");
     if(amount<1 || amount>ADMIN_MONEY_MAX_GRANT)
         return SendClientMessage(playerid,ADMIN_ERROR,
             "Сумма должна быть от $1 до $1 000 000.");
