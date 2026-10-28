@@ -58,7 +58,7 @@ jobs:
           retention-days: 14
 
   gov00_mysql_uat:
-    name: GOV-00 MariaDB UAT
+    name: GOV-00/01 MariaDB UAT
     runs-on: ubuntu-latest
     timeout-minutes: 8
     services:
@@ -91,16 +91,19 @@ jobs:
           sudo apt-get install -y mariadb-client
           python3 -m pip install --user mysql-connector-python
 
-      - name: Apply isolated schema 001 + 017 + 018
+      - name: Apply isolated schema 001 + 017 + 018 + 019
         run: |
           set -euo pipefail
-          for migration in 001_initial.sql 017_treasury_core.sql 018_gov_atomic_transfers.sql; do
+          for migration in 001_initial.sql 017_treasury_core.sql 018_gov_atomic_transfers.sql 019_bond_fund_core.sql; do
             mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" \
               < "db/migrations/$migration"
           done
 
-      - name: Test atomicity and concurrent idempotent replay
+      - name: Test GOV-00 atomicity and concurrent idempotent replay
         run: python3 tests/gov00_mysql_uat.py
+
+      - name: Test GOV-01 guarantee capacity, fund accounting and protected debits
+        run: python3 tests/gov01_mysql_uat.py
 
   compile:
     name: Compile
