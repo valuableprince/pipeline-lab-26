@@ -169,6 +169,9 @@ cmd:help(playerid, params[])
             "Наказания и управление: /warn, /mute, /kick, /ban, /unban, /setadmin.");
         SendClientMessage(playerid, ADMIN_COLOR,
             "Транспорт: /veh del ID, /delveh ID. Инструменты: /unmute, /history, /respawn, /setskin, /settime, /clearchat, /setvw, /setint.");
+        if (gAdminLevel[playerid] >= 5)
+            SendClientMessage(playerid, ADMIN_COLOR,
+                "Финансы: /givemoney ID сумма (до $1 000 000 за операцию).");
         if (Admin_IsFounder(playerid))
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Муниципальный вывоз: /trashservice (очистить контейнер и площадку).");
