@@ -61,6 +61,44 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn("v_owner<>p_account_id",SCHEMA)
         self.assertIn("UPDATE treasury_accounts SET balance=balance-p_amount",SCHEMA)
 
+    def test_tabular_lists_have_four_colored_headers_and_true_tabs(self):
+        # TABLIST_HEADERS consumes its first row as headers, not listitem=0.
+        self.assertIn("BONDS_DLG_OFFERS,DIALOG_STYLE_TABLIST_HEADERS",UI)
+        self.assertIn("BONDS_DLG_PORTFOLIO,DIALOG_STYLE_TABLIST_HEADERS",UI)
+        self.assertNotIn("BONDS_DLG_OFFERS,DIALOG_STYLE_LIST",UI)
+        self.assertNotIn("BONDS_DLG_PORTFOLIO,DIALOG_STYLE_LIST",UI)
+        self.assertIn(r"Выпуск\tНоминал\tДоходность\tДоступно\n",UI)
+        self.assertIn(r"Выпуск\tКоличество\tНоминал\tК выплате\n",UI)
+        self.assertIn(r"%d.%02d%%\t",UI)
+        self.assertIn(r"{78D8AA}$%d\n",UI)
+        self.assertIn(r"{8795A5}$0\n",UI)
+        self.assertIn("new rows=0, body[3500],line[260]",UI)
+        # Every data row is assembled with three tabs and a newline.
+        for row in re.findall(r'format\\(line,sizeof\\(line),\\s*"(.*?)"',UI,re.S):
+            self.assertEqual(row.count(r"\t"),3,row)
+            self.assertTrue(row.endswith(r"\n"),row)
+
+    def test_empty_rows_and_pagination_keep_selection_indices_stable(self):
+        self.assertIn("if (shown==0)",UI)
+        self.assertIn("if(listitem==0)return 1; // empty state is informational",UI)
+        self.assertIn("index=1;",UI)
+        self.assertIn("new index=gBondsUIListCount[playerid];",UI)
+        self.assertIn("if(listitem>=0 && listitem<gBondsUIListCount[playerid])",UI)
+        self.assertIn("gBondsUIRowIds[playerid][listitem]",UI)
+        self.assertIn(r"Следующая страница\t\t\t\n",UI)
+        self.assertIn(r"Предыдущая страница\t\t\t\n",UI)
+        self.assertIn(r"Вернуться в меню\t\t\t\n",UI)
+        self.assertIn("gBondsUIPage[playerid]+1",UI)
+        self.assertIn("BONDS_UI_PAGE_SIZE   (10)",UI)
+
+    def test_premium_color_scheme_and_risk_visibility(self):
+        for color in ("{D9B872}","{DDBB77}","{E9C67E}",
+                      "{78D8AA}","{E48A8A}","{B8C6D7}","{8795A5}"):
+            self.assertIn(color,UI)
+        self.assertIn("Риск дефолта: доход не застрахован.",UI)
+        self.assertIn("Проценты не застрахованы.",UI)
+        self.assertIn("new debtColor[9];",UI)
+
     def test_dialog_constants_are_separate_and_stable(self):
         constants=re.findall(r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI)
         self.assertEqual(len(constants),7)
