@@ -70,7 +70,7 @@ class BondGovernanceContracts(unittest.TestCase):
           "GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])",
           "Admin_IsFounder(playerid)","gAdminDuty[playerid]",
           "gDBPrimaryAccountId[playerid]",
-          "gAuthToken[playerid]==authToken",
+          "gAuthToken[playerid]!=authToken",
           "gGovUIReadSerial[playerid]!=serial",
           "gov_bond_issue_create_auto",
           "gov_bond_role_set",
