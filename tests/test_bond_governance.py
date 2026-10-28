@@ -17,6 +17,9 @@ class BondGovernanceContracts(unittest.TestCase):
         for phrase in ("CREATE TABLE government_bond_officials",
             "CREATE TABLE government_bond_role_audit",
             "CREATE TABLE government_bond_code_sequences",
+            "CREATE TABLE government_bond_tax_earmarks",
+            "CREATE PROCEDURE gov_bond_tax_earmark(",
+            "CREATE TRIGGER government_bond_code_immutable",
             "CREATE PROCEDURE gov_bond_issue_create_auto(",
             "CREATE PROCEDURE gov_bond_role_set(",
             "CREATE PROCEDURE gov_bond_official_approve(",
@@ -35,6 +38,10 @@ class BondGovernanceContracts(unittest.TestCase):
           "INSERT INTO government_bond_issue_audit",
           "DATE_ADD(v_start_new,INTERVAL p_offer_days DAY)"):
             with self.subTest(phrase=phrase):self.assertIn(phrase,create)
+        self.assertIn("TAX_EARMARK",SQL)
+        self.assertIn("v_amount=(CAST(v_tax_amount AS UNSIGNED)*v_rate) DIV 10000",SQL)
+        self.assertIn("v_balance-v_min-v_fund-v_payout",SQL)
+        self.assertIn("tax_ledger_id BIGINT UNSIGNED NOT NULL PRIMARY KEY",SQL)
         self.assertNotIn("UPDATE treasury_accounts",create)
         self.assertNotIn("UPDATE accounts SET balance",create)
 
@@ -53,6 +60,11 @@ class BondGovernanceContracts(unittest.TestCase):
           "stock GovBond_UI_Grant(playerid,targetId,role,enabled)",
           "stock GovBond_UI_Wizard(playerid,step)",
           "stock GovBond_UI_Report(playerid)",
+          "stock GovBond_UI_PublicReport(playerid)",
+          "public GovBond_UI_TaxTick()",
+          "public GovBond_UI_OnTaxScan()",
+          "public GovBond_UI_OnTaxPost()",
+          "gov_bond_tax_earmark",
           "stock GovBond_UI_LoadIssues(playerid,page=0)",
           "stock GovBond_UI_LoadIssue(playerid,issueId)",
           "GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])",
@@ -83,6 +95,8 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("GovBond_UI_OnError(errorid, callback, query)",DB)
         self.assertIn("023_bond_governance.sql",CI)
         self.assertIn("gov05_mysql_uat.py",CI)
+        self.assertIn("Публичная отчётность казны",
+            (ROOT/"gamemodes/includes/bonds_ui.inc").read_text("utf-8"))
         self.assertNotIn("GivePlayerMoney(",UI)
         assert_staged(self,"bond_governance_ui.inc")
 
