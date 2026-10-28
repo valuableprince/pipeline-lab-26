@@ -116,7 +116,6 @@ def main():
     ninth=create("bond:gov5:create:after-cancel",creator)
     assert ninth[1]=="GOV-000009",ninth
     assert query("SELECT sequence_id,last_number FROM government_bond_code_sequences")==[(1,9)]
-    # Issue codes are immutable from the creation of a draft.
     rejected_update=False
     try:
         query("UPDATE government_bond_issues SET issue_code='GOV-000999' "
@@ -136,7 +135,7 @@ def main():
                  "WHERE account_id=%s",(creator,))==[(0,)]
     assert query("SELECT COUNT(*) FROM government_bond_role_audit")==[(4,)]
     assert query("SELECT COUNT(*) FROM government_bond_issues "
-                 "WHERE issue_code REGEXP '^GOV-[0-9]{6}
+                 "WHERE issue_code REGEXP '^GOV-[0-9]{6}$'")==[(9,)]
     after=query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
                 "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
     assert after==before,(before,after)
@@ -163,38 +162,6 @@ def main():
                  "WHERE event_key=%s",(tax_event,))==[(50,)]
 
     print("GOV-05 MariaDB UAT: PASS (globally sequential codes, parallel creation, "
-          "role control, insurance and real 5% tax earmarks)")
-
-
-if __name__=="__main__":
-    main()
-")==[(9,)]
-    after=query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
-                "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
-    assert after==before,(before,after)
-    # GOV-01's configured 5% is now actually earmarked from tax ledger credits.
-    # This DOES NOT mint cash; the treasury balance stays equal to real receipts.
-    rejects("gov_bond_tax_earmark","fund:tax:1","bond:gov5:create:first")
-    call("treasury_post","gov05:actual:tax",1001,"tax",None,"income_tax")
-    tax_id=int(query("SELECT ledger_id FROM treasury_ledger "
-                     "WHERE event_key='gov05:actual:tax'")[0][0])
-    tax_event=f"fund:tax:{tax_id}"
-    tax_before=query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
-                     "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
-    earmarked=call("gov_bond_tax_earmark",tax_event,"gov05:actual:tax")
-    assert earmarked[1]==50 and earmarked[-1]==0,earmarked
-    assert call("gov_bond_tax_earmark",tax_event,"gov05:actual:tax")[-1]==1
-    rejects("gov_bond_tax_earmark",f"fund:tax:{tax_id+1}","gov05:actual:tax")
-    tax_after=query("SELECT balance,bond_fund_reserved,bond_fund_committed,"
-                    "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
-    assert tax_after==(tax_before[0],tax_before[1]+50,
-                       tax_before[2],tax_before[3]),(tax_before,tax_after)
-    assert query("SELECT contribution,applied_rate_bps FROM government_bond_tax_earmarks "
-                 "WHERE tax_ledger_id=%s",(tax_id,))==[(50,500)]
-    assert query("SELECT reserve_delta FROM bond_fund_ledger "
-                 "WHERE event_key=%s",(tax_event,))==[(50,)]
-
-    print("GOV-05 MariaDB UAT: PASS (atomic yearly codes, parallel creation, "
           "role control, insurance and real 5% tax earmarks)")
 
 
