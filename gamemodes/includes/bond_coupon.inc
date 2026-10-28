@@ -54,7 +54,7 @@ stock BondCoupon_Init()
 #if defined TARKENSO_DB_PRIMARY
     if(!BondSettlement_IsReady())return 1;
     new Cache:c=mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=27 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=28 LIMIT 1");
     if(c==Cache:0)return 1;
     new rows=0;
     new bool:ready=(mysql_errno(gDBPrimary)==0 &&
@@ -62,7 +62,7 @@ stock BondCoupon_Init()
     cache_delete(c);
     if(!ready)
     {
-        print("[GOV-07] Coupon notice migration 027 missing; scheduler disabled.");
+        print("[GOV-07] Coupon timezone migration 028 missing; scheduler disabled.");
         return 1;
     }
     gBondCouponReady=true;
