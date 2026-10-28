@@ -42,7 +42,7 @@ class GovernmentBondSettlementContracts(unittest.TestCase):
                   "v_account_version <> p_expected_version",
                   "v_account_balance < v_payment",
                   "v_sold + p_quantity > v_max_qty",
-                  "v_existing_qty+p_quantity > GREATEST(1,v_max_qty DIV 5)",
+                  "v_existing_qty+p_quantity > v_max_qty DIV 5",
                   "UPDATE accounts SET balance=balance-v_payment",
                   "UPDATE treasury_accounts SET balance=balance+v_payment",
                   "INSERT INTO government_bond_holdings",
