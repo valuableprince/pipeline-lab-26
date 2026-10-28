@@ -191,6 +191,8 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "server_guard.inc"
 #include "load_test.inc"
 #include "db_shadow.inc"
+// GOV-04 tagged SQL rollback helper is used by DBPrimary before its include.
+forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
 #include "db_primary.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
