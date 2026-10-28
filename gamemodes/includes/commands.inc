@@ -88,6 +88,13 @@ cmd:play(playerid, params[])
     return Radio_Open(playerid);
 }
 
+// Государственные облигации: открытые выпуски, покупка 1 бумаги, портфель.
+cmd:bonds(playerid, params[])
+{
+    #pragma unused params
+    return BondsUI_Main(playerid);
+}
+
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
 {
