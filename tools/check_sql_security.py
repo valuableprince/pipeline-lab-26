@@ -22,8 +22,11 @@ else:
 ROOT = Path(__file__).resolve().parents[1]
 STRING = re.compile(r'"(?:\\.|[^"\\])*"')
 SQL_WORD = re.compile(
-    r"\b(?:SELECT|INSERT|UPDATE|DELETE|REPLACE|WITH|CALL|WHERE|FROM|TRUNCATE|"
-    r"ALTER|CREATE|DROP|START\s+TRANSACTION)\b", re.I
+    r"\b(?:SELECT\s+|INSERT\s+INTO\s+|UPDATE\s+\w+\s+SET\s+|"
+    r"DELETE\s+FROM\s+|REPLACE\s+INTO\s+|CALL\s+\w+\s*\(|"
+    r"WHERE\s+\w+\s*(?:=|LIKE\b)|TRUNCATE\s+TABLE\s+|"
+    r"ALTER\s+TABLE\s+|CREATE\s+TABLE\s+|DROP\s+TABLE\s+|"
+    r"START\s+TRANSACTION\b)", re.I
 )
 SPECIFIER = re.compile(r"%(?:[-+ #0]*\d*(?:\.\d+)?)?([A-Za-z%])")
 DECLARATION = re.compile(r"\b(?:native|forward|stock|public|static)\s+(?:\w+:)?\s*$")
