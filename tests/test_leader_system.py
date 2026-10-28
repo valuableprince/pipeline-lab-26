@@ -71,12 +71,15 @@ class LeaderCoreContract(unittest.TestCase):
         self.assertIn('days >= 7', CORE)
 
     def test_pawncmd_commands_and_native_dialogs(self):
-        cmds = ['leaders', 'fmenu', 'leader', 'fstats', 'fchat', 'finvite',
+        cmds = ['leaders', 'fmenu', 'leader', 'fstats', 'r', 'finvite',
                 'faccept', 'funinvite', 'frank', 'fleave', 'setleader', 'unleader',
                 'renewleader']
         for cmd in cmds:
             self.assertRegex(COMMANDS, rf'(?m)^cmd:{cmd}\(playerid, params\[\]\)')
             self.assertIn(f'Leader_Command(playerid, "{cmd}", params)', COMMANDS)
+        self.assertNotIn("cmd:fchat(", COMMANDS)
+        self.assertNotIn('"fchat"', CORE)
+        self.assertIn('"Использование: /r сообщение."', CORE)
         self.assertIn("DIALOG_STYLE_INPUT", UI)
         self.assertIn("DIALOG_STYLE_LIST", UI)
         self.assertNotIn("PlayerTextDraw", UI)
