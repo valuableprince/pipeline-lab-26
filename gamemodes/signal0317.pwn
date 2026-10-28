@@ -193,6 +193,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "db_shadow.inc"
 // GOV-04 tagged SQL rollback helper is used by DBPrimary before its include.
 forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
+forward bool:GovBond_UI_OnError(errorid,const callback[],const query[]);
 #include "db_primary.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
@@ -201,6 +202,7 @@ forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
 #include "bond_settlement.inc"
 #include "bonds_ui.inc"
 #include "gov_debt.inc"
+#include "bond_governance_ui.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -836,6 +838,7 @@ public OnGameModeInit()
     BondIssues_Init();
     BondSettlement_Init();
     GovDebt_Init();
+    GovBond_UI_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -894,6 +897,7 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    GovBond_UI_Shutdown();
     GovDebt_Shutdown();
     BondSettlement_Shutdown();
     BondIssues_Shutdown();
@@ -980,6 +984,7 @@ public OnPlayerConnect(playerid)
     BondSettlement_OnConnect(playerid);
     BondsUI_Reset(playerid);
     GovDebt_Reset(playerid);
+    GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
@@ -1001,6 +1006,7 @@ public OnPlayerDisconnect(playerid, reason)
     BondSettlement_OnDisconnect(playerid);
     BondsUI_Reset(playerid);
     GovDebt_Reset(playerid);
+    GovBond_UI_Reset(playerid);
     GovTransfer_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
@@ -1284,6 +1290,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (BondsUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
         dialogid != DIALOG_CONFIRM && dialogid != DIALOG_BACKGROUND &&
         dialogid != DIALOG_LOGIN && dialogid != DIALOG_SUCCESS &&
