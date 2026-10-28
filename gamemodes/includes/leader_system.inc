@@ -139,8 +139,8 @@ stock bool:Leader_ValidateRoster(org)
             gFactionMemberRank[o][i] < 1 || gFactionMemberRank[o][i] > 10)
             return false;
         if (org == 5 && gFactionMemberRank[o][i] > 4) return false;
-        if (gFactionMemberRank[o][i] == Leader_LeaderRank(org)) leaders++;
-        if (gFactionMemberRank[o][i] == Leader_DeputyRank(org)) deputies++;
+        if (gFactionMemberRank[o][i] == (org == 5 ? 4 : 10)) leaders++;
+        if (gFactionMemberRank[o][i] == (org == 5 ? 3 : 9)) deputies++;
         for (new j = 0; j < i; j++)
             if (!strcmp(gFactionMemberName[o][i], gFactionMemberName[o][j], true))
                 return false;
