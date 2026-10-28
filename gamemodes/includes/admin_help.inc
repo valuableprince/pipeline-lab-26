@@ -75,6 +75,7 @@ new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
     {"anotes", "/anotes ID", "Посмотреть служебные заметки", "/anotes 12", 3, 2},
     {"offlineban", "/offlineban ник минуты причина", "Заблокировать аккаунт оффлайн", "/offlineban Player_Name 60 Читы", 3, 5},
     {"unban", "/unban имя", "Разблокировать аккаунт", "/unban Player_Name", 3, 5},
+    {"givemoney", "/givemoney ID сумма", "Выдать деньги игроку (до $1 000 000 за раз)", "/givemoney 12 50000", 3, 5},
     {"setadmin", "/setadmin ID уровень", "Назначить права администратора", "/setadmin 12 2", 3, 5},
     {"setevent", "/setevent ID 0|1", "Управлять ролью Event Team", "/setevent 12 1", 3, 5},
     {"event", "/event fog|night|clear", "Активировать сюжетную атмосферу", "/event fog", 4, 7},
