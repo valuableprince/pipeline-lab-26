@@ -116,7 +116,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /mn (/mm, /menu), /story, /position, /play, /hudlogo, /report, /admins.");
+            "Игрок: /mn (/mm, /menu), /story, /bonds, /position, /play, /hudlogo, /report, /admins.");
         return 1;
     }
     if (!strcmp(category, "rp", true))
