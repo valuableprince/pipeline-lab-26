@@ -65,9 +65,9 @@ class PlayerOnboardingTests(unittest.TestCase):
     def test_no_reused_dialog_identifiers(self):
         tokens={"PLAYER_MENU_MAIN":6430,"PLAYER_MENU_STATS":6431,
                 "PLAYER_MENU_GAME_HELP":6432,"PLAYER_MENU_GAME_TOPIC":6433,
-                "BOND_EDU_CATALOG":6440,"BOND_EDU_DETAIL":6441,
-                "CMD_HELP_CATEGORIES":6442,"CMD_HELP_LIST":6443,
-                "CMD_HELP_DETAIL":6444}
+                "BOND_EDU_CATALOG":7900,"BOND_EDU_DETAIL":7901,
+                "CMD_HELP_CATEGORIES":7902,"CMD_HELP_LIST":7903,
+                "CMD_HELP_DETAIL":7904}
         for name,number in tokens.items():
             source=BOOK if name.startswith("BOND_EDU") else COMMANDS if name.startswith("CMD_HELP") else MENU
             self.assertRegex(source,r"#define\s+"+name+r"\s+\("+str(number)+r"\)")
