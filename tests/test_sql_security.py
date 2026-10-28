@@ -15,18 +15,18 @@ class SQLSecurityGateTests(unittest.TestCase):
     def test_safe_mysql_format_escaped_text_and_numbers(self):
         source = (
             'mysql_format(db, q, sizeof(q), '
-            '"SELECT account_id FROM accounts WHERE username=\\'%e\\' AND id=%d", name, 7);'
+            '"SELECT account_id FROM accounts WHERE username=\'%e\' AND id=%d", name, 7);'
         )
         self.assertEqual(rules(source), set())
 
     def test_safe_hex_literal_still_uses_escaping(self):
         self.assertEqual(rules(
-            'mysql_format(db, q, sizeof(q), "CALL save_hex(X\\'%e\\',X\\'%e\\')", name, description);'
+            'mysql_format(db, q, sizeof(q), "CALL save_hex(X\'%e\',X\'%e\')", name, description);'
         ), set())
 
     def test_unescaped_pawn_format_for_sql_is_blocked(self):
         self.assertIn("SQL005", rules(
-            'format(query, sizeof(query), "SELECT * FROM accounts WHERE username=\\'%s\\'", inputtext);'
+            'format(query, sizeof(query), "SELECT * FROM accounts WHERE username=\'%s\'", inputtext);'
             'mysql_tquery(db, query);'
         ))
 
@@ -37,7 +37,7 @@ class SQLSecurityGateTests(unittest.TestCase):
 
     def test_percent_s_in_mysql_format_is_blocked(self):
         self.assertIn("SQL002", rules(
-            'mysql_format(db, q, sizeof(q), "INSERT INTO logs(message) VALUES(\\'%s\\')", note);'
+            'mysql_format(db, q, sizeof(q), "INSERT INTO logs(message) VALUES(\'%s\')", note);'
         ))
 
     def test_mysql_format_unquoted_escaped_string_is_blocked(self):
@@ -52,7 +52,7 @@ class SQLSecurityGateTests(unittest.TestCase):
 
     def test_mysql_format_placeholder_mismatch_is_blocked(self):
         self.assertIn("SQL004", rules(
-            'mysql_format(db, q, sizeof(q), "SELECT * FROM users WHERE name=\\'%e\\' AND id=%d", name);'
+            'mysql_format(db, q, sizeof(q), "SELECT * FROM users WHERE name=\'%e\' AND id=%d", name);'
         ))
 
     def test_direct_user_input_to_query_is_blocked(self):
@@ -71,8 +71,8 @@ class SQLSecurityGateTests(unittest.TestCase):
 
     def test_comments_and_ordinary_chat_are_ignored(self):
         self.assertEqual(rules(
-            '// format(q, sizeof(q), "SELECT * FROM users WHERE u=\\'%s\\'", inputtext);\n'
-            '/* mysql_format(db,q,100,"SELECT \\'%s\\'", user); */\n'
+            '// format(q, sizeof(q), "SELECT * FROM users WHERE u=\'%s\'", inputtext);\n'
+            '/* mysql_format(db,q,100,"SELECT \'%s\'", user); */\n'
             'format(message, sizeof(message), "Player: %s", name);\n'
             'native mysql_format(MySQL:handle, output[], max_len, const fmt[], ...);\n'
         ), set())
