@@ -497,31 +497,41 @@ stock GovBond_UI_ConfirmDraft(playerid)
     return 1;
 }
 
-// /bondsign GOV-000001: explicit signature. Includes self-signature for rank 3/4.
-// SQL also verifies the current faction membership, term, reserve and issue state.
-stock GovBond_UI_Sign(playerid,const code[])
+// A rejection is final for a draft. Store its reason in the issue itself,
+// and an append-only REJECT event in the finance audit. Never touch balances.
+stock GovBond_UI_RejectReason(playerid)
+{
+    if (!GovBond_UI_Authorized(playerid) ||
+        !Leader_FinanceAuthorized(playerid,3) ||
+        strcmp(gGovUISelectedStatus[playerid],"DRAFT")) return 1;
+    gGovUIStage[playerid]=11;
+    ShowPlayerDialog(playerid,GOVUI_INPUT,DIALOG_STYLE_INPUT,
+        "{D9B872}Минфин | Отклонить заявку",
+        "{E48A8A}Укажите причину отказа (от 5 до 160 символов).\n"
+        "{BAC6D4}Причину увидит автор заявки в реестре Минфина.\n"
+        "{BAC6D4}Выпуск будет окончательно закрыт без продажи.",
+        "Отклонить","Назад");
+    return 1;
+}
+
+stock GovBond_UI_Reject(playerid,const reason[])
 {
 #if defined TARKENSO_DB_PRIMARY
     if (!GovBond_UI_Authorized(playerid) ||
-        !Leader_FinanceAuthorized(playerid,3))
-        return SendClientMessage(playerid,COLOR_RED,
-            "Подпись доступна только заместителю или министру финансов.");
-    if (strlen(code)!=10 || strfind(code,"GOV-",true)!=0)
-        return SendClientMessage(playerid,COLOR_AMBER,
-            "Использование: /bondsign GOV-000001");
-    for(new i=4;i<10;i++)
-        if(code[i]<'0' || code[i]>'9')
-            return SendClientMessage(playerid,COLOR_RED,"Некорректный код выпуска.");
-    new eventKey[65],query[350];
+        !Leader_FinanceAuthorized(playerid,3) ||
+        strcmp(gGovUISelectedStatus[playerid],"DRAFT") ||
+        gGovUISelectedIssue[playerid]<=0) return 1;
+    new query[950],eventKey[65];
     GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
     mysql_format(gDBPrimary,query,sizeof(query),
-        "CALL gov_bond_official_approve('%e','%e',%d)",
-        eventKey,code,gDBPrimaryAccountId[playerid]);
-    if(!GovBond_UI_Write(playerid,query,2,eventKey))
-        SendClientMessage(playerid,COLOR_RED,
-            "Подпись не поставлена в очередь. Проверьте доступность казначейства.");
+        "CALL gov_bond_official_reject('%e','%e',%d,'%e')",
+        eventKey,gGovUISelectedCode[playerid],
+        gDBPrimaryAccountId[playerid],reason);
+    gGovUIStage[playerid]=0; // consume the reason dialog before queueing SQL
+    if (!GovBond_UI_Write(playerid,query,5,eventKey))
+        SendClientMessage(playerid,COLOR_RED,"Отказ не зарегистрирован. Повторите через реестр.");
 #else
-    #pragma unused playerid,code
+    #pragma unused playerid,reason
 #endif
     return 1;
 }
@@ -674,7 +684,7 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
                 if(Leader_PlayerOrg(i)==FACTION_FINANCE)
                     SendClientMessage(i,FACTION_COLOR,notice);
             format(notice,sizeof(notice),
-                "[Минфин] Для подписи: /bondsign %s (ранг 3 или 4).",code);
+                "[Минфин] Для подписи откройте /bondgov -> Реестр выпусков (%s).",code);
             for(new i=0;i<MAX_PLAYERS;i++)
                 if(Leader_PlayerOrg(i)==FACTION_FINANCE)
                     SendClientMessage(i,FACTION_COLOR,notice);
@@ -813,7 +823,7 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
                 gGovUIStage[playerid]=10;
                 ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
                     "{D9B872}Минфин | Обучение",
-                    "{B8C6D7}1. Стажёр: изучение отчётов.\n{F1F4F8}2. Специалист: создаёт проект, руководство утверждает.\n{E9C67E}3. Заместитель: выпускает без второй подписи.\n{78D8AA}4. Министр: руководство, эмиссия и кадры.\n\n{B8C6D7}/setleader, /finvite, /faccept, /frank.",
+                    "{B8C6D7}1. Стажёр: изучение отчётов.\n{F1F4F8}2. Специалист: создаёт заявку.\n{E9C67E}3. Заместитель: подписывает или отклоняет с причиной.\n{78D8AA}4. Министр: подписывает или отклоняет с причиной.\n\n{B8C6D7}Подпись только в /bondgov -> Реестр выпусков.",
                     "Назад","");
                 return 1;
             }
@@ -834,6 +844,29 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_INPUT)
     {
+        if(gGovUIStage[playerid]==11)
+        {
+            if(!response) return GovBond_UI_LoadIssue(playerid,gGovUISelectedIssue[playerid]);
+            new len=strlen(inputtext),bool:nonspace=false;
+            for(new i=0;i<len;i++)
+            {
+                if(inputtext[i]!=' ') nonspace=true;
+                if(inputtext[i]=='{' || inputtext[i]=='}' ||
+                    inputtext[i]<32)
+                {
+                    SendClientMessage(playerid,COLOR_RED,
+                        "Недопустимый символ в причине отказа.");
+                    return GovBond_UI_RejectReason(playerid);
+                }
+            }
+            if(len<5 || len>160 || !nonspace)
+            {
+                SendClientMessage(playerid,COLOR_RED,
+                    "Укажите содержательную причину от 5 до 160 символов.");
+                return GovBond_UI_RejectReason(playerid);
+            }
+            return GovBond_UI_Reject(playerid,inputtext);
+        }
         if(gGovUIStage[playerid]!=5 || gGovUIWizardStep[playerid]<1 ||
             gGovUIWizardStep[playerid]>7)return 1;
         if(!response)return GovBond_UI_Main(playerid);
@@ -918,7 +951,24 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     if(dialogid==GOVUI_ISSUE)
     {
         if(gGovUIStage[playerid]!=3)return 1;
-        if(!response)return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
+        if(!strcmp(gGovUISelectedStatus[playerid],"DRAFT") &&
+            GovBond_UI_CanApprove(playerid) &&
+            Leader_FinanceAuthorized(playerid,3))
+        {
+            if(response)
+            {
+                // "Подписать" acts immediately: one confirmation, no extra command.
+                gGovUIAction[playerid]=2;
+                gGovUIStage[playerid]=0;
+                return GovBond_UI_ExecuteAction(playerid);
+            }
+            // "Отклонить" opens mandatory free-text reason input.
+            return GovBond_UI_RejectReason(playerid);
+        }
+        if(!response || !GovBond_UI_CanApprove(playerid) ||
+            !strcmp(gGovUISelectedStatus[playerid],"REJECTED") ||
+            !strcmp(gGovUISelectedStatus[playerid],"CANCELLED"))
+            return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
         return GovBond_UI_Actions(playerid);
     }
     if(dialogid==GOVUI_ACTION)
