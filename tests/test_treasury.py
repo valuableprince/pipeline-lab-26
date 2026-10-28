@@ -23,9 +23,9 @@ class TreasuryContract(unittest.TestCase):
             "minimum_reserve BIGINT UNSIGNED NOT NULL DEFAULT 0",
             "max_transaction BIGINT UNSIGNED NOT NULL DEFAULT 1000000000",
             "income_tax_basis_points SMALLINT UNSIGNED NOT NULL DEFAULT 0",
-            "UNIQUE KEY uq_treasury_event (treasury_id,event_key)",
+            "UNIQUE KEY uq_treasury_event (event_key)",
             "FOREIGN KEY (actor_account_id)",
-            "INSERT INTO treasury_accounts(treasury_id,code,balance) VALUES (1,'state',0);",
+            "INSERT INTO treasury_accounts(code,balance) VALUES ('state',0);",
             "INSERT INTO schema_migrations(version) VALUES (17);",
         ):
             self.assertIn(token, SQL)
@@ -34,6 +34,9 @@ class TreasuryContract(unittest.TestCase):
         for column in ("balance", "income_enabled", "expense_enabled", "minimum_reserve",
                        "max_transaction", "income_tax_basis_points", "config_version"):
             self.assertIn(column, accounts_ddl)
+        self.assertIn("CONSTRAINT chk_treasury_singleton CHECK (code = 'state')", SQL)
+        self.assertNotIn("treasury_id", SQL)
+        self.assertNotIn("p_treasury_id", SQL)
         self.assertNotIn("CREATE TABLE treasury_settings", SQL)
         self.assertNotIn("JOIN treasury_settings", SQL)
         self.assertNotIn("ALTER TABLE accounts", SQL)
@@ -47,7 +50,8 @@ class TreasuryContract(unittest.TestCase):
             "RESIGNAL;",
             "START TRANSACTION;",
             "FOR UPDATE;",
-            "WHERE treasury_id=p_treasury_id AND event_key=p_event_key LIMIT 1;",
+            "WHERE event_key=p_event_key LIMIT 1;",
+            "WHERE code='state' FOR UPDATE;"
             "v_existing_delta <> p_delta",
             "v_existing_actor <=> NULLIF(p_actor_id,0)",
             "treasury event key collision",
@@ -81,7 +85,9 @@ class TreasuryContract(unittest.TestCase):
             "gTreasuryReady = false;",
         ):
             self.assertIn(symbol, PAWN)
-        self.assertIn("FROM treasury_accounts WHERE treasury_id=1 LIMIT 1", PAWN)
+        self.assertIn("FROM treasury_accounts WHERE code='state' LIMIT 1", PAWN)
+        self.assertNotIn("TREASURY_STATE_ID", PAWN)
+        self.assertNotIn("treasury_id", PAWN)
         self.assertNotIn("JOIN treasury_settings", PAWN)
         self.assertIn('#include "treasury.inc"', MAIN)
         self.assertLess(MAIN.index('#include "db_primary.inc"'),
