@@ -51,7 +51,7 @@ class TreasuryContract(unittest.TestCase):
             "START TRANSACTION;",
             "FOR UPDATE;",
             "WHERE event_key=p_event_key LIMIT 1;",
-            "WHERE code='state' FOR UPDATE;"
+            "WHERE code='state' FOR UPDATE;",
             "v_existing_delta <> p_delta",
             "v_existing_actor <=> NULLIF(p_actor_id,0)",
             "treasury event key collision",
