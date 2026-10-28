@@ -198,6 +198,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "government_bonds.inc"
 #include "bond_settlement.inc"
 #include "bonds_ui.inc"
+#include "gov_debt.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -832,6 +833,7 @@ public OnGameModeInit()
     BondFund_Init();
     BondIssues_Init();
     BondSettlement_Init();
+    GovDebt_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -890,6 +892,7 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    GovDebt_Shutdown();
     BondSettlement_Shutdown();
     BondIssues_Shutdown();
     BondFund_Shutdown();
@@ -974,6 +977,7 @@ public OnPlayerConnect(playerid)
     BondIssues_Reset(playerid);
     BondSettlement_OnConnect(playerid);
     BondsUI_Reset(playerid);
+    GovDebt_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
@@ -994,6 +998,7 @@ public OnPlayerDisconnect(playerid, reason)
     BondIssues_Reset(playerid);
     BondSettlement_OnDisconnect(playerid);
     BondsUI_Reset(playerid);
+    GovDebt_Reset(playerid);
     GovTransfer_OnDisconnect(playerid);
     DBPrimary_OnDisconnect(playerid);
     Radio_OnDisconnect(playerid);
