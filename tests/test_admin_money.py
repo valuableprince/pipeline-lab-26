@@ -45,6 +45,48 @@ class AdminMoneyContracts(unittest.TestCase):
         self.assertIn("ACCOUNT_MAX_MONEY-gAccountMoney[target]", ADMIN_MONEY)
         self.assertIn("gAccountTxnSerial[target]>=ACCOUNT_MAX_MONEY", ADMIN_MONEY)
 
+    def test_administrator_can_top_up_state_treasury(self):
+        self.assertRegex(
+            COMMANDS,
+            r"cmd:addtreasury\(playerid, params\[\]\)\s*\{\s*return AdminMoney_TopUpTreasury\(playerid,params\);",
+        )
+        self.assertRegex(
+            ADMIN_HELP,
+            r'\{"addtreasury",\s*"/addtreasury сумма".*?,\s*3,\s*5\}',
+        )
+        self.assertIn("stock AdminMoney_TopUpTreasury(playerid,const params[])", ADMIN_MONEY)
+        routine=ADMIN_MONEY.split("stock AdminMoney_TopUpTreasury(",1)[1]
+        for term in (
+            "Admin_Require(playerid,PERM_MANAGE_STAFF)",
+            "Admin_Next(params,at,amountText,sizeof(amountText))",
+            "Admin_Next(params,at,extra,sizeof(extra))",
+            "!Admin_UnsignedNumber(amountText)",
+            "amount<1 || amount>ADMIN_MONEY_MAX_GRANT",
+            "gDBPrimaryLoaded[playerid]",
+            "gDBPrimaryAccountId[playerid]<=0",
+            "Treasury_IsReady()",
+            "TREASURY_MAX_BALANCE-gTreasuryBalance",
+            "amount>gTreasuryMaxTransaction",
+            'Admin_LogPlayer(playerid,"TREASURY_TOPUP_REQUEST",detail)',
+            'Admin_LogPlayer(playerid,"TREASURY_TOPUP_UNCONFIRMED",detail)',
+            'Admin_LogPlayer(playerid,"TREASURY_TOPUP",detail)',
+            'Treasury_Credit(amount,eventKey,"admin_topup","admin_cash_mint",',
+            'gDBPrimaryAccountId[playerid]))',
+            'event=%s amount=%d',
+            'Treasury_GetBalance()',
+        ):
+            with self.subTest(term=term):
+                self.assertIn(term,routine)
+        self.assertLess(routine.index("TREASURY_TOPUP_REQUEST"),
+                        routine.index("Treasury_Credit(amount,eventKey"))
+        self.assertNotIn("Economy_Credit(",routine)
+        self.assertNotIn("Economy_Debit(",routine)
+        self.assertNotIn("GivePlayerMoney(",routine)
+        self.assertNotIn("UPDATE treasury_accounts",routine)
+        self.assertNotIn("treasury_accounts SET balance",routine)
+        self.assertNotIn("gTreasuryBalance+=",routine)
+        self.assertIn("gTreasuryReady = false;", (ROOT/"gamemodes/includes/treasury.inc").read_text("utf-8"))
+
     def test_self_grant_explicitly_allowed(self):
         self.assertNotIn("target==playerid", ADMIN_MONEY)
         self.assertNotIn("target!=playerid", ADMIN_MONEY)
