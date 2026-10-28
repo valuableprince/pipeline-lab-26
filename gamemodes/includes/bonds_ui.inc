@@ -12,6 +12,7 @@
 #define BONDS_DLG_PORTFOLIO  (6704)
 #define BONDS_DLG_POSITION   (6705)
 #define BONDS_DLG_COLLECT    (6706)
+#define BONDS_DLG_QUANTITY   (6707)
 #define BONDS_UI_PAGE_SIZE   (10)
 #define BONDS_UI_PAGE_LIMIT  (1000)
 #define BONDS_UI_NONE        (0)
@@ -21,6 +22,7 @@
 #define BONDS_UI_POSITION    (4)
 #define BONDS_UI_PENDING_BUY (5)
 #define BONDS_UI_PENDING_PAY (6)
+#define BONDS_UI_QUANTITY    (7)
 
 // Localize only user-visible debt states. SQL keeps stable technical enums.
 stock BondsUI_DebtStatusLabel(const status[],output[],size)
@@ -47,6 +49,11 @@ new gBondsUISelectedIssue[MAX_PLAYERS];
 new gBondsUISelectedCode[MAX_PLAYERS][65];
 new gBondsUIPrice[MAX_PLAYERS];
 new gBondsUIAvailable[MAX_PLAYERS];
+new gBondsUIMaxBuy[MAX_PLAYERS];
+new gBondsUIOwned[MAX_PLAYERS];
+new gBondsUIHoldLimit[MAX_PLAYERS];
+new gBondsUIPurchaseQty[MAX_PLAYERS];
+new gBondsUIPendingQty[MAX_PLAYERS];
 new gBondsUIClaimId[MAX_PLAYERS];
 new gBondsUIClaimAmount[MAX_PLAYERS];
 new gBondsUIPendingAction[MAX_PLAYERS];
@@ -69,6 +76,11 @@ stock BondsUI_Reset(playerid)
     gBondsUISelectedCode[playerid][0] = EOS;
     gBondsUIPrice[playerid] = 0;
     gBondsUIAvailable[playerid] = 0;
+    gBondsUIMaxBuy[playerid] = 0;
+    gBondsUIOwned[playerid] = 0;
+    gBondsUIHoldLimit[playerid] = 0;
+    gBondsUIPurchaseQty[playerid] = 0;
+    gBondsUIPendingQty[playerid] = 0;
     gBondsUIClaimId[playerid] = 0;
     gBondsUIClaimAmount[playerid] = 0;
     gBondsUIPendingAction[playerid] = 0;
@@ -284,12 +296,12 @@ stock BondsUI_LoadDetail(playerid, kind, issueId)
 #if defined TARKENSO_DB_PRIMARY
     if (!BondsUI_Authorized(playerid) || issueId<=0 || gBondsUILoading[playerid])
         return 1;
-    new query[850];
+    new query[1100];
     if (kind==BONDS_UI_OFFER)
     {
         mysql_format(gDBPrimary,query,sizeof(query),
-            "SELECT issue_id,issue_code,title,face_value,yield_basis_points,coverage_basis_points,premium_basis_points,maturity_at,max_quantity-sold_quantity AS remaining FROM government_bond_issues WHERE issue_id=%d AND status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP() AND sold_quantity<max_quantity LIMIT 1",
-            issueId);
+            "SELECT i.issue_id,i.issue_code,i.title,i.face_value,i.yield_basis_points,i.coverage_basis_points,i.premium_basis_points,i.maturity_at,i.max_quantity-i.sold_quantity AS remaining,COALESCE(h.quantity,0) AS owned,i.max_quantity DIV 5 AS per_account_limit,COALESCE((SELECT LEAST(max_transaction,1000000000) FROM treasury_accounts WHERE code='state'),0) AS purchase_cap FROM government_bond_issues i LEFT JOIN government_bond_holdings h ON h.issue_id=i.issue_id AND h.account_id=%d WHERE i.issue_id=%d AND i.status='OFFERING' AND i.offer_start_at<=UTC_TIMESTAMP() AND i.offer_end_at>UTC_TIMESTAMP() AND i.sold_quantity<i.max_quantity LIMIT 1",
+            gDBPrimaryAccountId[playerid],issueId);
     }
     else if (kind==BONDS_UI_POSITION)
     {
@@ -329,11 +341,14 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
     gBondsUIPrice[playerid]=face;
     if (kind==BONDS_UI_OFFER)
     {
-        new covered, premium, remain, maturity[32];
+        new covered, premium, remain, owned,holdLimit,purchaseCap,maturity[32];
         if (!cache_get_value_name(0,"title",title,sizeof(title)) ||
             !cache_get_value_name_int(0,"coverage_basis_points",covered) ||
             !cache_get_value_name_int(0,"premium_basis_points",premium) ||
             !cache_get_value_name_int(0,"remaining",remain) ||
+            !cache_get_value_name_int(0,"owned",owned) ||
+            !cache_get_value_name_int(0,"per_account_limit",holdLimit) ||
+            !cache_get_value_name_int(0,"purchase_cap",purchaseCap) ||
             !cache_get_value_name(0,"maturity_at",maturity,sizeof(maturity)))
             return 1;
         if (remain<1 || face<1 || covered<0 || covered>10000)
@@ -341,15 +356,32 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
             SendClientMessage(playerid,COLOR_RED,"Выпуск больше недоступен.");
             return 1;
         }
-        // For one bond the payout calculation is deterministic and within 1e9.
+        // Strict 20% of EACH issue, less already owned, remaining supply,
+        // available wallet and the single-transaction treasury ceiling.
+        // SQL rechecks every amount and holding under InnoDB locks.
+        new capacity=holdLimit-owned;
+        if(capacity<0)capacity=0;
+        new affordable=gAccountMoney[playerid]/face;
+        if(affordable<0)affordable=0;
+        new maxBuy=remain;
+        if(maxBuy>capacity)maxBuy=capacity;
+        if(maxBuy>affordable)maxBuy=affordable;
+        if(maxBuy>purchaseCap/face)maxBuy=purchaseCap/face;
+        if(maxBuy<0)maxBuy=0;
         new interest = (face / 10000)*rate+((face%10000)*rate)/10000;
         format(body,sizeof(body),
-            "{DDBB77}ГОСУДАРСТВЕННЫЙ ЗАЁМ\n{F1F4F8}%s\n{AAB8C8}%s\n\n{B8C6D7}Номинал: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d bp (+$%d)\n{B8C6D7}Погашение (UTC): {F1F4F8}%s\n{B8C6D7}Страхование номинала: {78D8AA}%d bp\n{B8C6D7}Страховой взнос: {DDBB77}%d bp {92A0AF}(включён в цену)\n{B8C6D7}Доступно облигаций: {F1F4F8}%d\n\n{E9C67E}Купить 1 облигацию за $%d?\n{E48A8A}Риск дефолта: доход не застрахован.",
-            code,title,face,rate,interest,maturity,covered,premium,remain,face);
+            "{DDBB77}ГОСУДАРСТВЕННЫЙ ЗАЁМ\n{F1F4F8}%s\n{AAB8C8}%s\n\n{B8C6D7}Номинал: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d.%02d%% (+$%d за 1 шт.)\n{B8C6D7}Погашение (UTC): {F1F4F8}%s\n{B8C6D7}Страхование номинала: {78D8AA}%d.%02d%%\n{B8C6D7}Страховой взнос: {DDBB77}%d.%02d%% {92A0AF}(в цене)\n{B8C6D7}Остаток выпуска: {F1F4F8}%d шт.\n{B8C6D7}Ваш лимит (20%%): {F1F4F8}%d шт.\n{B8C6D7}Уже куплено: {F1F4F8}%d шт.\n{78D8AA}Доступно вам для покупки: %d шт.\n\n{E48A8A}Риск дефолта: доход не застрахован.",
+            code,title,face,rate/100,rate%100,interest,maturity,
+            covered/100,covered%100,premium/100,premium%100,
+            remain,holdLimit,owned,maxBuy);
         gBondsUIAvailable[playerid]=remain;
+        gBondsUIMaxBuy[playerid]=maxBuy;
+        gBondsUIOwned[playerid]=owned;
+        gBondsUIHoldLimit[playerid]=holdLimit;
+        gBondsUIPurchaseQty[playerid]=0;
         gBondsUIStage[playerid]=BONDS_UI_OFFER;
         ShowPlayerDialog(playerid,BONDS_DLG_OFFER,DIALOG_STYLE_MSGBOX,
-            "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Условия займа",body,"Купить 1","Назад");
+            "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Условия займа",body,"Купить","Назад");
     }
     else
     {
@@ -387,21 +419,50 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
     return 1;
 }
 
-stock BondsUI_StartPurchase(playerid)
+// Input maximum is a snapshot, not a permission: MySQL is authoritative.
+stock BondsUI_ShowQuantity(playerid)
 {
-    if (gBondsUIStage[playerid]!=BONDS_UI_OFFER ||
-        gBondsUISelectedIssue[playerid]<=0 ||
-        !gBondsUISelectedCode[playerid][0] ||
-        gBondsUIPrice[playerid]<1 || gBondsUIAvailable[playerid]<1 ||
-        !BondsUI_Authorized(playerid))
-        return 1;
-    new body[400];
+    if(gBondsUIStage[playerid]!=BONDS_UI_OFFER &&
+       gBondsUIStage[playerid]!=BONDS_UI_QUANTITY)return 1;
+    if(!BondsUI_Authorized(playerid) || gBondsUISelectedIssue[playerid]<=0 ||
+       !gBondsUISelectedCode[playerid][0])return 1;
+    if(gBondsUIMaxBuy[playerid]<1)
+    {
+        SendClientMessage(playerid,COLOR_RED,
+            "Покупка недоступна: исчерпан лимит 20%, остаток или баланс.");
+        return BondsUI_LoadList(playerid,BONDS_UI_OFFERS,gBondsUIPage[playerid]);
+    }
+    new body[430];
     format(body,sizeof(body),
-        "{DDBB77}ПОДТВЕРЖДЕНИЕ ПОКУПКИ\n\n{F1F4F8}Выпуск: %s\n{B8C6D7}Количество: {F1F4F8}1 облигация\n{B8C6D7}Стоимость: {E9C67E}$%d\n{B8C6D7}На кошельке: {F1F4F8}$%d\n\n{92A0AF}Списание произойдёт после подтверждения MySQL.\n\n{78D8AA}Подтвердить покупку?",
-        gBondsUISelectedCode[playerid],gBondsUIPrice[playerid],gAccountMoney[playerid]);
+        "{E9C67E}Введите количество облигаций от 1 до %d.\\n\\n{B8C6D7}Выпуск: {F1F4F8}%s\\n{B8C6D7}Номинал: {E9C67E}$%d\\n{B8C6D7}Ваш лимит (20%%): {F1F4F8}%d шт.\\n{B8C6D7}Уже принадлежит вам: {F1F4F8}%d шт.\\n\\n{92A0AF}Ограничение считается отдельно по каждому выпуску.",
+        gBondsUIMaxBuy[playerid],gBondsUISelectedCode[playerid],
+        gBondsUIPrice[playerid],gBondsUIHoldLimit[playerid],
+        gBondsUIOwned[playerid]);
+    gBondsUIStage[playerid]=BONDS_UI_QUANTITY;
+    ShowPlayerDialog(playerid,BONDS_DLG_QUANTITY,DIALOG_STYLE_INPUT,
+        "{D9B872}TARKENSO | Количество облигаций",body,"Далее","Назад");
+    return 1;
+}
+
+stock BondsUI_StartPurchase(playerid,quantity)
+{
+    if(gBondsUIStage[playerid]!=BONDS_UI_QUANTITY ||
+       gBondsUISelectedIssue[playerid]<=0 ||
+       !gBondsUISelectedCode[playerid][0] ||
+       gBondsUIPrice[playerid]<1 || gBondsUIMaxBuy[playerid]<1 ||
+       quantity<1 || quantity>gBondsUIMaxBuy[playerid] ||
+       gBondsUIPrice[playerid]>1000000000/quantity ||
+       !BondsUI_Authorized(playerid))
+        return 1;
+    gBondsUIPurchaseQty[playerid]=quantity;
+    new body[430],total=gBondsUIPrice[playerid]*quantity;
+    format(body,sizeof(body),
+        "{DDBB77}ПОДТВЕРЖДЕНИЕ ПОКУПКИ\\n\\n{F1F4F8}Выпуск: %s\\n{B8C6D7}Количество: {F1F4F8}%d шт.\\n{B8C6D7}Номинал одной: {E9C67E}$%d\\n{B8C6D7}Итого к оплате: {E9C67E}$%d\\n{B8C6D7}На кошельке: {F1F4F8}$%d\\n\\n{92A0AF}Цена и лимит будут проверены MySQL перед списанием.",
+        gBondsUISelectedCode[playerid],quantity,gBondsUIPrice[playerid],
+        total,gAccountMoney[playerid]);
     gBondsUIStage[playerid]=BONDS_UI_PENDING_BUY;
     ShowPlayerDialog(playerid,BONDS_DLG_CONFIRM,DIALOG_STYLE_MSGBOX,
-        "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Покупка облигации",body,"Подтвердить","Отмена");
+        "{D9B872}TARKENSO | Покупка облигаций",body,"Подтвердить","Назад");
     return 1;
 }
 
