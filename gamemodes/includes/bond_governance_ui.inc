@@ -459,7 +459,7 @@ stock GovBond_UI_ConfirmDraft(playerid)
 {
     new body[900];
     format(body,sizeof(body),
-        "{DDBB77}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Цель: {F1F4F8}%s\n{BAC6D4}Тип: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Количество: {F1F4F8}%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Размещение: %d дней\n{BAC6D4}Погашение через: %d дней после размещения\n\n{78D8AA}Код GOV-ГОД-НОМЕР назначит MySQL.\n{E48A8A}Создание НЕ открывает продажу и НЕ расходует бюджет.",
+        "{DDBB77}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Цель: {F1F4F8}%s\n{BAC6D4}Тип: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Количество: {F1F4F8}%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Размещение: %d дней\n{BAC6D4}Погашение через: %d дней после размещения\n\n{78D8AA}Код GOV-000001 и далее назначит MySQL.\n{E48A8A}Создание НЕ открывает продажу и НЕ расходует бюджет.",
         gGovUITitle[playerid],gGovUIPurpose[playerid],gGovUIType[playerid],
         gGovUIFace[playerid],gGovUIQuantity[playerid],
         gGovUIYield[playerid]/100,gGovUIYield[playerid]%100,
