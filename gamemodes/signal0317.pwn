@@ -1291,7 +1291,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
-    if (BondsUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
         dialogid != DIALOG_CONFIRM && dialogid != DIALOG_BACKGROUND &&
