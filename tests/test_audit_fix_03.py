@@ -46,7 +46,8 @@ class AppointmentModel:
 class LeaderFix03(unittest.TestCase):
     def test_single_save_for_complete_appointment(self):
         assign = body("Leader_AssignLeader")
-        self.assertIn("gFactionMemberRank[o][idx] = 10;", assign)
+        self.assertIn("gFactionMemberRank[o][idx] = Leader_LeaderRank(org);", assign)
+        self.assertIn("return org == FACTION_FINANCE ? 4 : 10;", SRC)
         self.assertIn("gFactionTermStart[o] = now;", assign)
         self.assertIn("gFactionTermEnd[o] = now + FACTION_TERM_SECONDS;", assign)
         self.assertEqual(assign.count("Leader_Save(org)"), 1)
@@ -96,7 +97,7 @@ class LeaderFix03(unittest.TestCase):
         self.assertIn("gFactionTermEnd[o] > gFactionTermStart[o]", validate)
         self.assertIn("gFactionMemberRank[o][i] < 1 || gFactionMemberRank[o][i] > 10", validate)
         rank = body("Leader_ChangeRank")
-        self.assertIn("rank < 1 || rank > 9", rank)
+        self.assertIn("rank < 1 || rank >= Leader_LeaderRank(org)", rank)
         for action in ("SET_LEADER", "RENEW_LEADER", "UNLEADER"):
             self.assertIn('"' + action + '_INTENT"', SRC)
             self.assertIn('"' + action + '"', SRC)
