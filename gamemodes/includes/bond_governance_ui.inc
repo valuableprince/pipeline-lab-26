@@ -20,6 +20,7 @@ stock GovBond_UI_IssueStatusLabel(const status[],output[],size)
 {
     if (!strcmp(status,"DRAFT")) format(output,size,"На подпись");
     else if (!strcmp(status,"APPROVED")) format(output,size,"Утверждён");
+    else if (!strcmp(status,"RETURNED")) format(output,size,"На доработке");
     else if (!strcmp(status,"OFFERING")) format(output,size,"Размещается");
     else if (!strcmp(status,"CLOSED")) format(output,size,"Размещение закрыто");
     else if (!strcmp(status,"CANCELLED")) format(output,size,"Отменён");
@@ -80,6 +81,8 @@ new gGovUISelectedIssue[MAX_PLAYERS];
 new gGovUISelectedCode[MAX_PLAYERS][65];
 new gGovUISelectedStatus[MAX_PLAYERS][20];
 new gGovUIAction[MAX_PLAYERS];
+new bool:gGovUIEditing[MAX_PLAYERS];
+new gGovUIReviewCreator[MAX_PLAYERS];
 new gGovUIPendingEvent[MAX_PLAYERS][65];
 new bool:gGovUIPublicReport[MAX_PLAYERS];
 
@@ -110,6 +113,8 @@ stock GovBond_UI_Reset(playerid)
     gGovUISelectedCode[playerid][0]=EOS;
     gGovUISelectedStatus[playerid][0]=EOS;
     gGovUIAction[playerid]=0;
+    gGovUIEditing[playerid]=false;
+    gGovUIReviewCreator[playerid]=0;
     gGovUIPendingEvent[playerid][0]=EOS;
     gGovUIPublicReport[playerid]=false;
     return 1;
@@ -131,7 +136,7 @@ stock GovBond_UI_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!GovDebt_IsReady()) return 1;
     new Cache:c=mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=23 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=25 LIMIT 1");
     if (c==Cache:0) return 1;
     new rows=0;
     new bool:valid=mysql_errno(gDBPrimary)==0 &&
@@ -139,7 +144,7 @@ stock GovBond_UI_Init()
     cache_delete(c);
     if (!valid)
     {
-        print("[GOV-05] Migration 023 missing; government issue UI disabled.");
+        print("[GOV-05] Migration 025 missing; government issue UI disabled.");
         return 1;
     }
     gGovUIReady=true;
@@ -301,9 +306,9 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
-    new query[1400];
+    new query[1800];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,COALESCE(a.username,'Неизвестен') AS applicant,COALESCE(rej.username,'Неизвестен') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1),'Не назначен') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
+        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'Неизвестен') AS applicant,COALESCE(rej.username,'Неизвестен') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1),'Не назначен') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
     if (!GovBond_UI_Query(playerid,query,3))
@@ -407,8 +412,8 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     if (kind==3)
     {
         new id,code[65],title[129],purpose[193],issueType[16],typeLabel[48],status[20];
-        new face,total,sold,yield,exposure,offerDays,maturityDays;
-        new applicant[40],minister[40],rejector[40],reason[256],statusLabel[40];
+        new face,total,sold,yield,exposure,offerDays,maturityDays,creatorId;
+        new applicant[40],minister[40],rejector[40],reason[256],returnReason[256],statusLabel[40];
         new createdAt[32],offerStart[32],offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
             id!=gGovUISelectedIssue[playerid] ||
@@ -429,11 +434,15 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name_int(0,"sold_quantity",sold) ||
             !cache_get_value_name_int(0,"yield_basis_points",yield) ||
             !cache_get_value_name_int(0,"insured_max_exposure",exposure) ||
+            !cache_get_value_name_int(0,"created_by_account_id",creatorId) ||
             !cache_get_value_name_int(0,"offer_days",offerDays) ||
             !cache_get_value_name_int(0,"maturity_days",maturityDays))
             return 1;
         reason[0]=EOS;
+        returnReason[0]=EOS;
         cache_get_value_name(0,"rejection_reason",reason,sizeof(reason));
+        cache_get_value_name(0,"returned_reason",returnReason,sizeof(returnReason));
+        gGovUIReviewCreator[playerid]=creatorId;
         gGovUISelectedIssue[playerid]=id;
         format(gGovUISelectedCode[playerid],65,"%s",code);
         format(gGovUISelectedStatus[playerid],20,"%s",status);
@@ -452,8 +461,21 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
                 rejector,reason);
             strcat(body,extra,sizeof(body));
         }
+        if(!strcmp(status,"RETURNED"))
+        {
+            format(extra,sizeof(extra),
+                "\n\n{E9C67E}ВОЗВРАТ НА ДОРАБОТКУ\n{BAC6D4}Причина: {F1F4F8}%s",
+                returnReason);
+            strcat(body,extra,sizeof(body));
+        }
+        if(!strcmp(status,"DRAFT") || !strcmp(status,"RETURNED") ||
+            !strcmp(status,"APPROVED"))
+            strcat(body,"\n{AAB6C6}Сроки отсчитываются от открытия размещения.",sizeof(body));
         gGovUIStage[playerid]=3;
-        if (!strcmp(status,"DRAFT") && GovBond_UI_CanApprove(playerid))
+        if (!strcmp(status,"RETURNED") && creatorId==gDBPrimaryAccountId[playerid])
+            ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
+                "{D9B872}Минфин | Возврат на доработку",body,"Доработать","Назад");
+        else if (!strcmp(status,"DRAFT") && GovBond_UI_CanApprove(playerid))
             ShowPlayerDialog(playerid,GOVUI_ISSUE,DIALOG_STYLE_MSGBOX,
                 "{D9B872}Минфин | Заявка на подпись",body,"Подписать","Отклонить");
         else if (GovBond_UI_CanApprove(playerid) &&
