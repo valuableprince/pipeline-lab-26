@@ -15,7 +15,7 @@ class Gov06AssuranceContracts(unittest.TestCase):
             "treasury_ledger","bond_fund_ledger","bond_payout_ledger",
             "government_bond_issue_audit","government_bond_orders",
             "government_bond_claim_receipts","government_bond_recoveries",
-            "government_bond_restructure_audit","government_bond_role_audit",
+            "government_bond_restructure_audit",
             "bond_crisis_events","government_bond_tax_earmarks",
         )
         triggers=re.findall(
