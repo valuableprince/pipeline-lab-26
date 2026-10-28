@@ -7,7 +7,6 @@ ROOT=Path(__file__).resolve().parents[1]
 SQL=(ROOT/"db/migrations/024_finance_assurance.sql").read_text("utf-8")
 PAWN=(ROOT/"gamemodes/includes/bond_governance_ui.inc").read_text("utf-8")
 CI=(ROOT/".github/workflows/build.yml").read_text("utf-8")
-CFG=(ROOT/"config/mysql-govadmin.ini.example").read_text("utf-8")
 
 
 class Gov06AssuranceContracts(unittest.TestCase):
@@ -33,7 +32,7 @@ class Gov06AssuranceContracts(unittest.TestCase):
     def test_legacy_routines_are_definer_and_audit_is_read_only(self):
         for routine in ("treasury_post","gov_transfer_post","bond_fund_capitalize",
             "gov_bond_buy","gov_bond_claim_collect","gov_bond_recovery_allocate",
-            "gov_bond_role_set","gov_bond_issue_create_auto",
+            "gov_bond_issue_create_auto",
             "gov_bond_tax_earmark","gov_bond_official_approve"):
             self.assertIn(f"ALTER PROCEDURE {routine} SQL SECURITY DEFINER;",SQL)
         block=SQL.split("CREATE PROCEDURE gov_finance_assert_integrity()",1)[1]
@@ -50,17 +49,14 @@ class Gov06AssuranceContracts(unittest.TestCase):
         self.assertNotIn("UPDATE treasury_accounts",block)
         self.assertNotIn("DELETE FROM government_bond",block)
 
-    def test_founder_role_grants_use_separate_fail_closed_handle(self):
-        self.assertIn('mysql_connect_file("mysql-govadmin.ini")',PAWN)
-        self.assertIn("gGovBondAdminSQL==MYSQL_INVALID_HANDLE",PAWN)
-        self.assertIn("action==5?gGovBondAdminSQL:gDBPrimary",PAWN)
-        self.assertIn("mysql_format(gGovBondAdminSQL,query,sizeof(query)",PAWN)
-        self.assertIn("action==5 && gGovBondAdminSQL==MYSQL_INVALID_HANDLE",PAWN)
-        self.assertIn('strfind(query,"CALL gov_bond_role_set(",true)>=0',PAWN)
-        self.assertIn("mysql_close(gGovBondAdminSQL)",PAWN)
+    def test_ministry_uses_one_connection_and_real_faction_membership(self):
+        self.assertNotIn("mysql-govadmin.ini",PAWN)
+        self.assertNotIn("gov_bond_role_set",PAWN)
+        self.assertNotIn("government_bond_officials",PAWN)
+        self.assertIn("faction_members",PAWN)
+        self.assertIn("finance_rank",PAWN)
         self.assertIn("GovBond_UI_OnTaxPost",PAWN)
-        self.assertIn("CHANGE_ME_DIFFERENT_FROM_MYSQL_INI",CFG)
-        self.assertNotIn("gov00-ci-only",CFG)
+        self.assertIn("gov_bond_official_approve",PAWN)
 
     def test_ci_runs_after_all_previous_stages(self):
         markers=[
