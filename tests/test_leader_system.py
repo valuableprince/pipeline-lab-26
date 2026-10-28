@@ -81,6 +81,29 @@ class LeaderCoreContract(unittest.TestCase):
         self.assertIn('return gAdminLevel[playerid] >= 5;', (ROOT / "gamemodes/includes/admin_system.inc").read_text("utf-8"))
         self.assertIn('gAdminDuty[playerid]',CORE)
 
+    def test_rejoin_does_not_lose_mixed_case_ministry_membership(self):
+        world=(ROOT/"gamemodes/includes/db_world.inc").read_text("utf-8")
+        # DB usernames keep their display case; the generated username_key
+        # already provides case-insensitive identity in SQL.
+        self.assertIn('Admin_NormalizeName(name, normalized, sizeof(normalized))',world)
+        self.assertIn('format(gFactionMemberName[o][i], MAX_PLAYER_NAME, "%s", name);',world)
+        self.assertNotIn('Admin_NormalizeName(name, gFactionMemberName[o][i], MAX_PLAYER_NAME)',world)
+        self.assertIn('!strcmp(gFactionMemberName[o][i], name, true)',CORE)
+        self.assertIn('!strcmp(gAccountName[playerid], name, true)',CORE)
+        self.assertIn('!strcmp(gAccountName[i], name, true)',CORE)
+        self.assertIn('!strcmp(gFactionMemberName[o][i], gFactionMemberName[other][j], true)',CORE)
+        self.assertIn('!strcmp(gFactionMemberName[o][j], gFactionMemberName[o][i], true)',CORE)
+        self.assertIn('strcmp(parts[0], normalized, true) != 0',CORE)
+        self.assertIn('strcmp(gFactionMemberName[o][i], normalized, true)',CORE)
+        # Regression: /unleader Veyran matches the loaded lower-case
+        # roster 'veyran' instead of appending a second participant.
+        identity=lambda x,y:x.casefold()==y.casefold()
+        current=["veyran"]
+        self.assertTrue(identity(current[0],"Veyran"))
+        found=next((i for i,s in enumerate(current) if identity(s,"Veyran")),-1)
+        self.assertEqual(found,0)
+        self.assertEqual(len(current),1)
+
     def test_chat_and_activity(self):
         self.assertIn('gAdminMuteUntil[playerid] > gettime()', CORE)
         self.assertIn('gFactionMemberSeen[o][index] = gettime()', CORE)
