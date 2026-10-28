@@ -471,6 +471,35 @@ stock GovBond_UI_ConfirmDraft(playerid)
     return 1;
 }
 
+// /bondsign GOV-000001: explicit signature. Includes self-signature for rank 3/4.
+// SQL also verifies the current faction membership, term, reserve and issue state.
+stock GovBond_UI_Sign(playerid,const code[])
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (!GovBond_UI_Authorized(playerid) ||
+        !Leader_FinanceAuthorized(playerid,3))
+        return SendClientMessage(playerid,COLOR_RED,
+            "Подпись доступна только заместителю или министру финансов.");
+    if (strlen(code)!=10 || strfind(code,"GOV-",true)!=0)
+        return SendClientMessage(playerid,COLOR_AMBER,
+            "Использование: /bondsign GOV-000001");
+    for(new i=4;i<10;i++)
+        if(code[i]<'0' || code[i]>'9')
+            return SendClientMessage(playerid,COLOR_RED,"Некорректный код выпуска.");
+    new eventKey[65],query[350];
+    GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_official_approve('%e','%e',%d)",
+        eventKey,code,gDBPrimaryAccountId[playerid]);
+    if(!GovBond_UI_Write(playerid,query,2,eventKey))
+        SendClientMessage(playerid,COLOR_RED,
+            "Подпись не поставлена в очередь. Проверьте доступность казначейства.");
+#else
+    #pragma unused playerid,code
+#endif
+    return 1;
+}
+
 stock GovBond_UI_Create(playerid)
 {
 #if defined TARKENSO_DB_PRIMARY
@@ -607,34 +636,30 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         format(message,sizeof(message),
             "Казначейство: проект %s зарегистрирован (ID %d).",code,issueId);
         SendClientMessage(playerid,COLOR_AMBER,message);
-        // Rank 3/4: creation itself is sufficient; issue the same actor's
-        // approval automatically, without asking a second employee.
-        // The database independently verifies current faction rank and fund.
-        if (Leader_FinanceAuthorized(playerid,3) &&
-            gGovUIRole[playerid]>=3)
+        // Notify the existing faction chat ONLY after a successful SQL commit.
+        // Rank 3 and 4 can sign their own bond using the same explicit command.
+        if (replayed==0 && Leader_PlayerOrg(playerid)==FACTION_FINANCE)
         {
-            new approveKey[65],q[390];
-            format(approveKey,sizeof(approveKey),"bond:gov5:autoapprove:%d",issueId);
-            mysql_format(gDBPrimary,q,sizeof(q),
-                "CALL gov_bond_official_approve('%e','%e',%d)",
-                approveKey,code,accountId);
-            if (!GovBond_UI_Write(playerid,q,6,approveKey))
-                SendClientMessage(playerid,COLOR_RED,
-                    "Проект сохранён. Автоутверждение не поставлено в очередь.");
-            else
-                SendClientMessage(playerid,COLOR_AMBER,
-                    "Минфин: утверждение руководителя выполняется автоматически.");
+            new notice[175];
+            format(notice,sizeof(notice),
+                "[Минфин] %s подал заявку на подпись выпуска %s.",
+                gAccountName[playerid],code);
+            for(new i=0;i<MAX_PLAYERS;i++)
+                if(Leader_PlayerOrg(i)==FACTION_FINANCE)
+                    SendClientMessage(i,FACTION_COLOR,notice);
+            format(notice,sizeof(notice),
+                "[Минфин] Для подписи: /bondsign %s (ранг 3 или 4).",code);
+            for(new i=0;i<MAX_PLAYERS;i++)
+                if(Leader_PlayerOrg(i)==FACTION_FINANCE)
+                    SendClientMessage(i,FACTION_COLOR,notice);
         }
     }
     else
     {
-        if(action==6)
-            SendClientMessage(playerid,COLOR_AMBER,
-                "Выпуск утверждён по полномочиям заместителя/министра.");
-        else SendClientMessage(playerid,COLOR_AMBER,
+        SendClientMessage(playerid,COLOR_AMBER,
             "Решение по выпуску зафиксировано в казначейском реестре.");
     }
-    if (action==2 || action==4 || action==6)
+    if (action==2 || action==4)
         if (!BondFund_Reload())
             print("[GOV-05] Fund snapshot refresh failed after issuer decision.");
 #else
