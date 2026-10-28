@@ -93,8 +93,8 @@ stock BondsUI_Main(playerid)
     }
     gBondsUIStage[playerid] = BONDS_UI_NONE;
     ShowPlayerDialog(playerid, BONDS_DLG_MAIN, DIALOG_STYLE_LIST,
-        "TARKENSO | Государственные облигации",
-        "Доступные государственные займы\nМой инвестиционный портфель\nУсловия и риски",
+        "{D9B872}TARKENSO {98A6B9}| {F2F4F8}Государственные облигации",
+        "{E9C783}Государственные займы {AAB5C4}— купить облигацию\n{79D5AD}Мой инвестиционный портфель\n{AAB5C4}Условия и инвестиционные риски",
         "Выбрать", "Закрыть");
     return 1;
 }
@@ -171,14 +171,22 @@ public BondsUI_OnList(playerid,authToken,accountId,requestSeq,kind)
 #if defined TARKENSO_DB_PRIMARY
     if (!BondsUI_CallbackValid(playerid,authToken,accountId,requestSeq)) return 1;
     gBondsUILoading[playerid] = false;
-    new rows=0, body[1700],line[155],code[65],face,count,remain,rate,available,id;
+    new rows=0, body[3500],line[260],code[65],face,count,remain,rate,available,id;
+    new title[140];
     if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) ||
         rows < 0 || rows > BONDS_UI_PAGE_SIZE+1)
     {
         SendClientMessage(playerid,COLOR_RED,"Ошибка чтения реестра облигаций.");
         return 1;
     }
-    body[0] = EOS;
+    // TABLIST_HEADERS: first row contains four columns and is NOT selectable.
+    // The native client removes the header from listitem indexing.
+    if (kind==BONDS_UI_OFFERS)
+        format(body,sizeof(body),
+            "{DDBB77}Выпуск\tНоминал\tДоходность\tДоступно\n");
+    else
+        format(body,sizeof(body),
+            "{DDBB77}Выпуск\tКоличество\tНоминал\tК выплате\n");
     new shown = rows > BONDS_UI_PAGE_SIZE ? BONDS_UI_PAGE_SIZE : rows;
     gBondsUIListCount[playerid] = shown;
     gBondsUIHasMore[playerid] = rows > BONDS_UI_PAGE_SIZE;
@@ -197,27 +205,60 @@ public BondsUI_OnList(playerid,authToken,accountId,requestSeq,kind)
         {
             if (!cache_get_value_name_int(i,"remaining",remain) ||
                 !cache_get_value_name_int(i,"yield_basis_points",rate)) return 1;
-            format(line,sizeof(line),"%s | $%d | %d шт. | %d bp\n",
-                code,face,remain,rate);
+            // Four actual TABLIST cells; per-cell colors prevent text bleed.
+            format(line,sizeof(line),
+                "{F1F4F8}%s\t{E9C67E}$%d\t{78D8AA}%d.%02d%%\t{B8C6D7}%d шт.\n",
+                code,face,rate/100,rate%100,remain);
         }
         else
         {
             if (!cache_get_value_name_int(i,"quantity",count) ||
                 !cache_get_value_name_int(i,"available",available)) return 1;
-            format(line,sizeof(line),"%s | %d шт. | доступно $%d\n",
-                code,count,available);
+            if (available > 0)
+                format(line,sizeof(line),
+                    "{F1F4F8}%s\t{B8C6D7}%d шт.\t{E9C67E}$%d\t{78D8AA}$%d\n",
+                    code,count,face,available);
+            else
+                format(line,sizeof(line),
+                    "{F1F4F8}%s\t{B8C6D7}%d шт.\t{E9C67E}$%d\t{8795A5}$0\n",
+                    code,count,face);
         }
         strcat(body,line,sizeof(body));
     }
-    if (gBondsUIHasMore[playerid]) strcat(body,"Следующая страница\n",sizeof(body));
-    if (gBondsUIPage[playerid]>0) strcat(body,"Предыдущая страница\n",sizeof(body));
-    strcat(body,"Назад\n",sizeof(body));
+    // Empty-state row is selectable in the client, but never maps to an issue.
+    if (shown==0)
+    {
+        if (kind==BONDS_UI_OFFERS)
+            strcat(body,
+                "{92A0AF}Сейчас нет открытых выпусков\t—\t—\t—\n",
+                sizeof(body));
+        else
+            strcat(body,
+                "{92A0AF}В вашем портфеле пока нет облигаций\t—\t—\t—\n",
+                sizeof(body));
+    }
+    if (gBondsUIHasMore[playerid])
+        strcat(body,"{E6C37F}» Следующая страница\t\t\t\n",sizeof(body));
+    if (gBondsUIPage[playerid]>0)
+        strcat(body,"{E6C37F}« Предыдущая страница\t\t\t\n",sizeof(body));
+    strcat(body,"{BAC6D5}‹ Вернуться в меню\t\t\t\n",sizeof(body));
+
     if(kind==BONDS_UI_OFFERS)
-        ShowPlayerDialog(playerid,BONDS_DLG_OFFERS,DIALOG_STYLE_LIST,
-            "Казначейство | Выпуски в продаже",body,"Выбрать","Закрыть");
+    {
+        format(title,sizeof(title),
+            "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Госзаймы {92A0AF}[стр. %d]",
+            gBondsUIPage[playerid]+1);
+        ShowPlayerDialog(playerid,BONDS_DLG_OFFERS,DIALOG_STYLE_TABLIST_HEADERS,
+            title,body,"Выбрать","Закрыть");
+    }
     else
-        ShowPlayerDialog(playerid,BONDS_DLG_PORTFOLIO,DIALOG_STYLE_LIST,
-            "Казначейство | Мои облигации",body,"Выбрать","Закрыть");
+    {
+        format(title,sizeof(title),
+            "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Мой портфель {92A0AF}[стр. %d]",
+            gBondsUIPage[playerid]+1);
+        ShowPlayerDialog(playerid,BONDS_DLG_PORTFOLIO,DIALOG_STYLE_TABLIST_HEADERS,
+            title,body,"Выбрать","Закрыть");
+    }
 #else
     #pragma unused playerid,authToken,accountId,requestSeq,kind
 #endif
@@ -406,7 +447,14 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
             return BondsUI_LoadDetail(playerid,
                 kind==BONDS_UI_OFFERS?BONDS_UI_OFFER:BONDS_UI_POSITION,issueId);
         }
+        // A placeholder occupies listitem=0 when there are no records.
+        // Headers are not counted in listitem by TABLIST_HEADERS.
         new index=gBondsUIListCount[playerid];
+        if(index==0)
+        {
+            if(listitem==0)return 1; // empty state is informational
+            index=1;
+        }
         if(gBondsUIHasMore[playerid])
         {
             if(listitem==index)
