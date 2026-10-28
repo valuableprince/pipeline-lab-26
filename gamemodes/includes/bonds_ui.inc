@@ -330,12 +330,12 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         // For one bond the payout calculation is deterministic and within 1e9.
         new interest = (face / 10000)*rate+((face%10000)*rate)/10000;
         format(body,sizeof(body),
-            "Выпуск: %s\n%s\n\nНоминал: $%d\nДоход за срок: %d bp ($%d)\nПогашение UTC: %s\nСтрахование номинала: %d bp\nСтраховой взнос выпуска: %d bp (не сверх цены)\nОсталось бумаг: %d\n\nКупить ровно 1 облигацию за $%d?\nГосударство может допустить дефолт; доход не застрахован.",
+            "{DDBB77}ГОСУДАРСТВЕННЫЙ ЗАЁМ\n{F1F4F8}%s\n{AAB8C8}%s\n\n{B8C6D7}Номинал: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d bp (+$%d)\n{B8C6D7}Погашение (UTC): {F1F4F8}%s\n{B8C6D7}Страхование номинала: {78D8AA}%d bp\n{B8C6D7}Страховой взнос: {DDBB77}%d bp {92A0AF}(включён в цену)\n{B8C6D7}Доступно облигаций: {F1F4F8}%d\n\n{E9C67E}Купить 1 облигацию за $%d?\n{E48A8A}Риск дефолта: доход не застрахован.",
             code,title,face,rate,interest,maturity,covered,premium,remain,face);
         gBondsUIAvailable[playerid]=remain;
         gBondsUIStage[playerid]=BONDS_UI_OFFER;
         ShowPlayerDialog(playerid,BONDS_DLG_OFFER,DIALOG_STYLE_MSGBOX,
-            "Казначейство | Условия займа",body,"Купить 1","Назад");
+            "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Условия займа",body,"Купить 1","Назад");
     }
     else
     {
@@ -351,12 +351,19 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         new walletFree=ACCOUNT_MAX_MONEY-gAccountMoney[playerid];
         gBondsUIClaimAmount[playerid]=available>walletFree?walletFree:available;
         if (gBondsUIClaimAmount[playerid]<0)gBondsUIClaimAmount[playerid]=0;
+        new debtColor[9];
+        if (!strcmp(debt,"DEFAULTED",true) || !strcmp(debt,"OVERDUE",true))
+            format(debtColor,sizeof(debtColor),"{E48A8A}");
+        else if (!strcmp(debt,"SETTLED",true))
+            format(debtColor,sizeof(debtColor),"{78D8AA}");
+        else
+            format(debtColor,sizeof(debtColor),"{E9C67E}");
         format(body,sizeof(body),
-            "Выпуск: %s\nВ собственности: %d шт.\nНоминал 1 бумаги: $%d\nДоход за срок: %d bp\nСостояние долга: %s\nОстаток номинала государства: $%d\n\nДоступно к получению: $%d\nМожно получить сейчас: $%d\n\nВыплаты по недостающей части долга могут быть задержаны.",
-            code,qty,face,rate,debt,remaining,available,gBondsUIClaimAmount[playerid]);
+            "{DDBB77}ИНВЕСТИЦИОННЫЙ ПОРТФЕЛЬ\n{F1F4F8}%s\n\n{B8C6D7}Облигации: {F1F4F8}%d шт.\n{B8C6D7}Номинал одной: {E9C67E}$%d\n{B8C6D7}Доход за срок: {78D8AA}%d bp\n{B8C6D7}Статус долга: %s%s\n{B8C6D7}Непогашенный номинал: {E48A8A}$%d\n\n{B8C6D7}Начислено к получению: {78D8AA}$%d\n{B8C6D7}Можно получить сейчас: {78D8AA}$%d\n\n{92A0AF}Выплаты по оставшейся части долга могут задерживаться.",
+            code,qty,face,rate,debtColor,debt,remaining,available,gBondsUIClaimAmount[playerid]);
         gBondsUIStage[playerid]=BONDS_UI_POSITION;
         ShowPlayerDialog(playerid,BONDS_DLG_POSITION,DIALOG_STYLE_MSGBOX,
-            "Казначейство | Инвестиционный портфель",body,
+            "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Позиция портфеля",body,
             available>0?"Получить":"Обновить","Назад");
     }
 #else
@@ -375,11 +382,11 @@ stock BondsUI_StartPurchase(playerid)
         return 1;
     new body[400];
     format(body,sizeof(body),
-        "Вы покупаете 1 облигацию %s за $%d.\nНа кошельке: $%d.\nПокупка окончательна после подтверждения транзакции MySQL.\n\nПодтвердить покупку?",
+        "{DDBB77}ПОДТВЕРЖДЕНИЕ ПОКУПКИ\n\n{F1F4F8}Выпуск: %s\n{B8C6D7}Количество: {F1F4F8}1 облигация\n{B8C6D7}Стоимость: {E9C67E}$%d\n{B8C6D7}На кошельке: {F1F4F8}$%d\n\n{92A0AF}Списание произойдёт после подтверждения MySQL.\n\n{78D8AA}Подтвердить покупку?",
         gBondsUISelectedCode[playerid],gBondsUIPrice[playerid],gAccountMoney[playerid]);
     gBondsUIStage[playerid]=BONDS_UI_PENDING_BUY;
     ShowPlayerDialog(playerid,BONDS_DLG_CONFIRM,DIALOG_STYLE_MSGBOX,
-        "TARKENSO | Подтверждение покупки",body,"Подтвердить","Отмена");
+        "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Покупка облигации",body,"Подтвердить","Отмена");
     return 1;
 }
 
@@ -406,10 +413,10 @@ stock BondsUI_StartCollect(playerid)
     }
     new text[280];
     format(text,sizeof(text),
-        "Получить $%d по выпуску %s?\nСредства зачисляются на кошелёк только после подтверждения MySQL.",
+        "{DDBB77}ПОЛУЧЕНИЕ ВЫПЛАТЫ\n\n{B8C6D7}Сумма: {78D8AA}$%d\n{B8C6D7}Выпуск: {F1F4F8}%s\n\n{92A0AF}Деньги будут зачислены после подтверждения MySQL.",
         gBondsUIClaimAmount[playerid],gBondsUISelectedCode[playerid]);
     ShowPlayerDialog(playerid,BONDS_DLG_COLLECT,DIALOG_STYLE_MSGBOX,
-        "TARKENSO | Получение выплат",text,"Получить","Назад");
+        "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Получение выплаты",text,"Получить","Назад");
     return 1;
 }
 
@@ -428,8 +435,8 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
             case 2:
             {
                 ShowPlayerDialog(playerid,BONDS_DLG_OFFER,DIALOG_STYLE_MSGBOX,
-                    "Гособлигации | Риски",
-                    "Облигации — государственный долг, не банковский вклад.\nГарантия покрывает только фиксированную долю невыплаченного номинала, обычно 20%.\nПроценты не застрахованы.\nДоходность указана за весь срок.\nПри дефолте возможна задержка оставшегося долга.",
+                    "{D9B872}TARKENSO {A0ADBD}| {F1F4F8}Риски инвестиций",
+                    "{E48A8A}ОБЛИГАЦИИ НЕ ЯВЛЯЮТСЯ ВКЛАДОМ\n\n{B8C6D7}Гарантия покрывает только установленную часть невыплаченного номинала (обычно 20%).\n\n{DDBB77}Проценты не застрахованы.\n{B8C6D7}Доходность указана за полный срок выпуска.\n{B8C6D7}При дефолте оставшийся долг может быть выплачен с задержкой.",
                     "Назад","Закрыть");
                 gBondsUIStage[playerid]=BONDS_UI_NONE;
                 return 1;
