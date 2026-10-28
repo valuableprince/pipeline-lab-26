@@ -42,9 +42,6 @@ new gGovUISelectedIssue[MAX_PLAYERS];
 new gGovUISelectedCode[MAX_PLAYERS][65];
 new gGovUISelectedStatus[MAX_PLAYERS][20];
 new gGovUIAction[MAX_PLAYERS];
-new gGovUIRoleTarget[MAX_PLAYERS];
-new gGovUIRoleCode[MAX_PLAYERS];
-new gGovUIRoleEnabled[MAX_PLAYERS];
 new gGovUIPendingEvent[MAX_PLAYERS][65];
 
 forward GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind);
@@ -332,7 +329,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     if (kind==3)
     {
         new id,code[65],title[129],purpose[193],status[20];
-        new face,total,sold,yield,exposure,creator,approver,offerEnd[32],maturity[32];
+        new face,total,sold,yield,exposure,creator,offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
             id!=gGovUISelectedIssue[playerid] ||
             !cache_get_value_name(0,"issue_code",code,sizeof(code)) ||
