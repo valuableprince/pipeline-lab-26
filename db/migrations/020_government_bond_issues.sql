@@ -29,6 +29,9 @@ CREATE TABLE government_bond_issues (
   approved_at DATETIME NULL,
   opened_at DATETIME NULL,
   cancelled_at DATETIME NULL,
+  rejected_at DATETIME NULL,
+  rejected_by_account_id BIGINT UNSIGNED NULL,
+  rejection_reason VARCHAR(255) NULL,
   row_version INT UNSIGNED NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -40,9 +43,11 @@ CREATE TABLE government_bond_issues (
     REFERENCES accounts(account_id) ON DELETE RESTRICT,
   CONSTRAINT fk_government_bond_approver FOREIGN KEY (approved_by_account_id)
     REFERENCES accounts(account_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_government_bond_rejector FOREIGN KEY (rejected_by_account_id)
+    REFERENCES accounts(account_id) ON DELETE RESTRICT,
   CONSTRAINT chk_government_bond_type CHECK (issue_type IN ('GENERAL','TARGETED','CRISIS')),
   CONSTRAINT chk_government_bond_status CHECK
-    (status IN ('DRAFT','APPROVED','OFFERING','CLOSED','CANCELLED')),
+    (status IN ('DRAFT','APPROVED','OFFERING','CLOSED','CANCELLED','REJECTED')),
   CONSTRAINT chk_government_bond_debt CHECK
     (debt_status IN ('NOT_DUE','DUE','PARTIALLY_PAID','OVERDUE','DEFAULTED','RESTRUCTURED','SETTLED')),
   CONSTRAINT chk_government_bond_amounts CHECK
@@ -52,8 +57,15 @@ CREATE TABLE government_bond_issues (
      AND insured_max_exposure <= 1000000000 AND row_version <= 2147483646),
   CONSTRAINT chk_government_bond_dates CHECK
     (offer_start_at < offer_end_at AND offer_end_at < maturity_at),
+  CONSTRAINT chk_government_bond_rejection CHECK (
+    (status='REJECTED' AND rejected_at IS NOT NULL
+      AND rejected_by_account_id IS NOT NULL AND
+      CHAR_LENGTH(rejection_reason) BETWEEN 5 AND 255)
+    OR (status<>'REJECTED' AND rejected_at IS NULL AND
+      rejected_by_account_id IS NULL AND rejection_reason IS NULL)
+  ),
   CONSTRAINT chk_government_bond_insurance CHECK (
-    (status='DRAFT' AND coverage_basis_points IS NULL AND
+    (status IN ('DRAFT','REJECTED') AND coverage_basis_points IS NULL AND
      premium_basis_points IS NULL AND grace_seconds IS NULL AND
      insured_max_exposure=0 AND approve_event_key IS NULL AND
      approved_by_account_id IS NULL AND approved_at IS NULL)
@@ -101,7 +113,7 @@ CREATE TABLE government_bond_issue_audit (
   CONSTRAINT fk_bond_issue_audit_actor FOREIGN KEY (actor_account_id)
     REFERENCES accounts(account_id) ON DELETE RESTRICT,
   CONSTRAINT chk_bond_issue_audit_action CHECK
-    (action IN ('CREATE','APPROVE','OPEN','CANCEL'))
+    (action IN ('CREATE','APPROVE','OPEN','CANCEL','REJECT'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- A guarantee can be fully released only for an issue without a single sale.
@@ -138,6 +150,9 @@ BEGIN
        OR OLD.created_by_account_id <> NEW.created_by_account_id
        OR NOT (OLD.approved_by_account_id <=> NEW.approved_by_account_id)
        OR NOT (OLD.approved_at <=> NEW.approved_at)
+       OR NOT (OLD.rejected_at <=> NEW.rejected_at)
+       OR NOT (OLD.rejected_by_account_id <=> NEW.rejected_by_account_id)
+       OR NOT (BINARY OLD.rejection_reason <=> BINARY NEW.rejection_reason)
      ) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='approved bond terms immutable';
   END IF;
