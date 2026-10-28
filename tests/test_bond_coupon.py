@@ -44,7 +44,7 @@ class CouponContracts(unittest.TestCase):
         self.assertIn('#include "bond_coupon.inc"',MAIN)
         self.assertIn("BondCoupon_Init();",MAIN)
         self.assertIn("BondCoupon_Shutdown();",MAIN)
-        self.assertIn("SELECT version FROM schema_migrations WHERE version=27",SCHEDULER)
+        self.assertIn("SELECT version FROM schema_migrations WHERE version=28",SCHEDULER)
         self.assertIn('SetTimer("BondCoupon_Tick",BOND_COUPON_BACKSTOP_MS,true)',SCHEDULER)
         self.assertIn("NOT EXISTS (SELECT 1 FROM government_bond_coupon_events",SCHEDULER)
         self.assertIn("ORDER BY i.issue_id LIMIT %d",SCHEDULER)
@@ -54,6 +54,20 @@ class CouponContracts(unittest.TestCase):
         accrual=SCHEDULER.split("// Coupon notifications are independent",1)[0]
         self.assertNotIn("IsPlayerConnected(",accrual)
         self.assertNotIn("gAuthState[",accrual)
+
+    def test_coupon_hour_guard_is_timezone_independent(self):
+        fixed=(ROOT/"db/migrations/028_coupon_payday_timezone.sql").read_text("utf-8")
+        original=(ROOT/"db/migrations/027_bond_coupon_payday_notices.sql").read_text("utf-8")
+        self.assertIn("UNIX_TIMESTAMP(UTC_TIMESTAMP())",original)  # historical, immutable migration
+        self.assertIn("p_hour_key>UNIX_TIMESTAMP() DIV 3600",fixed)
+        self.assertNotIn("p_hour_key>UNIX_TIMESTAMP(UTC_TIMESTAMP()) DIV 3600",fixed)
+        self.assertIn("DROP PROCEDURE IF EXISTS gov_bond_coupon_accrue",fixed)
+        self.assertIn("INSERT INTO government_bond_coupon_notice_queue",fixed)
+        self.assertIn("INSERT INTO government_bond_coupon_wallets",fixed)
+        self.assertIn("INSERT INTO government_bond_coupon_events",fixed)
+        self.assertIn("INSERT INTO schema_migrations(version) VALUES (28)",fixed)
+        self.assertIn("028_coupon_payday_timezone.sql",CI)
+        self.assertIn("gov07_timezone_mysql_uat.py",CI)
 
     def test_manual_coupon_collection_is_atomic_and_no_double_interest(self):
         for token in (
