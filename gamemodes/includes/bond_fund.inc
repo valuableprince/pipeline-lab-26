@@ -161,8 +161,13 @@ stock BondFund_Init()
 {
     BondFund_Shutdown();
     if (BondFund_Reload())
+    {
         printf("[GOV-01] Fund ready. Reserved=%d, committed=%d, enabled=%d.",
             gBondFundReserved,gBondFundCommitted,_:gBondFundEnabled);
+        printf("[GOV-01] coverage_bp=%d premium_bp=%d tax_bp=%d grace=%d config_rev=%d.",
+            gBondFundCoverageBps,gBondFundPremiumBps,gBondFundTaxAllocationBps,
+            gBondFundGraceSeconds,gBondFundConfigVersion);
+    }
     else
         print("[GOV-01] Fund inactive (migration 019 absent, file backend or DB issue).");
     return 1;
