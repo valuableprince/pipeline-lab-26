@@ -288,10 +288,48 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("gov_bond_official_approve",UI)
         self.assertNotIn("UPDATE treasury_accounts SET",UI)
 
+    def test_minister_insurance_fund_flow_and_faction_notice(self):
+        for phrase in (
+            "GOVUI_FUND_AMOUNT (6809)",
+            "GOVUI_FUND_CONFIRM (6810)",
+            "Пополнить страховой фонд (министр)",
+            "gGovUIRole[playerid]!=4",
+            "Leader_FinanceAuthorized(playerid,4)",
+            "gGovUIStage[playerid]=14;",
+            "gGovUIStage[playerid]=15;",
+            "if(dialogid==GOVUI_FUND_AMOUNT)",
+            "if(dialogid==GOVUI_FUND_CONFIRM)",
+            "GovBond_UI_ParsePositive(inputtext,amount,gGovUIFundMax[playerid])",
+            "fund:gov5:%d:%d:%d:%d",
+            "CALL gov_bond_official_fund_capitalize",
+            "if(valid && action==8)",
+            "gGovUIPendingFundAmount[playerid]",
+            'if(replayed==0)',
+            "Leader_PlayerOrg(i)==FACTION_FINANCE",
+            "пополнил страховой фонд на $%d. Резерв: $%d.",
+            "BondFund_Reload()",
+            'SELECT version FROM schema_migrations WHERE version=29 LIMIT 1',
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase,UI)
+        self.assertIn("gGovUIStage[playerid]=0; // consume before SQL request",UI)
+        self.assertNotIn("UPDATE treasury_accounts SET",UI)
+        sql=(ROOT/"db/migrations/029_minfin_fund_capitalization.sql").read_text("utf-8")
+        self.assertIn("SQL SECURITY DEFINER",sql)
+        self.assertIn("m.rank_id=4",sql)
+        self.assertIn("f.term_end>UNIX_TIMESTAMP()",sql)
+        self.assertIn("WHERE code='state' FOR UPDATE",sql)
+        self.assertIn("UPDATE treasury_accounts SET",sql)
+        self.assertIn("INSERT INTO bond_fund_ledger",sql)
+        self.assertIn("v_balance-v_minimum-v_reserved<p_amount",sql)
+        self.assertIn("INSERT INTO schema_migrations(version) VALUES (29)",sql)
+        self.assertIn("gov08_fund_mysql_uat.py",CI)
+        self.assertNotIn("GivePlayerMoney(",UI)
+
     def test_distinct_dialog_ids(self):
         import re
-        ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON)\s+\((\d+)\)",UI)
-        self.assertEqual(set(map(int,ids)),set(range(6800,6809)))
+        ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON|FUND_AMOUNT|FUND_CONFIRM)\s+\((\d+)\)",UI)
+        self.assertEqual(set(map(int,ids)),set(range(6800,6811)))
 
 
 if __name__=="__main__":

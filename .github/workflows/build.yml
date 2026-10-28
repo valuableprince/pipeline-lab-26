@@ -198,6 +198,14 @@ jobs:
           set -euo pipefail
           mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/028_coupon_payday_timezone.sql
 
+      - name: Install GOV-08 Ministry fund capitalization 029
+        run: |
+          set -euo pipefail
+          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/029_minfin_fund_capitalization.sql
+
+      - name: GOV-08 minister-only fund top-up, replay and ledger MariaDB UAT
+        run: python3 tests/gov08_fund_mysql_uat.py
+
       - name: GOV-07 hourly offline coupons, collection and integrity MariaDB UAT
         run: python3 tests/gov07_coupon_mysql_uat.py
 
