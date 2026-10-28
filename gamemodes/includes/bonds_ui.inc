@@ -41,6 +41,7 @@ new gBondsUIEventSerial;
 forward BondsUI_OnList(playerid, authToken, accountId, requestSeq, kind);
 forward BondsUI_OnDetail(playerid, authToken, accountId, requestSeq, kind);
 forward BondsUI_OnSettlement(playerid, bool:replayed);
+forward BondsUI_OnRejected(playerid);
 
 stock BondsUI_Reset(playerid)
 {
