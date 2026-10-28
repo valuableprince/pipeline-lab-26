@@ -23,7 +23,8 @@ stock Leader_UI_Main(playerid)
     new org = Leader_PlayerOrg(playerid), name[48], title[96];
     if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Вы не состоите в организации.");
     Leader_OrgTitle(org, name, sizeof(name));
-    format(title, sizeof(title), "%s | Ранг %d", name, Leader_PlayerRank(playerid));
+    format(title, sizeof(title), "%s | Ранг %d", name,
+        Leader_PublicRank(org,Leader_PlayerRank(playerid)));
     gFactionDialogMode[playerid] = 1;
     ShowPlayerDialog(playerid, LEADER_DLG_MAIN, DIALOG_STYLE_LIST,
         title, "Информация о составе\nСписок сотрудников\nСвязь организации\nПокинуть организацию\nРуководство",
@@ -50,7 +51,8 @@ stock Leader_UI_Roster(playerid)
     for (new i = 0; i < gFactionCount[org - 1] && count < 25; i++)
     {
         format(line, sizeof(line), "%s | Ранг %d%s\n",
-            gFactionMemberName[org - 1][i], gFactionMemberRank[org - 1][i],
+            gFactionMemberName[org - 1][i],
+            Leader_PublicRank(org,gFactionMemberRank[org - 1][i]),
             Leader_FindOnline(gFactionMemberName[org - 1][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
         strcat(body, line, sizeof(body));
         count++;
@@ -73,9 +75,16 @@ stock Leader_UI_Input(playerid, action)
             "LEADER | Приглашение", "Укажите ID игрока:", "Применить", "Отмена");
         case 2: ShowPlayerDialog(playerid, LEADER_DLG_INPUT, DIALOG_STYLE_INPUT,
             "LEADER | Увольнение", "Укажите ID сотрудника:", "Применить", "Отмена");
-        case 3: ShowPlayerDialog(playerid, LEADER_DLG_INPUT, DIALOG_STYLE_INPUT,
-            "LEADER | Повышение", "Укажите ID и новый ранг (1-9), например: 12 4",
-            "Применить", "Отмена");
+        case 3:
+        {
+            new org=Leader_PlayerOrg(playerid);
+            ShowPlayerDialog(playerid, LEADER_DLG_INPUT, DIALOG_STYLE_INPUT,
+                "LEADER | Повышение",
+                org==FACTION_FINANCE ?
+                    ("Минфин: ID и ранг 1-3 (3=заместитель), например: 12 2") :
+                    ("Укажите ID и новый ранг (1-9), например: 12 4"),
+                "Применить", "Отмена");
+        }
     }
     return 1;
 }
