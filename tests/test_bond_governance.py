@@ -86,6 +86,61 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("GovBond_UI_CrisisStatusLabel(crisis,crisisLabel,sizeof(crisisLabel));",UI)
         self.assertIn("cash,fund,committed,payout,crisisLabel,issues",UI)
 
+    def test_percentage_entry_and_complete_signatory_card(self):
+        self.assertIn("stock bool:GovBond_UI_ParsePercent(const input[],&basisPoints)",UI)
+        self.assertIn("GovBond_UI_ParsePercent(inputtext,num)",UI)
+        self.assertIn("basisPoints=whole*100+fraction;",UI)
+        self.assertIn("fractionDigits>2",UI)
+        self.assertIn("От 0 до 100%%",UI)
+        self.assertNotIn("Доходность за весь срок (базисные пункты)",UI)
+        for marker in ("i.issue_type","typeLabel","offer_days","maturity_days",
+                       "Тип займа:", "Размещение:", "Погашение:",
+                       "GovBond_UI_TypeLabel(issueType,typeLabel,sizeof(typeLabel))"):
+            with self.subTest(marker=marker):self.assertIn(marker,UI)
+
+    def test_returned_issues_are_auditable_and_resubmittable(self):
+        revision=(ROOT/"db/migrations/025_bond_application_revisions.sql").read_text("utf-8")
+        for marker in (
+            "status IN ('DRAFT','RETURNED','APPROVED','OFFERING'",
+            "CREATE TABLE government_bond_revision_reviews",
+            "gov_bond_revision_reviews_upd",
+            "CREATE PROCEDURE gov_bond_official_return(",
+            "CREATE PROCEDURE gov_bond_issue_resubmit(",
+            "v_status<>'DRAFT'", "v_status<>'RETURNED'",
+            "v_creator<>p_actor",
+            "revision_count=revision_count+1",
+            "SET status='RETURNED'",
+            "SET status='DRAFT'",
+            "RETURN','RESUBMIT",
+            "END$",
+        ):
+            with self.subTest(marker=marker):self.assertIn(marker,revision)
+        self.assertNotIn("END$ AND",revision)
+        self.assertNotIn("END$ THEN",revision)
+        self.assertIn("GovBond_UI_ReturnReason(playerid)",UI)
+        self.assertIn("GovBond_UI_Resubmit(playerid)",UI)
+        self.assertIn('!strcmp(status,"RETURNED")',UI)
+        self.assertIn("creatorId==gDBPrimaryAccountId[playerid]",UI)
+        self.assertIn('gGovUIStage[playerid]==13',UI)
+        self.assertIn("CALL gov_bond_issue_resubmit(",UI)
+        self.assertIn("CALL gov_bond_official_return(",UI)
+        self.assertIn("На доработке",UI)
+        self.assertIn("gov05_revision_mysql_uat.py",CI)
+        self.assertIn("025_bond_application_revisions.sql",CI)
+
+    def test_offering_is_rebased_on_real_opening_not_draft(self):
+        revision=(ROOT/"db/migrations/025_bond_application_revisions.sql").read_text("utf-8")
+        opening=revision.split("CREATE PROCEDURE gov_bond_issue_open(",1)[1].split("END$",1)[0]
+        approval=revision.split("CREATE PROCEDURE gov_bond_issue_approve(",1)[1].split("END$",1)[0]
+        self.assertIn("offer_start_at=UTC_TIMESTAMP()",opening)
+        self.assertIn("INTERVAL v_offer_days DAY",opening)
+        self.assertIn("INTERVAL v_maturity_days DAY",opening)
+        self.assertIn("SELECT issue_id,status,offer_start_at,offer_end_at,maturity_at",opening)
+        self.assertIn("SQL SECURITY DEFINER",opening)
+        self.assertIn("SQL SECURITY DEFINER",approval)
+        self.assertIn("OR (v_end <= UTC_TIMESTAMP()",approval)
+        self.assertIn("AND BINARY p_issue_code NOT REGEXP",approval)
+
     def test_ministry_approval_requires_explicit_signature_for_every_issue(self):
         block=SQL.split("CREATE PROCEDURE gov_bond_official_approve(",1)[1].split("END$$",1)[0]
         self.assertIn("faction_members",block)
