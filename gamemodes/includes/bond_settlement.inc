@@ -13,7 +13,6 @@ new bool:gBondSettlementBusy[MAX_PLAYERS];
 new gBondSettlementExpectedVersion[MAX_PLAYERS];
 new gBondSettlementPendingAccount[MAX_PLAYERS];
 new gBondSettlementPendingSerial[MAX_PLAYERS];
-new gBondSettlementGlobalSerial;
 new gBondSettlementPendingGlobal;
 new gBondSettlementTimer;
 new bool:gBondSettlementScanBusy;
