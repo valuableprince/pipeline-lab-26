@@ -14,6 +14,8 @@
 #define GOVUI_ACTION (6806)
 #define GOVUI_REPORT (6807)
 #define GOVUI_APPROVAL_REASON (6808)
+#define GOVUI_FUND_AMOUNT (6809)
+#define GOVUI_FUND_CONFIRM (6810)
 #define GOVUI_ROWS (10)
 
 // UI-only mapping. SQL statuses remain ASCII for financial procedures and checks.
@@ -86,6 +88,9 @@ new bool:gGovUIEditing[MAX_PLAYERS];
 new gGovUIReviewCreator[MAX_PLAYERS];
 new gGovUIPendingEvent[MAX_PLAYERS][65];
 new bool:gGovUIPublicReport[MAX_PLAYERS];
+new gGovUIFundMax[MAX_PLAYERS];
+new gGovUIFundAmount[MAX_PLAYERS];
+new gGovUIPendingFundAmount[MAX_PLAYERS];
 
 forward GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind);
 forward GovBond_UI_OnWrite(playerid,authToken,accountId,serial);
@@ -118,6 +123,9 @@ stock GovBond_UI_Reset(playerid)
     gGovUIReviewCreator[playerid]=0;
     gGovUIPendingEvent[playerid][0]=EOS;
     gGovUIPublicReport[playerid]=false;
+    gGovUIFundMax[playerid]=0;
+    gGovUIFundAmount[playerid]=0;
+    gGovUIPendingFundAmount[playerid]=0;
     return 1;
 }
 
@@ -137,7 +145,7 @@ stock GovBond_UI_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!GovDebt_IsReady()) return 1;
     new Cache:c=mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=25 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=29 LIMIT 1");
     if (c==Cache:0) return 1;
     new rows=0;
     new bool:valid=mysql_errno(gDBPrimary)==0 &&
@@ -145,7 +153,7 @@ stock GovBond_UI_Init()
     cache_delete(c);
     if (!valid)
     {
-        print("[GOV-05] Migration 025 missing; government issue UI disabled.");
+        print("[GOV-05] Migration 029 missing; government issue UI disabled.");
         return 1;
     }
     gGovUIReady=true;
@@ -220,6 +228,7 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     gGovUIPendingAccount[playerid]=gDBPrimaryAccountId[playerid];
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
+    gGovUIPendingFundAmount[playerid]=(action==8)?gGovUIFundAmount[playerid]:0;
     if (action==3)
     {
         // These values must match the committed SQL result in OnWrite.
@@ -232,6 +241,7 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
         playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
         gGovUIWriteSerial[playerid]))
     {
+        gGovUIPendingFundAmount[playerid]=0;
         gGovUIBusy[playerid]=false;
         gGovUIPendingAction[playerid]=0;
         gGovUIPendingIssue[playerid]=0;
@@ -278,7 +288,7 @@ stock GovBond_UI_DrawMain(playerid)
 {
     new body[360];
     format(body,sizeof(body),
-        "{E8EDF3}Новый государственный заём\n{E8EDF3}Реестр выпусков и решения\n{E8EDF3}Финансовая отчётность\n{E8EDF3}Обучение и полномочия министерства");
+        "{E8EDF3}Новый государственный заём\n{E8EDF3}Реестр выпусков и решения\n{E8EDF3}Финансовая отчётность\n{E8EDF3}Обучение и полномочия министерства\n{E8EDF3}Пополнить страховой фонд (министр)");
     gGovUIStage[playerid]=1;
     ShowPlayerDialog(playerid,GOVUI_MAIN,DIALOG_STYLE_LIST,
         "{E8EDF3}TARKENSO {E8EDF3}| {E8EDF3}Государственное казначейство",
@@ -337,6 +347,25 @@ stock bool:GovBond_UI_LoadApprovalReason(playerid)
     #pragma unused playerid
     return false;
 #endif
+}
+
+// Re-read treasury capacity before offering any amount. This is advisory only;
+// the stored procedure takes the treasury row lock and checks it again.
+stock GovBond_UI_LoadFundBudget(playerid)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(!GovBond_UI_Authorized(playerid) || gGovUIRole[playerid]!=4 ||
+       !Leader_FinanceAuthorized(playerid,4))return 1;
+    new query[710];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_fund_enabled,minimum_reserve,max_transaction,GREATEST(0,CAST(balance AS SIGNED)-CAST(minimum_reserve AS SIGNED)-CAST(bond_fund_reserved AS SIGNED)) AS free_budget FROM treasury_accounts WHERE code='state'");
+    if(!GovBond_UI_Query(playerid,query,6))
+        SendClientMessage(playerid,COLOR_RED,
+            "Не удалось получить свободный остаток казны. Попробуйте ещё раз.");
+#else
+    #pragma unused playerid
+#endif
+    return 1;
 }
 
 stock GovBond_UI_Report(playerid)
@@ -446,6 +475,45 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUIStage[playerid]=13;
         ShowPlayerDialog(playerid,GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX,
             "{E8EDF3}Минфин | Почему отказано в подписи",body,"Понятно","");
+        return 1;
+    }
+    if (kind==6)
+    {
+        new cash,reserved,committed,enabled,freeBudget,maxTxn,minReserve;
+        if(rows!=1 || !cache_get_value_name_int(0,"balance",cash) ||
+           !cache_get_value_name_int(0,"bond_fund_reserved",reserved) ||
+           !cache_get_value_name_int(0,"bond_fund_committed",committed) ||
+           !cache_get_value_name_int(0,"bond_fund_enabled",enabled) ||
+           !cache_get_value_name_int(0,"minimum_reserve",minReserve) ||
+           !cache_get_value_name_int(0,"max_transaction",maxTxn) ||
+           !cache_get_value_name_int(0,"free_budget",freeBudget))
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "Не удалось прочитать остаток казны. Деньги не изменены.");
+            return 1;
+        }
+        if(gGovUIRole[playerid]!=4 || !Leader_FinanceAuthorized(playerid,4))
+            return 1;
+        new maximum=freeBudget;
+        if(maximum>maxTxn)maximum=maxTxn;
+        if(maximum>1000000000)maximum=1000000000;
+        gGovUIFundMax[playerid]=maximum;
+        gGovUIFundAmount[playerid]=0;
+        if(maximum<=0)
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "В казне нет свободных денег для страхового фонда.");
+            return GovBond_UI_DrawMain(playerid);
+        }
+        new body[640];
+        format(body,sizeof(body),
+            "{E8EDF3}ПОПОЛНЕНИЕ СТРАХОВОГО ФОНДА\n\nКазна: $%d\nОбязательный остаток: $%d\nСтраховой резерв: $%d\nВыдано гарантий: $%d\nСвободно для перевода: $%d\n\nВведите сумму от $1 до $%d.\nДеньги останутся в казне, но станут страховым резервом.\nСтатус фонда: %s.",
+            cash,minReserve,reserved,committed,freeBudget,maximum,
+            enabled?"Включён":"Выключен");
+        gGovUIStage[playerid]=14;
+        ShowPlayerDialog(playerid,GOVUI_FUND_AMOUNT,DIALOG_STYLE_INPUT,
+            "{E8EDF3}Минфин | Пополнить страховой фонд",
+            body,"Далее","Назад");
         return 1;
     }
     if (kind==1)
@@ -876,6 +944,31 @@ stock GovBond_UI_ConfirmAction(playerid,action)
     return 1;
 }
 
+stock GovBond_UI_ExecuteFundTopup(playerid)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(!GovBond_UI_Authorized(playerid) || gGovUIRole[playerid]!=4 ||
+       !Leader_FinanceAuthorized(playerid,4) ||
+       gGovUIFundAmount[playerid]<1 ||
+       gGovUIFundAmount[playerid]>gGovUIFundMax[playerid])return 1;
+    new eventKey[65],query[360];
+    gGovUIEventSerial++;
+    format(eventKey,sizeof(eventKey),"fund:gov5:%d:%d:%d:%d",
+        gDBPrimaryAccountId[playerid],gettime(),
+        gAuthToken[playerid],gGovUIEventSerial);
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_official_fund_capitalize('%e',%d,%d)",
+        eventKey,gDBPrimaryAccountId[playerid],gGovUIFundAmount[playerid]);
+    gGovUIStage[playerid]=0;
+    if(!GovBond_UI_Write(playerid,query,8,eventKey))
+        SendClientMessage(playerid,COLOR_RED,
+            "Казначейство не приняло заявку. Попробуйте ещё раз.");
+#else
+    #pragma unused playerid
+#endif
+    return 1;
+}
+
 stock GovBond_UI_ExecuteAction(playerid)
 {
 #if defined TARKENSO_DB_PRIMARY
@@ -923,6 +1016,20 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     new bool:valid=mysql_errno(gDBPrimary)==0 &&
         cache_get_row_count(rows) && rows==1 &&
         cache_get_value_name_int(0,"replayed",replayed);
+    new fundReserve=0,fundCommitted=0,fundBalance=0,fundVersion=0;
+    new fundActor=0,fundApplied=0;
+    if(valid && action==8)
+        valid=cache_get_value_name_int(0,"fund_reserved",fundReserve) &&
+              cache_get_value_name_int(0,"fund_committed",fundCommitted) &&
+              cache_get_value_name_int(0,"treasury_balance",fundBalance) &&
+              cache_get_value_name_int(0,"row_version",fundVersion) &&
+              cache_get_value_name_int(0,"actor_account_id",fundActor) &&
+              cache_get_value_name_int(0,"applied_amount",fundApplied) &&
+              fundActor==accountId &&
+              fundApplied==gGovUIPendingFundAmount[playerid] &&
+              fundApplied>0 && fundReserve>=fundApplied &&
+              fundReserve<=fundBalance && fundCommitted<=fundReserve &&
+              fundVersion>=0;
     if (valid && (action==1 || action==6))
         valid=cache_get_value_name_int(0,"issue_id",issueId) &&
               cache_get_value_name(0,"issue_code",code,sizeof(code));
@@ -952,6 +1059,7 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
+        gGovUIPendingFundAmount[playerid]=0;
         gGovUIPendingIssue[playerid]=0;
         gGovUIPendingCode[playerid][0]=EOS;
         SendClientMessage(playerid,COLOR_RED,
@@ -961,6 +1069,29 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     gGovUIBusy[playerid]=false;
     gGovUIPendingEvent[playerid][0]=EOS;
     gGovUIPendingAction[playerid]=0;
+    gGovUIPendingFundAmount[playerid]=0;
+    if(action==8)
+    {
+        // One faction notice for one confirmed NEW commit. SQL replay is silent.
+        if(replayed==0)
+        {
+            new notice[150];
+            format(notice,sizeof(notice),
+                "[Минфин] %s пополнил страховой фонд на $%d. Резерв: $%d.",
+                gAccountName[playerid],fundApplied,fundReserve);
+            for(new i=0;i<MAX_PLAYERS;i++)
+                if(IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+                   gAuthState[i]==AUTH_READY &&
+                   Leader_PlayerOrg(i)==FACTION_FINANCE)
+                    SendClientMessage(i,FACTION_COLOR,notice);
+        }
+        else
+            SendClientMessage(playerid,COLOR_AMBER,
+                "Это пополнение уже проводилось. Повторного перевода не было.");
+        if(!BondFund_Reload())
+            print("[GOV-08] Fund snapshot reload after top-up failed.");
+        return 1;
+    }
     if (action==3 && replayed==0)
     {
         // First committed APPROVED -> OFFERING transition only. Do not
@@ -1146,11 +1277,15 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
+        gGovUIPendingFundAmount[playerid]=0;
         gGovUIPendingIssue[playerid]=0;
         gGovUIPendingCode[playerid][0]=EOS;
         if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
         {
-            if(failedAction==2)
+            if(failedAction==8)
+                SendClientMessage(playerid,COLOR_RED,
+                    "Не удалось пополнить фонд. Проверьте свободные деньги и полномочия министра.");
+            else if(failedAction==2)
             {
                 if(!GovBond_UI_LoadApprovalReason(playerid))
                     SendClientMessage(playerid,COLOR_RED,
@@ -1170,12 +1305,12 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
 
 stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 {
-    if (dialogid<GOVUI_MAIN || dialogid>GOVUI_APPROVAL_REASON)return 0;
+    if (dialogid<GOVUI_MAIN || dialogid>GOVUI_FUND_CONFIRM)return 0;
     if(!GovBond_UI_Authorized(playerid) || gGovUILoading[playerid] ||
        gGovUIBusy[playerid]) return 1;
     if(dialogid==GOVUI_MAIN)
     {
-        if(gGovUIStage[playerid]!=1 || !response || listitem<0 || listitem>3)
+        if(gGovUIStage[playerid]!=1 || !response || listitem<0 || listitem>4)
             return 1;
         switch(listitem)
         {
@@ -1194,6 +1329,14 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             }
             case 1:return GovBond_UI_LoadIssues(playerid,0);
             case 2:return GovBond_UI_Report(playerid);
+            case 4:
+            {
+                if(gGovUIRole[playerid]!=4 ||
+                   !Leader_FinanceAuthorized(playerid,4))
+                    return SendClientMessage(playerid,COLOR_RED,
+                        "Пополнять страховой фонд может только министр финансов (ранг 4).");
+                return GovBond_UI_LoadFundBudget(playerid);
+            }
             case 3:
             {
                 gGovUIStage[playerid]=10;
@@ -1205,6 +1348,37 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
             }
         }
         return 1;
+    }
+    if(dialogid==GOVUI_FUND_AMOUNT)
+    {
+        if(gGovUIStage[playerid]!=14)return 1;
+        if(!response)return GovBond_UI_Main(playerid);
+        new amount=0;
+        if(!GovBond_UI_ParsePositive(inputtext,amount,gGovUIFundMax[playerid]))
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "Введите сумму целым числом от $1 до разрешённого максимума.");
+            return GovBond_UI_LoadFundBudget(playerid);
+        }
+        if(gGovUIRole[playerid]!=4 || !Leader_FinanceAuthorized(playerid,4))
+            return 1;
+        gGovUIFundAmount[playerid]=amount;
+        new body[450];
+        format(body,sizeof(body),
+            "{E8EDF3}ПОДТВЕРЖДЕНИЕ ПОПОЛНЕНИЯ\n\nСумма: $%d\nИз свободных денег государственной казны.\nПосле перевода сумма будет защищена как страховой резерв.\n\nПодтвердить перевод?",
+            amount);
+        gGovUIStage[playerid]=15;
+        ShowPlayerDialog(playerid,GOVUI_FUND_CONFIRM,DIALOG_STYLE_MSGBOX,
+            "{E8EDF3}Минфин | Подтверждение перевода",
+            body,"Подтвердить","Отмена");
+        return 1;
+    }
+    if(dialogid==GOVUI_FUND_CONFIRM)
+    {
+        if(gGovUIStage[playerid]!=15)return 1;
+        gGovUIStage[playerid]=0; // consume before SQL request
+        if(!response)return GovBond_UI_Main(playerid);
+        return GovBond_UI_ExecuteFundTopup(playerid);
     }
     if(dialogid==GOVUI_TYPE)
     {
