@@ -16,6 +16,9 @@
 #define GOVUI_ROWS (10)
 
 new bool:gGovUIReady;
+new gGovUITaxTimer;
+new bool:gGovUITaxScanBusy;
+new bool:gGovUITaxPostBusy;
 new bool:gGovUILoading[MAX_PLAYERS];
 new bool:gGovUIBusy[MAX_PLAYERS];
 new gGovUIReadSerial[MAX_PLAYERS];
@@ -47,6 +50,9 @@ new bool:gGovUIPublicReport[MAX_PLAYERS];
 
 forward GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind);
 forward GovBond_UI_OnWrite(playerid,authToken,accountId,serial);
+forward GovBond_UI_TaxTick();
+forward GovBond_UI_OnTaxScan();
+forward GovBond_UI_OnTaxPost();
 forward bool:GovBond_UI_OnError(errorid,const callback[],const query[]);
 
 stock GovBond_UI_Reset(playerid)
@@ -75,6 +81,10 @@ stock GovBond_UI_Reset(playerid)
 stock GovBond_UI_Shutdown()
 {
     gGovUIReady=false;
+    if(gGovUITaxTimer) KillTimer(gGovUITaxTimer);
+    gGovUITaxTimer=0;
+    gGovUITaxScanBusy=false;
+    gGovUITaxPostBusy=false;
     return 1;
 }
 
@@ -96,7 +106,17 @@ stock GovBond_UI_Init()
         return 1;
     }
     gGovUIReady=true;
+    gGovUITaxScanBusy=false;
+    gGovUITaxPostBusy=false;
+    gGovUITaxTimer=SetTimer("GovBond_UI_TaxTick",60000,true);
+    if (!gGovUITaxTimer)
+    {
+        gGovUIReady=false;
+        print("[GOV-05] ERROR: insurance tax sweep timer unavailable.");
+        return 1;
+    }
     print("[GOV-05] Bond governance UI ready with SQL roles and auto codes.");
+    GovBond_UI_TaxTick();
 #else
     print("[GOV-05] Government issue UI requires MySQL-primary.");
 #endif
@@ -633,10 +653,74 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     return 1;
 }
 
+// Every successful tax credit is a real positive treasury_ledger row.
+// The contribution is a reclassification, not a credit to the treasury.
+public GovBond_UI_TaxTick()
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (!gGovUIReady || gGovUITaxScanBusy || gGovUITaxPostBusy) return 1;
+    gGovUITaxScanBusy=true;
+    if (!mysql_tquery(gDBPrimary,
+       "SELECT t.ledger_id,t.event_key FROM treasury_ledger t LEFT JOIN government_bond_tax_earmarks e ON e.tax_ledger_id=t.ledger_id WHERE t.source='tax' AND t.amount_delta>0 AND e.tax_ledger_id IS NULL ORDER BY t.ledger_id LIMIT 1",
+       "GovBond_UI_OnTaxScan",""))
+    {
+        gGovUITaxScanBusy=false;
+        print("[GOV-05] Tax sweep scan was not queued.");
+    }
+#endif
+    return 1;
+}
+
+public GovBond_UI_OnTaxScan()
+{
+#if defined TARKENSO_DB_PRIMARY
+    gGovUITaxScanBusy=false;
+    if (!gGovUIReady) return 1;
+    new rows=0,ledgerId,event[65],fundEvent[65],query[310];
+    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows<1)
+        return 1;
+    if (!cache_get_value_name_int(0,"ledger_id",ledgerId) ||
+        !cache_get_value_name(0,"event_key",event,sizeof(event)) ||
+        ledgerId<=0 || !Treasury_ValidToken(event,64)) return 1;
+    format(fundEvent,sizeof(fundEvent),"fund:tax:%d",ledgerId);
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_tax_earmark('%e','%e')",fundEvent,event);
+    gGovUITaxPostBusy=true;
+    if (!mysql_tquery(gDBPrimary,query,"GovBond_UI_OnTaxPost",""))
+    {
+        gGovUITaxPostBusy=false;
+        print("[GOV-05] Tax earmark did not queue.");
+    }
+#endif
+    return 1;
+}
+
+public GovBond_UI_OnTaxPost()
+{
+#if defined TARKENSO_DB_PRIMARY
+    gGovUITaxPostBusy=false;
+    new rows=0;
+    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
+    {
+        print("[GOV-05] Tax earmark unconfirmed. Retrying idempotently later.");
+        return 1;
+    }
+    if (!BondFund_Reload())
+        print("[GOV-05] Fund snapshot not refreshed after tax allocation.");
+#endif
+    return 1;
+}
+
 public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
 {
 #if defined TARKENSO_DB_PRIMARY
     if (errorid!=1644 && errorid!=1062) return false;
+    if (!strcmp(callback,"GovBond_UI_OnTaxPost",true))
+    {
+        gGovUITaxPostBusy=false;
+        print("[GOV-05] Tax earmark rejected; source or free balance must be checked.");
+        return true;
+    }
     if (strcmp(callback,"GovBond_UI_OnWrite",true))return false;
     for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
     {
