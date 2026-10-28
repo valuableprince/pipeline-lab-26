@@ -19,7 +19,6 @@ new gTreasuryMinimumReserve;
 new gTreasuryMaxTransaction;
 new gTreasuryIncomeTaxBasisPoints;
 new gTreasuryConfigVersion;
-new bool:gTreasuryLastReplayed;
 
 stock bool:Treasury_IsReady()
 {
@@ -64,7 +63,6 @@ stock Treasury_Shutdown()
     gTreasuryMaxTransaction = 0;
     gTreasuryIncomeTaxBasisPoints = 0;
     gTreasuryConfigVersion = 0;
-    gTreasuryLastReplayed = false;
     return 1;
 }
 
@@ -128,7 +126,6 @@ stock bool:Treasury_Reload()
     gTreasuryMaxTransaction = cap;
     gTreasuryIncomeTaxBasisPoints = tax;
     gTreasuryConfigVersion = configVersion;
-    gTreasuryLastReplayed = false;
     gTreasuryReady = true;
     return true;
 #else
@@ -140,8 +137,14 @@ stock Treasury_Init()
 {
     Treasury_Shutdown();
     if (Treasury_Reload())
+    {
         printf("[TREASURY] Loaded state treasury, balance=%d, revision=%d.",
             gTreasuryBalance, gTreasuryVersion);
+        printf("[TREASURY] Enabled=%d income=%d expense=%d reserve=%d max=%d tax_bp=%d config_rev=%d.",
+            _:gTreasuryEnabled, _:gTreasuryIncomeEnabled, _:gTreasuryExpenseEnabled,
+            gTreasuryMinimumReserve, gTreasuryMaxTransaction,
+            gTreasuryIncomeTaxBasisPoints, gTreasuryConfigVersion);
+    }
     else
         print("[TREASURY] Not active (file backend, unavailable DB, or migration 017 missing).");
     return 1;
@@ -154,7 +157,6 @@ stock Treasury_Init()
 stock bool:Treasury_Post(delta, const eventKey[], const source[], const note[], actorAccountId = 0)
 {
 #if defined TARKENSO_DB_PRIMARY
-    gTreasuryLastReplayed = false;
     if (!Treasury_IsReady() || delta == 0 ||
         delta < -TREASURY_MAX_CHANGE || delta > TREASURY_MAX_CHANGE ||
         actorAccountId < 0 || !Treasury_ValidToken(eventKey, 64) ||
@@ -198,7 +200,7 @@ stock bool:Treasury_Post(delta, const eventKey[], const source[], const note[], 
     }
     gTreasuryBalance = balance;
     gTreasuryVersion = version;
-    gTreasuryLastReplayed = replayed != 0;
+    if (replayed != 0) print("[TREASURY] Duplicate event acknowledged; balance unchanged.");
     return true;
 #else
     #pragma unused delta, eventKey, source, note, actorAccountId
