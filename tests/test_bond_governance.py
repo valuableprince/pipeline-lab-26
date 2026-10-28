@@ -88,7 +88,7 @@ class BondGovernanceContracts(unittest.TestCase):
 
     def test_distinct_dialog_ids(self):
         import re
-        ids=re.findall(r"#define\\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT)\\s+\\((\\d+)\\)",UI)
+        ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT)\s+\((\d+)\)",UI)
         self.assertEqual(set(map(int,ids)),set(range(6800,6808)))
 
 
