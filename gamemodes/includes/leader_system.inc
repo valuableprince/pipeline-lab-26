@@ -117,6 +117,16 @@ stock bool:Leader_CopyFile(const source[], const target[])
 
 // Проверка инвариантов до записи: одна должность лидера, корректный срок,
 // отсутствие дубликатов и не более двух заместителей.
+stock Leader_LeaderRank(org)
+{
+    return org == FACTION_FINANCE ? 4 : 10;
+}
+
+stock Leader_DeputyRank(org)
+{
+    return org == FACTION_FINANCE ? 3 : 9;
+}
+
 stock bool:Leader_ValidateRoster(org)
 {
     if (!Leader_OrgValid(org)) return false;
@@ -128,11 +138,9 @@ stock bool:Leader_ValidateRoster(org)
             strcmp(gFactionMemberName[o][i], normalized, true) ||
             gFactionMemberRank[o][i] < 1 || gFactionMemberRank[o][i] > 10)
             return false;
-        if (org == 5 && gFactionMemberRank[o][i] != 1 &&
-            gFactionMemberRank[o][i] != 2 && gFactionMemberRank[o][i] != 9 &&
-            gFactionMemberRank[o][i] != 10) return false;
-        if (gFactionMemberRank[o][i] == 10) leaders++;
-        if (gFactionMemberRank[o][i] == 9) deputies++;
+        if (org == 5 && gFactionMemberRank[o][i] > 4) return false;
+        if (gFactionMemberRank[o][i] == Leader_LeaderRank(org)) leaders++;
+        if (gFactionMemberRank[o][i] == Leader_DeputyRank(org)) deputies++;
         for (new j = 0; j < i; j++)
             if (!strcmp(gFactionMemberName[o][i], gFactionMemberName[o][j], true))
                 return false;
@@ -245,8 +253,8 @@ stock bool:Leader_Load(org)
             ok = false;
             break;
         }
-        if (gFactionMemberRank[o][i] == 10) leaders++;
-        if (gFactionMemberRank[o][i] == 9) deputies++;
+        if (gFactionMemberRank[o][i] == Leader_LeaderRank(org)) leaders++;
+        if (gFactionMemberRank[o][i] == Leader_DeputyRank(org)) deputies++;
         for (new j = 0; j < i; j++)
             if (!strcmp(gFactionMemberName[o][j], gFactionMemberName[o][i], false))
                 ok = false;
@@ -334,12 +342,10 @@ stock Leader_PlayerRank(playerid)
     return gFactionCachedRank[playerid];
 }
 
-// Finance shows 4 ranks but uses the standard leader/deputy storage (10/9).
+// Ranks are stored exactly as shown: finance 1..4, other factions 1..10.
 stock Leader_PublicRank(org, internalRank)
 {
-    if (org != FACTION_FINANCE) return internalRank;
-    if (internalRank == 10) return 4;
-    if (internalRank == 9) return 3;
+    #pragma unused org
     return internalRank;
 }
 
@@ -348,7 +354,7 @@ stock bool:Leader_ActiveTerm(org)
     if (!Leader_OrgValid(org) || gFactionTermEnd[org - 1] <= gettime()) return false;
     new o = org - 1;
     for (new i = 0; i < gFactionCount[o]; i++)
-        if (gFactionMemberRank[o][i] == 10) return true;
+        if (gFactionMemberRank[o][i] == Leader_LeaderRank(org)) return true;
     return false;
 }
 
@@ -362,7 +368,7 @@ stock bool:Leader_FinanceAuthorized(playerid, minPublicRank)
 stock bool:Leader_StaffAccess(playerid)
 {
     new rank = Leader_PlayerRank(playerid), org = Leader_PlayerOrg(playerid);
-    return rank >= 9 && Leader_ActiveTerm(org);
+    return org && rank >= Leader_DeputyRank(org) && Leader_ActiveTerm(org);
 }
 
 stock bool:Leader_RequireStaff(playerid)
@@ -458,9 +464,9 @@ stock Leader_OnReady(playerid)
     if (!Leader_Save(org)) gFactionMemberSeen[o][index] = previous;
     new title[48], message[120];
     Leader_OrgTitle(org, title, sizeof(title));
-    format(message, sizeof(message), "Организация: %s, ранг %d. /fmenu", title, gFactionMemberRank[o][index]);
+    format(message, sizeof(message), "Организация: %s, ранг %d. /fmenu", title, Leader_PlayerRank(playerid));
     SendClientMessage(playerid, FACTION_COLOR, message);
-    if (gFactionMemberRank[o][index] >= 9 && !Leader_ActiveTerm(org))
+    if (gFactionMemberRank[o][index] >= Leader_DeputyRank(org) && !Leader_ActiveTerm(org))
         SendClientMessage(playerid, FACTION_ERROR, "Срок полномочий руководства истёк. Требуется продление.");
     return 1;
 }
@@ -469,7 +475,7 @@ stock bool:Leader_AddMember(org, const name[], rank)
 {
     if (!Leader_OrgValid(org) || gFactionCount[org - 1] >= FACTION_ROSTER_MAX ||
         rank < 1 || rank > 10 ||
-        (org == FACTION_FINANCE && rank != 1 && rank != 2 && rank != 9 && rank != 10)) return false;
+        (org == FACTION_FINANCE && rank > 4)) return false;
     new o = org - 1, i = gFactionCount[o]++;
     format(gFactionMemberName[o][i], MAX_PLAYER_NAME, "%s", name);
     gFactionMemberRank[o][i] = rank;
@@ -489,7 +495,8 @@ stock bool:Leader_RemoveMember(org, index)
 {
     if (!Leader_OrgValid(org)) return false;
     new o = org - 1;
-    if (index < 0 || index >= gFactionCount[o] || gFactionMemberRank[o][index] == 10) return false;
+    if (index < 0 || index >= gFactionCount[o] ||
+        gFactionMemberRank[o][index] == Leader_LeaderRank(org)) return false;
     new name[MAX_PLAYER_NAME], rank = gFactionMemberRank[o][index],
         joined = gFactionMemberJoined[o][index], seen = gFactionMemberSeen[o][index];
     format(name, sizeof(name), "%s", gFactionMemberName[o][index]);
@@ -528,7 +535,7 @@ stock bool:Leader_AssignLeader(org, const name[])
     new o = org - 1, idx = Leader_Find(org, name);
     if (idx < 0 && gFactionCount[o] >= FACTION_ROSTER_MAX) return false;
     for (new i = 0; i < gFactionCount[o]; i++)
-        if (gFactionMemberRank[o][i] == 10) return false;
+        if (gFactionMemberRank[o][i] == Leader_LeaderRank(org)) return false;
     for (new other = 1; other <= FACTION_COUNT; other++)
         if (other != org && Leader_Find(other, name) >= 0) return false;
 
@@ -544,7 +551,7 @@ stock bool:Leader_AssignLeader(org, const name[])
     else oldRank = gFactionMemberRank[o][idx];
 
     new now = gettime();
-    gFactionMemberRank[o][idx] = 10;
+    gFactionMemberRank[o][idx] = Leader_LeaderRank(org);
     gFactionTermStart[o] = now;
     gFactionTermEnd[o] = now + FACTION_TERM_SECONDS;
 
@@ -571,8 +578,7 @@ stock bool:Leader_AssignLeader(org, const name[])
 stock bool:Leader_ChangeRank(org, index, rank)
 {
     if (!Leader_OrgValid(org) || index < 0 || index >= gFactionCount[org - 1] ||
-        rank < 1 || rank > 9 ||
-        (org == FACTION_FINANCE && rank != 1 && rank != 2 && rank != 9)) return false;
+        rank < 1 || rank >= Leader_LeaderRank(org)) return false;
     new o = org - 1, previous = gFactionMemberRank[o][index];
     gFactionMemberRank[o][index] = rank;
     if (!Leader_Save(org))
@@ -619,7 +625,7 @@ stock Leader_Leaders(playerid)
         Leader_OrgTitle(org, title, sizeof(title));
         found = -1;
         for (new i = 0; i < gFactionCount[org - 1]; i++)
-            if (gFactionMemberRank[org - 1][i] == 10) found = i;
+            if (gFactionMemberRank[org - 1][i] == Leader_LeaderRank(org)) found = i;
         if (found < 0) format(line, sizeof(line), "%s: вакансия.", title);
         else
         {
@@ -704,7 +710,7 @@ stock Leader_Command(playerid, const command[], const params[])
         idx = Leader_Find(org, gAccountName[target]);
         if (!strcmp(command, "renewleader", true))
         {
-            if (idx < 0 || gFactionMemberRank[o][idx] != 10)
+            if (idx < 0 || gFactionMemberRank[o][idx] != Leader_LeaderRank(org))
                 return SendClientMessage(playerid, FACTION_ERROR, "Цель не является лидером.");
             format(detail, sizeof(detail), "%s -> org %d", gAccountName[target], org);
             if (!Leader_AuditPlayer(playerid, "RENEW_LEADER_INTENT", detail))
@@ -724,7 +730,7 @@ stock Leader_Command(playerid, const command[], const params[])
         if (Leader_PlayerOrg(target) && Leader_PlayerOrg(target) != org)
             return SendClientMessage(playerid, FACTION_ERROR, "Игрок уже в другой организации.");
         for (new i = 0; i < gFactionCount[o]; i++)
-            if (gFactionMemberRank[o][i] == 10)
+            if (gFactionMemberRank[o][i] == Leader_LeaderRank(org))
                 return SendClientMessage(playerid, FACTION_ERROR, "У организации уже есть лидер.");
         if (idx < 0 && gFactionCount[o] >= FACTION_ROSTER_MAX)
             return SendClientMessage(playerid, FACTION_ERROR, "Состав организации заполнен.");
@@ -750,7 +756,7 @@ stock Leader_Command(playerid, const command[], const params[])
             if (Leader_OrgValid(x))
             {
                 idx = Leader_Find(x, name);
-                if (idx >= 0 && gFactionMemberRank[x - 1][idx] == 10) { org = x; break; }
+                if (idx >= 0 && gFactionMemberRank[x - 1][idx] == Leader_LeaderRank(x)) { org = x; break; }
             }
         if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Лидер не найден.");
         o = org - 1;
@@ -759,14 +765,16 @@ stock Leader_Command(playerid, const command[], const params[])
             return SendClientMessage(playerid, FACTION_ERROR, "Журнал недоступен.");
         new oldStart = gFactionTermStart[o], oldEnd = gFactionTermEnd[o];
         gFactionTermStart[o] = 0; gFactionTermEnd[o] = 0;
-        if (!Leader_ChangeRank(org, idx, 8))
+        if (!Leader_ChangeRank(org, idx, org == FACTION_FINANCE ? 2 : 8))
         {
             gFactionTermStart[o] = oldStart; gFactionTermEnd[o] = oldEnd;
             return SendClientMessage(playerid, FACTION_ERROR, "Ошибка сохранения.");
         }
         if (!Leader_AuditPlayer(playerid, "UNLEADER", detail))
             print("[LEADER] WARN: leader removed, but audit COMMIT record failed.");
-        return SendClientMessage(playerid, FACTION_COLOR, "Лидер снят, членство сохранено (ранг 8).");
+        return SendClientMessage(playerid, FACTION_COLOR,
+            org == FACTION_FINANCE ? ("Министр снят, сотрудник остаётся специалистом (ранг 2).") :
+            ("Лидер снят, членство сохранено (ранг 8)."));
     }
 
     if (!strcmp(command, "fleave", true))
@@ -774,7 +782,7 @@ stock Leader_Command(playerid, const command[], const params[])
         org = Leader_PlayerOrg(playerid);
         if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Вы не состоите в организации.");
         idx = Leader_Find(org, gAccountName[playerid]);
-        if (Leader_PlayerRank(playerid) == 10)
+        if (Leader_PlayerRank(playerid) == Leader_LeaderRank(org))
             return SendClientMessage(playerid, FACTION_ERROR, "Лидера сначала должен снять администратор.");
         if (!Leader_AuditPlayer(playerid, "FACTION_LEAVE", gAccountName[playerid]) ||
             !Leader_RemoveMember(org, idx))
@@ -820,7 +828,7 @@ stock Leader_Command(playerid, const command[], const params[])
         idx = Leader_Find(org, gAccountName[target]);
         if (idx < 0) return SendClientMessage(playerid, FACTION_ERROR, "Игрок не в вашей организации.");
         new existingRank = gFactionMemberRank[o][idx], myRank = Leader_PlayerRank(playerid);
-        if (existingRank >= myRank || existingRank == 10)
+        if (existingRank >= myRank || existingRank == Leader_LeaderRank(org))
             return SendClientMessage(playerid, FACTION_ERROR, "Нельзя управлять равным или старшим сотрудником.");
         if (!strcmp(command, "funinvite", true))
         {
@@ -836,17 +844,18 @@ stock Leader_Command(playerid, const command[], const params[])
             if (second < 1 || second > 3)
                 return SendClientMessage(playerid,FACTION_ERROR,
                     "Минфин: 1=стажёр, 2=специалист, 3=заместитель.");
-            if (second == 3) second=9;
+            // Finance ranks are persisted directly as 1,2,3,4.
         }
-        if (second < 1 || second >= myRank || second > 9)
+        if (second < 1 || second >= myRank || second >= Leader_LeaderRank(org))
             return SendClientMessage(playerid, FACTION_ERROR, "Недопустимый ранг.");
-        if (myRank == 9 && second >= 9)
+        if (myRank == Leader_DeputyRank(org) && second >= Leader_DeputyRank(org))
             return SendClientMessage(playerid, FACTION_ERROR, "Назначать заместителей может только лидер.");
-        if (second == 9 && existingRank != 9)
+        if (second == Leader_DeputyRank(org) &&
+            existingRank != Leader_DeputyRank(org))
         {
             new deputies;
             for (new i = 0; i < gFactionCount[o]; i++)
-                if (gFactionMemberRank[o][i] == 9) deputies++;
+                if (gFactionMemberRank[o][i] == Leader_DeputyRank(org)) deputies++;
             if (deputies >= FACTION_DEPUTY_MAX)
                 return SendClientMessage(playerid, FACTION_ERROR, "Уже назначены два заместителя.");
         }
