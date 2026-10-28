@@ -682,11 +682,17 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
 
 stock bool:GovBond_UI_ParsePositive(const input[],&number,maximum)
 {
+    // Reject overflow BEFORE multiplication (e.g. ten-digit 4294967297).
     new len=strlen(input);
-    if(len<1 || len>10) return false;
+    if(len<1 || len>10 || maximum<1)return false;
+    number=0;
     for(new i=0;i<len;i++)
-        if(input[i]<'0' || input[i]>'9') return false;
-    number=strval(input);
+    {
+        if(input[i]<'0' || input[i]>'9')return false;
+        new digit=input[i]-'0';
+        if(number>(maximum-digit)/10)return false;
+        number=number*10+digit;
+    }
     return number>=1 && number<=maximum;
 }
 
