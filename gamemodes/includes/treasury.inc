@@ -91,10 +91,9 @@ stock bool:Treasury_Reload()
     }
 
     c = mysql_query(gDBPrimary,
-        "SELECT a.balance,a.enabled,a.row_version,s.income_enabled,s.expense_enabled,"
-        "s.minimum_reserve,s.max_transaction,s.income_tax_basis_points,s.config_version "
-        "FROM treasury_accounts a JOIN treasury_settings s ON s.treasury_id=a.treasury_id "
-        "WHERE a.treasury_id=1 LIMIT 1");
+        "SELECT balance,enabled,row_version,income_enabled,expense_enabled,"
+        "minimum_reserve,max_transaction,income_tax_basis_points,config_version "
+        "FROM treasury_accounts WHERE treasury_id=1 LIMIT 1");
     if (c == Cache:0) return false;
 
     new balance, enabled, version, income, expense, reserve, cap, tax, configVersion;
