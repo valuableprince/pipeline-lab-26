@@ -496,7 +496,7 @@ stock BondsUI_StartCollect(playerid)
     return 1;
 }
 
-stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
+stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 {
     if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_QUANTITY) return 0;
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY) return 1;
