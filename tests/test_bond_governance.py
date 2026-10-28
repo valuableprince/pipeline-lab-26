@@ -65,7 +65,8 @@ class BondGovernanceContracts(unittest.TestCase):
             "START TRANSACTION;","FOR UPDATE;","COMMIT;","v_replayed AS replayed"):
             with self.subTest(phrase=phrase):self.assertIn(phrase,reject)
         self.assertNotIn("UPDATE treasury_accounts SET",reject)
-        self.assertIn("('CREATE','APPROVE','OPEN','CANCEL','REJECT')",core if False else (ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf8"))
+        self.assertIn("('CREATE','APPROVE','OPEN','CANCEL','REJECT')",
+            (ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf8"))
         core=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
         self.assertIn("v_creator=p_actor_id AND NOT EXISTS",core)
         self.assertIn("m.rank_id IN (3,4)",core)
