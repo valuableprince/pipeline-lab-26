@@ -725,11 +725,11 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         // advertise DRAFTs, signatures, failed calls, or idempotent replays.
         new notice[160];
         format(notice,sizeof(notice),
-            "[Госзаймы] Министерство финансов открыло размещение %s.",
+            "[Министерство финансов] Открыто размещение облигаций {F1F4F8}%s{E6BB79}.",
             gGovUIPendingCode[playerid]);
         SendClientMessageToAll(COLOR_AMBER,notice);
         SendClientMessageToAll(FACTION_COLOR,
-            "[Госзаймы] Облигации доступны для покупки: /bonds.");
+            "[Министерство финансов] Облигации доступны для покупки: {F1F4F8}/bonds.");
     }
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
