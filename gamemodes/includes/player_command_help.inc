@@ -4,9 +4,9 @@
 #define _tarkenso_command_help_included
 
 // Player-facing analogue of /ahelp. Visibility is filtered by affiliation.
-#define CMD_HELP_CATEGORIES (6442)
-#define CMD_HELP_LIST (6443)
-#define CMD_HELP_DETAIL (6444)
+#define CMD_HELP_CATEGORIES (7902)
+#define CMD_HELP_LIST (7903)
+#define CMD_HELP_DETAIL (7904)
 #define CMD_HELP_PAGE_SIZE (7)
 
 enum E_COMMAND_HELP
