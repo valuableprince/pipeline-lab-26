@@ -158,6 +158,7 @@ stock Treasury_Init()
 stock bool:Treasury_Post(delta, const eventKey[], const source[], const note[], actorAccountId = 0)
 {
 #if defined TARKENSO_DB_PRIMARY
+    gTreasuryLastReplayed = false;
     if (!Treasury_IsReady() || delta == 0 ||
         delta < -TREASURY_MAX_CHANGE || delta > TREASURY_MAX_CHANGE ||
         actorAccountId < 0 || !Treasury_ValidToken(eventKey, 64) ||
