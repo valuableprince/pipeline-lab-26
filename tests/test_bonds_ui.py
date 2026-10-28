@@ -145,7 +145,7 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn("new rows=0, body[3500],line[260]",UI)
         # Every data row is assembled with three tabs and a newline.
         rows = re.findall(r'format\(line,sizeof\(line\),\s*"(.*?)"', UI, re.S)
-        self.assertEqual(len(rows), 3, "Both offer and portfolio rows must be tested")
+        self.assertEqual(len(rows), 4, "Offer, coupon and portfolio rows must all be tested")
         for row in rows:
             self.assertEqual(row.count(r"\t"),3,row)
             self.assertTrue(row.endswith(r"\n"),row)
