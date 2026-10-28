@@ -188,6 +188,7 @@ public PayDay_Tick()
     if (minute != 0 || currentHourKey == gPayDayLastHour) return 1;
     // Update the process-wide clock before granting to prevent repeated awards.
     gPayDayLastHour = currentHourKey;
+    BondCoupon_OnPayday(currentHourKey);
     printf("[PayDay] Processing %02d:%02d, hour key %d.", hour, second, currentHourKey);
     for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
     {
