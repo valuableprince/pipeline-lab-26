@@ -114,7 +114,7 @@ class BondInvestorUiContracts(unittest.TestCase):
         for code,label in expected.items():
             self.assertIn(f'!strcmp(status,"{code}")) format(output,size,"{label}")',label_map)
         self.assertIn("BondsUI_DebtStatusLabel(debt,debtLabel,sizeof(debtLabel));",UI)
-        self.assertIn("debtColor,debtLabel,remaining,available",UI)
+        self.assertIn("rate/100,rate%100,debtColor,debtLabel,remaining,available",UI)
         self.assertNotIn("debtColor,debt,remaining,available",UI)
         self.assertIn('!strcmp(debt,"DEFAULTED",true)',UI)
         self.assertIn('!strcmp(debt,"OVERDUE",true)',UI)
