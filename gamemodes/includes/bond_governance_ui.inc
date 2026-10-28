@@ -1156,7 +1156,8 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
                 case 3: gGovUIFace[playerid]=num;
                 case 4:
                 {
-                    if(num>1000000)return GovBond_UI_Wizard(playerid,step);
+                    if(num>1000000 || gGovUIFace[playerid]>1000000000/num)
+                        return GovBond_UI_Wizard(playerid,step);
                     gGovUIQuantity[playerid]=num;
                 }
                 case 5:
