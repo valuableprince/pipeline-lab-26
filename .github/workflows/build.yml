@@ -58,7 +58,7 @@ jobs:
           retention-days: 14
 
   gov00_mysql_uat:
-    name: GOV-00/01/02/03/04 MariaDB UAT
+    name: GOV-00/01/02/03/04/05 MariaDB UAT
     runs-on: ubuntu-latest
     timeout-minutes: 8
     services:
@@ -125,6 +125,13 @@ jobs:
 
       - name: Test GOV-04 debt recovery, crisis and restructuring
         run: python3 tests/gov04_mysql_uat.py
+
+      - name: Apply migration 023 after GOV-04 regression UAT
+        run: |
+          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/023_bond_governance.sql
+
+      - name: Test GOV-05 auto-code and official authorization on MariaDB
+        run: python3 tests/gov05_mysql_uat.py
 
   compile:
     name: Compile
