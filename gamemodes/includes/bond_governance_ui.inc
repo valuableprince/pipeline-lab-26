@@ -28,6 +28,15 @@ stock GovBond_UI_IssueStatusLabel(const status[],output[],size)
     return 1;
 }
 
+stock GovBond_UI_TypeLabel(const kind[],output[],size)
+{
+    if (!strcmp(kind,"GENERAL")) format(output,size,"Общий бюджетный заём");
+    else if (!strcmp(kind,"TARGETED")) format(output,size,"Целевое финансирование");
+    else if (!strcmp(kind,"CRISIS")) format(output,size,"Антикризисный выпуск");
+    else format(output,size,"Неизвестный тип");
+    return 1;
+}
+
 stock GovBond_UI_CrisisStatusLabel(const status[],output[],size)
 {
     if (!strcmp(status,"NORMAL")) format(output,size,"Норма");
@@ -294,7 +303,7 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
     new query[1400];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,i.rejection_reason,COALESCE(a.username,'Неизвестен') AS applicant,COALESCE(rej.username,'Неизвестен') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1),'Не назначен') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
+        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,COALESCE(a.username,'Неизвестен') AS applicant,COALESCE(rej.username,'Неизвестен') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1),'Не назначен') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
     if (!GovBond_UI_Query(playerid,query,3))
@@ -397,8 +406,8 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     }
     if (kind==3)
     {
-        new id,code[65],title[129],purpose[193],status[20];
-        new face,total,sold,yield,exposure;
+        new id,code[65],title[129],purpose[193],issueType[16],typeLabel[48],status[20];
+        new face,total,sold,yield,exposure,offerDays,maturityDays;
         new applicant[40],minister[40],rejector[40],reason[256],statusLabel[40];
         new createdAt[32],offerStart[32],offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
@@ -406,6 +415,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name(0,"issue_code",code,sizeof(code)) ||
             !cache_get_value_name(0,"title",title,sizeof(title)) ||
             !cache_get_value_name(0,"purpose",purpose,sizeof(purpose)) ||
+            !cache_get_value_name(0,"issue_type",issueType,sizeof(issueType)) ||
             !cache_get_value_name(0,"status",status,sizeof(status)) ||
             !cache_get_value_name(0,"applicant",applicant,sizeof(applicant)) ||
             !cache_get_value_name(0,"minister",minister,sizeof(minister)) ||
@@ -418,7 +428,9 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name_int(0,"max_quantity",total) ||
             !cache_get_value_name_int(0,"sold_quantity",sold) ||
             !cache_get_value_name_int(0,"yield_basis_points",yield) ||
-            !cache_get_value_name_int(0,"insured_max_exposure",exposure))
+            !cache_get_value_name_int(0,"insured_max_exposure",exposure) ||
+            !cache_get_value_name_int(0,"offer_days",offerDays) ||
+            !cache_get_value_name_int(0,"maturity_days",maturityDays))
             return 1;
         reason[0]=EOS;
         cache_get_value_name(0,"rejection_reason",reason,sizeof(reason));
@@ -427,11 +439,12 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         format(gGovUISelectedStatus[playerid],20,"%s",status);
         new body[1700],extra[400];
         GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
+        GovBond_UI_TypeLabel(issueType,typeLabel,sizeof(typeLabel));
         format(body,sizeof(body),
-            "{DDBB77}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{BAC6D4}Код выпуска: {F1F4F8}%s\n{BAC6D4}Подал заявку: {E9C67E}%s\n{BAC6D4}Действующий министр: {F1F4F8}%s\n{BAC6D4}Состояние: {F1F4F8}%s\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Назначение: {F1F4F8}%s\n{BAC6D4}Количество облигаций: {78D8AA}%d\n{BAC6D4}Номинал: {DDBB77}$%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Продано: %d\n{BAC6D4}Гарантия: $%d\n\n{BAC6D4}Дата подачи (UTC): {F1F4F8}%s\n{BAC6D4}Дата выпуска (UTC): {F1F4F8}%s\n{BAC6D4}Окончание размещения: {F1F4F8}%s\n{BAC6D4}Погашение (UTC): {F1F4F8}%s",
-            code,applicant,minister,statusLabel,title,purpose,total,face,
+            "{DDBB77}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{BAC6D4}Код выпуска: {F1F4F8}%s\n{BAC6D4}Подал заявку: {E9C67E}%s\n{BAC6D4}Действующий министр: {F1F4F8}%s\n{BAC6D4}Состояние: {F1F4F8}%s\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Назначение: {F1F4F8}%s\n{BAC6D4}Тип займа: {F1F4F8}%s\n{BAC6D4}Количество облигаций: {78D8AA}%d\n{BAC6D4}Номинал: {DDBB77}$%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Продано: %d\n{BAC6D4}Гарантия: $%d\n\n{BAC6D4}Размещение: {F1F4F8}%d дней\n{BAC6D4}Погашение: {F1F4F8}через %d дней после размещения\n{BAC6D4}Дата подачи (UTC): {F1F4F8}%s\n{BAC6D4}Дата выпуска (UTC): {F1F4F8}%s\n{BAC6D4}Окончание размещения: {F1F4F8}%s\n{BAC6D4}Погашение (UTC): {F1F4F8}%s",
+            code,applicant,minister,statusLabel,title,purpose,typeLabel,total,face,
             face*total,yield/100,yield%100,sold,exposure,
-            createdAt,offerStart,offerEnd,maturity);
+            offerDays,maturityDays,createdAt,offerStart,offerEnd,maturity);
         if(!strcmp(status,"REJECTED"))
         {
             format(extra,sizeof(extra),
@@ -489,6 +502,39 @@ stock bool:GovBond_UI_ParsePositive(const input[],&number,maximum)
     return number>=1 && number<=maximum;
 }
 
+// Player enters percent (1.5, 1,50, 0, 100), never basis points.
+// The 0..10000 bp representation is internal and exact to 0.01%.
+stock bool:GovBond_UI_ParsePercent(const input[],&basisPoints)
+{
+    new len=strlen(input),whole=0,fraction=0,fractionDigits=0;
+    new bool:separator=false;
+    if(len<1 || len>7)return false;
+    for(new i=0;i<len;i++)
+    {
+        if(input[i]=='.' || input[i]==',')
+        {
+            if(separator || i==0 || i==len-1)return false;
+            separator=true;
+            continue;
+        }
+        if(input[i]<'0' || input[i]>'9')return false;
+        if(separator)
+        {
+            fractionDigits++;
+            if(fractionDigits>2)return false;
+            fraction=fraction*10+(input[i]-'0');
+        }
+        else
+        {
+            whole=whole*10+(input[i]-'0');
+            if(whole>100)return false;
+        }
+    }
+    if(fractionDigits==1)fraction*=10;
+    basisPoints=whole*100+fraction;
+    return basisPoints<=10000;
+}
+
 stock GovBond_UI_Wizard(playerid,step)
 {
     if (!GovBond_UI_Authorized(playerid) || !GovBond_UI_CanCreate(playerid))
@@ -508,7 +554,7 @@ stock GovBond_UI_Wizard(playerid,step)
         case 4: format(prompt,sizeof(prompt),
             "{E9C67E}Количество облигаций в выпуске\n{AAB6C6}Целое число 1—1000000. Общий номинал не более 1 млрд.");
         case 5: format(prompt,sizeof(prompt),
-            "{E9C67E}Доходность за весь срок (базисные пункты)\n{AAB6C6}0—10000; например, 150 = 1.50%%.");
+            "{E9C67E}Доходность за весь срок (%%)\n{AAB6C6}От 0 до 100%%; например, 1,5 = 1,50%%. До двух знаков после запятой.");
         case 6: format(prompt,sizeof(prompt),
             "{E9C67E}Продолжительность размещения, дней\n{AAB6C6}От 1 до 30; отсчитывается от UTC-времени регистрации.");
         case 7: format(prompt,sizeof(prompt),
@@ -979,7 +1025,11 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         }
         else
         {
-            if(step==5 && !strcmp(inputtext,"0")) num=0;
+            if(step==5)
+            {
+                if(!GovBond_UI_ParsePercent(inputtext,num))
+                    return GovBond_UI_Wizard(playerid,step);
+            }
             else if(!GovBond_UI_ParsePositive(inputtext,num,1000000000))
                 return GovBond_UI_Wizard(playerid,step);
             switch(step)
