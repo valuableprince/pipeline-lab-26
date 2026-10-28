@@ -16,6 +16,7 @@
     native MySQL:mysql_connect_file(const file_name[] = "mysql.ini");
     native mysql_close(MySQL:handle);
     native mysql_errno(MySQL:handle);
+    native mysql_format(MySQL:handle, output[], max_len, const format[], {MySQL, Float, _}:...);
     native mysql_tquery(MySQL:handle, const query[], const callback[] = "",
         const format[] = "", {MySQL, Float, _}:...);
     native cache_get_row_count(&destination);
@@ -74,11 +75,10 @@
         if (!gDBShadowReady || !IsPlayerConnected(playerid) ||
             IsPlayerNPC(playerid) || gAccountName[playerid][0] == EOS)
             return 0;
-        // Ник строго нормализован [a-z0-9_]{3,20} в Auth_SetAccountName:
-        // никаких пользовательских фрагментов SQL, кроме этого ключа.
+        // Даже при строгой нормализации ника нельзя собирать SQL через format(%s).
         new query[256];
         format(gDBShadowName[playerid], MAX_PLAYER_NAME, "%s", gAccountName[playerid]);
-        format(query, sizeof(query), "SELECT balance,txn_serial,mute_until,cleaner_paid,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,password_hash FROM accounts WHERE username='%s' LIMIT 1", gAccountName[playerid]);
+        mysql_format(gDBShadowHandle, query, sizeof(query), "SELECT balance,txn_serial,mute_until,cleaner_paid,race_starts,race_finishes,race_wins,race_best,race_earned,race_last_paid,password_hash FROM accounts WHERE username='%e' LIMIT 1", gAccountName[playerid]);
         if (!mysql_tquery(gDBShadowHandle, query, "DBShadow_OnAccountResult",
             "ii", playerid, gDBShadowToken[playerid]))
         {
