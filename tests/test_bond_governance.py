@@ -26,7 +26,7 @@ class BondGovernanceContracts(unittest.TestCase):
             with self.subTest(phrase=phrase):self.assertIn(phrase,SQL)
         create=SQL.split("CREATE PROCEDURE gov_bond_issue_create_auto(",1)[1].split("END$$",1)[0]
         for phrase in ("START TRANSACTION;","ROLLBACK;","COMMIT;",
-          "f.term_end>UNIX_TIMESTAMP() FOR UPDATE","v_rank NOT IN (2,9,10)",
+          "f.term_end>UNIX_TIMESTAMP() FOR UPDATE","v_rank NOT IN (2,3,4)",
           "FROM government_bond_issues WHERE create_event_key=p_event_key",
           "FROM government_bond_code_sequences WHERE sequence_id=1 FOR UPDATE",
           "SET v_number=v_number+1",
@@ -48,18 +48,18 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertNotIn("UPDATE treasury_accounts",create)
         self.assertNotIn("UPDATE accounts SET balance",create)
 
-    def test_ministry_approval_and_no_second_signature_for_leaders(self):
+    def test_ministry_approval_requires_explicit_signature_for_every_issue(self):
         block=SQL.split("CREATE PROCEDURE gov_bond_official_approve(",1)[1].split("END$$",1)[0]
         self.assertIn("faction_members",block)
         self.assertIn("m.faction_id=5",block)
-        self.assertIn("v_rank NOT IN (9,10)",block)
+        self.assertIn("v_rank NOT IN (3,4)",block)
         self.assertIn("CALL gov_bond_issue_approve(p_event_key,p_issue_code,p_actor)",block)
         self.assertIn("INSERT INTO factions(faction_id,is_enabled,term_start,term_end)",SQL)
         self.assertNotIn("government_bond_officials",SQL)
         self.assertNotIn("gov_bond_role_set",SQL)
         core=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
         self.assertIn("v_creator=p_actor_id AND NOT EXISTS",core)
-        self.assertIn("m.rank_id IN (9,10)",core)
+        self.assertIn("m.rank_id IN (3,4)",core)
 
     def test_gov_console_is_sql_backed(self):
         for phrase in ("stock GovBond_UI_Init()","stock GovBond_UI_Main(playerid)",
@@ -84,6 +84,9 @@ class BondGovernanceContracts(unittest.TestCase):
           "finance_rank",
           "Leader_PublicRank(FACTION_FINANCE,internalRank)",
           "Leader_FinanceAuthorized(playerid,3)",
+          "stock GovBond_UI_Sign(playerid,const code[])",
+          "[Минфин] %s подал заявку на подпись выпуска %s.",
+          "[Минфин] Для подписи: /bondsign %s", 
           "bond_crisis_state",
           "bond_fund_reserved",
           "bond_payout_reserved",
@@ -91,6 +94,11 @@ class BondGovernanceContracts(unittest.TestCase):
           "GOVUI_LIST,DIALOG_STYLE_TABLIST_HEADERS",
           "GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX"):
             with self.subTest(phrase=phrase):self.assertIn(phrase,UI)
+        self.assertIn('cmd:bondsign(playerid, params[])',COMMANDS)
+        self.assertIn('return GovBond_UI_Sign(playerid,code);',COMMANDS)
+        self.assertNotIn("bond:gov5:autoapprove:",UI)
+        self.assertIn("if (replayed==0 && Leader_PlayerOrg(playerid)==FACTION_FINANCE)",UI)
+        self.assertIn("Leader_PlayerOrg(i)==FACTION_FINANCE",UI)
         self.assertIn('cmd:bondgov(playerid, params[])',COMMANDS)
         self.assertNotIn("cmd:bondgovrole(",COMMANDS)
         self.assertIn('#include "bond_governance_ui.inc"',MAIN)
