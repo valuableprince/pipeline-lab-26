@@ -415,6 +415,7 @@ BEGIN
  DECLARE v_issue BIGINT UNSIGNED DEFAULT NULL;
  DECLARE v_status VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin;
  DECLARE v_sold INT UNSIGNED;
+ DECLARE v_holder_count BIGINT UNSIGNED DEFAULT 0;
  DECLARE v_release BIGINT UNSIGNED DEFAULT 0;
  DECLARE v_event BIGINT UNSIGNED DEFAULT NULL;
  DECLARE v_event_issue BIGINT UNSIGNED;
@@ -455,6 +456,12 @@ BEGIN
  ELSE
    IF v_status NOT IN ('DRAFT','APPROVED','OFFERING') OR v_sold <> 0 THEN
      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='cannot cancel sold bond issue';
+   END IF;
+   -- Defense in depth: a stale sold_quantity must not erase ownership.
+   SELECT COUNT(*) INTO v_holder_count FROM government_bond_holdings
+     WHERE issue_id=v_issue;
+   IF v_holder_count <> 0 THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='cannot cancel issue with bond holders';
    END IF;
    IF v_status <> 'DRAFT' THEN
      SELECT max_exposure-released_exposure INTO v_release
