@@ -21,7 +21,6 @@ ALTER PROCEDURE gov_bond_recovery_allocate SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_restructure_propose SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_restructure_approve SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_crisis_reconcile SQL SECURITY DEFINER;
-ALTER PROCEDURE gov_bond_role_set SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_issue_create_auto SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_official_approve SQL SECURITY DEFINER;
 ALTER PROCEDURE gov_bond_official_open SQL SECURITY DEFINER;
@@ -109,16 +108,8 @@ FOR EACH ROW BEGIN
   SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT='GOV-06 immutable finance audit: corrections must use new events';
 END$$
-CREATE TRIGGER g06_bond_role_audit_upd BEFORE UPDATE ON government_bond_role_audit
-FOR EACH ROW BEGIN
-  SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT='GOV-06 immutable finance audit: corrections must use new events';
-END$$
-CREATE TRIGGER g06_bond_role_audit_del BEFORE DELETE ON government_bond_role_audit
-FOR EACH ROW BEGIN
-  SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT='GOV-06 immutable finance audit: corrections must use new events';
-END$$
+
+
 CREATE TRIGGER g06_crisis_events_upd BEFORE UPDATE ON bond_crisis_events
 FOR EACH ROW BEGIN
   SIGNAL SQLSTATE '45000'
