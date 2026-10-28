@@ -50,8 +50,10 @@ class CouponContracts(unittest.TestCase):
         self.assertIn("ORDER BY i.issue_id LIMIT %d",SCHEDULER)
         self.assertIn("CALL gov_bond_coupon_accrue(%d,%d)",SCHEDULER)
         self.assertIn("BondCoupon_Tick(); // reconcile at startup",SCHEDULER)
-        self.assertNotIn("IsPlayerConnected(",SCHEDULER)
-        self.assertNotIn("gAuthState[",SCHEDULER)
+        # Accrual is global/offline; chat delivery intentionally checks online status.
+        accrual=SCHEDULER.split("// Coupon notifications are independent",1)[0]
+        self.assertNotIn("IsPlayerConnected(",accrual)
+        self.assertNotIn("gAuthState[",accrual)
 
     def test_manual_coupon_collection_is_atomic_and_no_double_interest(self):
         for token in (
