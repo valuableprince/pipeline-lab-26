@@ -16,6 +16,7 @@
 #define GOVUI_ROWS (10)
 
 new bool:gGovUIReady;
+new MySQL:gGovBondAdminSQL = MYSQL_INVALID_HANDLE;
 new gGovUITaxTimer;
 new bool:gGovUITaxScanBusy;
 new bool:gGovUITaxPostBusy;
@@ -81,6 +82,11 @@ stock GovBond_UI_Reset(playerid)
 stock GovBond_UI_Shutdown()
 {
     gGovUIReady=false;
+#if defined TARKENSO_DB_PRIMARY
+    if (gGovBondAdminSQL != MYSQL_INVALID_HANDLE)
+        mysql_close(gGovBondAdminSQL);
+    gGovBondAdminSQL=MYSQL_INVALID_HANDLE;
+#endif
     if(gGovUITaxTimer) KillTimer(gGovUITaxTimer);
     gGovUITaxTimer=0;
     gGovUITaxScanBusy=false;
@@ -104,6 +110,17 @@ stock GovBond_UI_Init()
     {
         print("[GOV-05] Migration 023 missing; government issue UI disabled.");
         return 1;
+    }
+    // Founder appointment uses a SEPARATE least-privilege SQL identity.
+    // Never fall back to the ordinary gameplay DB handle if credentials are absent.
+    gGovBondAdminSQL=mysql_connect_file("mysql-govadmin.ini");
+    if (gGovBondAdminSQL==MYSQL_INVALID_HANDLE ||
+        mysql_errno(gGovBondAdminSQL)!=0)
+    {
+        if (gGovBondAdminSQL!=MYSQL_INVALID_HANDLE)
+            mysql_close(gGovBondAdminSQL);
+        gGovBondAdminSQL=MYSQL_INVALID_HANDLE;
+        print("[GOV-06] Privileged bond-role bootstrap OFF (mysql-govadmin.ini unavailable).");
     }
     gGovUIReady=true;
     gGovUITaxScanBusy=false;
@@ -177,7 +194,15 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     gGovUIPendingAccount[playerid]=gDBPrimaryAccountId[playerid];
     format(gGovUIPendingEvent[playerid],65,"%s",eventKey);
     gGovUIWriteSerial[playerid]++;
-    if (!mysql_tquery(gDBPrimary,sql,"GovBond_UI_OnWrite","iiii",
+    if (action==5 && gGovBondAdminSQL==MYSQL_INVALID_HANDLE)
+    {
+        gGovUIBusy[playerid]=false;
+        gGovUIPendingAction[playerid]=0;
+        gGovUIPendingEvent[playerid][0]=EOS;
+        return false;
+    }
+    new MySQL:connection=action==5?gGovBondAdminSQL:gDBPrimary;
+    if (!mysql_tquery(connection,sql,"GovBond_UI_OnWrite","iiii",
         playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
         gGovUIWriteSerial[playerid]))
     {
@@ -587,8 +612,11 @@ stock GovBond_UI_Grant(playerid,targetId,role,enabled)
         case 2: format(roleCode,sizeof(roleCode),"CONTROLLER");
         case 3: format(roleCode,sizeof(roleCode),"DIRECTOR");
     }
+    if (gGovBondAdminSQL==MYSQL_INVALID_HANDLE)
+        return SendClientMessage(playerid,COLOR_RED,
+            "Отдельное SQL-подключение казначея не настроено (mysql-govadmin.ini).");
     GovBond_UI_Event(playerid,eventKey,sizeof(eventKey));
-    mysql_format(gDBPrimary,query,sizeof(query),
+    mysql_format(gGovBondAdminSQL,query,sizeof(query),
        "CALL gov_bond_role_set('%e',%d,%d,'%e',%d)",
        eventKey,gDBPrimaryAccountId[playerid],gDBPrimaryAccountId[targetId],
        roleCode,enabled);
@@ -610,10 +638,12 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         gGovUIPendingAccount[playerid]!=accountId ||
         gGovUIWriteSerial[playerid]!=serial) return 1;
     new rows=0,replayed,issueId=0,code[65];
-    new bool:valid=mysql_errno(gDBPrimary)==0 &&
+    new action=gGovUIPendingAction[playerid];
+    new MySQL:connection=action==5?gGovBondAdminSQL:gDBPrimary;
+    new bool:valid=connection!=MYSQL_INVALID_HANDLE &&
+        mysql_errno(connection)==0 &&
         cache_get_row_count(rows) && rows==1 &&
         cache_get_value_name_int(0,"replayed",replayed);
-    new action=gGovUIPendingAction[playerid];
     if (valid && action==1)
         valid=cache_get_value_name_int(0,"issue_id",issueId) &&
               cache_get_value_name(0,"issue_code",code,sizeof(code));
