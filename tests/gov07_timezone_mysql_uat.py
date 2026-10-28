@@ -92,7 +92,12 @@ def main():
         "SELECT COUNT(*) FROM government_bond_coupon_notice_queue WHERE issue_id=%s",
         (issue_id,),
     ) == [(notices_before,)], "Replay created duplicate notifications"
-    assert rows("CALL gov_finance_assert_integrity()")[0][0] == "PASS"
+    with db.cursor() as cursor:
+        cursor.execute("CALL gov_finance_assert_integrity()")
+        integrity = cursor.fetchone()
+        while cursor.nextset():
+            pass
+    assert integrity[0] == "PASS", integrity
     print("GOV-07.2 PASS: +03 SQL timezone, UTC PayDay hour, replay, future guard, integrity")
 
 if __name__ == "__main__":
