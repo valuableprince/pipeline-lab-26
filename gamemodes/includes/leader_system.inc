@@ -87,7 +87,7 @@ stock bool:Leader_ParseMember(const source[], name[], &rank, &joined, &seen)
     if (field != 3) return false;
     new normalized[MAX_PLAYER_NAME];
     if (!Admin_NormalizeName(parts[0], normalized, sizeof(normalized)) ||
-        strcmp(parts[0], normalized, false) != 0) return false;
+        strcmp(parts[0], normalized, true) != 0) return false;
     if (!Leader_ParseNumber(parts[1], rank) || rank < 1 || rank > 10 ||
         !Leader_ParseNumber(parts[2], joined) || !Leader_ParseNumber(parts[3], seen)) return false;
     format(name, MAX_PLAYER_NAME, "%s", normalized);
@@ -256,7 +256,7 @@ stock bool:Leader_Load(org)
         if (gFactionMemberRank[o][i] == Leader_LeaderRank(org)) leaders++;
         if (gFactionMemberRank[o][i] == Leader_DeputyRank(org)) deputies++;
         for (new j = 0; j < i; j++)
-            if (!strcmp(gFactionMemberName[o][j], gFactionMemberName[o][i], false))
+            if (!strcmp(gFactionMemberName[o][j], gFactionMemberName[o][i], true))
                 ok = false;
     }
     if (leaders > 1 || deputies > FACTION_DEPUTY_MAX) ok = false;
@@ -292,10 +292,12 @@ stock Leader_Find(org, const name[])
     if (!Leader_OrgValid(org)) return -1;
     new o = org - 1;
     for (new i = 0; i < gFactionCount[o]; i++)
-        if (!strcmp(gFactionMemberName[o][i], name, false)) return i;
+        if (!strcmp(gFactionMemberName[o][i], name, true)) return i;
     return -1;
 }
 
+// Identity is case-insensitive in accounts.username_key. Every roster lookup
+// must follow that invariant, including after MySQL reload and /unleader.
 // Редкое O(организации * состав) обновление при входе и изменении состава.
 // Частые запросы используют два кешированных значения O(1).
 stock Leader_RefreshPlayer(playerid)
@@ -320,7 +322,7 @@ stock Leader_RefreshAccount(const name[])
     for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
     {
         if (IsPlayerConnected(playerid) && gAuthState[playerid] == AUTH_READY &&
-            !strcmp(gAccountName[playerid], name, false))
+            !strcmp(gAccountName[playerid], name, true))
         {
             Leader_RefreshPlayer(playerid);
             break;
@@ -415,7 +417,7 @@ stock Leader_Init()
             {
                 if (!gFactionAvailable[other]) continue;
                 for (new j = 0; j < gFactionCount[other]; j++)
-                    if (!strcmp(gFactionMemberName[o][i], gFactionMemberName[other][j], false))
+                    if (!strcmp(gFactionMemberName[o][i], gFactionMemberName[other][j], true))
                     {
                         gFactionAvailable[o] = false;
                         printf("[LEADER] Duplicate membership detected; organization %d blocked.", o + 1);
@@ -593,7 +595,7 @@ stock bool:Leader_ChangeRank(org, index, rank)
 stock Leader_FindOnline(const name[])
 {
     for (new i = 0; i < MAX_PLAYERS; i++)
-        if (Admin_Ready(i) && !strcmp(gAccountName[i], name, false)) return i;
+        if (Admin_Ready(i) && !strcmp(gAccountName[i], name, true)) return i;
     return INVALID_PLAYER_ID;
 }
 

@@ -92,10 +92,10 @@ jobs:
           sudo apt-get install -y mariadb-client
           python3 -m pip install --user mysql-connector-python
 
-      - name: Apply isolated schema 001 + 017 + 018 + 019
+      - name: Apply isolated schema 001 + 004 + 017 + 018 + 019
         run: |
           set -euo pipefail
-          for migration in 001_initial.sql 017_treasury_core.sql 018_gov_atomic_transfers.sql 019_bond_fund_core.sql; do
+          for migration in 001_initial.sql 004_username_case.sql 017_treasury_core.sql 018_gov_atomic_transfers.sql 019_bond_fund_core.sql; do
             mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" \
               < "db/migrations/$migration"
           done
@@ -133,6 +133,9 @@ jobs:
 
       - name: Test GOV-05 auto-code and official authorization on MariaDB
         run: python3 tests/gov05_mysql_uat.py
+
+      - name: Leader mixed-case roster persistence and solo reappointment MariaDB UAT
+        run: python3 tests/leader_case_mysql_uat.py
 
       - name: Apply GOV-06 security migration 024 on disposable MariaDB
         run: |

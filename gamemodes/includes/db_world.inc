@@ -47,17 +47,21 @@
         gFactionTermEnd[o] = end;
         for (new i = 0; i < rows; i++)
         {
-            new name[MAX_PLAYER_NAME], rank, joined, seen;
+            new name[MAX_PLAYER_NAME], normalized[MAX_PLAYER_NAME], rank, joined, seen;
             if (!cache_get_value_name(i, "username", name, sizeof(name)) ||
                 !cache_get_value_name_int(i, "rank_id", rank) ||
                 !cache_get_value_name_int(i, "joined_at", joined) ||
                 !cache_get_value_name_int(i, "last_seen", seen) ||
-                !Admin_NormalizeName(name, gFactionMemberName[o][i], MAX_PLAYER_NAME) ||
+                !Admin_NormalizeName(name, normalized, sizeof(normalized)) ||
                 rank < 1 || rank > 10 || joined < 0 || seen < 0)
             {
                 cache_delete(c);
                 return false;
             }
+            // Validate canonical account identity but preserve its exact
+            // display case. Lowercasing here made Veyran != veyran at login,
+            // while faction membership was still present in MariaDB.
+            format(gFactionMemberName[o][i], MAX_PLAYER_NAME, "%s", name);
             gFactionMemberRank[o][i] = rank;
             gFactionMemberJoined[o][i] = joined;
             gFactionMemberSeen[o][i] = seen;
