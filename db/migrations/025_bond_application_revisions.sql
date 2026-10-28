@@ -71,19 +71,7 @@ BEGIN
          OR OLD.offer_end_at <> NEW.offer_end_at
          OR OLD.maturity_at <> NEW.maturity_at)
          AND NOT (OLD.status='APPROVED' AND NEW.status='OFFERING'
-           AND BINARY OLD.issue_code REGEXP '^GOV-[0-9]{6}
-       OR BINARY OLD.create_event_key <> BINARY NEW.create_event_key
-       OR NOT (BINARY OLD.approve_event_key <=> BINARY NEW.approve_event_key)
-       OR OLD.created_by_account_id <> NEW.created_by_account_id
-       OR NOT (OLD.approved_by_account_id <=> NEW.approved_by_account_id)
-       OR NOT (OLD.approved_at <=> NEW.approved_at)
-       OR NOT (OLD.rejected_at <=> NEW.rejected_at)
-       OR NOT (OLD.rejected_by_account_id <=> NEW.rejected_by_account_id)
-       OR NOT (BINARY OLD.rejection_reason <=> BINARY NEW.rejection_reason)
-     ) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='approved bond terms immutable';
-  END IF;
-END$$
+           AND BINARY OLD.issue_code REGEXP '^GOV-[0-9]{6}$'
            AND NEW.opened_at IS NOT NULL AND NEW.offer_start_at=NEW.opened_at
            AND TIMESTAMPDIFF(DAY,OLD.offer_start_at,OLD.offer_end_at)
                =TIMESTAMPDIFF(DAY,NEW.offer_start_at,NEW.offer_end_at)
@@ -102,7 +90,6 @@ END$$
   END IF;
 END$$
 
--- GOV-02-compatible procedures rebuilt after GOV-06 assurance.
 DROP PROCEDURE IF EXISTS gov_bond_issue_approve$$
 CREATE PROCEDURE gov_bond_issue_approve(
  IN p_event_key VARCHAR(64), IN p_issue_code VARCHAR(64),
@@ -185,48 +172,7 @@ BEGIN
             AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1
             AND f.term_end>UNIX_TIMESTAMP()))
       OR (v_end <= UTC_TIMESTAMP()
-          AND BINARY p_issue_code NOT REGEXP '^GOV-[0-9]{6}
-      OR v_version >= 2147483646 THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond approval not allowed';
-   END IF;
-
-   -- Per-bond rounding UP guarantees worst-case payment even if split per owner.
-   SET v_exposure_per_unit = (CAST(v_face AS UNSIGNED) * v_coverage + 9999) DIV 10000;
-   SET v_exposure = v_exposure_per_unit * v_quantity;
-   IF v_exposure = 0 OR v_exposure > 1000000000
-      OR (v_committed + v_exposure) * 10000 > v_reserved * v_utilization THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='insufficient protected fund capacity';
-   END IF;
-
-   INSERT INTO bond_fund_guarantees(issue_code,max_exposure,event_key)
-      VALUES(p_issue_code,v_exposure,p_event_key);
-   UPDATE treasury_accounts
-      SET bond_fund_committed=bond_fund_committed+v_exposure,
-          row_version=row_version+1 WHERE code='state';
-   SET v_committed=v_committed+v_exposure;
-   SET v_version=v_version+1;
-   INSERT INTO bond_fund_ledger
-      (event_key,operation,reference_code,reserve_delta,commitment_delta,
-       reserved_after,committed_after,treasury_row_version_after,actor_account_id)
-      VALUES(p_event_key,'COMMIT',p_issue_code,0,v_exposure,
-             v_reserved,v_committed,v_version,p_actor_id);
-   UPDATE government_bond_issues SET
-       status='APPROVED',coverage_basis_points=v_coverage,
-       premium_basis_points=v_premium,grace_seconds=v_grace,
-       insured_max_exposure=v_exposure,approve_event_key=p_event_key,
-       approved_by_account_id=p_actor_id,approved_at=UTC_TIMESTAMP(),
-       row_version=row_version+1
-     WHERE issue_id=v_issue;
-   INSERT INTO government_bond_issue_audit
-     (event_key,issue_id,action,actor_account_id,from_status,to_status,fund_exposure_delta)
-     VALUES(p_event_key,v_issue,'APPROVE',p_actor_id,'DRAFT','APPROVED',v_exposure);
-   SET v_status='APPROVED';
- END IF;
- COMMIT;
- SELECT v_issue AS issue_id,v_status AS issue_status,
-        v_exposure AS insured_exposure,v_committed AS fund_committed,
-        v_version AS treasury_row_version,v_replayed AS replayed;
-END$$)
+          AND BINARY p_issue_code NOT REGEXP '^GOV-[0-9]{6}$')
       OR v_enabled <> 1
       OR v_version >= 2147483646 THEN
      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond approval not allowed';
@@ -318,23 +264,7 @@ BEGIN
    SET v_replayed=1;
  ELSE
    IF v_status <> 'APPROVED' OR
-       (BINARY p_issue_code NOT REGEXP '^GOV-[0-9]{6}
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond offering outside permitted window';
-   END IF;
-   SELECT max_exposure-released_exposure INTO v_guarantee
-     FROM bond_fund_guarantees WHERE issue_code=p_issue_code;
-   IF v_guarantee IS NULL OR v_guarantee=0 THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond guarantee not funded';
-   END IF;
-   IF BINARY p_issue_code REGEXP '^GOV-[0-9]{6}
-   INSERT INTO government_bond_issue_audit
-     (event_key,issue_id,action,actor_account_id,from_status,to_status)
-     VALUES(p_event_key,v_issue,'OPEN',p_actor_id,'APPROVED','OFFERING');
-   SET v_status='OFFERING';
- END IF;
- COMMIT;
- SELECT v_issue AS issue_id,v_status AS issue_status,v_replayed AS replayed;
-END$$ AND
+       (BINARY p_issue_code NOT REGEXP '^GOV-[0-9]{6}$' AND
         (v_start>UTC_TIMESTAMP() OR v_end<=UTC_TIMESTAMP())) THEN
      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond offering outside permitted window';
    END IF;
@@ -343,16 +273,7 @@ END$$ AND
    IF v_guarantee IS NULL OR v_guarantee=0 THEN
      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond guarantee not funded';
    END IF;
-   UPDATE government_bond_issues SET status='OFFERING',
-     opened_at=UTC_TIMESTAMP(),row_version=row_version+1 WHERE issue_id=v_issue;
-   INSERT INTO government_bond_issue_audit
-     (event_key,issue_id,action,actor_account_id,from_status,to_status)
-     VALUES(p_event_key,v_issue,'OPEN',p_actor_id,'APPROVED','OFFERING');
-   SET v_status='OFFERING';
- END IF;
- COMMIT;
- SELECT v_issue AS issue_id,v_status AS issue_status,v_replayed AS replayed;
-END$$ THEN
+   IF BINARY p_issue_code REGEXP '^GOV-[0-9]{6}$' THEN
      SET v_offer_days=TIMESTAMPDIFF(DAY,v_start,v_end);
      SET v_maturity_days=TIMESTAMPDIFF(DAY,v_end,v_maturity);
      IF v_offer_days NOT BETWEEN 1 AND 30
@@ -368,24 +289,6 @@ END$$ THEN
      UPDATE government_bond_issues SET status='OFFERING',
        opened_at=UTC_TIMESTAMP(),row_version=row_version+1 WHERE issue_id=v_issue;
    END IF;
-   INSERT INTO government_bond_issue_audit
-     (event_key,issue_id,action,actor_account_id,from_status,to_status)
-     VALUES(p_event_key,v_issue,'OPEN',p_actor_id,'APPROVED','OFFERING');
-   SET v_status='OFFERING';
- END IF;
- COMMIT;
- SELECT v_issue AS issue_id,v_status AS issue_status,v_replayed AS replayed;
-END$$ AND
-        (v_start>UTC_TIMESTAMP() OR v_end<=UTC_TIMESTAMP())) THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond offering outside permitted window';
-   END IF;
-   SELECT max_exposure-released_exposure INTO v_guarantee
-     FROM bond_fund_guarantees WHERE issue_code=p_issue_code;
-   IF v_guarantee IS NULL OR v_guarantee=0 THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond guarantee not funded';
-   END IF;
-   UPDATE government_bond_issues SET status='OFFERING',
-     opened_at=UTC_TIMESTAMP(),row_version=row_version+1 WHERE issue_id=v_issue;
    INSERT INTO government_bond_issue_audit
      (event_key,issue_id,action,actor_account_id,from_status,to_status)
      VALUES(p_event_key,v_issue,'OPEN',p_actor_id,'APPROVED','OFFERING');
