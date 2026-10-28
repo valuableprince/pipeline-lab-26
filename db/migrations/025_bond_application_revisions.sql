@@ -395,3 +395,157 @@ END$$ AND
  SELECT v_issue AS issue_id,v_status AS issue_status,v_replayed AS replayed;
 END$$
 
+-- RETURN is not a rejection: it preserves the GOV code and permits
+-- only its creator to resubmit. The review is append-only evidence.
+CREATE PROCEDURE gov_bond_official_return(
+ IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),
+ IN p_actor BIGINT UNSIGNED,IN p_reason VARCHAR(255)
+)
+SQL SECURITY DEFINER
+BEGIN
+ DECLARE v_issue BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_creator BIGINT UNSIGNED;
+ DECLARE v_status VARCHAR(16);
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
+ DECLARE v_revision INT UNSIGNED;
+ DECLARE v_event BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_event_actor BIGINT UNSIGNED;
+ DECLARE v_event_issue BIGINT UNSIGNED;
+ DECLARE v_event_action VARCHAR(16);
+ DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+ IF p_event_key IS NULL OR CHAR_LENGTH(p_event_key) NOT BETWEEN 7 AND 64
+   OR LEFT(BINARY p_event_key,5)<>BINARY 'bond:'
+   OR p_event_key NOT REGEXP '^bond:[A-Za-z0-9_:/.-]+$'
+   OR p_issue_code IS NULL OR p_issue_code NOT REGEXP '^GOV-[0-9]{6}$'
+   OR p_actor IS NULL OR p_actor=0 OR p_reason IS NULL
+   OR CHAR_LENGTH(TRIM(p_reason)) NOT BETWEEN 5 AND 160
+   OR p_reason REGEXP '[[:cntrl:]]' OR p_reason LIKE '%{%' OR p_reason LIKE '%}%' THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid bond return';
+ END IF;
+ START TRANSACTION;
+ SELECT issue_id,created_by_account_id,status,revision_count
+   INTO v_issue,v_creator,v_status,v_revision
+   FROM government_bond_issues WHERE issue_code=p_issue_code FOR UPDATE;
+ IF v_issue IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond missing'; END IF;
+ SELECT event_id,issue_id,actor_account_id,action
+   INTO v_event,v_event_issue,v_event_actor,v_event_action
+   FROM government_bond_issue_audit WHERE event_key=p_event_key LIMIT 1;
+ IF v_event IS NOT NULL THEN
+   IF v_event_issue<>v_issue OR v_event_actor<>p_actor OR v_event_action<>'RETURN'
+     OR NOT EXISTS(SELECT 1 FROM government_bond_revision_reviews
+          WHERE event_key=p_event_key AND BINARY reason=BINARY p_reason) THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='return replay collision';
+   END IF;
+   SET v_replayed=1;
+ ELSE
+   SELECT m.rank_id INTO v_rank FROM faction_members m JOIN factions f
+     ON f.faction_id=m.faction_id WHERE m.account_id=p_actor AND m.faction_id=5
+     AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP();
+   IF v_rank IS NULL OR v_rank NOT IN (3,4) OR v_status<>'DRAFT'
+      OR v_revision>=1000 THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='return requires valid draft and official';
+   END IF;
+   UPDATE government_bond_issues
+     SET status='RETURNED',returned_reason=p_reason,
+       returned_by_account_id=p_actor,returned_at=UTC_TIMESTAMP(),
+       revision_count=revision_count+1,row_version=row_version+1
+     WHERE issue_id=v_issue;
+   INSERT INTO government_bond_revision_reviews
+     (issue_id,event_key,reviewer_account_id,revision_number,reason)
+     VALUES(v_issue,p_event_key,p_actor,v_revision+1,p_reason);
+   INSERT INTO government_bond_issue_audit
+     (event_key,issue_id,action,actor_account_id,from_status,to_status)
+     VALUES(p_event_key,v_issue,'RETURN',p_actor,'DRAFT','RETURNED');
+   SET v_status='RETURNED';
+ END IF;
+ COMMIT;
+ SELECT v_issue AS issue_id,v_status AS issue_status,
+    v_creator AS creator_account_id,p_reason AS return_reason,
+    v_replayed AS replayed;
+END$$
+
+CREATE PROCEDURE gov_bond_issue_resubmit(
+ IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),
+ IN p_actor BIGINT UNSIGNED,IN p_title VARCHAR(128),
+ IN p_purpose VARCHAR(512),IN p_type VARCHAR(16),
+ IN p_face INT,IN p_quantity INT,IN p_yield_bps INT,
+ IN p_offer_days INT,IN p_maturity_days INT
+)
+SQL SECURITY DEFINER
+BEGIN
+ DECLARE v_issue BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_creator BIGINT UNSIGNED;
+ DECLARE v_status VARCHAR(16);
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
+ DECLARE v_event BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_event_actor BIGINT UNSIGNED;
+ DECLARE v_event_issue BIGINT UNSIGNED;
+ DECLARE v_event_action VARCHAR(16);
+ DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
+ DECLARE v_start DATETIME;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+ IF p_event_key IS NULL OR CHAR_LENGTH(p_event_key) NOT BETWEEN 7 AND 64
+   OR LEFT(BINARY p_event_key,5)<>BINARY 'bond:'
+   OR p_event_key NOT REGEXP '^bond:[A-Za-z0-9_:/.-]+$'
+   OR p_issue_code IS NULL OR p_issue_code NOT REGEXP '^GOV-[0-9]{6}$'
+   OR p_actor IS NULL OR p_actor=0
+   OR p_title IS NULL OR CHAR_LENGTH(TRIM(p_title)) NOT BETWEEN 3 AND 128
+   OR p_purpose IS NULL OR CHAR_LENGTH(TRIM(p_purpose)) NOT BETWEEN 3 AND 192
+   OR p_type NOT IN ('GENERAL','TARGETED','CRISIS')
+   OR p_face IS NULL OR p_face NOT BETWEEN 1 AND 1000000000
+   OR p_quantity IS NULL OR p_quantity NOT BETWEEN 1 AND 1000000
+   OR CAST(p_face AS UNSIGNED)*p_quantity > 1000000000
+   OR p_yield_bps IS NULL OR p_yield_bps NOT BETWEEN 0 AND 10000
+   OR p_offer_days IS NULL OR p_offer_days NOT BETWEEN 1 AND 30
+   OR p_maturity_days IS NULL OR p_maturity_days NOT BETWEEN 1 AND 365 THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid bond resubmission';
+ END IF;
+ START TRANSACTION;
+ SELECT issue_id,created_by_account_id,status
+   INTO v_issue,v_creator,v_status FROM government_bond_issues
+   WHERE issue_code=p_issue_code FOR UPDATE;
+ IF v_issue IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond missing'; END IF;
+ SELECT event_id,issue_id,actor_account_id,action
+   INTO v_event,v_event_issue,v_event_actor,v_event_action
+   FROM government_bond_issue_audit WHERE event_key=p_event_key LIMIT 1;
+ IF v_event IS NOT NULL THEN
+   IF v_event_issue<>v_issue OR v_event_actor<>p_actor OR v_event_action<>'RESUBMIT'
+     OR BINARY (SELECT title FROM government_bond_issues WHERE issue_id=v_issue)<>BINARY p_title
+     OR BINARY (SELECT purpose FROM government_bond_issues WHERE issue_id=v_issue)<>BINARY p_purpose
+     OR (SELECT face_value FROM government_bond_issues WHERE issue_id=v_issue)<>p_face
+     OR (SELECT max_quantity FROM government_bond_issues WHERE issue_id=v_issue)<>p_quantity
+     OR (SELECT yield_basis_points FROM government_bond_issues WHERE issue_id=v_issue)<>p_yield_bps THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='resubmit replay collision';
+   END IF;
+   SET v_replayed=1;
+ ELSE
+   SELECT m.rank_id INTO v_rank FROM faction_members m JOIN factions f
+     ON f.faction_id=m.faction_id WHERE m.account_id=p_actor AND m.faction_id=5
+     AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP();
+   IF v_creator<>p_actor OR v_status<>'RETURNED'
+     OR v_rank IS NULL OR v_rank NOT IN (2,3,4) THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='resubmit requires original author and returned state';
+   END IF;
+   SET v_start=UTC_TIMESTAMP();
+   UPDATE government_bond_issues SET status='DRAFT',
+     title=p_title,purpose=p_purpose,issue_type=p_type,
+     face_value=p_face,max_quantity=p_quantity,yield_basis_points=p_yield_bps,
+     offer_start_at=v_start,
+     offer_end_at=DATE_ADD(v_start,INTERVAL p_offer_days DAY),
+     maturity_at=DATE_ADD(DATE_ADD(v_start,INTERVAL p_offer_days DAY),
+                          INTERVAL p_maturity_days DAY),
+     returned_reason=NULL,returned_by_account_id=NULL,returned_at=NULL,
+     row_version=row_version+1 WHERE issue_id=v_issue;
+   INSERT INTO government_bond_issue_audit
+     (event_key,issue_id,action,actor_account_id,from_status,to_status)
+     VALUES(p_event_key,v_issue,'RESUBMIT',p_actor,'RETURNED','DRAFT');
+   SET v_status='DRAFT';
+ END IF;
+ COMMIT;
+ SELECT v_issue AS issue_id,p_issue_code AS issue_code,
+    v_status AS issue_status,v_replayed AS replayed;
+END$$
+
+DELIMITER ;
+INSERT INTO schema_migrations(version) VALUES (25);
