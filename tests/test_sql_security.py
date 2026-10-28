@@ -30,6 +30,12 @@ class SQLSecurityGateTests(unittest.TestCase):
             'mysql_tquery(db, query);'
         ))
 
+    def test_textdraw_export_instructions_are_not_sql(self):
+        self.assertEqual(rules(
+            'format(line, sizeof(line), '
+            '"Route clicks from OnPlayerClickTextDraw through %s_Hit(clickedid).", prefix);'
+        ), set())
+
     def test_indirect_format_sql_is_blocked(self):
         self.assertIn("SQL005", rules(
             'format(q, sizeof(q), "%s", inputtext); mysql_query(db, q);'
