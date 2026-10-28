@@ -247,13 +247,6 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     return 1;
 }
 
-stock GovBond_UI_PublicReport(playerid)
-{
-    if (!GovBond_UI_Authorized(playerid)) return 1;
-    gGovUIPublicReport[playerid]=true;
-    return GovBond_UI_Report(playerid);
-}
-
 stock GovBond_UI_Report(playerid)
 {
 #if defined TARKENSO_DB_PRIMARY
@@ -266,6 +259,13 @@ stock GovBond_UI_Report(playerid)
     #pragma unused playerid
 #endif
     return 1;
+}
+
+stock GovBond_UI_PublicReport(playerid)
+{
+    if (!GovBond_UI_Authorized(playerid)) return 1;
+    gGovUIPublicReport[playerid]=true;
+    return GovBond_UI_Report(playerid);
 }
 
 public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
