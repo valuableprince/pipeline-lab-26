@@ -30,7 +30,7 @@ class LeaderCoreContract(unittest.TestCase):
                   "return org == FACTION_FINANCE ? 3 : 9;",
                   "return internalRank;",
                   "stock bool:Leader_FinanceAuthorized(playerid, minPublicRank)",
-                  "if (org == FACTION_FINANCE && rank > 4) return false;",
+                  "(org == FACTION_FINANCE && rank > 4)) return false;",
                   "gFactionMemberRank[o][idx] = Leader_LeaderRank(org);",
                   "org == FACTION_FINANCE && rank > 4",
                   "Leader_ActiveTerm(FACTION_FINANCE)"):
