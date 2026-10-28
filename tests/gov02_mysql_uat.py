@@ -118,9 +118,10 @@ def main():
     select("UPDATE government_bond_issues SET sold_quantity=1 WHERE issue_id=%s",
            (first[0],))
     rejects("gov_bond_issue_cancel","bond:cancel:sold","GOV02-A",APPROVER)
-    select("DELETE FROM government_bond_holdings WHERE issue_id=%s",(first[0],))
     select("UPDATE government_bond_issues SET sold_quantity=0 WHERE issue_id=%s",
            (first[0],))
+    rejects("gov_bond_issue_cancel","bond:cancel:holder","GOV02-A",APPROVER)
+    select("DELETE FROM government_bond_holdings WHERE issue_id=%s",(first[0],))
 
     cancelled=call("gov_bond_issue_cancel","bond:cancel:A","GOV02-A",APPROVER)
     assert cancelled[1:]==("CANCELLED",20000,80000,cancelled[4],0),cancelled
