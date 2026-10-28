@@ -83,13 +83,13 @@ class OverdueDebtContracts(unittest.TestCase):
             "CALL gov_bond_recovery_allocate","CALL gov_bond_crisis_reconcile",
             "mysql_tquery(gDBPrimary","insurance_event_key IS NOT NULL",
             "ORDER BY i.maturity_at,i.issue_id LIMIT 1",
-            "GovDebt_OnError(errorid,const callback[])"):
+            "GovDebt_OnError(errorid,const callback[],const query[])"):
             with self.subTest(needle=needle):self.assertIn(needle,PAWN)
         self.assertIn('#include "gov_debt.inc"',MAIN)
         self.assertIn("    GovDebt_Init();",MAIN)
         self.assertIn("    GovDebt_Shutdown();",MAIN)
         self.assertEqual(MAIN.count("    GovDebt_Reset(playerid);"),2)
-        self.assertIn("GovDebt_OnError(errorid, callback)",DB)
+        self.assertIn("GovDebt_OnError(errorid, callback, query)",DB)
         self.assertIn("022_bond_debt_crisis.sql",CI)
         self.assertIn("gov04_mysql_uat.py",CI)
         assert_staged(self,"gov_debt.inc")
