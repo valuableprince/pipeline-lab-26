@@ -293,6 +293,8 @@
 
     stock bool:DBPrimary_WriteAccount(playerid, bool:create = false)
     {
+        // Never overwrite money while an async account/treasury transfer is pending.
+        if (gGovTransferBusy[playerid]) return false;
         if (!DBPrimary_IsReady() || !gAccountName[playerid][0] ||
             strlen(gAccountHash[playerid]) != 60 || gBackground[playerid] < 1 ||
             gBackground[playerid] > 3 ||
