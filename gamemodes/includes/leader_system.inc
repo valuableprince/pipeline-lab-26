@@ -493,12 +493,16 @@ stock bool:Leader_AddMember(org, const name[], rank)
     return true;
 }
 
-stock bool:Leader_RemoveMember(org, index)
+// Only /unleader may remove the current leader: ordinary staff dismissal and
+// /fleave remain unable to bypass administrator-only leadership removal.
+stock bool:Leader_RemoveMember(org, index, bool:removeLeader = false)
 {
     if (!Leader_OrgValid(org)) return false;
     new o = org - 1;
-    if (index < 0 || index >= gFactionCount[o] ||
-        gFactionMemberRank[o][index] == Leader_LeaderRank(org)) return false;
+    if (index < 0 || index >= gFactionCount[o]) return false;
+    new bool:isLeader = gFactionMemberRank[o][index] == Leader_LeaderRank(org);
+    if (isLeader != removeLeader) return false;
+    new oldStart = gFactionTermStart[o], oldEnd = gFactionTermEnd[o];
     new name[MAX_PLAYER_NAME], rank = gFactionMemberRank[o][index],
         joined = gFactionMemberJoined[o][index], seen = gFactionMemberSeen[o][index];
     format(name, sizeof(name), "%s", gFactionMemberName[o][index]);
@@ -510,8 +514,17 @@ stock bool:Leader_RemoveMember(org, index)
         gFactionMemberSeen[o][j] = gFactionMemberSeen[o][j + 1];
     }
     gFactionCount[o]--;
+    if (isLeader)
+    {
+        // The leader is removed from the roster in the SAME atomic save as
+        // the cleared term; no implicit demotion or provisional membership.
+        gFactionTermStart[o] = 0;
+        gFactionTermEnd[o] = 0;
+    }
     if (!Leader_Save(org))
     {
+        gFactionTermStart[o] = oldStart;
+        gFactionTermEnd[o] = oldEnd;
         for (new j = gFactionCount[o]; j > index; j--)
         {
             format(gFactionMemberName[o][j], MAX_PLAYER_NAME, "%s", gFactionMemberName[o][j - 1]);
@@ -665,7 +678,7 @@ stock Leader_Command(playerid, const command[], const params[])
         new text[100];
         format(text, sizeof(text), "%s", params);
         Admin_SafeText(text, sizeof(text));
-        format(message, sizeof(message), "[F] %s: %s", gAccountName[playerid], text);
+        format(message, sizeof(message), "[R] %s: %s", gAccountName[playerid], text);
         // Раньше здесь для каждого игрока повторно перебирались все составы.
         // Теперь проверка кеша O(1) на участника.
         for (new i = 0; i < MAX_PLAYERS; i++)
@@ -768,18 +781,18 @@ stock Leader_Command(playerid, const command[], const params[])
         format(detail, sizeof(detail), "%s -> org %d", name, org);
         if (!Leader_AuditPlayer(playerid, "UNLEADER_INTENT", detail))
             return SendClientMessage(playerid, FACTION_ERROR, "Журнал недоступен.");
-        new oldStart = gFactionTermStart[o], oldEnd = gFactionTermEnd[o];
-        gFactionTermStart[o] = 0; gFactionTermEnd[o] = 0;
-        if (!Leader_ChangeRank(org, idx, org == FACTION_FINANCE ? 2 : 8))
-        {
-            gFactionTermStart[o] = oldStart; gFactionTermEnd[o] = oldEnd;
-            return SendClientMessage(playerid, FACTION_ERROR, "Ошибка сохранения.");
-        }
+        // Atomic roster removal + term reset. The former leader is now
+        // a civilian, with no faction permissions, immediately and after relog.
+        if (!Leader_RemoveMember(org, idx, true))
+            return SendClientMessage(playerid, FACTION_ERROR, "Увольнение не сохранено. Изменения отменены.");
         if (!Leader_AuditPlayer(playerid, "UNLEADER", detail))
             print("[LEADER] WARN: leader removed, but audit COMMIT record failed.");
+        target = Leader_FindOnline(name);
+        if (target != INVALID_PLAYER_ID)
+            SendClientMessage(target, FACTION_COLOR,
+                "Вы сняты с должности руководителя и уволены из организации.");
         return SendClientMessage(playerid, FACTION_COLOR,
-            org == FACTION_FINANCE ? ("Министр снят, сотрудник остаётся специалистом (ранг 2).") :
-            ("Лидер снят, членство сохранено (ранг 8)."));
+            "Руководитель снят и уволен из организации. Членство прекращено.");
     }
 
     if (!strcmp(command, "fleave", true))
