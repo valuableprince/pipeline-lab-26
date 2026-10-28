@@ -108,9 +108,57 @@ def main():
             "bond_payout_reserved FROM treasury_accounts WHERE code='state'")[0]
     assert after[0]==before[0] and after[1]==before[1] and after[3]==before[3]
     assert after[2]>before[2]
+    # GOV-05.2: strict 20% per issue and multiple independent codes.
+    # Fail closed: under five units no account can hold even one at 20%.
+    deny("gov_bond_issue_create_auto","bond:gov52:small",specialist,
+         "Unmarketable small issue","Needs at least five bonds",
+         "GENERAL",100,4,150,7,30)
+
+    large=call("gov_bond_issue_create_auto","bond:gov52:first",specialist,
+               "Municipal budget series A","Construction infrastructure",
+               "GENERAL",100,50,150,7,30)
+    small=call("gov_bond_issue_create_auto","bond:gov52:second",specialist,
+               "Municipal budget series B","Road resurfacing works",
+               "TARGETED",100,10,200,7,30)
+    assert large[1]!=small[1] and large[0]!=small[0]
+    for index,issue_row in enumerate((large,small)):
+        code2=issue_row[1]
+        assert call("gov_bond_official_approve",
+                    f"bond:gov52:approve:{index}",code2,minister)[1]=="APPROVED"
+        assert call("gov_bond_official_open",
+                    f"bond:gov52:open:{index}",code2,deputy)[1]=="OFFERING"
+
+    buyer=trainee
+    def buy_unique(key,issue_code,quantity):
+        version=q("SELECT row_version FROM accounts WHERE account_id=%s",(buyer,))[0][0]
+        return call("gov_bond_buy",key,issue_code,buyer,quantity,version)
+
+    paid=buy_unique("bond:gov52:buy4",large[1],4)
+    assert paid[-1]==0
+    paid2=buy_unique("bond:gov52:buy6",large[1],6)
+    assert paid2[-1]==0
+    assert q("SELECT quantity FROM government_bond_holdings "
+             "WHERE issue_id=%s AND account_id=%s",(large[0],buyer))==[(10,)]
+    # A subsequent order cannot push the account to 11/50 = 22%.
+    deny("gov_bond_buy","bond:gov52:over-limit",large[1],buyer,1,
+         q("SELECT row_version FROM accounts WHERE account_id=%s",(buyer,))[0][0])
+    # A second issue does not share its quota with the first.
+    other=buy_unique("bond:gov52:buy-other",small[1],2)
+    assert other[-1]==0
+    assert q("SELECT issue_id,quantity FROM government_bond_holdings "
+             "WHERE account_id=%s AND issue_id IN (%s,%s) ORDER BY issue_id",
+             (buyer,large[0],small[0]))==[(large[0],10),(small[0],2)]
+    deny("gov_bond_buy","bond:gov52:second-over-limit",small[1],buyer,1,
+         q("SELECT row_version FROM accounts WHERE account_id=%s",(buyer,))[0][0])
+    # The first batch is one SQL order for 4 units, the second for 6.
+    assert q("SELECT quantity,amount_paid FROM government_bond_orders "
+             "WHERE account_id=%s AND issue_id=%s ORDER BY order_id",
+             (buyer,large[0]))==[(4,400),(6,600)]
+    assert q("CALL gov_finance_assert_integrity()")[0][0]=="PASS"
+
     print("GOV-05.1 MariaDB UAT: PASS (return/resubmit permissions and replay, "
           "immutable reason, 90-day review, opened-at sale/maturity dates, "
-          "treasury invariant)")
+          "treasury invariant, batch multi-issue holdings and strict 20pct caps)")
 
 if __name__=="__main__":
     main()
