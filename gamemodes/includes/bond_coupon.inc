@@ -19,6 +19,7 @@ new bool:gBondCouponHadError;
 new gBondCouponTimer;
 new gBondCouponNotifiedHour;
 new bool:gBondCouponNotifyBusy[MAX_PLAYERS];
+new bool:gBondCouponOfflineDeferred[MAX_PLAYERS];
 new gBondCouponNotifySeq[MAX_PLAYERS];
 
 forward BondCoupon_Tick();
@@ -136,12 +137,19 @@ public BondCoupon_OnScan()
     }
     if(rows==0)
     {
+        // A login during the batch can defer its offline summary until here.
         // Notify only after all committed coupon accruals for this hour.
         // Failed SQL work is retried by the backstop before delivery.
         if(gBondCouponNotifiedHour!=gBondCouponHourKey)
         {
             gBondCouponNotifiedHour=gBondCouponHourKey;
             BondCoupon_NotifyOnline();
+        }
+        else
+        {
+            for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
+                if(gBondCouponOfflineDeferred[playerid])
+                    BondCoupon_NotifyPlayer(playerid,true);
         }
         return 1;
     }
@@ -179,6 +187,7 @@ stock BondCoupon_NotifyReset(playerid)
 {
     gBondCouponNotifySeq[playerid]++;
     gBondCouponNotifyBusy[playerid]=false;
+    gBondCouponOfflineDeferred[playerid]=false;
     return 1;
 }
 
@@ -188,8 +197,10 @@ stock BondCoupon_NotifyPlayer(playerid,bool:offline=false)
     if(!BondCoupon_IsReady() || playerid<0 || playerid>=MAX_PLAYERS ||
        !IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
        gAuthState[playerid]!=AUTH_READY || !gDBPrimaryLoaded[playerid] ||
-       gDBPrimaryAccountId[playerid]<=0 || gBondCouponNotifyBusy[playerid])
-        return 1;
+       gDBPrimaryAccountId[playerid]<=0)return 1;
+    if(offline)gBondCouponOfflineDeferred[playerid]=true;
+    if(gBondCouponNotifyBusy[playerid] || gBondCouponScanBusy ||
+       gBondCouponPending>0)return 1;
     gBondCouponNotifyBusy[playerid]=true;
     gBondCouponNotifySeq[playerid]++;
     new query[1250];
@@ -201,8 +212,9 @@ stock BondCoupon_NotifyPlayer(playerid,bool:offline=false)
         gDBPrimaryAccountId[playerid],BOND_COUPON_NOTICE_TOP);
     if(!mysql_tquery(gDBPrimary,query,"BondCoupon_OnNotices","iiiii",
         playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
-        gBondCouponNotifySeq[playerid],_:offline))
+        gBondCouponNotifySeq[playerid],_:gBondCouponOfflineDeferred[playerid]))
         gBondCouponNotifyBusy[playerid]=false;
+    else gBondCouponOfflineDeferred[playerid]=false;
 #else
     #pragma unused playerid,offline
 #endif
@@ -216,7 +228,7 @@ stock BondCoupon_NotifyOnline()
     for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
         if(IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
             gAuthState[playerid]==AUTH_READY)
-            BondCoupon_NotifyPlayer(playerid);
+            BondCoupon_NotifyPlayer(playerid,gBondCouponOfflineDeferred[playerid]);
 #endif
     return 1;
 }
@@ -240,6 +252,13 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
 {
 #if defined TARKENSO_DB_PRIMARY
     if(!BondCoupon_NoticeValid(playerid,authToken,accountId,seq))return 1;
+    // No concurrent hour-batch may be in-flight while we show and ACK.
+    if(gBondCouponScanBusy || gBondCouponPending>0)
+    {
+        gBondCouponNotifyBusy[playerid]=false;
+        if(offline)gBondCouponOfflineDeferred[playerid]=true;
+        return 1;
+    }
     new rows=0;
     if(mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) ||
         rows>BOND_COUPON_NOTICE_TOP)
