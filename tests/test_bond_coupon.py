@@ -120,7 +120,7 @@ class CouponContracts(unittest.TestCase):
             "COUNT(*) OVER()",
             "LIMIT %d",
             "if(rows==0)",
-            "SendClientMessage(playerid,PAYDAY_COLOR,offline?",
+            "SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,offline?",
             "За время отсутствия начислены купоны",
             "Начислены купоны за PayDay",
             "Всего начислено",
