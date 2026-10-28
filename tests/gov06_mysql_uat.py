@@ -52,7 +52,6 @@ def main():
         "government_bond_claim_receipts":"event_key",
         "government_bond_recoveries":"event_key",
         "government_bond_restructure_audit":"event_key",
-        "government_bond_role_audit":"event_key",
         "bond_crisis_events":"event_key",
         "government_bond_tax_earmarks":"fund_event_key",
     }
@@ -68,7 +67,7 @@ def main():
         "WHERE ROUTINE_SCHEMA=%s AND ROUTINE_TYPE='PROCEDURE'",(dbname,))}
     for name in ("treasury_post","gov_transfer_post","gov_bond_buy",
         "gov_bond_issue_approve","gov_bond_claim_collect","bond_fund_capitalize",
-        "gov_bond_issue_create_auto","gov_bond_role_set",
+        "gov_bond_issue_create_auto",
         "gov_bond_recovery_allocate","gov_bond_tax_earmark",
         "gov_finance_assert_integrity"):
         assert procs.get(name)=="DEFINER",(name,procs.get(name))
@@ -89,7 +88,7 @@ def main():
          credentials=restricted)
     deny("INSERT INTO treasury_ledger(event_key,amount_delta,balance_after,source) "
          "VALUES('evil:credit',100,100,'evil')",credentials=restricted)
-    deny("CALL gov_bond_role_set('bond:evil:role',1,2,'DIRECTOR',1)",
+    deny("CALL gov_bond_official_approve('bond:evil:approve','GOV-000001',1)",
          credentials=restricted)
     deny("CALL gov_bond_buy('bond:evil:buy','GOV-000001',1,1,0)",
          credentials=restricted)
@@ -119,7 +118,7 @@ def main():
     assert elapsed<25,elapsed
     assert call_audit()==baseline
 
-    print("GOV-06 MariaDB UAT: PASS (22 append-only triggers, cash inflation "
+    print("GOV-06 MariaDB UAT: PASS (20 append-only triggers, cash inflation "
           "detected, no forged restricted-admin calls, 64 concurrent audits, "
           "stable reconciled balance; audit elapsed %.2f s)"%elapsed)
 
