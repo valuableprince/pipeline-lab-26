@@ -56,9 +56,11 @@ def main():
         "government_bond_tax_earmarks":"fund_event_key",
     }
     for table,col in immutable.items():
-        # Even a no-op update is forbidden; no audit history rewriting.
+        assert q(f"SELECT COUNT(*) FROM {table}")[0][0]>0,table
+        # Nonempty journal rows must remain immutable, including attempted
+        # no-op updates. DELETE LIMIT 1 must fail BEFORE removing any row.
         deny(f"UPDATE {table} SET {col}={col}")
-        deny(f"DELETE FROM {table} WHERE 1=0")
+        deny(f"DELETE FROM {table} LIMIT 1")
 
     procs={r[0]:r[1] for r in q(
         "SELECT ROUTINE_NAME,SECURITY_TYPE FROM information_schema.ROUTINES "
