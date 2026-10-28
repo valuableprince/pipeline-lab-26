@@ -41,7 +41,7 @@ def _split_privileges(raw):
             return None
         name, columns = m.groups()
         column_list = None if columns is None else {
-            x.strip().strip("\x60\"") for x in columns.split(",")
+            x.strip().strip("\x60\"").lower() for x in columns.split(",")
         }
         if columns is not None and not all(column_list):
             return None
