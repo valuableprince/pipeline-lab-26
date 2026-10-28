@@ -104,6 +104,48 @@ class LeaderCoreContract(unittest.TestCase):
         self.assertEqual(found,0)
         self.assertEqual(len(current),1)
 
+    def test_admin_unleader_fully_dismisses_and_recovers_on_save_failure(self):
+        # A dismissed minister/leader becomes an ordinary civilian with
+        # no roster slot and no cached faction permissions after save.
+        remove=CORE.split("stock bool:Leader_RemoveMember(",1)[1].split(
+            "// Полное назначение одним сохранением",1)[0]
+        cmd=CORE.split('if (!strcmp(command, "unleader", true))',1)[1].split(
+            'if (!strcmp(command, "fleave", true))',1)[0]
+        self.assertIn("bool:removeLeader = false",remove)
+        self.assertIn("if (isLeader != removeLeader) return false;",remove)
+        self.assertIn("gFactionCount[o]--;",remove)
+        self.assertIn("if (isLeader)",remove)
+        self.assertIn("gFactionTermStart[o] = 0;",remove)
+        self.assertIn("gFactionTermEnd[o] = 0;",remove)
+        self.assertIn("if (!Leader_Save(org))",remove)
+        self.assertIn("gFactionTermStart[o] = oldStart;",remove)
+        self.assertIn("gFactionTermEnd[o] = oldEnd;",remove)
+        self.assertIn("gFactionCount[o]++;",remove)
+        self.assertIn("Leader_RefreshAccount(name);",remove)
+        self.assertIn("!Leader_RemoveMember(org, idx, true)",cmd)
+        self.assertIn("UNLEADER_INTENT",cmd)
+        self.assertIn('"UNLEADER", detail',cmd)
+        self.assertIn("Leader_FindOnline(name)",cmd)
+        self.assertIn("Членство прекращено.",cmd)
+        self.assertNotIn("Leader_ChangeRank(",cmd)
+        self.assertNotIn("граждан",cmd)  # no alternate demotion path
+        self.assertIn("Leader_RemoveMember(org, idx)",CORE)
+        self.assertIn("!Leader_RequireAdmin(playerid)",cmd)
+        self.assertIn("Leader_LeaderRank(x)",cmd)
+        world=(ROOT/"gamemodes/includes/db_world.inc").read_text("utf-8")
+        self.assertIn("START TRANSACTION",world)
+        self.assertIn("DELETE FROM faction_members WHERE faction_id=%d",world)
+        self.assertIn('DBWorld_Exec("COMMIT")',world)
+
+    def test_radio_label_matches_command_everywhere(self):
+        self.assertIn('if (!strcmp(command, "r", true))',CORE)
+        self.assertIn('"[R] %s: %s"',CORE)
+        self.assertNotIn('"[F] %s: %s"',CORE)
+        self.assertIn("Использование: /r сообщение.",CORE)
+        self.assertIn("Рация организации: /r сообщение.",UI)
+        self.assertNotIn("/fchat",UI)
+        self.assertNotIn("/fchat",CORE)
+
     def test_chat_and_activity(self):
         self.assertIn('gAdminMuteUntil[playerid] > gettime()', CORE)
         self.assertIn('gFactionMemberSeen[o][index] = gettime()', CORE)

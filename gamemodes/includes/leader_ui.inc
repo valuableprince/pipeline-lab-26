@@ -100,7 +100,7 @@ stock Leader_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext
         {
             case 0: return Leader_List(playerid);
             case 1: return Leader_UI_Roster(playerid);
-            case 2: return SendClientMessage(playerid, FACTION_COLOR, "Чат организации: /fchat сообщение.");
+            case 2: return SendClientMessage(playerid, FACTION_COLOR, "Рация организации: /r сообщение. Префикс в чате: [R].");
             case 3: return Leader_Command(playerid, "fleave", "");
             case 4: return Leader_UI_Leader(playerid);
         }

@@ -42,12 +42,19 @@ try:
         assert roster==(mixed,4),roster
         assert roster[0].casefold()==original.casefold()
 
-        # Simulate /unleader (minister becomes rank 2 and term cleared),
-        # then /setleader with the display-cased account name.
+        # /unleader is a full dismissal, not a demotion: clear the term
+        # and DELETE the minister in the same transaction. Then /setleader
+        # reinstates a new leader, with fresh membership.
         cur.execute("UPDATE factions SET term_start=0,term_end=0 WHERE faction_id=5")
-        cur.execute("UPDATE faction_members SET rank_id=2 WHERE account_id=%s",
-                    (account_id,))
         cur.execute("DELETE FROM faction_members WHERE account_id=%s",(account_id,))
+        assert cur.rowcount==1
+        cur.execute("SELECT COUNT(*) FROM faction_members WHERE account_id=%s",
+                    (account_id,))
+        assert cur.fetchone()==(0,),"former minister was not made civilian"
+        cur.execute("SELECT term_start,term_end FROM factions WHERE faction_id=5")
+        assert cur.fetchone()==(0,0),"dismissal did not clear leadership term"
+        cur.execute("SELECT COUNT(*) FROM faction_members WHERE faction_id=5")
+        assert cur.fetchone()[0]>=1,"other members must remain in ministry"
         cur.execute("""
             INSERT INTO faction_members(account_id,faction_id,rank_id,joined_at,last_seen)
             SELECT account_id,5,4,%s,%s FROM accounts WHERE username_key=LOWER(%s)
@@ -63,7 +70,7 @@ try:
         assert cur.fetchone()==(mixed,)
 
     print("Leader mixed-case MariaDB UAT PASS: preserved canonical display case, "
-          "unleader rank 2, reappoint rank 4, unique membership and SQL name lookup")
+          "unleader civilian, term reset, reappoint rank 4, unique membership and SQL name lookup")
 finally:
     db.rollback()
     db.close()
