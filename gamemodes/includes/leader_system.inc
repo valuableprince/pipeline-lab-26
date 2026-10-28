@@ -777,7 +777,6 @@ stock Leader_Command(playerid, const command[], const params[])
                 if (idx >= 0 && gFactionMemberRank[x - 1][idx] == Leader_LeaderRank(x)) { org = x; break; }
             }
         if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Лидер не найден.");
-        o = org - 1;
         format(detail, sizeof(detail), "%s -> org %d", name, org);
         if (!Leader_AuditPlayer(playerid, "UNLEADER_INTENT", detail))
             return SendClientMessage(playerid, FACTION_ERROR, "Журнал недоступен.");
