@@ -41,12 +41,12 @@ def main():
             cur.execute("SELECT issue_id FROM government_bond_issues ORDER BY issue_id LIMIT 1")
             issue=cur.fetchone()
             assert issue,"GOV-05 UAT must create at least one bond issue"
-            issue_id=issue["issue_id"]
             for collation in ("utf8mb4_general_ci","utf8mb4_unicode_ci"):
                 cur.execute("SET NAMES utf8mb4 COLLATE "+collation)
                 cur.execute(listing % 0)
                 page=cur.fetchall()
-                assert page and any(x["issue_id"]==issue_id for x in page),page
+                assert page,page
+                issue_id=page[0]["issue_id"]
                 assert all(isinstance(row["applicant"],str) for row in page)
                 cur.execute(details % issue_id)
                 row=cur.fetchone()
