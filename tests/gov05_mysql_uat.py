@@ -60,7 +60,7 @@ def main():
 
     query("UPDATE factions SET term_start=UNIX_TIMESTAMP(),"
           "term_end=UNIX_TIMESTAMP()+2592000 WHERE faction_id=5")
-    for actor,rank in ((specialist,2),(deputy,9),(minister,10),(trainee,1)):
+    for actor,rank in ((specialist,2),(deputy,3),(minister,4),(trainee,1)):
         query("INSERT INTO faction_members(account_id,faction_id,rank_id,"
               "joined_at,last_seen) VALUES(%s,5,%s,UNIX_TIMESTAMP(),UNIX_TIMESTAMP())",
               (actor,rank))
@@ -106,7 +106,12 @@ def main():
     assert query("SELECT sequence_id,last_number FROM "
                  "government_bond_code_sequences")==[(1,7)]
 
-    # Rank 3 deputy approves the OWN issue with ONE signature: no other player.
+    # A DRAFT ALWAYS waits for a separate signing action; no automatic
+    # approval on the same SQL CREATE call, even if created by a leader.
+    assert query("SELECT COUNT(*) FROM government_bond_issues "
+                 "WHERE issue_code IN (%s,%s) AND status='DRAFT'",
+                 (created[1][1],created[2][1]))==[(2,)]
+    # Rank 3 deputy may explicitly sign their OWN draft.
     deputy_issue=next(r for i,r in enumerate(created) if i%3==1)
     ok=call("gov_bond_official_approve","bond:minfin:deputy:self",
             deputy_issue[1],deputy)
@@ -114,7 +119,7 @@ def main():
     assert query("SELECT approved_by_account_id,created_by_account_id "
                  "FROM government_bond_issues WHERE issue_id=%s",
                  (deputy_issue[0],))==[(deputy,deputy)]
-    # Rank 4 minister may also issue and sign an own issue.
+    # Rank 4 minister may explicitly sign an own draft as well.
     minister_issue=next(r for i,r in enumerate(created) if i%3==2)
     ok=call("gov_bond_official_approve","bond:minfin:minister:self",
             minister_issue[1],minister)
@@ -190,8 +195,8 @@ def main():
     assert query("SELECT contribution,applied_rate_bps FROM "
                  "government_bond_tax_earmarks WHERE tax_ledger_id=%s",
                  (tax_id,))==[(50,500)]
-    print("GOV-05 MariaDB UAT: PASS (standard Ministry of Finance ranks 1/2/9/10, "
-          "two-signature specialist, single-signature deputy/minister, "
+    print("GOV-05 MariaDB UAT: PASS (standard Ministry of Finance ranks 1/2/3/4, "
+          "specialist approval by leadership and explicit self-signature for ranks 3/4, "
           "concurrency and continuous GOV codes, real 5pct tax)")
 if __name__=="__main__":
     main()
