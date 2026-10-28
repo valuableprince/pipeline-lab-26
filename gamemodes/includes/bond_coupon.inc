@@ -298,7 +298,7 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
     // If ACK fails, messages may repeat, but the user never loses coupons.
     new query[670];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "INSERT IGNORE INTO government_bond_coupon_notice_deliveries (notice_id,account_id) SELECT q.notice_id,q.account_id FROM government_bond_coupon_notice_queue q LEFT JOIN government_bond_coupon_notice_deliveries d ON d.notice_id=q.notice_id WHERE q.account_id=%d AND q.notice_id<=%s AND d.notice_id IS NULL",
+        "INSERT IGNORE INTO government_bond_coupon_notice_deliveries (notice_id,account_id) SELECT q.notice_id,q.account_id FROM government_bond_coupon_notice_queue q LEFT JOIN government_bond_coupon_notice_deliveries d ON d.notice_id=q.notice_id WHERE q.account_id=%d AND q.notice_id<=CAST('%e' AS UNSIGNED) AND d.notice_id IS NULL",
         accountId,maxId);
     if(!mysql_tquery(gDBPrimary,query,"BondCoupon_OnNoticeMarked","iiii",
         playerid,authToken,accountId,seq))
