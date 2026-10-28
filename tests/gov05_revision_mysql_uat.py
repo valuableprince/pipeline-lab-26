@@ -154,7 +154,7 @@ def main():
     assert q("SELECT quantity,amount_paid FROM government_bond_orders "
              "WHERE account_id=%s AND issue_id=%s ORDER BY order_id",
              (buyer,large[0]))==[(4,400),(6,600)]
-    assert q("CALL gov_finance_assert_integrity()")[0][0]=="PASS"
+    assert call("gov_finance_assert_integrity")[0]=="PASS"
 
     print("GOV-05.1 MariaDB UAT: PASS (return/resubmit permissions and replay, "
           "immutable reason, 90-day review, opened-at sale/maturity dates, "
