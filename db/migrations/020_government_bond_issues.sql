@@ -299,13 +299,13 @@ BEGIN
       OR (v_creator=p_actor_id AND NOT EXISTS (
             SELECT 1 FROM faction_members m JOIN factions f
             ON f.faction_id=m.faction_id WHERE m.account_id=p_actor_id
-            AND m.faction_id=5 AND m.rank_id IN (9,10) AND f.is_enabled=1
+            AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1
             AND f.term_end>UNIX_TIMESTAMP()))
       OR (EXISTS (SELECT 1 FROM schema_migrations WHERE version=23)
           AND NOT EXISTS (
             SELECT 1 FROM faction_members m JOIN factions f
             ON f.faction_id=m.faction_id WHERE m.account_id=p_actor_id
-            AND m.faction_id=5 AND m.rank_id IN (9,10) AND f.is_enabled=1
+            AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1
             AND f.term_end>UNIX_TIMESTAMP()))
       OR v_end <= UTC_TIMESTAMP() OR v_enabled <> 1
       OR v_version >= 2147483646 THEN
