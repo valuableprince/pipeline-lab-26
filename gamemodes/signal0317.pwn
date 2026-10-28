@@ -189,6 +189,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "load_test.inc"
 #include "db_shadow.inc"
 #include "db_primary.inc"
+#include "treasury.inc"
 #include "load_bench.inc"
 #include "load_telemetry.inc"
 #include "loadnet_jobs.inc"
@@ -818,6 +819,7 @@ public OnGameModeInit()
         SendRconCommand("exit");
         return 0;
     }
+    Treasury_Init();
     RP_Init();
     Guard_Init();
     LoadTest_Init();
@@ -876,6 +878,7 @@ public OnGameModeExit()
     ShipSurf_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
+    Treasury_Shutdown();
     DBShadow_Shutdown();
     DBPrimary_Shutdown();
     return 1;
