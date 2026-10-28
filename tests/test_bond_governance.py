@@ -1,0 +1,96 @@
+"""GOV-05 official console, automatic issue codes and role separation contracts."""
+from pathlib import Path
+import unittest
+from build_contracts import assert_staged
+
+ROOT=Path(__file__).resolve().parents[1]
+SQL=(ROOT/"db/migrations/023_bond_governance.sql").read_text("utf-8")
+UI=(ROOT/"gamemodes/includes/bond_governance_ui.inc").read_text("utf-8")
+MAIN=(ROOT/"gamemodes/signal0317.pwn").read_text("utf-8")
+COMMANDS=(ROOT/"gamemodes/includes/commands.inc").read_text("utf-8")
+DB=(ROOT/"gamemodes/includes/db_primary.inc").read_text("utf-8")
+CI=(ROOT/".github/workflows/build.yml").read_text("utf-8")
+
+
+class BondGovernanceContracts(unittest.TestCase):
+    def test_schema_and_atomic_yearly_code(self):
+        for phrase in ("CREATE TABLE government_bond_officials",
+            "CREATE TABLE government_bond_role_audit",
+            "CREATE TABLE government_bond_code_sequences",
+            "CREATE PROCEDURE gov_bond_issue_create_auto(",
+            "CREATE PROCEDURE gov_bond_role_set(",
+            "CREATE PROCEDURE gov_bond_official_approve(",
+            "CREATE PROCEDURE gov_bond_official_open(",
+            "CREATE PROCEDURE gov_bond_official_cancel(",
+            "INSERT INTO schema_migrations(version) VALUES (23);"):
+            with self.subTest(phrase=phrase):self.assertIn(phrase,SQL)
+        create=SQL.split("CREATE PROCEDURE gov_bond_issue_create_auto(",1)[1].split("END$$",1)[0]
+        for phrase in ("START TRANSACTION;","ROLLBACK;","COMMIT;",
+          "enabled=1 FOR UPDATE","v_role NOT IN ('TREASURER','DIRECTOR')",
+          "FROM government_bond_issues WHERE create_event_key=p_event_key",
+          "FROM government_bond_code_sequences WHERE issue_year=v_year FOR UPDATE",
+          "SET v_number=v_number+1",
+          "SET v_code=CONCAT('GOV-',v_year,'-',LPAD(v_number,4,'0'))",
+          "INSERT INTO government_bond_issues",
+          "INSERT INTO government_bond_issue_audit",
+          "DATE_ADD(v_start_new,INTERVAL p_offer_days DAY)"):
+            with self.subTest(phrase=phrase):self.assertIn(phrase,create)
+        self.assertNotIn("UPDATE treasury_accounts",create)
+        self.assertNotIn("UPDATE accounts SET balance",create)
+
+    def test_issuer_roles_and_no_self_approval(self):
+        x=SQL.split("CREATE PROCEDURE gov_bond_official_approve(",1)[1].split("END$$",1)[0]
+        self.assertIn("v_role NOT IN ('CONTROLLER','DIRECTOR')",x)
+        self.assertIn("CALL gov_bond_issue_approve(p_event_key,p_issue_code,p_actor)",x)
+        self.assertIn("v_role NOT IN ('TREASURER','DIRECTOR')",SQL)
+        self.assertIn("v_role NOT IN ('CONTROLLER','DIRECTOR')",SQL)
+        self.assertIn("UNIQUE KEY uq_bond_role_audit_event",SQL)
+        self.assertIn("UNIQUE KEY uq_bond_recovery_event",(
+            ROOT/"db/migrations/022_bond_debt_crisis.sql").read_text("utf8"))
+
+    def test_gov_console_is_sql_backed(self):
+        for phrase in ("stock GovBond_UI_Init()","stock GovBond_UI_Main(playerid)",
+          "stock GovBond_UI_Grant(playerid,targetId,role,enabled)",
+          "stock GovBond_UI_Wizard(playerid,step)",
+          "stock GovBond_UI_Report(playerid)",
+          "stock GovBond_UI_LoadIssues(playerid,page=0)",
+          "stock GovBond_UI_LoadIssue(playerid,issueId)",
+          "GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])",
+          "Admin_IsFounder(playerid)","gAdminDuty[playerid]",
+          "gDBPrimaryAccountId[playerid]",
+          "gAuthToken[playerid]==authToken",
+          "gGovUIReadSerial[playerid]!=serial",
+          "gov_bond_issue_create_auto",
+          "gov_bond_role_set",
+          "gov_bond_official_approve",
+          "gov_bond_official_open",
+          "gov_bond_official_cancel",
+          "government_bond_officials",
+          "bond_crisis_state",
+          "bond_fund_reserved",
+          "bond_payout_reserved",
+          "government_bond_claims",
+          "GOVUI_LIST,DIALOG_STYLE_TABLIST_HEADERS",
+          "GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX"):
+            with self.subTest(phrase=phrase):self.assertIn(phrase,UI)
+        self.assertIn('cmd:bondgov(playerid, params[])',COMMANDS)
+        self.assertIn('cmd:bondgovrole(playerid, params[])',COMMANDS)
+        self.assertIn('#include "bond_governance_ui.inc"',MAIN)
+        self.assertIn("    GovBond_UI_Init();",MAIN)
+        self.assertIn("    GovBond_UI_Shutdown();",MAIN)
+        self.assertEqual(MAIN.count("    GovBond_UI_Reset(playerid);"),2)
+        self.assertIn("GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)",MAIN)
+        self.assertIn("GovBond_UI_OnError(errorid, callback, query)",DB)
+        self.assertIn("023_bond_governance.sql",CI)
+        self.assertIn("gov05_mysql_uat.py",CI)
+        self.assertNotIn("GivePlayerMoney(",UI)
+        assert_staged(self,"bond_governance_ui.inc")
+
+    def test_distinct_dialog_ids(self):
+        import re
+        ids=re.findall(r"#define\\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT)\\s+\\((\\d+)\\)",UI)
+        self.assertEqual(set(map(int,ids)),set(range(6800,6808)))
+
+
+if __name__=="__main__":
+    unittest.main()
