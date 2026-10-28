@@ -3,8 +3,7 @@
 -- Keep runtime DML inside treasury_post: balance and ledger must commit atomically.
 
 CREATE TABLE treasury_accounts (
-  treasury_id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-  code VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  code VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
   balance BIGINT UNSIGNED NOT NULL DEFAULT 0,
   enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
   income_enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
@@ -16,7 +15,8 @@ CREATE TABLE treasury_accounts (
   config_version INT UNSIGNED NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_treasury_code (code),
+  -- A CHECK constraint plus the primary key makes a second treasury impossible.
+  CONSTRAINT chk_treasury_singleton CHECK (code = 'state'),
   CONSTRAINT chk_treasury_balance CHECK (balance <= 2000000000),
   CONSTRAINT chk_treasury_enabled CHECK (
     enabled IN (0,1) AND income_enabled IN (0,1) AND expense_enabled IN (0,1)
@@ -32,7 +32,6 @@ CREATE TABLE treasury_accounts (
 
 CREATE TABLE treasury_ledger (
   ledger_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  treasury_id TINYINT UNSIGNED NOT NULL,
   event_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   amount_delta BIGINT NOT NULL,
   balance_after BIGINT UNSIGNED NOT NULL,
@@ -40,22 +39,18 @@ CREATE TABLE treasury_ledger (
   actor_account_id BIGINT UNSIGNED NULL,
   note VARCHAR(128) NOT NULL DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_treasury_event (treasury_id,event_key),
-  KEY idx_treasury_ledger_recent (treasury_id,ledger_id),
+  UNIQUE KEY uq_treasury_event (event_key),
   KEY idx_treasury_ledger_actor (actor_account_id),
-  CONSTRAINT fk_treasury_ledger FOREIGN KEY (treasury_id)
-    REFERENCES treasury_accounts(treasury_id) ON DELETE RESTRICT,
   CONSTRAINT fk_treasury_ledger_actor FOREIGN KEY (actor_account_id)
     REFERENCES accounts(account_id) ON DELETE RESTRICT,
   CONSTRAINT chk_treasury_delta CHECK (amount_delta BETWEEN -1000000000 AND 1000000000 AND amount_delta <> 0),
   CONSTRAINT chk_treasury_balance_after CHECK (balance_after <= 2000000000)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO treasury_accounts(treasury_id,code,balance) VALUES (1,'state',0);
+INSERT INTO treasury_accounts(code,balance) VALUES ('state',0);
 
 DELIMITER $$
 CREATE PROCEDURE treasury_post(
-  IN p_treasury_id TINYINT UNSIGNED,
   IN p_event_key VARCHAR(64),
   IN p_delta INT,
   IN p_source VARCHAR(32),
@@ -97,7 +92,7 @@ BEGIN
          minimum_reserve,max_transaction
     INTO v_balance,v_enabled,v_version,v_income,v_expense,v_reserve,v_max_transaction
     FROM treasury_accounts
-    WHERE treasury_id=p_treasury_id FOR UPDATE;
+    WHERE code='state' FOR UPDATE;
 
   IF v_balance IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'treasury not initialized';
@@ -107,7 +102,7 @@ BEGIN
   SELECT ledger_id,amount_delta,source,actor_account_id,note
     INTO v_existing_id,v_existing_delta,v_existing_source,v_existing_actor,v_existing_note
     FROM treasury_ledger
-    WHERE treasury_id=p_treasury_id AND event_key=p_event_key LIMIT 1;
+    WHERE event_key=p_event_key LIMIT 1;
 
   IF v_existing_id IS NOT NULL THEN
     IF v_existing_delta <> p_delta OR v_existing_source <> p_source
@@ -141,9 +136,9 @@ BEGIN
     SET v_new_balance = CAST(v_balance AS SIGNED) + p_delta;
     UPDATE treasury_accounts
       SET balance=v_new_balance, row_version=row_version+1
-      WHERE treasury_id=p_treasury_id;
-    INSERT INTO treasury_ledger(treasury_id,event_key,amount_delta,balance_after,source,actor_account_id,note)
-      VALUES (p_treasury_id,p_event_key,p_delta,v_new_balance,p_source,NULLIF(p_actor_id,0),p_note);
+      WHERE code='state';
+    INSERT INTO treasury_ledger(event_key,amount_delta,balance_after,source,actor_account_id,note)
+      VALUES (p_event_key,p_delta,v_new_balance,p_source,NULLIF(p_actor_id,0),p_note);
     SET v_balance = v_new_balance;
     SET v_version = v_version + 1;
   END IF;
