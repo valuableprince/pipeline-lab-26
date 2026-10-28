@@ -81,7 +81,7 @@ class TreasuryContract(unittest.TestCase):
             "WHERE version=17 LIMIT 1",
             "mysql_format(gDBPrimary",
             "CALL treasury_post(",
-            "gTreasuryLastReplayed = replayed != 0;",
+            "Duplicate event acknowledged; balance unchanged.",
             "gTreasuryReady = false;",
         ):
             self.assertIn(symbol, PAWN)
