@@ -817,21 +817,27 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     new bool:valid=mysql_errno(gDBPrimary)==0 &&
         cache_get_row_count(rows) && rows==1 &&
         cache_get_value_name_int(0,"replayed",replayed);
-    if (valid && action==1)
+    if (valid && (action==1 || action==6))
         valid=cache_get_value_name_int(0,"issue_id",issueId) &&
               cache_get_value_name(0,"issue_code",code,sizeof(code));
+    if (valid && action==6)
+        valid=issueId==gGovUISelectedIssue[playerid] &&
+              !strcmp(code,gGovUISelectedCode[playerid]) &&
+              cache_get_value_name(0,"issue_status",decisionStatus,sizeof(decisionStatus)) &&
+              !strcmp(decisionStatus,"DRAFT");
     if (valid && action==3)
         valid=cache_get_value_name_int(0,"issue_id",issueId) &&
               cache_get_value_name(0,"issue_status",decisionStatus,sizeof(decisionStatus)) &&
               issueId==gGovUIPendingIssue[playerid] &&
               gGovUIPendingCode[playerid][0] &&
               (replayed==1 || !strcmp(decisionStatus,"OFFERING"));
-    if (valid && action==5)
+    if (valid && (action==5 || action==7))
         valid=cache_get_value_name_int(0,"creator_account_id",creatorId) &&
               cache_get_value_name_int(0,"issue_id",issueId) &&
-              cache_get_value_name(0,"rejection_reason",rejectionReason,sizeof(rejectionReason)) &&
+              cache_get_value_name(0,action==7?"return_reason":"rejection_reason",
+                  rejectionReason,sizeof(rejectionReason)) &&
               cache_get_value_name(0,"issue_status",decisionStatus,sizeof(decisionStatus)) &&
-              !strcmp(decisionStatus,"REJECTED") &&
+              !strcmp(decisionStatus,action==7?"RETURNED":"REJECTED") &&
               issueId==gGovUISelectedIssue[playerid];
     // Unknown result may have COMMITTED. Disable retry for this session.
     if (!valid || (replayed!=0 && replayed!=1))
@@ -863,11 +869,12 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
     }
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
-    if (action==1)
+    if (action==1 || action==6)
     {
         new message[150];
         format(message,sizeof(message),
-            "Казначейство: проект %s зарегистрирован (ID %d).",code,issueId);
+            action==6?"Казначейство: доработанный проект %s повторно подан (ID %d).":
+                "Казначейство: проект %s зарегистрирован (ID %d).",code,issueId);
         SendClientMessage(playerid,COLOR_AMBER,message);
         // Notify the existing faction chat ONLY after a successful SQL commit.
         // Rank 3 and 4 can sign their own bond using the same explicit command.
@@ -875,7 +882,8 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
         {
             new notice[175];
             format(notice,sizeof(notice),
-                "[Минфин] %s подал заявку на подпись выпуска %s.",
+                action==6?"[Минфин] %s повторно подал доработанный выпуск %s.":
+                    "[Минфин] %s подал заявку на подпись выпуска %s.",
                 gAccountName[playerid],code);
             for(new i=0;i<MAX_PLAYERS;i++)
                 if(Leader_PlayerOrg(i)==FACTION_FINANCE)
@@ -887,11 +895,12 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
                     SendClientMessage(i,FACTION_COLOR,notice);
         }
     }
-    else if(action==5)
+    else if(action==5 || action==7)
     {
         new notice[150];
         format(notice,sizeof(notice),
-            "Заявка %s отклонена. Причина сохранена в реестре.",
+            action==7?"Заявка %s возвращена на доработку.":
+                "Заявка %s отклонена. Причина сохранена в реестре.",
             gGovUISelectedCode[playerid]);
         SendClientMessage(playerid,COLOR_AMBER,notice);
         if(replayed==0)
@@ -905,10 +914,13 @@ public GovBond_UI_OnWrite(playerid,authToken,accountId,serial)
                 {
                     SendClientMessage(i,COLOR_RED,notice);
                     format(notice,sizeof(notice),
-                        "Причина отказа: %.96s",rejectionReason);
+                        action==7?"Причина возврата: %.96s":"Причина отказа: %.96s",
+                        rejectionReason);
                     SendClientMessage(i,COLOR_AMBER,notice);
                     SendClientMessage(i,COLOR_AMBER,
-                        "Полная причина: /bondgov -> Реестр выпусков -> Отклонено.");
+                        action==7?
+                            "Полная причина: /bondgov -> Реестр выпусков -> На доработке.":
+                            "Полная причина: /bondgov -> Реестр выпусков -> Отклонено.");
                     break;
                 }
         }
@@ -1071,6 +1083,20 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_INPUT)
     {
+        if(gGovUIStage[playerid]==13)
+        {
+            if(!response)return GovBond_UI_LoadIssue(playerid,gGovUISelectedIssue[playerid]);
+            new len=strlen(inputtext),bool:nonspace=false;
+            for(new i=0;i<len;i++)
+            {
+                if(inputtext[i]!=' ')nonspace=true;
+                if(inputtext[i]=='{' || inputtext[i]=='}' || inputtext[i]<32)
+                    return GovBond_UI_ReturnReason(playerid);
+            }
+            if(len<5 || len>160 || !nonspace)
+                return GovBond_UI_ReturnReason(playerid);
+            return GovBond_UI_Return(playerid,inputtext);
+        }
         if(gGovUIStage[playerid]==11)
         {
             if(!response) return GovBond_UI_LoadIssue(playerid,gGovUISelectedIssue[playerid]);
