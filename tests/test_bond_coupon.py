@@ -44,7 +44,7 @@ class CouponContracts(unittest.TestCase):
         self.assertIn('#include "bond_coupon.inc"',MAIN)
         self.assertIn("BondCoupon_Init();",MAIN)
         self.assertIn("BondCoupon_Shutdown();",MAIN)
-        self.assertIn("SELECT version FROM schema_migrations WHERE version=26",SCHEDULER)
+        self.assertIn("SELECT version FROM schema_migrations WHERE version=27",SCHEDULER)
         self.assertIn('SetTimer("BondCoupon_Tick",BOND_COUPON_BACKSTOP_MS,true)',SCHEDULER)
         self.assertIn("NOT EXISTS (SELECT 1 FROM government_bond_coupon_events",SCHEDULER)
         self.assertIn("ORDER BY i.issue_id LIMIT %d",SCHEDULER)
@@ -82,6 +82,58 @@ class CouponContracts(unittest.TestCase):
         self.assertIn("BondSettlement_Queue(playerid,query,eventKey)",SETTLE)
         self.assertNotIn("GivePlayerMoney(",SCHEDULER)
         self.assertIn("guarded reserve", (ROOT/"tests/gov07_coupon_mysql_uat.py").read_text("utf-8"))
+
+    def test_positive_payday_chat_and_offline_replay_notices(self):
+        notice_schema=(ROOT/"db/migrations/027_bond_coupon_payday_notices.sql").read_text("utf-8")
+        login=MAIN.split("stock Auth_EnterWorld(playerid)",1)[1].split("stock ",1)[0]
+        for value in (
+            "CREATE TABLE government_bond_coupon_notice_queue",
+            "CREATE TABLE government_bond_coupon_notice_deliveries",
+            "UNIQUE KEY uq_coupon_notice_hour (issue_id,account_id,hour_key)",
+            "CHECK (amount BETWEEN 1 AND 1000000000)",
+            "CREATE TRIGGER gov_coupon_notice_upd",
+            "DROP PROCEDURE IF EXISTS gov_bond_coupon_accrue",
+            "INSERT INTO government_bond_coupon_notice_queue",
+            "HAVING SUM(p.accrued)>COALESCE(MAX(w.accrued),0)",
+            "INSERT INTO government_bond_coupon_wallets",
+            "INSERT INTO government_bond_coupon_events",
+            "INSERT INTO schema_migrations(version) VALUES (27)",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value,notice_schema)
+        self.assertLess(notice_schema.index("INSERT INTO government_bond_coupon_notice_queue"),
+                        notice_schema.index("INSERT INTO government_bond_coupon_wallets"))
+        for value in (
+            "BondCoupon_NotifyOnline();",
+            "BondCoupon_NotifyPlayer(playerid,true);",
+            "BondCoupon_NotifyReset(playerid);",
+            "BondCoupon_NoticeValid(playerid,authToken,accountId,seq)",
+            "gAuthToken[playerid]==authToken",
+            "gDBPrimaryAccountId[playerid]==accountId",
+            "gBondCouponNotifySeq[playerid]==seq",
+            "new bool:gBondCouponNotifyBusy[MAX_PLAYERS]",
+            "BOND_COUPON_NOTICE_TOP (3)",
+            "SUM(v.amount) OVER()",
+            "MAX(v.last_id) OVER()",
+            "COUNT(*) OVER()",
+            "LIMIT %d",
+            "if(rows==0)",
+            "SendClientMessage(playerid,PAYDAY_COLOR,offline?",
+            "За время отсутствия начислены купоны",
+            "Начислены купоны за PayDay",
+            "Всего начислено",
+            "Подробнее: /bonds",
+            "INSERT IGNORE INTO government_bond_coupon_notice_deliveries",
+            "q.notice_id<=%s",
+            "BondCoupon_OnNoticeMarked",
+        ):
+            with self.subTest(value=value):
+                self.assertIn(value,SCHEDULER if "BondCoupon_NotifyPlayer(playerid,true);" not in value and "BondCoupon_NotifyReset(playerid);" not in value else MAIN)
+        self.assertIn("BondCoupon_NotifyPlayer(playerid,true);",login)
+        self.assertIn("gov07_notice_mysql_uat.py",CI)
+        self.assertIn("027_bond_coupon_payday_notices.sql",CI)
+        self.assertNotIn("GivePlayerMoney(",SCHEDULER)
+        self.assertNotIn("Economy_Credit(",SCHEDULER)
 
     def test_coupon_account_in_bonds_ui(self):
         for token in (
