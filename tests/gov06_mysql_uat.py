@@ -80,8 +80,8 @@ def main():
     password="ci-isolated-auditor-only"
     q(f"CREATE USER '{user}'@'{host}' IDENTIFIED BY %s",(password,))
     for table in ("treasury_accounts","treasury_ledger","government_bond_issues"):
-        q(f"GRANT SELECT ON \`{dbname}\`.\`{table}\` TO '{user}'@'{host}'")
-    q(f"GRANT EXECUTE ON PROCEDURE \`{dbname}\`.gov_finance_assert_integrity "
+        q(f"GRANT SELECT ON `{dbname}`.`{table}` TO '{user}'@'{host}'")
+    q(f"GRANT EXECUTE ON PROCEDURE `{dbname}`.gov_finance_assert_integrity "
       f"TO '{user}'@'{host}'")
     restricted={**DB,"user":user,"password":password}
     assert call_audit(restricted)[0]=="PASS"
