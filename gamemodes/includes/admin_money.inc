@@ -42,7 +42,7 @@ stock AdminMoney_Give(playerid,const params[])
             "Превышен максимальный баланс игрока или лимит транзакций.");
 
     new detail[128],message[180];
-    format(detail,sizeof(detail),"to=%s account=%d amount=%d",
+    format(detail,sizeof(detail),"to=%s playerid=%d amount=%d",
         gAccountName[target],target,amount);
     // No award without a durable administration request audit.
     if(!Admin_LogPlayer(playerid,"GIVEMONEY_REQUEST",detail))
