@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "gamemodes/**"
+      - "db/**"
       - "tests/**"
       - "data/payday/**"
       - "tools/export_payday_phrases.py"
@@ -55,6 +56,51 @@ jobs:
           path: build/sql_security_report.json
           if-no-files-found: warn
           retention-days: 14
+
+  gov00_mysql_uat:
+    name: GOV-00 MariaDB UAT
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: gov00-ci-only
+          MARIADB_DATABASE: tarkenso_gov00
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      GOV00_TEST_HOST: 127.0.0.1
+      GOV00_TEST_USER: root
+      GOV00_TEST_PASSWORD: gov00-ci-only
+      GOV00_TEST_DB: tarkenso_gov00
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install MariaDB client and Python connector
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+          python3 -m pip install --user mysql-connector-python
+
+      - name: Apply isolated schema 001 + 017 + 018
+        run: |
+          set -euo pipefail
+          for migration in 001_initial.sql 017_treasury_core.sql 018_gov_atomic_transfers.sql; do
+            mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" \
+              < "db/migrations/$migration"
+          done
+
+      - name: Test atomicity and concurrent idempotent replay
+        run: python3 tests/gov00_mysql_uat.py
 
   compile:
     name: Compile
