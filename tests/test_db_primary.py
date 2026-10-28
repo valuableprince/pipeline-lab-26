@@ -24,6 +24,10 @@ class PrimaryDatabase(unittest.TestCase):
         self.assertIn("row_version=row_version+1", D)
         self.assertIn("WHERE account_id=%d AND row_version=%d", D)
         self.assertIn('mysql_connect_file("mysql.ini")', D)
+        self.assertIn('native mysql_set_charset(const charset[], MySQL:handle);', D)
+        self.assertIn('mysql_set_charset("cp1251", gDBPrimary)', D)
+        self.assertIn('could not set CP1251 client charset', D)
+
         self.assertIn("mysql_tquery(gDBPrimary, q", D)
         self.assertIn("gAuthToken[playerid]", D)
         self.assertIn("fexist(legacyPath) || fexist(legacyBackup)", D)
