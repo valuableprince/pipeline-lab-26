@@ -198,6 +198,262 @@ BEGIN
  CALL gov_bond_issue_cancel(p_event_key,p_issue_code,p_actor);
 END$$
 
+-- A draft can be rejected only with a persistent human-readable reason.
+-- No insurance money was reserved by DRAFT; rejection never mutates treasury.
+-- Lock order matches approval: treasury -> issue -> role/audit, so competing
+-- decisions cannot both succeed. Event key makes retries safe.
+CREATE PROCEDURE gov_bond_official_reject(
+ IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),
+ IN p_actor BIGINT UNSIGNED,IN p_reason VARCHAR(255)
+)
+SQL SECURITY INVOKER
+BEGIN
+ DECLARE v_treasury BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_issue BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_creator BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_status VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL;
+ DECLARE v_reason VARCHAR(255) DEFAULT NULL;
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
+ DECLARE v_event BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_event_issue BIGINT UNSIGNED;
+ DECLARE v_event_actor BIGINT UNSIGNED;
+ DECLARE v_event_action VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin;
+ DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+ IF p_event_key IS NULL OR CHAR_LENGTH(p_event_key) NOT BETWEEN 6 AND 64
+    OR LEFT(BINARY p_event_key,5)<>BINARY 'bond:'
+    OR p_event_key NOT REGEXP '^bond:[A-Za-z0-9_:/.-]+
+CREATE PROCEDURE gov_bond_tax_earmark(
+ IN p_event_key VARCHAR(64), IN p_tax_event_key VARCHAR(64)
+)
+SQL SECURITY INVOKER
+BEGIN
+ DECLARE v_balance BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_fund BIGINT UNSIGNED;
+ DECLARE v_payout BIGINT UNSIGNED;
+ DECLARE v_committed BIGINT UNSIGNED;
+ DECLARE v_min BIGINT UNSIGNED;
+ DECLARE v_version INT UNSIGNED;
+ DECLARE v_enabled TINYINT UNSIGNED;
+ DECLARE v_rate SMALLINT UNSIGNED;
+ DECLARE v_tax_id BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_tax_amount BIGINT;
+ DECLARE v_source VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin;
+ DECLARE v_existing BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_existing_event VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin;
+ DECLARE v_amount BIGINT UNSIGNED DEFAULT 0;
+ DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+ IF p_event_key IS NULL OR CHAR_LENGTH(p_event_key) NOT BETWEEN 10 AND 64
+    OR LEFT(BINARY p_event_key,9)<>BINARY 'fund:tax:'
+    OR p_event_key NOT REGEXP '^fund:tax:[0-9]+$'
+    OR p_tax_event_key IS NULL OR CHAR_LENGTH(p_tax_event_key) NOT BETWEEN 1 AND 64 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid tax earmark event';
+ END IF;
+ START TRANSACTION;
+ SELECT balance,bond_fund_reserved,bond_payout_reserved,
+        bond_fund_committed,minimum_reserve,row_version,
+        bond_fund_enabled,bond_fund_tax_allocation_bps
+   INTO v_balance,v_fund,v_payout,v_committed,v_min,v_version,v_enabled,v_rate
+   FROM treasury_accounts WHERE code='state' FOR UPDATE;
+ IF v_balance IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax treasury missing';
+ END IF;
+ SELECT ledger_id,amount_delta,source
+   INTO v_tax_id,v_tax_amount,v_source FROM treasury_ledger
+   WHERE event_key=p_tax_event_key LIMIT 1 FOR UPDATE;
+ IF v_tax_id IS NULL OR v_tax_amount<=0 OR BINARY v_source<>BINARY 'tax' THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax source not a verified receipt';
+ END IF;
+ IF BINARY p_event_key<>BINARY CONCAT('fund:tax:',v_tax_id) THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax earmark event not canonical';
+ END IF;
+ SELECT tax_ledger_id,fund_event_key,contribution
+   INTO v_existing,v_existing_event,v_amount FROM government_bond_tax_earmarks
+   WHERE tax_ledger_id=v_tax_id LIMIT 1;
+ IF v_existing IS NOT NULL THEN
+   IF BINARY v_existing_event<>BINARY p_event_key THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax contribution event collision';
+   END IF;
+   SET v_replayed=1;
+ ELSE
+   IF v_enabled<>1 OR v_version>=2147483646 OR
+      v_balance<v_min+v_fund+v_payout THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax reserve unavailable';
+   END IF;
+   SET v_amount=(CAST(v_tax_amount AS UNSIGNED)*v_rate) DIV 10000;
+   IF v_amount>v_balance-v_min-v_fund-v_payout THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax contribution exceeds free money';
+   END IF;
+   IF v_amount>0 THEN
+     UPDATE treasury_accounts SET
+       bond_fund_reserved=bond_fund_reserved+v_amount,
+       row_version=row_version+1 WHERE code='state';
+     SET v_fund=v_fund+v_amount;
+     SET v_version=v_version+1;
+     INSERT INTO bond_fund_ledger
+       (event_key,operation,reference_code,reserve_delta,commitment_delta,
+        reserved_after,committed_after,treasury_row_version_after)
+       VALUES(p_event_key,'TAX_EARMARK',p_tax_event_key,
+              v_amount,0,v_fund,v_committed,v_version);
+   END IF;
+   INSERT INTO government_bond_tax_earmarks
+     (tax_ledger_id,fund_event_key,tax_event_key,receipt_amount,contribution,
+      applied_rate_bps,treasury_row_version_after)
+     VALUES(v_tax_id,p_event_key,p_tax_event_key,v_tax_amount,
+            v_amount,v_rate,v_version);
+ END IF;
+ COMMIT;
+ SELECT v_tax_id AS tax_ledger_id,v_amount AS contribution,
+        v_fund AS fund_reserved,v_replayed AS replayed;
+END$$
+DELIMITER ;
+
+INSERT INTO schema_migrations(version) VALUES (23);
+
+    OR p_issue_code IS NULL OR p_issue_code NOT REGEXP '^GOV-[0-9]{6}
+CREATE PROCEDURE gov_bond_tax_earmark(
+ IN p_event_key VARCHAR(64), IN p_tax_event_key VARCHAR(64)
+)
+SQL SECURITY INVOKER
+BEGIN
+ DECLARE v_balance BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_fund BIGINT UNSIGNED;
+ DECLARE v_payout BIGINT UNSIGNED;
+ DECLARE v_committed BIGINT UNSIGNED;
+ DECLARE v_min BIGINT UNSIGNED;
+ DECLARE v_version INT UNSIGNED;
+ DECLARE v_enabled TINYINT UNSIGNED;
+ DECLARE v_rate SMALLINT UNSIGNED;
+ DECLARE v_tax_id BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_tax_amount BIGINT;
+ DECLARE v_source VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin;
+ DECLARE v_existing BIGINT UNSIGNED DEFAULT NULL;
+ DECLARE v_existing_event VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin;
+ DECLARE v_amount BIGINT UNSIGNED DEFAULT 0;
+ DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+ IF p_event_key IS NULL OR CHAR_LENGTH(p_event_key) NOT BETWEEN 10 AND 64
+    OR LEFT(BINARY p_event_key,9)<>BINARY 'fund:tax:'
+    OR p_event_key NOT REGEXP '^fund:tax:[0-9]+$'
+    OR p_tax_event_key IS NULL OR CHAR_LENGTH(p_tax_event_key) NOT BETWEEN 1 AND 64 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid tax earmark event';
+ END IF;
+ START TRANSACTION;
+ SELECT balance,bond_fund_reserved,bond_payout_reserved,
+        bond_fund_committed,minimum_reserve,row_version,
+        bond_fund_enabled,bond_fund_tax_allocation_bps
+   INTO v_balance,v_fund,v_payout,v_committed,v_min,v_version,v_enabled,v_rate
+   FROM treasury_accounts WHERE code='state' FOR UPDATE;
+ IF v_balance IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax treasury missing';
+ END IF;
+ SELECT ledger_id,amount_delta,source
+   INTO v_tax_id,v_tax_amount,v_source FROM treasury_ledger
+   WHERE event_key=p_tax_event_key LIMIT 1 FOR UPDATE;
+ IF v_tax_id IS NULL OR v_tax_amount<=0 OR BINARY v_source<>BINARY 'tax' THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax source not a verified receipt';
+ END IF;
+ IF BINARY p_event_key<>BINARY CONCAT('fund:tax:',v_tax_id) THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax earmark event not canonical';
+ END IF;
+ SELECT tax_ledger_id,fund_event_key,contribution
+   INTO v_existing,v_existing_event,v_amount FROM government_bond_tax_earmarks
+   WHERE tax_ledger_id=v_tax_id LIMIT 1;
+ IF v_existing IS NOT NULL THEN
+   IF BINARY v_existing_event<>BINARY p_event_key THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax contribution event collision';
+   END IF;
+   SET v_replayed=1;
+ ELSE
+   IF v_enabled<>1 OR v_version>=2147483646 OR
+      v_balance<v_min+v_fund+v_payout THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax reserve unavailable';
+   END IF;
+   SET v_amount=(CAST(v_tax_amount AS UNSIGNED)*v_rate) DIV 10000;
+   IF v_amount>v_balance-v_min-v_fund-v_payout THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='tax contribution exceeds free money';
+   END IF;
+   IF v_amount>0 THEN
+     UPDATE treasury_accounts SET
+       bond_fund_reserved=bond_fund_reserved+v_amount,
+       row_version=row_version+1 WHERE code='state';
+     SET v_fund=v_fund+v_amount;
+     SET v_version=v_version+1;
+     INSERT INTO bond_fund_ledger
+       (event_key,operation,reference_code,reserve_delta,commitment_delta,
+        reserved_after,committed_after,treasury_row_version_after)
+       VALUES(p_event_key,'TAX_EARMARK',p_tax_event_key,
+              v_amount,0,v_fund,v_committed,v_version);
+   END IF;
+   INSERT INTO government_bond_tax_earmarks
+     (tax_ledger_id,fund_event_key,tax_event_key,receipt_amount,contribution,
+      applied_rate_bps,treasury_row_version_after)
+     VALUES(v_tax_id,p_event_key,p_tax_event_key,v_tax_amount,
+            v_amount,v_rate,v_version);
+ END IF;
+ COMMIT;
+ SELECT v_tax_id AS tax_ledger_id,v_amount AS contribution,
+        v_fund AS fund_reserved,v_replayed AS replayed;
+END$$
+DELIMITER ;
+
+INSERT INTO schema_migrations(version) VALUES (23);
+
+    OR p_actor IS NULL OR p_actor=0
+    OR p_reason IS NULL OR CHAR_LENGTH(TRIM(p_reason)) NOT BETWEEN 5 AND 255
+    OR p_reason REGEXP '[[:cntrl:]]' THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid bond rejection reason or event';
+ END IF;
+ START TRANSACTION;
+ SELECT balance INTO v_treasury FROM treasury_accounts
+   WHERE code='state' FOR UPDATE;
+ IF v_treasury IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='treasury not available';
+ END IF;
+ SELECT issue_id,created_by_account_id,status,rejection_reason
+   INTO v_issue,v_creator,v_status,v_reason
+   FROM government_bond_issues WHERE issue_code=p_issue_code FOR UPDATE;
+ IF v_issue IS NULL THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond issue not found';
+ END IF;
+ SELECT event_id,issue_id,actor_account_id,action
+   INTO v_event,v_event_issue,v_event_actor,v_event_action
+   FROM government_bond_issue_audit WHERE event_key=p_event_key LIMIT 1;
+ IF v_event IS NOT NULL THEN
+   IF v_event_issue<>v_issue OR v_event_actor<>p_actor
+      OR BINARY v_event_action<>BINARY 'REJECT'
+      OR v_status<>'REJECTED' OR BINARY v_reason<>BINARY p_reason THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond rejection event collision';
+   END IF;
+   SET v_replayed=1;
+ ELSE
+   SELECT m.rank_id INTO v_rank
+     FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id
+     WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
+       AND f.term_end>UNIX_TIMESTAMP();
+   IF v_rank IS NULL OR v_rank NOT IN (3,4) THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
+   END IF;
+   IF v_status<>'DRAFT' THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='only draft bond issues may be rejected';
+   END IF;
+   UPDATE government_bond_issues
+     SET status='REJECTED',rejected_at=UTC_TIMESTAMP(),
+         rejected_by_account_id=p_actor,rejection_reason=p_reason,
+         row_version=row_version+1 WHERE issue_id=v_issue;
+   INSERT INTO government_bond_issue_audit
+     (event_key,issue_id,action,actor_account_id,from_status,to_status,fund_exposure_delta)
+     VALUES(p_event_key,v_issue,'REJECT',p_actor,'DRAFT','REJECTED',0);
+   SET v_status='REJECTED';
+   SET v_reason=p_reason;
+ END IF;
+ COMMIT;
+ SELECT v_issue AS issue_id,v_status AS issue_status,
+        v_creator AS creator_account_id,v_reason AS rejection_reason,
+        v_replayed AS replayed;
+END$
+
 -- Each tax credit is a real positive treasury ledger row, and can fund F ONCE.
 CREATE PROCEDURE gov_bond_tax_earmark(
  IN p_event_key VARCHAR(64), IN p_tax_event_key VARCHAR(64)
