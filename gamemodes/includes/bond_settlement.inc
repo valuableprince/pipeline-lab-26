@@ -12,6 +12,7 @@ new bool:gBondSettlementReady;
 new bool:gBondSettlementBusy[MAX_PLAYERS];
 new gBondSettlementExpectedVersion[MAX_PLAYERS];
 new gBondSettlementPendingAccount[MAX_PLAYERS];
+new gBondSettlementPendingEvent[MAX_PLAYERS][65];
 new gBondSettlementPendingSerial[MAX_PLAYERS];
 new gBondSettlementPendingGlobal;
 new gBondSettlementTimer;
@@ -21,6 +22,7 @@ forward BondSettlement_OnPlayerDone(playerid, authToken, accountId, serial);
 forward BondSettlement_OnScan();
 forward BondSettlement_OnAutomated(issueId, kind);
 forward BondSettlement_Tick();
+forward BondSettlement_OnError(errorid, const query[]);
 
 stock bool:BondSettlement_IsReady()
 {
@@ -37,6 +39,7 @@ stock BondSettlement_OnConnect(playerid)
     gBondSettlementBusy[playerid] = false;
     gBondSettlementExpectedVersion[playerid] = 0;
     gBondSettlementPendingAccount[playerid] = 0;
+    gBondSettlementPendingEvent[playerid][0] = EOS;
     gBondSettlementPendingSerial[playerid]++;
     return 1;
 }
@@ -96,7 +99,7 @@ stock BondSettlement_Init()
 
 // All dynamic amounts and event keys must be generated and validated by the
 // server's gameplay layer. Do not trust a client-supplied SQL amount/owner.
-stock bool:BondSettlement_Queue(playerid, const query[])
+stock bool:BondSettlement_Queue(playerid, const query[], const eventKey[])
 {
 #if defined TARKENSO_DB_PRIMARY
     if (!BondSettlement_IsReady() || playerid<0 || playerid>=MAX_PLAYERS ||
@@ -113,6 +116,7 @@ stock bool:BondSettlement_Queue(playerid, const query[])
     gBondSettlementBusy[playerid] = true;
     gBondSettlementExpectedVersion[playerid] = gDBPrimaryVersion[playerid];
     gBondSettlementPendingAccount[playerid] = gDBPrimaryAccountId[playerid];
+    format(gBondSettlementPendingEvent[playerid],65,"%s",eventKey);
     gBondSettlementPendingSerial[playerid]++;
     if (!mysql_tquery(gDBPrimary, query, "BondSettlement_OnPlayerDone", "iiii",
         playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
@@ -121,6 +125,7 @@ stock bool:BondSettlement_Queue(playerid, const query[])
         gGovTransferBusy[playerid] = false;
         gBondSettlementBusy[playerid] = false;
         gBondSettlementPendingAccount[playerid] = 0;
+        gBondSettlementPendingEvent[playerid][0] = EOS;
         return false;
     }
     return true;
@@ -146,7 +151,7 @@ stock bool:BondSettlement_Buy(playerid, const eventKey[],
         "CALL gov_bond_buy('%e','%e',%d,%d,%d)",
         eventKey,issueCode,gDBPrimaryAccountId[playerid],quantity,
         gDBPrimaryVersion[playerid]);
-    return BondSettlement_Queue(playerid,query);
+    return BondSettlement_Queue(playerid,query,eventKey);
 #else
     #pragma unused playerid,eventKey,issueCode,quantity
     return false;
@@ -169,7 +174,7 @@ stock bool:BondSettlement_Collect(playerid, const eventKey[], claimId, amount)
         "CALL gov_bond_claim_collect('%e',%d,%d,%d,%d)",
         eventKey,claimId,gDBPrimaryAccountId[playerid],amount,
         gDBPrimaryVersion[playerid]);
-    return BondSettlement_Queue(playerid,query);
+    return BondSettlement_Queue(playerid,query,eventKey);
 #else
     #pragma unused playerid,eventKey,claimId,amount
     return false;
@@ -235,6 +240,7 @@ public BondSettlement_OnPlayerDone(playerid,authToken,accountId,serial)
     gGovTransferBusy[playerid]=false;
     gBondSettlementBusy[playerid]=false;
     gBondSettlementPendingAccount[playerid]=0;
+    gBondSettlementPendingEvent[playerid][0]=EOS;
     Economy_SyncHUD(playerid);
     if (!BondFund_Reload())
         print("[GOV-03] ERROR: fund snapshot reload failed after player cash settlement.");
@@ -244,6 +250,38 @@ public BondSettlement_OnPlayerDone(playerid,authToken,accountId,serial)
     #pragma unused playerid,authToken,accountId,serial
 #endif
     return 1;
+}
+
+
+// A rejected business rule is a definitive SQL ROLLBACK, not a lost ACK.
+// Without this branch the generic OnQueryError handler disconnects EVERY user.
+public BondSettlement_OnError(errorid, const query[])
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (errorid!=1644 && errorid!=1062) return 0;
+    for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
+    {
+        if (!gBondSettlementBusy[playerid] ||
+            !gBondSettlementPendingEvent[playerid][0]) continue;
+        new literal[68];
+        format(literal,sizeof(literal),"'%s'",gBondSettlementPendingEvent[playerid]);
+        if (strfind(query,literal,true)<0) continue;
+        new accountId=gBondSettlementPendingAccount[playerid];
+        gBondSettlementBusy[playerid]=false;
+        gBondSettlementPendingAccount[playerid]=0;
+        gBondSettlementPendingEvent[playerid][0]=EOS;
+        gGovTransferBusy[playerid]=false;
+        // Never display to a different authenticated account.
+        if (IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
+            gAuthState[playerid]==AUTH_READY &&
+            gDBPrimaryAccountId[playerid]==accountId)
+            BondsUI_OnRejected(playerid);
+        return 1;
+    }
+#else
+    #pragma unused errorid, query
+#endif
+    return 0;
 }
 
 // Scan due issues. Server UTC + DB real time determine maturity/grace.
