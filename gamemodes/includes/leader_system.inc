@@ -128,7 +128,7 @@ stock bool:Leader_ValidateRoster(org)
             strcmp(gFactionMemberName[o][i], normalized, true) ||
             gFactionMemberRank[o][i] < 1 || gFactionMemberRank[o][i] > 10)
             return false;
-        if (org == FACTION_FINANCE && gFactionMemberRank[o][i] != 1 &&
+        if (org == 5 && gFactionMemberRank[o][i] != 1 &&
             gFactionMemberRank[o][i] != 2 && gFactionMemberRank[o][i] != 9 &&
             gFactionMemberRank[o][i] != 10) return false;
         if (gFactionMemberRank[o][i] == 10) leaders++;
