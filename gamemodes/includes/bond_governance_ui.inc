@@ -590,14 +590,22 @@ stock GovBond_UI_Wizard(playerid,step)
 
 stock GovBond_UI_ConfirmDraft(playerid)
 {
-    new body[900],typeLabel[48];
+    new body[900],typeLabel[48],codeHint[170];
     GovBond_UI_TypeLabel(gGovUIType[playerid],typeLabel,sizeof(typeLabel));
     format(body,sizeof(body),
-        "{DDBB77}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Цель: {F1F4F8}%s\n{BAC6D4}Тип: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Количество: {F1F4F8}%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Размещение: %d дней\n{BAC6D4}Погашение через: %d дней после размещения\n\n{78D8AA}Код GOV-000001 и далее назначит MySQL.\n{E48A8A}Создание НЕ открывает продажу и НЕ расходует бюджет.",
+        "{DDBB77}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{BAC6D4}Название: {F1F4F8}%s\n{BAC6D4}Цель: {F1F4F8}%s\n{BAC6D4}Тип: {F1F4F8}%s\n{BAC6D4}Номинал: {E9C67E}$%d\n{BAC6D4}Количество: {F1F4F8}%d\n{BAC6D4}Общий номинал: {F1F4F8}$%d\n{BAC6D4}Доходность: {78D8AA}%d.%02d%%\n{BAC6D4}Размещение: %d дней\n{BAC6D4}Погашение через: %d дней после размещения\n\n{E48A8A}Отправка заявки не открывает продажу и не расходует бюджет.",
         gGovUITitle[playerid],gGovUIPurpose[playerid],typeLabel,
         gGovUIFace[playerid],gGovUIQuantity[playerid],
+        gGovUIFace[playerid]*gGovUIQuantity[playerid],
         gGovUIYield[playerid]/100,gGovUIYield[playerid]%100,
         gGovUIOfferDays[playerid],gGovUIMaturityDays[playerid]);
+    if(gGovUIEditing[playerid])
+        format(codeHint,sizeof(codeHint),
+            "\n{78D8AA}Сохраняется код выпуска %s.",
+            gGovUISelectedCode[playerid]);
+    else format(codeHint,sizeof(codeHint),
+            "\n{78D8AA}Уникальный код выпуска назначит MySQL.");
+    strcat(body,codeHint,sizeof(body));
     gGovUIStage[playerid]=6;
     ShowPlayerDialog(playerid,GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX,
         "{D9B872}TARKENSO | Подтверждение проекта",body,
