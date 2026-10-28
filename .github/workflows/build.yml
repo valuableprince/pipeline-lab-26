@@ -168,6 +168,9 @@ jobs:
       - name: GOV-05.1 returned applications and delayed opening MariaDB UAT
         run: python3 tests/gov05_revision_mysql_uat.py
 
+      - name: GOV-05 register SQL collation regression on MariaDB
+        run: python3 tests/gov05_registry_collation_mysql_uat.py
+
       - name: ADMIN-MONEY-02 audited top-up and ledger integrity MariaDB UAT
         run: python3 tests/admin_treasury_mysql_uat.py
 
