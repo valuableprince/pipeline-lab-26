@@ -154,7 +154,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "factions", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Организации: /leaders, /fmenu, /fstats, /leader, /fchat.");
+            "Организации: /leaders, /fmenu, /fstats, /leader, /r.");
         SendClientMessage(playerid, COLOR_WHITE,
             "Управление: /finvite, /faccept, /funinvite, /frank, /fleave.");
         return 1;
@@ -617,9 +617,9 @@ cmd:fstats(playerid, params[])
 {
     return Leader_Command(playerid, "fstats", params);
 }
-cmd:fchat(playerid, params[])
+cmd:r(playerid, params[])
 {
-    return Leader_Command(playerid, "fchat", params);
+    return Leader_Command(playerid, "r", params);
 }
 cmd:finvite(playerid, params[])
 {
