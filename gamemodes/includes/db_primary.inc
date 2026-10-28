@@ -523,18 +523,33 @@
 
     public OnQueryError(errorid, const error[], const callback[], const query[], MySQL:handle)
     {
-        // Never log raw SQL (password hash can be present).
+        // Never log raw SQL (password hashes can be present).
         #pragma unused error, handle
         if (TDSDB_OnError(callback, query)) return 1;
         if (!strcmp(callback,"BondSettlement_OnPlayerDone",true) &&
             BondSettlement_OnError(errorid, query)) return 1;
         if (GovDebt_OnError(errorid, callback, query)) return 1;
         if (GovBond_UI_OnError(errorid, callback, query)) return 1;
-        printf("[DB-PRIMARY] Asynchronous SQL query failed with error %d.", errorid);
-        gDBPrimaryReady = false;
-        for (new i = 0; i < MAX_PLAYERS; i++)
-            if (IsPlayerConnected(i) && !IsPlayerNPC(i))
-                Kick(i);
+        // A query syntax/collation/constraint error is NOT a broken
+        // connection. Earlier code globally kicked all players for 1267,
+        // then their disconnect saves failed because DBPrimaryReady=false.
+        // For non-transport errors, fail the individual SQL operation
+        // (no success callback/credit) and retain a usable connection.
+        printf("[DB-PRIMARY] Async SQL error=%d callback=%s (query redacted).",
+            errorid,callback);
+        switch(errorid)
+        {
+            case 1042,2002,2003,2006,2013,2055:
+            {
+                print("[DB-PRIMARY] MySQL transport lost; disabling DB to prevent unsafe writes.");
+                gDBPrimaryReady = false;
+                for(new i=0;i<MAX_PLAYERS;i++)
+                    if(IsPlayerConnected(i) && !IsPlayerNPC(i))
+                        Kick(i);
+            }
+            default:
+                print("[DB-PRIMARY] SQL operation rejected; players remain connected.");
+        }
         return 1;
     }
 #else

@@ -291,7 +291,7 @@ stock GovBond_UI_LoadIssues(playerid,page=0)
     if (!GovBond_UI_Authorized(playerid) || page<0 || page>500) return 1;
     new query[750];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.status,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'Неизвестен') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
+        "SELECT i.issue_id,i.issue_code,i.status,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
         page*GOVUI_ROWS);
     gGovUIPage[playerid]=page;
     if (!GovBond_UI_Query(playerid,query,2))
@@ -308,7 +308,7 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
     new query[1800];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'Неизвестен') AS applicant,COALESCE(rej.username,'Неизвестен') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1),'Не назначен') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
+        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'') AS applicant,COALESCE(rej.username,'') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1), '') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
     if (!GovBond_UI_Query(playerid,query,3))
@@ -390,6 +390,9 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
                 !cache_get_value_name_int(i,"face_value",face) ||
                 !cache_get_value_name_int(i,"max_quantity",quantity) ||
                 !cache_get_value_name_int(i,"yield_basis_points",yield)) return 1;
+            // accounts.username is ascii_bin; keep Cyrillic fallbacks in Pawn
+            // rather than combining incompatible SQL collations in COALESCE.
+            if(!applicant[0])format(applicant,sizeof(applicant),"Неизвестен");
             gGovUIRows[playerid][i]=id;
             GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
             format(line,sizeof(line),
@@ -438,6 +441,9 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name_int(0,"offer_days",offerDays) ||
             !cache_get_value_name_int(0,"maturity_days",maturityDays))
             return 1;
+        if(!applicant[0])format(applicant,sizeof(applicant),"Неизвестен");
+        if(!minister[0])format(minister,sizeof(minister),"Не назначен");
+        if(!rejector[0])format(rejector,sizeof(rejector),"Неизвестен");
         reason[0]=EOS;
         returnReason[0]=EOS;
         cache_get_value_name(0,"rejection_reason",reason,sizeof(reason));
@@ -1009,7 +1015,28 @@ public GovBond_UI_OnTaxPost()
 public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
 {
 #if defined TARKENSO_DB_PRIMARY
-    if (errorid!=1644 && errorid!=1062) return false;
+    // Read-time SQL errors are NOT a database outage. The old default
+    // OnQueryError handler marked MySQL down and kicked every player.
+    // A failed reader must reset its pending state and remain recoverable.
+    if(!strcmp(callback,"GovBond_UI_OnRead",true))
+    {
+        if(errorid==2002 || errorid==2003 || errorid==2006 ||
+           errorid==2013 || errorid==2055)return false;
+        printf("[GOV-05] Finance read failed: SQL code %d.",errorid);
+        for(new i=0;i<MAX_PLAYERS;i++)
+        {
+            if(!gGovUILoading[i])continue;
+            gGovUILoading[i]=false;
+            gGovUIReadSerial[i]++;
+            if(IsPlayerConnected(i) && !IsPlayerNPC(i) &&
+               gAuthState[i]==AUTH_READY)
+                SendClientMessage(i,COLOR_RED,
+                    "Ошибка чтения реестра Минфина. Данные не изменены.");
+        }
+        return true;
+    }
+    if(errorid==2002 || errorid==2003 || errorid==2006 ||
+       errorid==2013 || errorid==2055)return false;
     if (!strcmp(callback,"GovBond_UI_OnTaxPost",true))
     {
         gGovUITaxPostBusy=false;
