@@ -102,18 +102,6 @@ cmd:bondgov(playerid, params[])
     return GovBond_UI_Main(playerid);
 }
 
-// Подпись проекта займа; зам/министр имеют право подписывать свои проекты.
-cmd:bondsign(playerid, params[])
-{
-    new code[65];
-    if (sscanf(params,"s[65]",code))
-        return SendClientMessage(playerid,COLOR_AMBER,
-            "Использование: /bondsign GOV-000001");
-    return GovBond_UI_Sign(playerid,code);
-}
-
-
-
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
 {
