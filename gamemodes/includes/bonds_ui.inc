@@ -479,6 +479,15 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem)
     return 1;
 }
 
+public BondsUI_OnRejected(playerid)
+{
+    gBondsUIPendingAction[playerid]=0;
+    if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
+        SendClientMessage(playerid,COLOR_RED,
+            "Казначейство отклонило операцию. Проверьте баланс, лимит и срок выпуска; откройте /bonds снова.");
+    return 1;
+}
+
 public BondsUI_OnSettlement(playerid,bool:replayed)
 {
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY)
