@@ -134,6 +134,9 @@ jobs:
       - name: Test GOV-05 auto-code and official authorization on MariaDB
         run: python3 tests/gov05_mysql_uat.py
 
+      - name: Leader mixed-case roster persistence and solo reappointment MariaDB UAT
+        run: python3 tests/leader_case_mysql_uat.py
+
       - name: Apply GOV-06 security migration 024 on disposable MariaDB
         run: |
           set -euo pipefail
