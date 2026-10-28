@@ -1,40 +1,10 @@
 -- GOV-05: treasury governance roles, globally sequential bond codes, auditable game UI API.
 -- Requires migrations 017-022, staging only. Full finance acceptance after GOV-06.
 
-CREATE TABLE government_bond_officials (
-  account_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-  role_code VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
-  appointed_by BIGINT UNSIGNED NOT NULL,
-  changed_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
-  row_version INT UNSIGNED NOT NULL DEFAULT 0,
-  CONSTRAINT fk_bond_official_account FOREIGN KEY (account_id)
-    REFERENCES accounts(account_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_bond_official_appointing FOREIGN KEY (appointed_by)
-    REFERENCES accounts(account_id) ON DELETE RESTRICT,
-  CONSTRAINT chk_bond_official_role CHECK
-    (role_code IN ('TREASURER','CONTROLLER','DIRECTOR')),
-  CONSTRAINT chk_bond_official_enabled CHECK (enabled IN (0,1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE government_bond_role_audit (
-  audit_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  event_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  actor_account_id BIGINT UNSIGNED NOT NULL,
-  target_account_id BIGINT UNSIGNED NOT NULL,
-  role_code VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  enabled TINYINT UNSIGNED NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
-  UNIQUE KEY uq_bond_role_audit_event (event_key),
-  KEY idx_bond_role_audit_target (target_account_id,audit_id),
-  CONSTRAINT fk_bond_role_audit_actor FOREIGN KEY (actor_account_id)
-    REFERENCES accounts(account_id) ON DELETE RESTRICT,
-  CONSTRAINT fk_bond_role_audit_target FOREIGN KEY (target_account_id)
-    REFERENCES accounts(account_id) ON DELETE RESTRICT,
-  CONSTRAINT chk_bond_role_audit_role CHECK
-    (role_code IN ('TREASURER','CONTROLLER','DIRECTOR')),
-  CONSTRAINT chk_bond_role_audit_enabled CHECK (enabled IN (0,1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Government organization #5 uses the EXISTING faction/roster infrastructure.
+-- Rank 1 trainee, 2 specialist, 9 deputy (display 3), 10 minister (display 4).
+INSERT INTO factions(faction_id,is_enabled,term_start,term_end)
+ VALUES(5,1,0,0) ON DUPLICATE KEY UPDATE is_enabled=1;
 
 -- One persistent, globally increasing counter, never reset across years.
 CREATE TABLE government_bond_code_sequences (
@@ -84,62 +54,6 @@ BEGIN
 END$$
 
 
--- Role appointment is an internal founder-only server action.
--- Root identity currently exists in the protected Admin file, not SQL:
--- only a guarded founder Pawn call may invoke this until GOV-06 SQL RBAC isolation.
-CREATE PROCEDURE gov_bond_role_set(
-  IN p_event_key VARCHAR(64),IN p_actor BIGINT UNSIGNED,
-  IN p_target BIGINT UNSIGNED,IN p_role VARCHAR(16),IN p_enabled TINYINT UNSIGNED
-)
-SQL SECURITY INVOKER
-BEGIN
- DECLARE v_event BIGINT UNSIGNED DEFAULT NULL;
- DECLARE v_actor BIGINT UNSIGNED;
- DECLARE v_target BIGINT UNSIGNED;
- DECLARE v_role VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin;
- DECLARE v_enabled TINYINT UNSIGNED;
- DECLARE v_replayed TINYINT UNSIGNED DEFAULT 0;
- DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
- IF p_event_key IS NULL OR CHAR_LENGTH(p_event_key) NOT BETWEEN 7 AND 64
-   OR LEFT(BINARY p_event_key,5)<>BINARY 'bond:'
-   OR p_event_key NOT REGEXP '^bond:[A-Za-z0-9_:/.-]+$'
-   OR p_actor IS NULL OR p_actor=0 OR p_target IS NULL OR p_target=0
-   OR p_role NOT IN ('TREASURER','CONTROLLER','DIRECTOR')
-   OR p_enabled NOT IN (0,1) THEN
-   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid government appointment';
- END IF;
- START TRANSACTION;
- -- Lock an existing target account, and serialize target grant/revocation.
- SELECT account_id INTO v_target FROM accounts WHERE account_id=p_target FOR UPDATE;
- IF v_target IS NULL THEN
-   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='government appointee missing';
- END IF;
- SELECT audit_id,actor_account_id,target_account_id,role_code,enabled
-    INTO v_event,v_actor,v_target,v_role,v_enabled
-    FROM government_bond_role_audit WHERE event_key=p_event_key LIMIT 1;
- IF v_event IS NOT NULL THEN
-   IF v_actor<>p_actor OR v_target<>p_target OR BINARY v_role<>BINARY p_role
-      OR v_enabled<>p_enabled THEN
-     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='government role event collision';
-   END IF;
-   SET v_replayed=1;
- ELSE
-   INSERT INTO government_bond_officials
-     (account_id,role_code,enabled,appointed_by)
-     VALUES(p_target,p_role,p_enabled,p_actor)
-     ON DUPLICATE KEY UPDATE
-       role_code=VALUES(role_code),enabled=VALUES(enabled),
-       appointed_by=VALUES(appointed_by),
-       changed_at=UTC_TIMESTAMP(),row_version=row_version+1;
-   INSERT INTO government_bond_role_audit
-     (event_key,actor_account_id,target_account_id,role_code,enabled)
-     VALUES(p_event_key,p_actor,p_target,p_role,p_enabled);
- END IF;
- COMMIT;
- SELECT p_target AS account_id,p_role AS role_code,p_enabled AS enabled,
-        v_replayed AS replayed;
-END$$
-
 -- Single InnoDB transaction: role check, per-year sequence reservation,
 -- issue creation and issue-audit insertion. Never pre-generate IDs in Pawn.
 CREATE PROCEDURE gov_bond_issue_create_auto(
@@ -150,7 +64,7 @@ CREATE PROCEDURE gov_bond_issue_create_auto(
 )
 SQL SECURITY INVOKER
 BEGIN
- DECLARE v_role VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL;
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
  DECLARE v_number INT UNSIGNED DEFAULT NULL;
  DECLARE v_code VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin;
  DECLARE v_issue BIGINT UNSIGNED DEFAULT NULL;
@@ -183,10 +97,12 @@ BEGIN
    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='invalid automated government issue';
  END IF;
  START TRANSACTION;
- SELECT role_code INTO v_role FROM government_bond_officials
-    WHERE account_id=p_actor AND enabled=1 FOR UPDATE;
- IF v_role NOT IN ('TREASURER','DIRECTOR') OR v_role IS NULL THEN
-   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='treasury issue creator unauthorized';
+ SELECT m.rank_id INTO v_rank
+   FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id
+   WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
+     AND f.term_end>UNIX_TIMESTAMP() FOR UPDATE;
+ IF v_rank IS NULL OR v_rank NOT IN (2,9,10) THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance ministry specialist rank required';
  END IF;
  SELECT issue_id,issue_code,title,purpose,issue_type,face_value,max_quantity,
         yield_basis_points,offer_start_at,offer_end_at,maturity_at,created_by_account_id
@@ -232,50 +148,56 @@ BEGIN
         'DRAFT' AS issue_status,v_replayed AS replayed;
 END$$
 
--- Authorization wrappers deliberately recheck persisted roles at CALL time.
--- Underlying GOV-02 routines enforce two-person signature and reserve coverage.
+-- Finance actions check REAL faction rank on each call, not stored SQL roles.
+-- A deputy or minister may approve their OWN draft (GOV-02 permits rank 9/10).
 CREATE PROCEDURE gov_bond_official_approve(
-  IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),
-  IN p_actor BIGINT UNSIGNED
+ IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),IN p_actor BIGINT UNSIGNED
 )
 SQL SECURITY INVOKER
 BEGIN
- DECLARE v_role VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL;
- SELECT role_code INTO v_role FROM government_bond_officials
-    WHERE account_id=p_actor AND enabled=1;
- IF v_role IS NULL OR v_role NOT IN ('CONTROLLER','DIRECTOR') THEN
-   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond approver role required';
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
+ SELECT m.rank_id INTO v_rank FROM faction_members m JOIN factions f
+   ON f.faction_id=m.faction_id
+   WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
+     AND f.term_end>UNIX_TIMESTAMP();
+ IF v_rank IS NULL OR v_rank NOT IN (9,10) THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
  END IF;
  CALL gov_bond_issue_approve(p_event_key,p_issue_code,p_actor);
 END$$
+
 CREATE PROCEDURE gov_bond_official_open(
-  IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),
-  IN p_actor BIGINT UNSIGNED
+ IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),IN p_actor BIGINT UNSIGNED
 )
 SQL SECURITY INVOKER
 BEGIN
- DECLARE v_role VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL;
- SELECT role_code INTO v_role FROM government_bond_officials
-    WHERE account_id=p_actor AND enabled=1;
- IF v_role IS NULL OR v_role NOT IN ('TREASURER','DIRECTOR') THEN
-   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='treasurer role required for offering';
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
+ SELECT m.rank_id INTO v_rank FROM faction_members m JOIN factions f
+   ON f.faction_id=m.faction_id
+   WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
+     AND f.term_end>UNIX_TIMESTAMP();
+ IF v_rank IS NULL OR v_rank NOT IN (9,10) THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
  END IF;
  CALL gov_bond_issue_open(p_event_key,p_issue_code,p_actor);
 END$$
+
 CREATE PROCEDURE gov_bond_official_cancel(
-  IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),
-  IN p_actor BIGINT UNSIGNED
+ IN p_event_key VARCHAR(64),IN p_issue_code VARCHAR(64),IN p_actor BIGINT UNSIGNED
 )
 SQL SECURITY INVOKER
 BEGIN
- DECLARE v_role VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL;
- SELECT role_code INTO v_role FROM government_bond_officials
-    WHERE account_id=p_actor AND enabled=1;
- IF v_role IS NULL OR v_role NOT IN ('CONTROLLER','DIRECTOR') THEN
-   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bond controller role required for cancellation';
+ DECLARE v_rank TINYINT UNSIGNED DEFAULT NULL;
+ SELECT m.rank_id INTO v_rank FROM faction_members m JOIN factions f
+   ON f.faction_id=m.faction_id
+   WHERE m.account_id=p_actor AND m.faction_id=5 AND f.is_enabled=1
+     AND f.term_end>UNIX_TIMESTAMP();
+ IF v_rank IS NULL OR v_rank NOT IN (9,10) THEN
+   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='finance deputy or minister required';
  END IF;
  CALL gov_bond_issue_cancel(p_event_key,p_issue_code,p_actor);
 END$$
+
 -- Each tax credit is a real positive treasury ledger row, and can fund F ONCE.
 CREATE PROCEDURE gov_bond_tax_earmark(
  IN p_event_key VARCHAR(64), IN p_tax_event_key VARCHAR(64)
