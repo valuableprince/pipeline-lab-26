@@ -19,6 +19,21 @@ ALTER TABLE government_bond_issues
   ADD CONSTRAINT fk_government_bond_returner FOREIGN KEY (returned_by_account_id)
     REFERENCES accounts(account_id) ON DELETE RESTRICT;
 
+-- Returned drafts have no signed insurance obligation, just like DRAFT.
+ALTER TABLE government_bond_issues
+  DROP CONSTRAINT chk_government_bond_insurance,
+  ADD CONSTRAINT chk_government_bond_insurance CHECK (
+    (status IN ('DRAFT','RETURNED','REJECTED') AND coverage_basis_points IS NULL
+      AND premium_basis_points IS NULL AND grace_seconds IS NULL
+      AND insured_max_exposure=0 AND approve_event_key IS NULL
+      AND approved_by_account_id IS NULL AND approved_at IS NULL)
+    OR status='CANCELLED'
+    OR (coverage_basis_points BETWEEN 1 AND 10000
+      AND premium_basis_points <= 10000 AND grace_seconds BETWEEN 60 AND 2592000
+      AND insured_max_exposure > 0 AND approve_event_key IS NOT NULL
+      AND approved_by_account_id IS NOT NULL AND approved_at IS NOT NULL)
+  );
+
 ALTER TABLE government_bond_issue_audit
   DROP CONSTRAINT chk_bond_issue_audit_action,
   ADD CONSTRAINT chk_bond_issue_audit_action CHECK
