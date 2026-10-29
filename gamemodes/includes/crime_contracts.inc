@@ -11,6 +11,10 @@
 
 new bool:gCrimeReady;
 forward Crime_Settle(playerid, id, reward, faction);
+forward bool:CrimeContacts_Init();
+forward CrimeContacts_Shutdown();
+forward bool:CrimeContacts_Near(playerid, contactId);
+forward CrimeContacts_TemplateContact(templateId);
 
 stock Crime_Init()
 {
@@ -18,7 +22,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=32 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=33 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -26,11 +30,12 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 032 missing; contracts disabled.");
+        print("[CRIME-02] Migration 033 missing; NPC contracts disabled.");
         return 1;
     }
+    if (!CrimeContacts_Init()) return 1;
     gCrimeReady = true;
-    print("[CRIME-02] Solo contract core enabled (SQL-primary).");
+    print("[CRIME-02] Solo NPC contracts enabled (SQL-primary).");
 #else
     print("[CRIME-02] Solo contracts need MySQL-primary.");
 #endif
@@ -152,22 +157,25 @@ stock bool:Crime_ReadWallet(playerid, &balance, &version, &serial)
 
 
 
-stock Crime_Start(playerid)
+stock Crime_Start(playerid, templateId)
 {
     if (!Crime_Available(playerid))
         return SendClientMessage(playerid, CRIME_ERROR, "Контракты SQL недоступны.");
     new org = Leader_PlayerOrg(playerid);
     if (!Leader_IsCriminal(org))
         return SendClientMessage(playerid, CRIME_ERROR, "Только для сотрудников синдикатов 6-8.");
+    new broker = CrimeContacts_TemplateContact(templateId);
+    if (!CrimeContacts_Near(playerid, broker))
+        return SendClientMessage(playerid, CRIME_ERROR, "Для принятия заказа необходимо лично поговорить с посредником.");
 #if defined TARKENSO_DB_PRIMARY
     if (gGovTransferBusy[playerid] || !Crime_Expire(playerid))
         return SendClientMessage(playerid, CRIME_ERROR, "Операция временно недоступна.");
     if (!Crime_Exec("START TRANSACTION"))
         return SendClientMessage(playerid, CRIME_ERROR, "Нет соединения с базой.");
-    new q[720], changed;
+    new q[950], changed;
     mysql_format(gDBPrimary, q, sizeof(q),
-        "INSERT INTO crime_contracts(template_id,account_id,faction_id,mode_id,reward_amount,started_at,expires_at) SELECT t.template_id,m.account_id,m.faction_id,t.mode_id,t.reward_amount,UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+t.duration_seconds FROM crime_contract_templates t JOIN faction_members m ON m.account_id=%d AND m.faction_id=%d WHERE t.template_id=1 AND t.mode_id=1 AND t.is_enabled=1",
-        gDBPrimaryAccountId[playerid], org);
+        "INSERT INTO crime_contracts(template_id,account_id,faction_id,mode_id,reward_amount,started_at,expires_at,contact_id) SELECT t.template_id,m.account_id,m.faction_id,t.mode_id,t.reward_amount,UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+t.duration_seconds,t.contact_id FROM crime_contract_templates t JOIN faction_members m ON m.account_id=%d AND m.faction_id=%d JOIN crime_contact_progress p ON p.account_id=m.account_id AND p.contact_id=t.contact_id AND p.trust>=t.required_trust WHERE t.template_id=%d AND t.contact_id=%d AND t.mode_id=1 AND t.is_enabled=1",
+        gDBPrimaryAccountId[playerid], org, templateId, broker);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
         Crime_Rollback();
@@ -306,6 +314,26 @@ stock Crime_Settle(playerid, id, reward, faction)
         Crime_Rollback();
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка записи результата.");
+    }
+    // Reputation and its once-per-contract ledger are committed with money.
+    // A duplicate completion can never add trust again.
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "INSERT INTO crime_contact_trust_events(contract_id,account_id,contact_id,trust_delta) SELECT contract_id,account_id,contact_id,5 FROM crime_contracts WHERE contract_id=%d AND account_id=%d AND state=3",
+        id, gDBPrimaryAccountId[playerid]);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Ошибка журнала доверия. Выплата отменена.");
+    }
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE crime_contact_progress p JOIN crime_contracts c ON c.account_id=p.account_id AND c.contact_id=p.contact_id SET p.trust=LEAST(100,p.trust+5),p.completed_count=p.completed_count+1 WHERE c.contract_id=%d AND c.account_id=%d AND c.state=3",
+        id, gDBPrimaryAccountId[playerid]);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить доверие. Выплата отменена.");
     }
     if (!Crime_Exec("COMMIT"))
     {
