@@ -70,13 +70,14 @@ stock CrimeUI_Main(playerid)
     else format(status, sizeof(status), "Нет активного заказа");
     format(body, sizeof(body),
         "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\n"
-        "Доступные заказы\tНочной рейс\n"
+        "Доступные заказы\t%s\n"
         "Мой контракт\t%s\n"
         "Маршрут и действие\t%s\n"
         "История контрактов\tПоследние 6\n"
         "Журнал операций\tПоследние 8\n"
         "Отказаться от контракта\t%s\n"
         "Обучение\tКак это работает",
+        id ? ("Уже есть заказ") : ("Ночной рейс"),
         status, id ? ("Доступен") : ("Нет активного заказа"),
         id ? ("Доступно") : ("Нет активного заказа"));
     CrimeUI_Open(playerid, CRIME_DLG_MAIN);
@@ -379,7 +380,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
         case CRIME_DLG_OFFER:
         {
             Crime_Start(playerid); // Revalidates org, unique active and DB conditions.
-            return CrimeUI_Main(playerid);
+            return CrimeUI_Route(playerid);
         }
         case CRIME_DLG_ACTIVE: return CrimeUI_Route(playerid);
         case CRIME_DLG_ROUTE:
@@ -390,6 +391,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
                 pickup, delivery, title, sizeof(title)) || !id)
                 return CrimeUI_Main(playerid);
             Crime_Advance(playerid, phase == 2); // DB + position checked again.
+            if (phase == 1) return CrimeUI_Route(playerid);
             return CrimeUI_Main(playerid);
         }
         case CRIME_DLG_CANCEL:
