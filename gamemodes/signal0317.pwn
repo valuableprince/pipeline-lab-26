@@ -198,6 +198,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "db_primary.inc"
 #include "crime_contracts.inc"
 #include "crime_contacts.inc"
+#include "crime_scenarios.inc"
 #include "crime_ui.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
