@@ -215,6 +215,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "player_menu.inc"
 #include "db_world.inc"
 #include "crime_contracts.inc"
+#include "crime_ui.inc"
 #include "cleaner_container.inc"
 #include "cleaner_truck.inc"
 #include "waste_sort.inc"
@@ -950,6 +951,7 @@ public OnPlayerConnect(playerid)
     Radio_OnConnect(playerid);
     Leader_OnConnect(playerid);
     Leader_UI_Reset(playerid);
+    CrimeUI_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
     OrvelarHUD_OnConnect(playerid);
     gAuthToken[playerid]++;
@@ -1043,6 +1045,7 @@ public OnPlayerDisconnect(playerid, reason)
     Admin_OnDisconnect(playerid);
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
+    CrimeUI_Reset(playerid);
     gAuthToken[playerid]++;
     gAuthState[playerid] = AUTH_NONE;
     gAuthDialogOpen[playerid] = false;
@@ -1304,6 +1307,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (CrimeUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
