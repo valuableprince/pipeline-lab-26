@@ -16,6 +16,7 @@
 #define CRIME_DLG_HELP       (7958)
 #define CRIME_DLG_CONTACTS   (7959)
 #define CRIME_DLG_CONTACT    (7960)
+#define CRIME_DLG_SCENE      (7961)
 #define CRIME_OFFER_MAX      (8)
 
 new gCrimeUIDialog[MAX_PLAYERS];
@@ -23,6 +24,8 @@ new gCrimeUIAuthToken[MAX_PLAYERS];
 new gCrimeUIAccountId[MAX_PLAYERS];
 new gCrimeUIContact[MAX_PLAYERS];
 new gCrimeUISelectedTemplate[MAX_PLAYERS];
+new gCrimeUISceneContract[MAX_PLAYERS];
+new gCrimeUIScenePhase[MAX_PLAYERS];
 new gCrimeUIOfferCount[MAX_PLAYERS];
 new gCrimeUIOfferId[MAX_PLAYERS][CRIME_OFFER_MAX];
 
@@ -33,6 +36,8 @@ stock CrimeUI_Reset(playerid)
     gCrimeUIAccountId[playerid] = 0;
     gCrimeUIContact[playerid] = 0;
     gCrimeUISelectedTemplate[playerid] = 0;
+    gCrimeUISceneContract[playerid] = 0;
+    gCrimeUIScenePhase[playerid] = 0;
     gCrimeUIOfferCount[playerid] = 0;
     return 1;
 }
@@ -179,9 +184,9 @@ stock CrimeUI_OfferDetail(playerid, templateId)
     if (!CrimeContacts_Near(playerid, broker) ||
         !CrimeContacts_Progress(playerid, broker, trust, completed, introduced) ||
         !introduced) return CrimeUI_Contacts(playerid);
-    new q[320], rows = 0, title[68], reward, duration, requiredTrust;
+    new q[320], rows = 0, title[68], reward, duration, requiredTrust, scenarioKind;
     mysql_format(gDBPrimary, q, sizeof(q),
-        "SELECT title,reward_amount,duration_seconds,required_trust FROM crime_contract_templates WHERE template_id=%d AND contact_id=%d AND required_trust<=%d AND mode_id=1 AND is_enabled=1",
+        "SELECT title,reward_amount,duration_seconds,required_trust,scenario_kind FROM crime_contract_templates WHERE template_id=%d AND contact_id=%d AND required_trust<=%d AND mode_id=1 AND is_enabled=1",
         templateId, broker, trust);
     new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) ||
@@ -189,7 +194,8 @@ stock CrimeUI_OfferDetail(playerid, templateId)
         !cache_get_value_name(0, "title", title, sizeof(title)) ||
         !cache_get_value_name_int(0, "reward_amount", reward) ||
         !cache_get_value_name_int(0, "duration_seconds", duration) ||
-        !cache_get_value_name_int(0, "required_trust", requiredTrust))
+        !cache_get_value_name_int(0, "required_trust", requiredTrust) ||
+        !cache_get_value_name_int(0, "scenario_kind", scenarioKind))
     {
         if (c != Cache:0) cache_delete(c);
         return SendClientMessage(playerid, CRIME_ERROR, "Предложение больше недоступно.");
@@ -197,8 +203,10 @@ stock CrimeUI_OfferDetail(playerid, templateId)
     cache_delete(c);
     new body[560];
     format(body, sizeof(body),
-        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\nВыполните одиночную перевозку для посредника. После доставки доверие вырастет на 5 пунктов. Один активный заказ на аккаунт.",
-        title, reward, duration / 60, requiredTrust);
+        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\n%s",
+        title, reward, duration / 60, requiredTrust,
+        scenarioKind == 0 ? ("Перевезите груз. Успешная сдача даст +5 доверия.") :
+        ("Найдите улики и примите два решения. От ваших выборов зависит прирост доверия."));
     gCrimeUISelectedTemplate[playerid] = templateId;
     CrimeUI_Open(playerid, CRIME_DLG_OFFER);
     return ShowPlayerDialog(playerid, CRIME_DLG_OFFER, DIALOG_STYLE_MSGBOX,
@@ -221,11 +229,15 @@ stock CrimeUI_Active(playerid)
         SendClientMessage(playerid, CRIME_ERROR, "Сейчас нет активного контракта.");
         return CrimeUI_Main(playerid);
     }
+    new kind, choice, task[64];
+    if (!CrimeScenario_Info(playerid, id, kind, choice))
+        return SendClientMessage(playerid, CRIME_ERROR, "Ошибка чтения сценария.");
+    CrimeScenario_StageLabel(kind, phase, task, sizeof(task));
     new body[520];
     format(body, sizeof(body),
         "{FFD15C}КОНТРАКТ:{FFFFFF} #%d\n{FFD15C}ЗАКАЗ:{FFFFFF} %s\n{FFD15C}ОРГАНИЗАЦИЯ:{FFFFFF} %d\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}ОСТАЛОСЬ:{FFFFFF} %d минут\n{FFD15C}ЭТАП:{FFFFFF} %s\n\nНажмите «Маршрут», чтобы увидеть нужную точку и выполнить следующее действие.",
         id, title, faction, reward, (deadline - gettime() + 59) / 60,
-        phase == 1 ? ("Получение груза") : ("Передача получателю"));
+        task);
     CrimeUI_Open(playerid, CRIME_DLG_ACTIVE);
     return ShowPlayerDialog(playerid, CRIME_DLG_ACTIVE, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Мой криминальный контракт", body, "Маршрут", "Назад");
@@ -243,18 +255,49 @@ stock CrimeUI_Route(playerid)
         SendClientMessage(playerid, CRIME_COLOR, "Активного заказа нет.");
         return CrimeUI_Main(playerid);
     }
+    new kind, choice, task[64];
+    if (!CrimeScenario_Info(playerid, id, kind, choice))
+        return SendClientMessage(playerid, CRIME_ERROR, "Ошибка чтения сценария.");
+    CrimeScenario_StageLabel(kind, phase, task, sizeof(task));
     new Float:x = phase == 1 ? pickup[0] : delivery[0],
         Float:y = phase == 1 ? pickup[1] : delivery[1],
         Float:z = phase == 1 ? pickup[2] : delivery[2];
     new body[540];
     format(body, sizeof(body),
         "{FFD15C}КОНТРАКТ:{FFFFFF} #%d — %s\n{FFD15C}ЗАДАЧА:{FFFFFF} %s\n\n{FFD15C}ТОЧКА НА КАРТЕ:{FFFFFF}\nX: %.1f\nY: %.1f\nZ: %.1f\n{FFD15C}РАДИУС:{FFFFFF} 12 метров\n\nДоберитесь до указанного места, затем нажмите «%s». Если вы далеко от точки, операция не выполнится.",
-        id, title, phase == 1 ? ("Забрать груз") : ("Доставить груз"),
-        x, y, z, phase == 1 ? ("Забрать") : ("Передать"));
+        id, title, task,
+        x, y, z, kind == 0 ? (phase == 1 ? ("Забрать") : ("Передать")) : ("Исследовать"));
     CrimeUI_Open(playerid, CRIME_DLG_ROUTE);
     return ShowPlayerDialog(playerid, CRIME_DLG_ROUTE, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Маршрут", body,
-        phase == 1 ? ("Забрать") : ("Передать"), "Назад");
+        kind == 0 ? (phase == 1 ? ("Забрать") : ("Передать")) : ("Решить"), "Назад");
+}
+
+stock CrimeUI_Scene(playerid)
+{
+    new id, phase, faction, reward, deadline, title[68];
+    new Float:pickup[3], Float:delivery[3];
+    if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
+        pickup, delivery, title, sizeof(title)) || !id)
+        return CrimeUI_Main(playerid);
+    new kind, choice;
+    if (!CrimeScenario_Info(playerid, id, kind, choice) || kind == 0)
+        return CrimeUI_Main(playerid);
+    new Float:x = phase == 1 ? pickup[0] : delivery[0],
+        Float:y = phase == 1 ? pickup[1] : delivery[1],
+        Float:z = phase == 1 ? pickup[2] : delivery[2];
+    if (!IsPlayerInRangeOfPoint(playerid, CRIME_INTERACT_RADIUS, x, y, z))
+    {
+        SendClientMessage(playerid, CRIME_ERROR, "Сначала доберитесь до точки задания.");
+        return CrimeUI_Route(playerid);
+    }
+    new body[470];
+    CrimeScenario_Choices(kind, phase, body, sizeof(body));
+    gCrimeUISceneContract[playerid] = id;
+    gCrimeUIScenePhase[playerid] = phase;
+    CrimeUI_Open(playerid, CRIME_DLG_SCENE);
+    return ShowPlayerDialog(playerid, CRIME_DLG_SCENE, DIALOG_STYLE_TABLIST_HEADERS,
+        "{FFD15C}Решение по делу", body, "Выбрать", "Назад");
 }
 
 stock CrimeUI_Cancel(playerid)
@@ -357,7 +400,7 @@ stock CrimeUI_Help(playerid)
 
 stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
 {
-    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_CONTACT) return 0;
+    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_SCENE) return 0;
 #if defined TARKENSO_DB_PRIMARY
     if (gCrimeUIDialog[playerid] != dialogid ||
         gCrimeUIAuthToken[playerid] != gAuthToken[playerid] ||
@@ -379,6 +422,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
         if (dialogid == CRIME_DLG_OFFER) return CrimeUI_Offers(playerid);
         if (dialogid == CRIME_DLG_OFFERS) return CrimeUI_ContactDetail(playerid, gCrimeUIContact[playerid]);
         if (dialogid == CRIME_DLG_CONTACT) return CrimeUI_Contacts(playerid);
+        if (dialogid == CRIME_DLG_SCENE) return CrimeUI_Route(playerid);
         return CrimeUI_Main(playerid);
     }
     switch (dialogid)
@@ -432,7 +476,28 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
             if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
                 pickup, delivery, title, sizeof(title)) || !id)
                 return CrimeUI_Main(playerid);
-            Crime_Advance(playerid, phase == 2); // DB + position checked again.
+            new kind, choice;
+            if (!CrimeScenario_Info(playerid, id, kind, choice))
+                return CrimeUI_Main(playerid);
+            if (kind != 0) return CrimeUI_Scene(playerid);
+            Crime_Advance(playerid, phase == 2); // Classic courier remains unchanged.
+            if (phase == 1) return CrimeUI_Route(playerid);
+            return CrimeUI_Main(playerid);
+        }
+        case CRIME_DLG_SCENE:
+        {
+            if (listitem < 0 || listitem > 1) return CrimeUI_Main(playerid);
+            new id, phase, faction, reward, deadline, title[68];
+            new Float:pickup[3], Float:delivery[3];
+            if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
+                pickup, delivery, title, sizeof(title)) || !id ||
+                id != gCrimeUISceneContract[playerid] ||
+                phase != gCrimeUIScenePhase[playerid])
+                return CrimeUI_Main(playerid);
+            new kind, choice;
+            if (!CrimeScenario_Info(playerid, id, kind, choice) || kind == 0)
+                return CrimeUI_Main(playerid);
+            Crime_Advance(playerid, phase == 2, listitem + 1);
             if (phase == 1) return CrimeUI_Route(playerid);
             return CrimeUI_Main(playerid);
         }
