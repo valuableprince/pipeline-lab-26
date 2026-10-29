@@ -103,12 +103,12 @@ def stage_sources(stage: Path, snapshot: dict[str, bytes]) -> None:
                 constants = []
                 for macro in ("FACTION_FINANCE", "FACTION_CRIME_FIRST",
                               "FACTION_CRIME_LAST"):
-                    pattern = r"(?m)^#define\\s+" + macro + r"\\s+\\(\\d+\\)$"
+                    pattern = r"(?m)^#define\s+" + macro + r"\s+\(\d+\)$"
                     definition = re.search(pattern, source)
                     if definition is None:
                         raise ValueError(f"missing faction constant {macro}")
                     constants.append(definition.group(0))
-                transformed = "\\n".join(constants + helpers) + "\\n" + transformed
+                transformed = "\n".join(constants + helpers) + "\n" + transformed
         (stage / target).write_bytes(transformed.encode("cp1251", errors="strict"))
 
 
