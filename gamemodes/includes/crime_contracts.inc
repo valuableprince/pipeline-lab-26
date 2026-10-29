@@ -150,69 +150,7 @@ stock bool:Crime_ReadWallet(playerid, &balance, &version, &serial)
 }
 #endif
 
-stock Crime_ShowOffer(playerid)
-{
-    if (!Crime_Available(playerid))
-        return SendClientMessage(playerid, CRIME_ERROR,
-            "Контракты недоступны: необходима MySQL-миграция 032.");
-#if defined TARKENSO_DB_PRIMARY
-    new Cache:c = mysql_query(gDBPrimary,
-        "SELECT title,reward_amount,duration_seconds FROM crime_contract_templates WHERE template_id=1 AND mode_id=1 AND is_enabled=1");
-    new rows, title[68], reward, duration;
-    if (c == Cache:0 || mysql_errno(gDBPrimary) ||
-        !cache_get_row_count(rows) || rows != 1 ||
-        !cache_get_value_name(0, "title", title, sizeof(title)) ||
-        !cache_get_value_name_int(0, "reward_amount", reward) ||
-        !cache_get_value_name_int(0, "duration_seconds", duration))
-    {
-        if (c != Cache:0) cache_delete(c);
-        return SendClientMessage(playerid, CRIME_ERROR, "Предложение недоступно.");
-    }
-    cache_delete(c);
-    new message[160];
-    format(message, sizeof(message), "Заказ: %s | Награда: $%d | Срок: %d мин.",
-        title, reward, duration / 60);
-    SendClientMessage(playerid, CRIME_COLOR, message);
-    SendClientMessage(playerid, CRIME_COLOR,
-        "Одиночный пробный рейс: /crime start | /crime status | /crime route.");
-#endif
-    return 1;
-}
 
-stock Crime_Status(playerid, bool:route = false)
-{
-    if (!Crime_Available(playerid))
-        return SendClientMessage(playerid, CRIME_ERROR,
-            "Контракты недоступны: необходима MySQL-миграция 032.");
-#if defined TARKENSO_DB_PRIMARY
-    if (!Crime_Expire(playerid))
-        return SendClientMessage(playerid, CRIME_ERROR, "Ошибка обновления контрактов.");
-    new id, phase, faction, reward, deadline, title[68];
-    new Float:pickup[3], Float:delivery[3], msg[160];
-    if (!Crime_LoadActive(playerid, id, phase, faction, reward, deadline,
-        pickup, delivery, title, sizeof(title)))
-        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось прочитать контракт.");
-    if (!id)
-        return SendClientMessage(playerid, CRIME_COLOR,
-            "Активного заказа нет. /crime offer, затем /crime start.");
-    format(msg, sizeof(msg), "Контракт #%d: %s | %s | $%d | осталось %d мин.",
-        id, title, phase == 1 ? ("Получите груз") : ("Доставьте груз"),
-        reward, (deadline - gettime() + 59) / 60);
-    SendClientMessage(playerid, CRIME_COLOR, msg);
-    if (route)
-    {
-        new Float:x = phase == 1 ? pickup[0] : delivery[0],
-            Float:y = phase == 1 ? pickup[1] : delivery[1],
-            Float:z = phase == 1 ? pickup[2] : delivery[2];
-        format(msg, sizeof(msg), "Точка: X %.1f, Y %.1f, Z %.1f | Радиус 12 м.",
-            x, y, z);
-        SendClientMessage(playerid, CRIME_COLOR, msg);
-        SendClientMessage(playerid, CRIME_COLOR,
-            phase == 1 ? ("На месте: /crime pickup") : ("На месте: /crime deliver"));
-    }
-#endif
-    return 1;
-}
 
 stock Crime_Start(playerid)
 {
@@ -244,9 +182,9 @@ stock Crime_Start(playerid)
     }
     if (!Crime_Exec("COMMIT"))
         return SendClientMessage(playerid, CRIME_ERROR,
-            "Статус принятия неизвестен. Используйте /crime status.");
+            "Статус принятия неизвестен. Откройте меню повторно.");
     SendClientMessage(playerid, CRIME_COLOR, "Заказ принят. Отправляйтесь за грузом.");
-    return Crime_Status(playerid, true);
+    return 1;
 #else
     return 1;
 #endif
@@ -266,7 +204,7 @@ stock Crime_Advance(playerid, bool:deliveryStage)
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось прочитать контракт.");
     if (!id || phase != (deliveryStage ? 2 : 1))
         return SendClientMessage(playerid, CRIME_ERROR,
-            "Сейчас этот этап недоступен. Проверьте /crime status.");
+            "Сейчас этот этап недоступен. Проверьте меню своего контракта.");
     if (faction != Leader_PlayerOrg(playerid))
         return SendClientMessage(playerid, CRIME_ERROR,
             "Вы больше не сотрудник организации, принявшей контракт.");
@@ -275,7 +213,7 @@ stock Crime_Advance(playerid, bool:deliveryStage)
         deliveryStage ? drop[1] : pickup[1],
         deliveryStage ? drop[2] : pickup[2]))
         return SendClientMessage(playerid, CRIME_ERROR,
-            "Вы не у точки операции. Координаты: /crime route.");
+            "Вы далеко от точки операции. Откройте раздел маршрута.");
     if (deliveryStage) return Crime_Settle(playerid, id, reward, faction);
     if (!Crime_Exec("START TRANSACTION"))
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка начала операции.");
@@ -298,9 +236,9 @@ stock Crime_Advance(playerid, bool:deliveryStage)
     }
     if (!Crime_Exec("COMMIT"))
         return SendClientMessage(playerid, CRIME_ERROR,
-            "Статус выдачи неизвестен. Проверьте /crime status.");
+            "Статус выдачи неизвестен. Откройте меню повторно.");
     SendClientMessage(playerid, CRIME_COLOR, "Груз получен. Перевезите его в точку передачи.");
-    return Crime_Status(playerid, true);
+    return 1;
 #else
     #pragma unused deliveryStage
     return 1;
@@ -389,7 +327,7 @@ stock Crime_Settle(playerid, id, reward, faction)
     Economy_SyncHUD(playerid);
     new message[144];
     format(message, sizeof(message),
-        "Контракт #%d завершён. Начислено $%d. Запись в журнале: /crime history.",
+        "Контракт #%d завершён. Начислено $%d. Результат сохранён в журнале.",
         id, reward);
     return SendClientMessage(playerid, CRIME_COLOR, message);
 #else
@@ -438,72 +376,4 @@ stock Crime_Abort(playerid)
 #endif
 }
 
-stock Crime_History(playerid, bool:journal = false)
-{
-    if (!Crime_Available(playerid)) return SendClientMessage(playerid, CRIME_ERROR,
-        "Контракты SQL недоступны.");
-#if defined TARKENSO_DB_PRIMARY
-    new q[430], rows, line[160];
-    if (journal)
-        mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT e.contract_id,e.event_type FROM crime_contract_events e JOIN crime_contracts c ON c.contract_id=e.contract_id WHERE c.account_id=%d ORDER BY e.event_id DESC LIMIT 8",
-            gDBPrimaryAccountId[playerid]);
-    else
-        mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT contract_id,state,reward_amount FROM crime_contracts WHERE account_id=%d ORDER BY contract_id DESC LIMIT 6",
-            gDBPrimaryAccountId[playerid]);
-    new Cache:c = mysql_query(gDBPrimary, q);
-    if (c == Cache:0 || mysql_errno(gDBPrimary) || !cache_get_row_count(rows))
-    {
-        if (c != Cache:0) cache_delete(c);
-        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось загрузить историю.");
-    }
-    SendClientMessage(playerid, CRIME_COLOR,
-        journal ? ("Последние события контрактов:") : ("Последние контракты:"));
-    for (new i; i < rows; i++)
-    {
-        new id, phase, reward, kind[24];
-        if (!cache_get_value_name_int(i, "contract_id", id)) break;
-        if (journal)
-        {
-            if (!cache_get_value_name(i, "event_type", kind, sizeof(kind))) break;
-            format(line, sizeof(line), "#%d | %s", id, kind);
-        }
-        else
-        {
-            if (!cache_get_value_name_int(i, "state", phase) ||
-                !cache_get_value_name_int(i, "reward_amount", reward)) break;
-            format(line, sizeof(line), "#%d | состояние %d | награда $%d%s",
-                id, phase, reward, phase == 3 ? (" выплачена") : (""));
-        }
-        SendClientMessage(playerid, CRIME_COLOR, line);
-    }
-    cache_delete(c);
-    if (!rows) SendClientMessage(playerid, CRIME_COLOR, "Пока нет записей.");
-#else
-    #pragma unused journal
-#endif
-    return 1;
-}
 
-stock Crime_Command(playerid, const params[])
-{
-    new action[20];
-    if (isnull(params) || sscanf(params, "s[20]", action))
-    {
-        SendClientMessage(playerid, CRIME_COLOR,
-            "Теневой рынок: /crime offer, /crime start, /crime status, /crime route.");
-        return SendClientMessage(playerid, CRIME_COLOR,
-            "Действия: /crime pickup, /crime deliver, /crime abort, /crime history, /crime journal.");
-    }
-    if (!strcmp(action, "offer", true)) return Crime_ShowOffer(playerid);
-    if (!strcmp(action, "start", true)) return Crime_Start(playerid);
-    if (!strcmp(action, "status", true)) return Crime_Status(playerid);
-    if (!strcmp(action, "route", true)) return Crime_Status(playerid, true);
-    if (!strcmp(action, "pickup", true)) return Crime_Advance(playerid, false);
-    if (!strcmp(action, "deliver", true)) return Crime_Advance(playerid, true);
-    if (!strcmp(action, "abort", true)) return Crime_Abort(playerid);
-    if (!strcmp(action, "history", true)) return Crime_History(playerid);
-    if (!strcmp(action, "journal", true)) return Crime_History(playerid, true);
-    return SendClientMessage(playerid, CRIME_ERROR, "Неизвестное действие. /crime");
-}
