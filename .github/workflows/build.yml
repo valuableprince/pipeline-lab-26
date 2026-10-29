@@ -223,6 +223,51 @@ jobs:
       - name: GOV-09 state buyback, coupons, escrow and replay MariaDB UAT
         run: python3 tests/gov09_buyback_mysql_uat.py
 
+
+  crime02_mysql_uat:
+    name: CRIME-02.1 MariaDB UAT
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: crime02-ci-only
+          MARIADB_DATABASE: tarkenso_crime02
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CRIME_TEST_HOST: 127.0.0.1
+      CRIME_TEST_USER: root
+      CRIME_TEST_PASSWORD: crime02-ci-only
+      CRIME_TEST_DB: tarkenso_crime02
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install MariaDB CLI and connector
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+          python3 -m pip install --user mysql-connector-python
+
+      - name: Install isolated base, syndicates and contracts
+        run: |
+          set -euo pipefail
+          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql; do
+            mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$CRIME_TEST_PASSWORD" "$CRIME_TEST_DB" < "db/migrations/$migration"
+          done
+
+      - name: Test solo lifecycle and exactly-once reward
+        run: python3 tests/crime02_mysql_uat.py
+
   compile:
     name: Compile
     needs: sql_security
