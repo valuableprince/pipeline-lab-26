@@ -32,9 +32,10 @@ stock Leader_UI_Main(playerid)
     else format(title, sizeof(title), "%s | Ранг %d", name,
         Leader_PublicRank(org,Leader_PlayerRank(playerid)));
     gFactionDialogMode[playerid] = 1;
+    new menu[180] = "Информация о составе\nСписок сотрудников\nСвязь организации\nПокинуть организацию\nРуководство";
+    if (Leader_IsCriminal(org)) strcat(menu, "\nТеневой рынок", sizeof(menu));
     ShowPlayerDialog(playerid, LEADER_DLG_MAIN, DIALOG_STYLE_LIST,
-        title, "Информация о составе\nСписок сотрудников\nСвязь организации\nПокинуть организацию\nРуководство",
-        "Выбрать", "Закрыть");
+        title, menu, "Выбрать", "Закрыть");
     return 1;
 }
 
@@ -111,7 +112,8 @@ stock Leader_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext
     {
         if (gFactionDialogMode[playerid] != 1) return 1;
         gFactionDialogMode[playerid] = 0;
-        if (!response || listitem < 0 || listitem > 4 || !Leader_PlayerOrg(playerid)) return 1;
+        if (!response || listitem < 0 || !Leader_PlayerOrg(playerid) ||
+            listitem > (Leader_IsCriminal(Leader_PlayerOrg(playerid)) ? 5 : 4)) return 1;
         switch (listitem)
         {
             case 0: return Leader_List(playerid);
@@ -119,6 +121,7 @@ stock Leader_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext
             case 2: return SendClientMessage(playerid, FACTION_COLOR, "Рация организации: /r сообщение. Префикс в чате: [R].");
             case 3: return Leader_Command(playerid, "fleave", "");
             case 4: return Leader_UI_Leader(playerid);
+            case 5: return CrimeUI_Main(playerid);
         }
         return 1;
     }
