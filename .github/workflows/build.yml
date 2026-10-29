@@ -261,7 +261,7 @@ jobs:
       - name: Install isolated base, syndicates and contracts
         run: |
           set -euo pipefail
-          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql; do
+          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql 033_crime_npc_contacts.sql; do
             mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$CRIME_TEST_PASSWORD" "$CRIME_TEST_DB" < "db/migrations/$migration"
           done
 
