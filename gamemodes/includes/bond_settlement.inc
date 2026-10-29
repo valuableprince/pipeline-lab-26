@@ -9,6 +9,7 @@
 #define BOND_SETTLEMENT_TIMER_MS (30000)
 #define BOND_SETTLEMENT_MAX_PENDING (8)
 new bool:gBondSettlementReady;
+new bool:gBondBuybackReady; // separately gated by migration 030
 new bool:gBondSettlementBusy[MAX_PLAYERS];
 new gBondSettlementExpectedVersion[MAX_PLAYERS];
 new gBondSettlementPendingAccount[MAX_PLAYERS];
@@ -52,6 +53,7 @@ stock BondSettlement_OnDisconnect(playerid)
 
 stock BondSettlement_Shutdown()
 {
+    gBondBuybackReady = false;
     gBondSettlementReady = false;
     if (gBondSettlementTimer) KillTimer(gBondSettlementTimer);
     gBondSettlementTimer = 0;
@@ -76,6 +78,19 @@ stock BondSettlement_Init()
         print("[GOV-03] Migration 021 absent. Settlement is disabled.");
         return 1;
     }
+    // GOV-09 must fail closed on servers which have not deployed migration 030.
+    // Existing purchases/claims remain available on earlier migration versions.
+    c=mysql_query(gDBPrimary,
+        "SELECT version FROM schema_migrations WHERE version=30 LIMIT 1");
+    if(c!=Cache:0)
+    {
+        new found=0;
+        gBondBuybackReady=(mysql_errno(gDBPrimary)==0 &&
+            cache_get_row_count(found) && found==1);
+        cache_delete(c);
+    }
+    if(!gBondBuybackReady)
+        print("[GOV-09] Migration 030 missing; early buyback disabled.");
     gBondSettlementReady = true;
     gBondSettlementPendingGlobal = 0;
     gBondSettlementScanBusy = false;
@@ -154,6 +169,29 @@ stock bool:BondSettlement_Buy(playerid, const eventKey[],
     return BondSettlement_Queue(playerid,query,eventKey);
 #else
     #pragma unused playerid,eventKey,issueCode,quantity
+    return false;
+#endif
+}
+
+// GOV-09: state treasury buys back securities for 98% of face value.
+// The financial, ownership, coupon and guarantee effects are ONE SQL transaction.
+stock bool:BondSettlement_Buyback(playerid,const eventKey[],issueId,quantity)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(!gBondBuybackReady || !BondSettlement_IsReady() ||
+       !Treasury_ValidToken(eventKey,64) || strlen(eventKey)<7 ||
+       strcmp(eventKey,"bond:",false,5)!=0 ||
+       issueId<=0 || quantity<=0 || quantity>1000000 ||
+       !IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY ||
+       !gDBPrimaryLoaded[playerid])return false;
+    new query[430];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "CALL gov_bond_buyback('%e',%d,%d,%d,%d)",
+        eventKey,issueId,gDBPrimaryAccountId[playerid],quantity,
+        gDBPrimaryVersion[playerid]);
+    return BondSettlement_Queue(playerid,query,eventKey);
+#else
+    #pragma unused playerid,eventKey,issueId,quantity
     return false;
 #endif
 }

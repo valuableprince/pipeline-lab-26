@@ -16,6 +16,9 @@
 #define BONDS_DLG_COUPONS    (6708)
 #define BONDS_DLG_COUPON     (6709)
 #define BONDS_DLG_COUPON_PAY (6710)
+#define BONDS_DLG_SELL_QTY (6711)
+#define BONDS_DLG_SELL_CONFIRM (6712)
+#define BONDS_DLG_POSITION_ACTION (6713)
 #define BONDS_UI_PAGE_SIZE   (10)
 #define BONDS_UI_PAGE_LIMIT  (1000)
 #define BONDS_UI_NONE        (0)
@@ -29,6 +32,8 @@
 #define BONDS_UI_COUPONS     (8)
 #define BONDS_UI_COUPON      (9)
 #define BONDS_UI_PENDING_COUPON (10)
+#define BONDS_UI_SELL_QTY (11)
+#define BONDS_UI_SELL_CONFIRM (12)
 
 // Localize only user-visible debt states. SQL keeps stable technical enums.
 stock BondsUI_DebtStatusLabel(const status[],output[],size)
@@ -63,6 +68,9 @@ new gBondsUIPendingQty[MAX_PLAYERS];
 new gBondsUIClaimId[MAX_PLAYERS];
 new gBondsUIClaimAmount[MAX_PLAYERS];
 new gBondsUICouponAmount[MAX_PLAYERS];
+new gBondsUISellMax[MAX_PLAYERS];
+new gBondsUISellUnitPrice[MAX_PLAYERS];
+new gBondsUISellQuantity[MAX_PLAYERS];
 new gBondsUIPendingAction[MAX_PLAYERS];
 new gBondsUIEventSerial;
 
@@ -91,6 +99,9 @@ stock BondsUI_Reset(playerid)
     gBondsUIClaimId[playerid] = 0;
     gBondsUIClaimAmount[playerid] = 0;
     gBondsUICouponAmount[playerid] = 0;
+    gBondsUISellMax[playerid] = 0;
+    gBondsUISellUnitPrice[playerid] = 0;
+    gBondsUISellQuantity[playerid] = 0;
     gBondsUIPendingAction[playerid] = 0;
     return 1;
 }
@@ -174,7 +185,7 @@ stock BondsUI_LoadList(playerid, kind, page = 0)
 #if defined TARKENSO_DB_PRIMARY
     if (!BondsUI_Authorized(playerid) || gBondsUILoading[playerid]) return 1;
     if (page < 0 || page > BONDS_UI_PAGE_LIMIT) return BondsUI_Main(playerid);
-    new query[800], offset = page * BONDS_UI_PAGE_SIZE;
+    new query[1150], offset = page * BONDS_UI_PAGE_SIZE;
     if (kind == BONDS_UI_OFFERS)
     {
         mysql_format(gDBPrimary, query, sizeof(query),
@@ -184,8 +195,8 @@ stock BondsUI_LoadList(playerid, kind, page = 0)
     else if (kind == BONDS_UI_PORTFOLIO)
     {
         mysql_format(gDBPrimary, query, sizeof(query),
-            "SELECT i.issue_id,i.issue_code,h.quantity,i.face_value,i.debt_status,COALESCE(c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected,0) AS available FROM government_bond_holdings h INNER JOIN government_bond_issues i ON i.issue_id=h.issue_id LEFT JOIN government_bond_claims c ON c.issue_id=i.issue_id AND c.account_id=h.account_id WHERE h.account_id=%d ORDER BY i.issue_id DESC LIMIT 11 OFFSET %d",
-            gDBPrimaryAccountId[playerid], offset);
+            "SELECT i.issue_id,i.issue_code,COALESCE(h.quantity,0) AS quantity,i.face_value,i.debt_status,COALESCE(c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected,0) AS available FROM (SELECT issue_id FROM government_bond_holdings WHERE account_id=%d UNION SELECT issue_id FROM government_bond_claims WHERE account_id=%d) own JOIN government_bond_issues i ON i.issue_id=own.issue_id LEFT JOIN government_bond_holdings h ON h.issue_id=i.issue_id AND h.account_id=%d LEFT JOIN government_bond_claims c ON c.issue_id=i.issue_id AND c.account_id=%d ORDER BY i.issue_id DESC LIMIT 11 OFFSET %d",
+            gDBPrimaryAccountId[playerid],gDBPrimaryAccountId[playerid],gDBPrimaryAccountId[playerid],gDBPrimaryAccountId[playerid], offset);
     }
     else if(kind==BONDS_UI_COUPONS)
     {
@@ -336,7 +347,7 @@ stock BondsUI_LoadDetail(playerid, kind, issueId)
 #if defined TARKENSO_DB_PRIMARY
     if (!BondsUI_Authorized(playerid) || issueId<=0 || gBondsUILoading[playerid])
         return 1;
-    new query[1100];
+    new query[1600];
     if (kind==BONDS_UI_OFFER)
     {
         mysql_format(gDBPrimary,query,sizeof(query),
@@ -346,8 +357,8 @@ stock BondsUI_LoadDetail(playerid, kind, issueId)
     else if (kind==BONDS_UI_POSITION)
     {
         mysql_format(gDBPrimary,query,sizeof(query),
-            "SELECT i.issue_id,i.issue_code,i.face_value,i.yield_basis_points,i.debt_status,h.quantity,COALESCE(c.claim_id,0) AS claim_id,COALESCE(c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected,0) AS available,COALESCE(c.principal_due-c.principal_budget_awarded-c.insurance_awarded,0) AS principal_remaining FROM government_bond_holdings h INNER JOIN government_bond_issues i ON i.issue_id=h.issue_id LEFT JOIN government_bond_claims c ON c.issue_id=i.issue_id AND c.account_id=h.account_id WHERE i.issue_id=%d AND h.account_id=%d LIMIT 1",
-            issueId,gDBPrimaryAccountId[playerid]);
+            "SELECT i.issue_id,i.issue_code,i.face_value,i.yield_basis_points,i.debt_status,COALESCE(h.quantity,0) AS quantity,COALESCE(c.claim_id,0) AS claim_id,COALESCE(c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected,0) AS available,COALESCE(c.principal_due-c.principal_budget_awarded-c.insurance_awarded,0) AS principal_remaining,LEAST(t.max_transaction,GREATEST(0,t.balance-t.minimum_reserve-t.bond_fund_reserved-t.bond_payout_reserved)) AS treasury_free,IF(i.maturity_at>UTC_TIMESTAMP() AND i.maturity_event_key IS NULL AND i.status IN ('OFFERING','APPROVED','CLOSED') AND t.enabled=1 AND t.expense_enabled=1,1,0) AS sale_open FROM government_bond_issues i LEFT JOIN government_bond_holdings h ON h.issue_id=i.issue_id AND h.account_id=%d LEFT JOIN government_bond_claims c ON c.issue_id=i.issue_id AND c.account_id=%d CROSS JOIN treasury_accounts t WHERE t.code='state' AND i.issue_id=%d AND (h.issue_id IS NOT NULL OR c.claim_id IS NOT NULL) LIMIT 1",
+            gDBPrimaryAccountId[playerid],gDBPrimaryAccountId[playerid],issueId);
     }
     else if(kind==BONDS_UI_COUPON)
     {
@@ -479,10 +490,13 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
     else
     {
         new qty,claimId,available,remaining,debt[24],debtLabel[40];
+        new treasuryFree,saleOpen;
         if (!cache_get_value_name_int(0,"quantity",qty) ||
             !cache_get_value_name_int(0,"claim_id",claimId) ||
             !cache_get_value_name_int(0,"available",available) ||
             !cache_get_value_name_int(0,"principal_remaining",remaining) ||
+            !cache_get_value_name_int(0,"treasury_free",treasuryFree) ||
+            !cache_get_value_name_int(0,"sale_open",saleOpen) ||
             !cache_get_value_name(0,"debt_status",debt,sizeof(debt)))
             return 1;
         gBondsUIClaimId[playerid]=claimId;
@@ -490,6 +504,20 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         new walletFree=ACCOUNT_MAX_MONEY-gAccountMoney[playerid];
         gBondsUIClaimAmount[playerid]=available>walletFree?walletFree:available;
         if (gBondsUIClaimAmount[playerid]<0)gBondsUIClaimAmount[playerid]=0;
+        // The fixed 98% unit price is rounded DOWN once per security.
+        // The SQL procedure independently recalculates this under locks.
+        gBondsUISellUnitPrice[playerid]=(face/100)*98+((face%100)*98)/100;
+        gBondsUISellMax[playerid]=qty;
+        if(gBondsUISellUnitPrice[playerid]<1 || !gBondBuybackReady || !saleOpen)
+            gBondsUISellMax[playerid]=0;
+        else
+        {
+            new cap=treasuryFree/gBondsUISellUnitPrice[playerid];
+            new walletCap=walletFree/gBondsUISellUnitPrice[playerid];
+            if(gBondsUISellMax[playerid]>cap)gBondsUISellMax[playerid]=cap;
+            if(gBondsUISellMax[playerid]>walletCap)gBondsUISellMax[playerid]=walletCap;
+        }
+        gBondsUISellQuantity[playerid]=0;
         BondsUI_DebtStatusLabel(debt,debtLabel,sizeof(debtLabel));
         new debtColor[9];
         if (!strcmp(debt,"DEFAULTED",true) || !strcmp(debt,"OVERDUE",true))
@@ -504,11 +532,52 @@ public BondsUI_OnDetail(playerid,authToken,accountId,requestSeq,kind)
         gBondsUIStage[playerid]=BONDS_UI_POSITION;
         ShowPlayerDialog(playerid,BONDS_DLG_POSITION,DIALOG_STYLE_MSGBOX,
             "{E8EDF3}TARKENSO {E8EDF3}| {E8EDF3}Позиция портфеля",body,
-            available>0?"Получить":"Обновить","Назад");
+            "Действия","Назад");
     }
 #else
     #pragma unused playerid,authToken,accountId,requestSeq,kind
 #endif
+    return 1;
+}
+
+// GOV-09: quote is informative, and SQL is always authoritative.
+stock BondsUI_ShowSellQuantity(playerid)
+{
+    if(gBondsUIStage[playerid]!=BONDS_UI_POSITION ||
+       !BondsUI_Authorized(playerid))return 1;
+    if(gBondsUISellMax[playerid]<1)
+    {
+        SendClientMessage(playerid,COLOR_AMBER,
+            "Досрочная продажа недоступна: проверьте казну, срок займа и баланс.");
+        return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+    }
+    new body[450];
+    format(body,sizeof(body),
+        "{E8EDF3}ДОСРОЧНАЯ ПРОДАЖА ГОСУДАРСТВУ\\n\\n{E8EDF3}Выпуск: %s\\n{E8EDF3}Цена за облигацию: $%d (98%% номинала)\\n{E8EDF3}Можно продать: от 1 до %d шт.\\n\\n{E8EDF3}Ранее начисленные купоны остаются вам. По проданным бумагам новые купоны не начисляются.",
+        gBondsUISelectedCode[playerid],gBondsUISellUnitPrice[playerid],
+        gBondsUISellMax[playerid]);
+    gBondsUIStage[playerid]=BONDS_UI_SELL_QTY;
+    ShowPlayerDialog(playerid,BONDS_DLG_SELL_QTY,DIALOG_STYLE_INPUT,
+        "{E8EDF3}TARKENSO | Досрочный выкуп",body,"Далее","Назад");
+    return 1;
+}
+
+stock BondsUI_ConfirmSell(playerid,quantity)
+{
+    if(gBondsUIStage[playerid]!=BONDS_UI_SELL_QTY ||
+       quantity<1 || quantity>gBondsUISellMax[playerid] ||
+       gBondsUISellUnitPrice[playerid]<1 ||
+       gBondsUISellUnitPrice[playerid]>1000000000/quantity ||
+       !BondsUI_Authorized(playerid))return 1;
+    gBondsUISellQuantity[playerid]=quantity;
+    new body[460],payment=quantity*gBondsUISellUnitPrice[playerid];
+    format(body,sizeof(body),
+        "{E8EDF3}ПОДТВЕРЖДЕНИЕ ДОСРОЧНОЙ ПРОДАЖИ\\n\\n{E8EDF3}Выпуск: %s\\n{E8EDF3}Количество: %d шт.\\n{E8EDF3}Цена одной: $%d (98%%)\\n{E8EDF3}К получению: $%d\\n\\n{E8EDF3}Государство погасит выкупленные бумаги. Будущие купоны прекратятся. Операция состоится только после проверки средств казны.",
+        gBondsUISelectedCode[playerid],quantity,
+        gBondsUISellUnitPrice[playerid],payment);
+    gBondsUIStage[playerid]=BONDS_UI_SELL_CONFIRM;
+    ShowPlayerDialog(playerid,BONDS_DLG_SELL_CONFIRM,DIALOG_STYLE_MSGBOX,
+        "{E8EDF3}TARKENSO | Подтвердить продажу",body,"Продать","Назад");
     return 1;
 }
 
@@ -590,7 +659,7 @@ stock BondsUI_StartCollect(playerid)
 
 stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 {
-    if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_COUPON_PAY) return 0;
+    if(dialogid<BONDS_DLG_MAIN || dialogid>BONDS_DLG_POSITION_ACTION) return 0;
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY) return 1;
     if(gBondsUILoading[playerid] || gGovTransferBusy[playerid]) return 1;
     if(dialogid==BONDS_DLG_MAIN)
@@ -761,10 +830,69 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     {
         if(gBondsUIStage[playerid]!=BONDS_UI_POSITION)return 1;
         if(!response)return BondsUI_LoadList(playerid,BONDS_UI_PORTFOLIO,gBondsUIPage[playerid]);
-        if(gBondsUIClaimAmount[playerid]<=0)
-            return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
-        return BondsUI_StartCollect(playerid);
+        ShowPlayerDialog(playerid,BONDS_DLG_POSITION_ACTION,DIALOG_STYLE_LIST,
+            "{E8EDF3}TARKENSO | Действия с облигациями",
+            "{E8EDF3}Получить выплату по погашению\\n{E8EDF3}Продать государству досрочно (98%)\\n{E8EDF3}Обновить карточку",
+            "Выбрать","Назад");
+        return 1;
     }
+    if(dialogid==BONDS_DLG_POSITION_ACTION)
+    {
+        if(gBondsUIStage[playerid]!=BONDS_UI_POSITION)return 1;
+        if(!response)
+            return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        switch(listitem)
+        {
+            case 0:return BondsUI_StartCollect(playerid);
+            case 1:return BondsUI_ShowSellQuantity(playerid);
+            case 2:return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        }
+        return 1;
+    }
+    if(dialogid==BONDS_DLG_SELL_QTY)
+    {
+        if(gBondsUIStage[playerid]!=BONDS_UI_SELL_QTY)return 1;
+        if(!response)
+            return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        new length=strlen(inputtext);
+        if(length<1 || length>7)
+            return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        for(new i=0;i<length;i++)
+            if(inputtext[i]<'0' || inputtext[i]>'9')
+                return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        new count=strval(inputtext);
+        if(count<1 || count>gBondsUISellMax[playerid])
+        {
+            SendClientMessage(playerid,COLOR_RED,"Количество больше доступного для выкупа.");
+            return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        }
+        return BondsUI_ConfirmSell(playerid,count);
+    }
+    if(dialogid==BONDS_DLG_SELL_CONFIRM)
+    {
+        if(gBondsUIStage[playerid]!=BONDS_UI_SELL_CONFIRM)return 1;
+        if(!response)
+            return BondsUI_LoadDetail(playerid,BONDS_UI_POSITION,gBondsUISelectedIssue[playerid]);
+        gBondsUIStage[playerid]=BONDS_UI_NONE;
+#if defined TARKENSO_DB_PRIMARY
+        if(gBondsUISellQuantity[playerid]<=0 || !gBondBuybackReady)return 1;
+        new eventKey[65];
+        BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));
+        gBondsUIPendingAction[playerid]=4;
+        gBondsUIPendingQty[playerid]=gBondsUISellQuantity[playerid];
+        if(!BondSettlement_Buyback(playerid,eventKey,gBondsUISelectedIssue[playerid],
+                                   gBondsUISellQuantity[playerid]))
+        {
+            gBondsUIPendingAction[playerid]=0;
+            gBondsUIPendingQty[playerid]=0;
+            SendClientMessage(playerid,COLOR_RED,"Не удалось начать досрочный выкуп.");
+        }
+        else SendClientMessage(playerid,COLOR_AMBER,
+            "Продажа отправлена в казначейство. Ожидается подтверждение MySQL.");
+#endif
+        return 1;
+    }
+
     if(dialogid==BONDS_DLG_COLLECT)
     {
         if(gBondsUIStage[playerid]!=BONDS_UI_POSITION)return 1;
@@ -791,8 +919,15 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
 
 public BondsUI_OnRejected(playerid)
 {
+    new bool:buyback=(gBondsUIPendingAction[playerid]==4);
     gBondsUIPendingAction[playerid]=0;
     gBondsUIPendingQty[playerid]=0;
+    if(buyback && IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
+    {
+        SendClientMessage(playerid,COLOR_RED,
+            "Выкуп отклонён: обновите портфель, проверьте срок и свободные средства казны.");
+        return 1;
+    }
     if(IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
         SendClientMessage(playerid,COLOR_RED,
             "Казначейство отклонило операцию. Обновите карточку для актуальной причины отказа.");
@@ -822,5 +957,14 @@ public BondsUI_OnSettlement(playerid,bool:replayed)
         SendClientMessage(playerid,COLOR_AMBER,
             replayed?"Купоны уже перечислены ранее.":
                 "Купоны перечислены на ваш кошелёк. Остаток смотрите в /bonds.");
+    else if(action==4 && quantity>0)
+    {
+        new notice[160];
+        format(notice,sizeof(notice),
+            replayed?"Выкуп %d облигаций уже проведён ранее.":
+                     "Государство выкупило %d облигаций за 98%% номинала. Деньги на кошельке.",
+            quantity);
+        SendClientMessage(playerid,COLOR_AMBER,notice);
+    }
     return 1;
 }

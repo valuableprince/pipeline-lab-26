@@ -25,8 +25,8 @@ class BondInvestorUiContracts(unittest.TestCase):
     def test_server_owned_selection_and_sql_read(self):
         self.assertIn("gBondsUIRowIds[playerid][i]=id;",UI)
         self.assertIn("gBondsUIRowIds[playerid][listitem]",UI)
-        self.assertIn("i.issue_id=%d AND h.account_id=%d LIMIT 1",UI)
-        self.assertIn("h.account_id=%d ORDER BY i.issue_id DESC",UI)
+        self.assertIn("i.issue_id=%d AND (h.issue_id IS NOT NULL OR c.claim_id IS NOT NULL) LIMIT 1",UI)
+        self.assertIn("UNION SELECT issue_id FROM government_bond_claims WHERE account_id=%d",UI)
         self.assertIn("status='OFFERING'",UI)
         self.assertIn("offer_start_at<=UTC_TIMESTAMP()",UI)
         self.assertIn("offer_end_at>UTC_TIMESTAMP()",UI)
@@ -86,7 +86,7 @@ class BondInvestorUiContracts(unittest.TestCase):
             "gBondsUIHoldLimit[playerid]=holdLimit;",
             "gBondsUIOwned[playerid]=owned;",
             "gBondsUISelectedIssue[playerid] = issueId;",
-            "WHERE h.account_id=%d ORDER BY i.issue_id DESC",
+            "UNION SELECT issue_id FROM government_bond_claims WHERE account_id=%d",
         ):
             with self.subTest(token=token): self.assertIn(token,UI)
         self.assertIn("v_existing_qty+p_quantity > v_max_qty DIV 5",SCHEMA)
@@ -121,7 +121,7 @@ class BondInvestorUiContracts(unittest.TestCase):
         self.assertIn('!strcmp(debt,"SETTLED",true)',UI)
 
     def test_portfolio_and_escrow_collect(self):
-        self.assertIn("FROM government_bond_holdings h INNER JOIN government_bond_issues i",UI)
+        self.assertIn("UNION SELECT issue_id FROM government_bond_claims WHERE account_id=%d",UI)
         self.assertIn("government_bond_claims c",UI)
         self.assertIn("BondsUI_StartCollect(playerid)",UI)
         self.assertIn("gBondsUIClaimId[playerid]",UI)
@@ -190,9 +190,9 @@ class BondInvestorUiContracts(unittest.TestCase):
 
     def test_dialog_constants_are_separate_and_stable(self):
         constants=re.findall(r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI)
-        self.assertEqual(len(constants),11)
-        self.assertEqual(len(set(constants)),11)
-        self.assertEqual(set(map(int,constants)),set(range(6700,6711)))
+        self.assertEqual(len(constants),14)
+        self.assertEqual(len(set(constants)),14)
+        self.assertEqual(set(map(int,constants)),set(range(6700,6714)))
         self.assertIn("gBondsUILoading[playerid] || gGovTransferBusy[playerid]",UI)
 
 

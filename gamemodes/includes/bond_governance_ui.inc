@@ -374,6 +374,10 @@ stock GovBond_UI_Report(playerid)
     new query[800];
     mysql_format(gDBPrimary,query,sizeof(query),
         "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
+    // Compatibility with pre-030 staging: old report still loads normally.
+    if(gBondBuybackReady)
+        mysql_format(gDBPrimary,query,sizeof(query),
+            "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(quantity),0) FROM government_bond_buybacks) AS bonds_boughtback,(SELECT COALESCE(SUM(amount_paid),0) FROM government_bond_buybacks) AS buyback_cost,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
     if (!GovBond_UI_Query(playerid,query,4))
         SendClientMessage(playerid,COLOR_RED,"Отчёт казны временно недоступен.");
 #else
@@ -670,6 +674,16 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         format(body,sizeof(body),
             "{E8EDF3}ФИНАНСОВАЯ ОТЧЁТНОСТЬ\n\n{E8EDF3}Баланс казны: {E8EDF3}$%d\n{E8EDF3}Страховой резерв: {E8EDF3}$%d\n{E8EDF3}Принятые гарантии: {E8EDF3}$%d\n{E8EDF3}Резерв выплат: {E8EDF3}$%d\n\n{E8EDF3}Кризисный статус: {E8EDF3}%s\n{E8EDF3}Всего выпусков: %d\n{E8EDF3}На размещении: %d\n{E8EDF3}Продано облигаций: %d\n{E8EDF3}Необеспеченный долг: {E8EDF3}$%d\n\n{E8EDF3}Суммы получены из MySQL; отчёт без права списания.",
             cash,fund,committed,payout,crisisLabel,issues,offering,sold,overdue);
+        if(gBondBuybackReady)
+        {
+            new countBuyback,costBuyback,extra[190];
+            if(!cache_get_value_name_int(0,"bonds_boughtback",countBuyback) ||
+               !cache_get_value_name_int(0,"buyback_cost",costBuyback))return 1;
+            format(extra,sizeof(extra),
+                "\\n{E8EDF3}Досрочно выкуплено: %d шт.\\n{E8EDF3}Расходы на выкуп: $%d",
+                countBuyback,costBuyback);
+            strcat(body,extra,sizeof(body));
+        }
         gGovUIStage[playerid]=4;
         ShowPlayerDialog(playerid,GOVUI_REPORT,DIALOG_STYLE_MSGBOX,
             "{E8EDF3}TARKENSO | Отчёт казначейства",body,"Назад","");
