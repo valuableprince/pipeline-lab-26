@@ -46,7 +46,7 @@ class NPCContactContracts(unittest.TestCase):
             "p.trust>=t.required_trust",
             "t.contact_id=%d", "INSERT INTO crime_contact_trust_events",
             "UPDATE crime_contact_progress p JOIN crime_contracts c",
-            "p.trust=LEAST(100,p.trust+5)",
+            "p.trust=LEAST(100,p.trust+(CASE WHEN c.scenario_kind=0 THEN 5",
             "p.completed_count=p.completed_count+1",
         ):
             self.assertIn(token, CORE)
