@@ -215,6 +215,14 @@ jobs:
       - name: GOV-07.2 SQL session timezone +03:00 regression MariaDB UAT
         run: python3 tests/gov07_timezone_mysql_uat.py
 
+      - name: Install GOV-09 fixed-price early buyback migration 030
+        run: |
+          set -euo pipefail
+          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/030_gov09_bond_buyback.sql
+
+      - name: GOV-09 state buyback, coupons, escrow and replay MariaDB UAT
+        run: python3 tests/gov09_buyback_mysql_uat.py
+
   compile:
     name: Compile
     needs: sql_security
