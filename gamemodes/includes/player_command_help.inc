@@ -54,8 +54,8 @@ new const gCommandHelp[][E_COMMAND_HELP]=
     {"funinvite", "/funinvite ID", "Исключить сотрудника из организации", "/funinvite 4", 4, 1},
     {"frank", "/frank ID ранг", "Изменить должность сотрудника", "/frank 4 2", 4, 1},
     {"fleave", "/fleave", "Покинуть организацию", "/fleave", 4, 1},
-    {"bonds", "/bonds", "Открытые выпуски, покупка, портфель, купоны", "/bonds", 5, 0},
-    {"bondgov", "/bondgov", "Заявки, подпись, отчёт и фонд Минфина", "/bondgov", 5, 2},
+    {"bonds", "/bonds", "Покупка и продажа за 98%, портфель, купоны", "/bonds", 5, 0},
+    {"bondgov", "/bondgov", "Выпуски, подписи, фонд и отчёт о выкупе", "/bondgov", 5, 2},
     {"play", "/play", "Открыть список музыкальных радиостанций", "/play", 6, 0},
     {"race", "/race status", "Информация и действия для гонок", "/race status", 6, 0},
     {"raceaudio", "/raceaudio on|off", "Настроить музыку во время гонки", "/raceaudio on", 6, 0},
@@ -145,6 +145,11 @@ stock CommandHelp_Detail(playerid,index)
         "{FFD15C}КАК ВВОДИТЬ{FFFFFF}\n%s\n\n{FFD15C}ДЛЯ ЧЕГО НУЖНА{FFFFFF}\n%s\n\n{FFD15C}ПРИМЕР{FFFFFF}\n%s",
         gCommandHelp[index][chUsage],gCommandHelp[index][chPurpose],
         gCommandHelp[index][chExample]);
+    // Bond education is shared by the player menu and the Ministry.
+    if(!strcmp(gCommandHelp[index][chName],"bonds"))
+        strcat(body,"\n\n{FFD15C}ПОДРОБНАЯ ИНСТРУКЦИЯ{FFFFFF}\n/mn -> Помощь по игре -> Облигации -> урок 7 (досрочная продажа).",sizeof(body));
+    else if(!strcmp(gCommandHelp[index][chName],"bondgov"))
+        strcat(body,"\n\n{FFD15C}ПОДРОБНАЯ ИНСТРУКЦИЯ{FFFFFF}\n/bondgov -> Обучение и полномочия министерства.",sizeof(body));
     return ShowPlayerDialog(playerid,CMD_HELP_DETAIL,DIALOG_STYLE_MSGBOX,
         title,body,"К списку","Закрыть");
 }
