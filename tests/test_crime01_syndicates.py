@@ -61,8 +61,8 @@ class CrimeSyndicateContracts(unittest.TestCase):
     def test_migration_adds_only_new_enabled_ids(self):
         self.assertIn("START TRANSACTION;", SQL)
         self.assertIn("COMMIT;", SQL)
-        self.assertRegex(SQL, r"(?s)INSERT INTO factions\\s*\\(faction_id, is_enabled, term_start, term_end\\) VALUES")
-        rows = re.findall(r"\\((\\d+),\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)\\)", SQL)
+        self.assertRegex(SQL, r"(?s)INSERT INTO factions\s*\(faction_id, is_enabled, term_start, term_end\) VALUES")
+        rows = re.findall(r"\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)", SQL)
         self.assertEqual(rows, [("6", "1", "0", "0"),
                                 ("7", "1", "0", "0"),
                                 ("8", "1", "0", "0")])
