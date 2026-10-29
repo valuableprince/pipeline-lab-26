@@ -165,7 +165,7 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, COLOR_WHITE,
             "Управление: /finvite, /faccept, /funinvite, /frank, /fleave.");
         SendClientMessage(playerid, COLOR_WHITE,
-            "Синдикаты: /crime — одиночные контракты, история и маршрут.");
+            "Синдикаты: /crime или /fmenu -> Теневой рынок.");
         return 1;
     }
     if (!strcmp(category, "admin", true))
