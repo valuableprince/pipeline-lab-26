@@ -61,7 +61,7 @@ stock PlayerMenu_GameHelp(playerid)
     if(gAuthState[playerid]!=AUTH_READY)return 1;
     return ShowPlayerDialog(playerid,PLAYER_MENU_GAME_HELP,DIALOG_STYLE_LIST,
         "{FFD15C}TARKENSO | Помощь по игре",
-        "{FFFFFF}1. Государственные облигации: обучение\n{FFFFFF}2. PayDay и развитие персонажа\n{FFFFFF}3. Ролевая игра и общение",
+        "{FFFFFF}1. Облигации: покупка, продажа и купоны\n{FFFFFF}2. PayDay и развитие персонажа\n{FFFFFF}3. Ролевая игра и общение",
         "Читать","Назад");
 }
 
