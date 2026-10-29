@@ -91,6 +91,24 @@ def stage_sources(stage: Path, snapshot: dict[str, bytes]) -> None:
         else:
             function, target = FUNCTION_MAP[name]
             transformed = extract_function(source, function)
+            if name == "leader_system.inc" and "Leader_MaxRank(" in transformed:
+                # The benchmark extracts the actual production validator.
+                # New rank policies are helpers: include exactly their source
+                # implementations and constants rather than approximating
+                # the validator inside the harness.
+                helper_names = ("Leader_IsCriminal", "Leader_MaxRank",
+                                "Leader_LeaderRank", "Leader_DeputyRank")
+                helpers = [extract_function(source, helper)
+                           for helper in helper_names]
+                constants = []
+                for macro in ("FACTION_FINANCE", "FACTION_CRIME_FIRST",
+                              "FACTION_CRIME_LAST"):
+                    pattern = r"(?m)^#define\\s+" + macro + r"\\s+\\(\\d+\\)$"
+                    definition = re.search(pattern, source)
+                    if definition is None:
+                        raise ValueError(f"missing faction constant {macro}")
+                    constants.append(definition.group(0))
+                transformed = "\\n".join(constants + helpers) + "\\n" + transformed
         (stage / target).write_bytes(transformed.encode("cp1251", errors="strict"))
 
 
