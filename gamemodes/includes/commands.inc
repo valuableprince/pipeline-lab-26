@@ -105,7 +105,8 @@ cmd:bondgov(playerid, params[])
 // CRIME-02.1: first solo operation, durable MySQL state and payment ledger.
 cmd:crime(playerid, params[])
 {
-    return Crime_Command(playerid, params);
+    #pragma unused params
+    return CrimeUI_Main(playerid);
 }
 
 // Справка по ролям и темам вместо одного длинного списка команд.
