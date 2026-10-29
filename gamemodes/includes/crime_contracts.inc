@@ -10,6 +10,7 @@
 #define CRIME_INTERACT_RADIUS (12.0)
 
 new bool:gCrimeReady;
+forward Crime_Settle(playerid, id, reward, faction);
 
 stock Crime_Init()
 {
