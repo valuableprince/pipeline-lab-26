@@ -147,9 +147,9 @@ stock CommandHelp_Detail(playerid,index)
         gCommandHelp[index][chExample]);
     // Bond education is shared by the player menu and the Ministry.
     if(!strcmp(gCommandHelp[index][chName],"bonds"))
-        strcat(body,"\\n\\n{FFD15C}ПОДРОБНАЯ ИНСТРУКЦИЯ{FFFFFF}\\n/mn -> Помощь по игре -> Облигации -> урок 7 (досрочная продажа).",sizeof(body));
+        strcat(body,"\n\n{FFD15C}ПОДРОБНАЯ ИНСТРУКЦИЯ{FFFFFF}\n/mn -> Помощь по игре -> Облигации -> урок 7 (досрочная продажа).",sizeof(body));
     else if(!strcmp(gCommandHelp[index][chName],"bondgov"))
-        strcat(body,"\\n\\n{FFD15C}ПОДРОБНАЯ ИНСТРУКЦИЯ{FFFFFF}\\n/bondgov -> Обучение и полномочия министерства.",sizeof(body));
+        strcat(body,"\n\n{FFD15C}ПОДРОБНАЯ ИНСТРУКЦИЯ{FFFFFF}\n/bondgov -> Обучение и полномочия министерства.",sizeof(body));
     return ShowPlayerDialog(playerid,CMD_HELP_DETAIL,DIALOG_STYLE_MSGBOX,
         title,body,"К списку","Закрыть");
 }
