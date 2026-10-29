@@ -115,14 +115,7 @@ stock CrimeUI_ContactDetail(playerid, contactId)
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось загрузить доверие.");
     new i = contactId - 1, body[620];
     format(body, sizeof(body),
-        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n"
-        "{FFD15C}ГОРОД:{FFFFFF} %s\n"
-        "{FFD15C}ДОВЕРИЕ:{FFFFFF} %d/100\n"
-        "{FFD15C}ВЫПОЛНЕННЫЕ ЗАКАЗЫ:{FFFFFF} %d\n"
-        "{FFD15C}ЗНАКОМСТВО:{FFFFFF} %s\n\n"
-        "{FFD15C}МЕСТО ВСТРЕЧИ:{FFFFFF}\nX %.1f, Y %.1f, Z %.1f\n\n"
-        "Подойдите к посреднику на расстояние до 5 метров и нажмите "
-        "«Поговорить». После знакомства откроются его предложения.",
+        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ГОРОД:{FFFFFF} %s\n{FFD15C}ДОВЕРИЕ:{FFFFFF} %d/100\n{FFD15C}ВЫПОЛНЕННЫЕ ЗАКАЗЫ:{FFFFFF} %d\n{FFD15C}ЗНАКОМСТВО:{FFFFFF} %s\n\n{FFD15C}МЕСТО ВСТРЕЧИ:{FFFFFF}\nX %.1f, Y %.1f, Z %.1f\n\nПодойдите к посреднику на расстояние до 5 метров и нажмите «Поговорить». После знакомства откроются его предложения.",
         gCrimeContactName[i], gCrimeContactCity[i], trust, completed,
         introduced ? ("Состоится повторная встреча") : ("Вы ещё не знакомы"),
         gCrimeContactPos[i][0], gCrimeContactPos[i][1], gCrimeContactPos[i][2]);
@@ -204,13 +197,7 @@ stock CrimeUI_OfferDetail(playerid, templateId)
     cache_delete(c);
     new body[560];
     format(body, sizeof(body),
-        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n"
-        "{FFD15C}НАГРАДА:{FFFFFF} $%d\n"
-        "{FFD15C}СРОК:{FFFFFF} %d минут\n"
-        "{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\n"
-        "Выполните одиночную перевозку для посредника. "
-        "После доставки доверие вырастет на 5 пунктов. "
-        "Один активный заказ на аккаунт.",
+        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\nВыполните одиночную перевозку для посредника. После доставки доверие вырастет на 5 пунктов. Один активный заказ на аккаунт.",
         title, reward, duration / 60, requiredTrust);
     gCrimeUISelectedTemplate[playerid] = templateId;
     CrimeUI_Open(playerid, CRIME_DLG_OFFER);
