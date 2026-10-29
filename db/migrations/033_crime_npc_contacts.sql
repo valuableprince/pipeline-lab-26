@@ -75,4 +75,10 @@ VALUES
   (3,'SOLO_LV_01','Закрытый конверт',1,2100,1800,
    2120.000,1650.000,11.100,1980.000,1750.000,12.000,3,0);
 
+-- Existing mission holders must be able to complete after the upgrade.
+INSERT IGNORE INTO crime_contact_progress
+  (account_id,contact_id,trust,completed_count,first_met_at,last_met_at)
+SELECT DISTINCT account_id,1,0,0,UNIX_TIMESTAMP(),UNIX_TIMESTAMP()
+FROM crime_contracts WHERE contact_id=1;
+
 INSERT INTO schema_migrations (version) VALUES (33);
