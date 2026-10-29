@@ -97,7 +97,7 @@ def main():
 
     # Replay must neither pay twice nor rewrite append-only allocations.
     replay=call("gov_bond_buyback",key,issue,account,1,version)
-    assert replay[-1]==1
+    assert replay[-1]==1 and replay[1]==price
     deny(key,issue,account,2,version)
     deny("bond:gov09:uat:stale",issue,account,1,version)
     assert rows("SELECT COUNT(*) FROM government_bond_buybacks WHERE event_key=%s",
@@ -110,7 +110,7 @@ def main():
         try:rows(stmt,(buyback_id,))
         except mysql.connector.Error:continue
         raise AssertionError("Buyback history was mutable")
-    print("GOV-09 PASS: 98%% price, protected treasury transfer, ownership, frozen coupons, "
+    print("GOV-09 PASS: 98% price, protected treasury transfer, ownership, frozen coupons, "
           "insurance release, exact receipt, replay, stale version, immutable audit")
 
 if __name__=="__main__":
