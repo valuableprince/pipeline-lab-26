@@ -261,7 +261,7 @@ jobs:
       - name: Install isolated base, syndicates and contracts
         run: |
           set -euo pipefail
-          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql 033_crime_npc_contacts.sql; do
+          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql 033_crime_npc_contacts.sql 034_crime_solo_scenarios.sql; do
             mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$CRIME_TEST_PASSWORD" "$CRIME_TEST_DB" < "db/migrations/$migration"
           done
 
@@ -270,6 +270,9 @@ jobs:
 
       - name: Test NPC introductions, trust gates and atomic reputation
         run: python3 tests/crime022_mysql_uat.py
+
+      - name: Test investigation and negotiation decision outcomes
+        run: python3 tests/crime023_mysql_uat.py
 
   compile:
     name: Compile
