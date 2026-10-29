@@ -832,7 +832,7 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         if(!response)return BondsUI_LoadList(playerid,BONDS_UI_PORTFOLIO,gBondsUIPage[playerid]);
         ShowPlayerDialog(playerid,BONDS_DLG_POSITION_ACTION,DIALOG_STYLE_LIST,
             "{E8EDF3}TARKENSO | Действия с облигациями",
-            "{E8EDF3}Получить выплату по погашению\\n{E8EDF3}Продать государству досрочно (98%%)\\n{E8EDF3}Обновить карточку",
+            "{E8EDF3}Получить выплату по погашению\\n{E8EDF3}Продать государству досрочно (98%)\\n{E8EDF3}Обновить карточку",
             "Выбрать","Назад");
         return 1;
     }
