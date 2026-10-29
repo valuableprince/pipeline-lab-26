@@ -138,8 +138,8 @@ BEGIN
  IF v_balance IS NULL OR v_account IS NULL OR v_issue IS NULL THEN
    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='buyback account or issue missing';
  END IF;
- SELECT buyback_id,issue_id,account_id,quantity
-   INTO v_existing,v_existing_issue,v_existing_owner,v_existing_quantity
+ SELECT buyback_id,issue_id,account_id,quantity,amount_paid
+   INTO v_existing,v_existing_issue,v_existing_owner,v_existing_quantity,v_payment
    FROM government_bond_buybacks WHERE event_key=p_event_key LIMIT 1;
  IF v_existing IS NOT NULL THEN
    IF v_existing_issue<>v_issue OR v_existing_owner<>p_account_id
