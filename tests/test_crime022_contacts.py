@@ -37,7 +37,7 @@ class NPCContactContracts(unittest.TestCase):
         self.assertIn('#include "crime_contacts.inc"', GAME)
         self.assertIn("CrimeContacts_Shutdown();", GAME)
         self.assertIn("if (!CrimeContacts_Init()) return 1;", CORE)
-        self.assertIn("version=33 LIMIT 1", CORE)
+        self.assertIn("version=34 LIMIT 1", CORE)
 
     def test_trust_security_and_one_time_settlement(self):
         for token in (
