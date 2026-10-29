@@ -241,7 +241,7 @@ stock Crime_Advance(playerid, bool:deliveryStage, decision = 0)
         return SendClientMessage(playerid, CRIME_ERROR, "Груз уже выдан или срок истёк.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'%s')",
+        "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'%e')",
         id, gDBPrimaryAccountId[playerid],
         scenarioKind == 0 ? ("PICKED_UP") : ("CLUE_FOUND"));
     if (!Crime_Exec(q))
