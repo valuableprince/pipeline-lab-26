@@ -102,6 +102,12 @@ cmd:bondgov(playerid, params[])
     return GovBond_UI_Main(playerid);
 }
 
+// CRIME-02.1: first solo operation, durable MySQL state and payment ledger.
+cmd:crime(playerid, params[])
+{
+    return Crime_Command(playerid, params);
+}
+
 // Справка по ролям и темам вместо одного длинного списка команд.
 cmd:help(playerid, params[])
 {
@@ -157,6 +163,8 @@ cmd:help(playerid, params[])
             "Организации: /leaders, /fmenu, /fstats, /leader, /r.");
         SendClientMessage(playerid, COLOR_WHITE,
             "Управление: /finvite, /faccept, /funinvite, /frank, /fleave.");
+        SendClientMessage(playerid, COLOR_WHITE,
+            "Синдикаты: /crime — одиночные контракты, история и маршрут.");
         return 1;
     }
     if (!strcmp(category, "admin", true))
