@@ -214,6 +214,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "player_command_help.inc"
 #include "player_menu.inc"
 #include "db_world.inc"
+#include "crime_contracts.inc"
 #include "cleaner_container.inc"
 #include "cleaner_truck.inc"
 #include "waste_sort.inc"
@@ -874,6 +875,7 @@ public OnGameModeInit()
     ShipSurf_Init();
     Economy_Init();
     Leader_Init();
+    Crime_Init();
     OrvelarHUD_Init();
     print("[Tarkenso RPG / SIGNAL 03:17] Authentication initialized; samp-bcrypt required.");
     return 1;
