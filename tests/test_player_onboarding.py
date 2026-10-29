@@ -39,7 +39,7 @@ class PlayerOnboardingTests(unittest.TestCase):
         self.assertIn("{FFFFFF}",BOOK)
         self.assertIn("{FFD15C}",BOOK)
         self.assertNotIn("CALL gov_",BOOK)
-        self.assertEqual(len(re.findall(r"case \d+: format\(body,sizeof\(body\)",BOOK)),11)
+        self.assertEqual(len(re.findall(r"case \d+: format\(body,sizeof\(body\)",BOOK)),12)
 
     def test_command_catalog_is_filtered_and_dialogs_are_routed(self):
         self.assertIn("DIALOG_STYLE_TABLIST_HEADERS",COMMANDS)
