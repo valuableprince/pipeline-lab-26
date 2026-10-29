@@ -16,7 +16,7 @@ class Crime02ContractTests(unittest.TestCase):
         self.assertIn('#include "crime_contracts.inc"', GAME)
         self.assertIn("Crime_Init();", GAME)
         self.assertIn("cmd:crime(playerid, params[])", COMMANDS)
-        self.assertIn("return Crime_Command(playerid, params);", COMMANDS)
+        self.assertIn("return CrimeUI_Main(playerid);", COMMANDS)
         self.assertIn("#if defined TARKENSO_DB_PRIMARY", SOURCE)
         self.assertIn('version=32 LIMIT 1', SOURCE)
         self.assertIn('gDBPrimaryLoaded[playerid]', SOURCE)
@@ -73,14 +73,18 @@ class Crime02ContractTests(unittest.TestCase):
         self.assertLess(core.index("INSERT INTO crime_contract_rewards"),
                         core.index('Crime_Exec("COMMIT")'))
 
-    def test_solo_commands_and_history(self):
-        for action in ("offer", "start", "status", "route", "pickup",
-                       "deliver", "abort", "history", "journal"):
-            self.assertIn(f'!strcmp(action, "{action}", true)', SOURCE)
+    def test_solo_operations_and_ui_are_integrated(self):
+        ui = (ROOT / "gamemodes/includes/crime_ui.inc").read_text("utf-8")
+        for name in ("Crime_Start", "Crime_Advance", "Crime_Settle",
+                     "Crime_Abort", "Crime_Expire", "Crime_LoadActive"):
+            self.assertIn("stock " + name + "(", SOURCE)
+        self.assertNotIn("stock Crime_Command(", SOURCE)
         self.assertIn("IsPlayerInRangeOfPoint", SOURCE)
         self.assertIn("faction != Leader_PlayerOrg(playerid)", SOURCE)
-        self.assertIn("FROM crime_contract_events e JOIN crime_contracts c", SOURCE)
-        self.assertIn("c.account_id=%d", SOURCE)
+        self.assertIn("FROM crime_contract_events e JOIN crime_contracts c", ui)
+        self.assertIn("c.account_id=%d", ui)
+        self.assertIn("CrimeUI_OnDialog(playerid, dialogid, response, listitem)", GAME)
+        self.assertIn("CrimeUI_Reset(playerid)", GAME)
         self.assertIn("CRIME-02.2", DOC)
         self.assertIn("031", DOC)
         self.assertIn("032_crime_contract_core.sql", DOC)
