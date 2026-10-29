@@ -25,7 +25,7 @@ class CrimeDialogTests(unittest.TestCase):
 
     def test_dialog_id_allocation_and_entrypoint(self):
         ids = re.findall(r"#define CRIME_DLG_[A-Z_]+\s+\((\d+)\)", UI)
-        self.assertEqual([int(x) for x in ids], list(range(7950, 7959)))
+        self.assertEqual([int(x) for x in ids], list(range(7950, 7961)))
         self.assertIn('#include "crime_ui.inc"', GAME)
         self.assertIn('CrimeUI_OnDialog(playerid, dialogid, response, listitem)', GAME)
         self.assertEqual(GAME.count("CrimeUI_Reset(playerid);"), 2)
@@ -33,18 +33,18 @@ class CrimeDialogTests(unittest.TestCase):
         self.assertIn("DIALOG_STYLE_MSGBOX", UI)
 
     def test_all_actions_are_in_dialog_handler(self):
-        for name in ("CrimeUI_Main", "CrimeUI_Offers", "CrimeUI_OfferDetail",
+        for name in ("CrimeUI_Main", "CrimeUI_Contacts", "CrimeUI_ContactDetail", "CrimeUI_Offers", "CrimeUI_OfferDetail",
                      "CrimeUI_Active", "CrimeUI_Route", "CrimeUI_Cancel",
                      "CrimeUI_History", "CrimeUI_Help", "CrimeUI_OnDialog"):
             self.assertIn("stock " + name + "(", UI)
-        self.assertIn("case 0: return CrimeUI_Offers(playerid);", UI)
+        self.assertIn("case 0: return CrimeUI_Contacts(playerid);", UI)
         self.assertIn("case 1: return CrimeUI_Active(playerid);", UI)
         self.assertIn("case 2: return CrimeUI_Route(playerid);", UI)
         self.assertIn("case 3: return CrimeUI_History(playerid);", UI)
         self.assertIn("case 4: return CrimeUI_History(playerid, true);", UI)
         self.assertIn("case 5: return CrimeUI_Cancel(playerid);", UI)
         self.assertIn("case 6: return CrimeUI_Help(playerid);", UI)
-        self.assertIn("Crime_Start(playerid);", UI)
+        self.assertIn("Crime_Start(playerid, gCrimeUISelectedTemplate[playerid]);", UI)
         self.assertIn("Crime_Advance(playerid, phase == 2);", UI)
         self.assertIn("Crime_Abort(playerid);", UI)
 
@@ -58,11 +58,11 @@ class CrimeDialogTests(unittest.TestCase):
             "gCrimeUIDialog[playerid] = 0;",
             "if (!response)",
             "if (listitem < 0 || listitem > 6)",
-            "if (listitem != 0)",
+            "if (listitem < 0 || listitem >= gCrimeUIOfferCount[playerid])",
         ):
             self.assertIn(token, handler)
         self.assertLess(handler.index("if (!response)"),
-                        handler.index("Crime_Start(playerid);"))
+                        handler.index("Crime_Start(playerid, gCrimeUISelectedTemplate[playerid]);"))
         self.assertLess(handler.index("if (!response)"),
                         handler.index("Crime_Abort(playerid);"))
         for token in ("Crime_LoadActive(", "Crime_Expire(", "IsPlayerInRangeOfPoint",
