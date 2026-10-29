@@ -14,16 +14,26 @@
 #define CRIME_DLG_HISTORY    (7956)
 #define CRIME_DLG_JOURNAL    (7957)
 #define CRIME_DLG_HELP       (7958)
+#define CRIME_DLG_CONTACTS   (7959)
+#define CRIME_DLG_CONTACT    (7960)
+#define CRIME_OFFER_MAX      (8)
 
 new gCrimeUIDialog[MAX_PLAYERS];
 new gCrimeUIAuthToken[MAX_PLAYERS];
 new gCrimeUIAccountId[MAX_PLAYERS];
+new gCrimeUIContact[MAX_PLAYERS];
+new gCrimeUISelectedTemplate[MAX_PLAYERS];
+new gCrimeUIOfferCount[MAX_PLAYERS];
+new gCrimeUIOfferId[MAX_PLAYERS][CRIME_OFFER_MAX];
 
 stock CrimeUI_Reset(playerid)
 {
     gCrimeUIDialog[playerid] = 0;
     gCrimeUIAuthToken[playerid] = 0;
     gCrimeUIAccountId[playerid] = 0;
+    gCrimeUIContact[playerid] = 0;
+    gCrimeUISelectedTemplate[playerid] = 0;
+    gCrimeUIOfferCount[playerid] = 0;
     return 1;
 }
 
@@ -58,6 +68,9 @@ stock CrimeUI_Main(playerid)
     if (!Crime_Available(playerid))
         return SendClientMessage(playerid, CRIME_ERROR,
             "Теневой рынок временно недоступен. Проверьте подключение к базе.");
+    if (!Leader_IsCriminal(Leader_PlayerOrg(playerid)))
+        return SendClientMessage(playerid, CRIME_ERROR,
+            "Теневой рынок доступен сотрудникам криминальных организаций.");
     new id, phase, faction, reward, deadline, title[68];
     new Float:pickup[3], Float:delivery[3], body[450], status[96];
     if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
@@ -69,8 +82,8 @@ stock CrimeUI_Main(playerid)
             phase == 1 ? ("Ожидает получения") : ("В пути"));
     else format(status, sizeof(status), "Нет активного заказа");
     format(body, sizeof(body),
-        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nДоступные заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает",
-        id ? ("Уже есть заказ") : ("Ночной рейс"),
+        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nПосредники и заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает",
+        id ? ("Доступны другие контакты") : ("Три города"),
         status, id ? ("Доступен") : ("Нет активного заказа"),
         id ? ("Доступно") : ("Нет активного заказа"));
     CrimeUI_Open(playerid, CRIME_DLG_MAIN);
@@ -78,66 +91,133 @@ stock CrimeUI_Main(playerid)
         "{FFD15C}TARKENSO | Теневой рынок", body, "Выбрать", "Закрыть");
 }
 
+stock CrimeUI_Contacts(playerid)
+{
+    new body[560] = "{FFD15C}Посредник\t{FFD15C}Город{FFFFFF}\n", line[125];
+    for (new i = 0; i < CRIME_CONTACT_COUNT; i++)
+    {
+        if (!gCrimeContactEnabled[i]) continue;
+        format(line, sizeof(line), "%s\t%s\n",
+            gCrimeContactName[i], gCrimeContactCity[i]);
+        strcat(body, line, sizeof(body));
+    }
+    CrimeUI_Open(playerid, CRIME_DLG_CONTACTS);
+    return ShowPlayerDialog(playerid, CRIME_DLG_CONTACTS, DIALOG_STYLE_TABLIST_HEADERS,
+        "{FFD15C}Теневой рынок | Посредники", body, "Подробнее", "Назад");
+}
+
+stock CrimeUI_ContactDetail(playerid, contactId)
+{
+    if (contactId < 1 || contactId > CRIME_CONTACT_COUNT ||
+        !gCrimeContactEnabled[contactId - 1]) return CrimeUI_Contacts(playerid);
+    new trust, completed, introduced;
+    if (!CrimeContacts_Progress(playerid, contactId, trust, completed, introduced))
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось загрузить доверие.");
+    new i = contactId - 1, body[620];
+    format(body, sizeof(body),
+        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n"
+        "{FFD15C}ГОРОД:{FFFFFF} %s\n"
+        "{FFD15C}ДОВЕРИЕ:{FFFFFF} %d/100\n"
+        "{FFD15C}ВЫПОЛНЕННЫЕ ЗАКАЗЫ:{FFFFFF} %d\n"
+        "{FFD15C}ЗНАКОМСТВО:{FFFFFF} %s\n\n"
+        "{FFD15C}МЕСТО ВСТРЕЧИ:{FFFFFF}\nX %.1f, Y %.1f, Z %.1f\n\n"
+        "Подойдите к посреднику на расстояние до 5 метров и нажмите "
+        "«Поговорить». После знакомства откроются его предложения.",
+        gCrimeContactName[i], gCrimeContactCity[i], trust, completed,
+        introduced ? ("Состоится повторная встреча") : ("Вы ещё не знакомы"),
+        gCrimeContactPos[i][0], gCrimeContactPos[i][1], gCrimeContactPos[i][2]);
+    gCrimeUIContact[playerid] = contactId;
+    CrimeUI_Open(playerid, CRIME_DLG_CONTACT);
+    return ShowPlayerDialog(playerid, CRIME_DLG_CONTACT, DIALOG_STYLE_MSGBOX,
+        "{FFD15C}Теневой рынок | Контакт", body, "Поговорить", "Назад");
+}
+
 stock CrimeUI_Offers(playerid)
 {
 #if defined TARKENSO_DB_PRIMARY
-    new Cache:c = mysql_query(gDBPrimary,
-        "SELECT title,reward_amount,duration_seconds FROM crime_contract_templates WHERE template_id=1 AND mode_id=1 AND is_enabled=1");
-    new rows = 0, title[68], reward, duration;
+    new broker = gCrimeUIContact[playerid], trust, completed, introduced;
+    if (!CrimeContacts_Near(playerid, broker) ||
+        !CrimeContacts_Progress(playerid, broker, trust, completed, introduced) ||
+        !introduced)
+        return SendClientMessage(playerid, CRIME_ERROR,
+            "Сначала поговорите с посредником рядом с ним.");
+    new q[360], rows = 0, body[1280], line[150];
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "SELECT template_id,title,reward_amount,duration_seconds FROM crime_contract_templates WHERE contact_id=%d AND is_enabled=1 AND mode_id=1 AND required_trust<=%d ORDER BY template_id LIMIT 8",
+        broker, trust);
+    new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) ||
-        !cache_get_row_count(rows) || rows > 1)
+        !cache_get_row_count(rows) || rows > CRIME_OFFER_MAX)
     {
         if (c != Cache:0) cache_delete(c);
-        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось загрузить предложения.");
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось получить предложения.");
     }
-    new body[300];
-    if (!rows) format(body, sizeof(body),
-        "{FFD15C}Предложение\t{FFD15C}Вознаграждение\t{FFD15C}Срок{FFFFFF}\nНет доступных заказов\t-\t-");
-    else
+    format(body, sizeof(body),
+        "{FFD15C}Предложение\t{FFD15C}Награда\t{FFD15C}Срок{FFFFFF}\n");
+    gCrimeUIOfferCount[playerid] = 0;
+    for (new i = 0; i < rows; i++)
     {
-        if (!cache_get_value_name(0, "title", title, sizeof(title)) ||
-            !cache_get_value_name_int(0, "reward_amount", reward) ||
-            !cache_get_value_name_int(0, "duration_seconds", duration))
-        {
-            cache_delete(c);
-            return SendClientMessage(playerid, CRIME_ERROR, "Неверные данные предложения.");
-        }
-        format(body, sizeof(body),
-            "{FFD15C}Предложение\t{FFD15C}Вознаграждение\t{FFD15C}Срок{FFFFFF}\n%s\t$%d\t%d мин.", title, reward, duration / 60);
+        new id, reward, duration, title[68];
+        if (!cache_get_value_name_int(i, "template_id", id) ||
+            !cache_get_value_name_int(i, "reward_amount", reward) ||
+            !cache_get_value_name_int(i, "duration_seconds", duration) ||
+            !cache_get_value_name(i, "title", title, sizeof(title))) break;
+        gCrimeUIOfferId[playerid][i] = id;
+        gCrimeUIOfferCount[playerid]++;
+        format(line, sizeof(line), "%s\t$%d\t%d мин\n",
+            title, reward, duration / 60);
+        strcat(body, line, sizeof(body));
     }
     cache_delete(c);
+    if (!gCrimeUIOfferCount[playerid])
+        strcat(body, "Пока нет заказов\t-\t-\n", sizeof(body));
     CrimeUI_Open(playerid, CRIME_DLG_OFFERS);
     return ShowPlayerDialog(playerid, CRIME_DLG_OFFERS, DIALOG_STYLE_TABLIST_HEADERS,
-        "{FFD15C}Криминальные контракты | Предложения", body, "Подробнее", "Назад");
+        "{FFD15C}Предложения посредника", body, "Подробнее", "Назад");
 #else
     return CrimeUI_Main(playerid);
 #endif
 }
 
-stock CrimeUI_OfferDetail(playerid)
+stock CrimeUI_OfferDetail(playerid, templateId)
 {
 #if defined TARKENSO_DB_PRIMARY
-    new Cache:c = mysql_query(gDBPrimary,
-        "SELECT title,reward_amount,duration_seconds FROM crime_contract_templates WHERE template_id=1 AND mode_id=1 AND is_enabled=1");
-    new rows, title[68], reward, duration;
+    new broker = gCrimeUIContact[playerid], trust, completed, introduced;
+    if (!CrimeContacts_Near(playerid, broker) ||
+        !CrimeContacts_Progress(playerid, broker, trust, completed, introduced) ||
+        !introduced) return CrimeUI_Contacts(playerid);
+    new q[320], rows = 0, title[68], reward, duration, requiredTrust;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "SELECT title,reward_amount,duration_seconds,required_trust FROM crime_contract_templates WHERE template_id=%d AND contact_id=%d AND required_trust<=%d AND mode_id=1 AND is_enabled=1",
+        templateId, broker, trust);
+    new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) ||
         !cache_get_row_count(rows) || rows != 1 ||
         !cache_get_value_name(0, "title", title, sizeof(title)) ||
         !cache_get_value_name_int(0, "reward_amount", reward) ||
-        !cache_get_value_name_int(0, "duration_seconds", duration))
+        !cache_get_value_name_int(0, "duration_seconds", duration) ||
+        !cache_get_value_name_int(0, "required_trust", requiredTrust))
     {
         if (c != Cache:0) cache_delete(c);
-        return SendClientMessage(playerid, CRIME_ERROR, "Предложение недоступно.");
+        return SendClientMessage(playerid, CRIME_ERROR, "Предложение больше недоступно.");
     }
     cache_delete(c);
-    new body[520];
+    new body[560];
     format(body, sizeof(body),
-        "{FFD15C}ЗАКАЗ: {FFFFFF}%s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}ТИП:{FFFFFF} одиночная перевозка\n\nПолучите груз в порту Лос-Сантоса и отвезите его получателю. На маршруте нужно будет открыть меню и подтвердить каждое действие.\n\n{FFD15C}УСЛОВИЯ:{FFFFFF} сотрудник синдиката 6-8, не более одного активного заказа. Принятие фиксируется в базе.",
-        title, reward, duration / 60);
+        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n"
+        "{FFD15C}НАГРАДА:{FFFFFF} $%d\n"
+        "{FFD15C}СРОК:{FFFFFF} %d минут\n"
+        "{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\n"
+        "Выполните одиночную перевозку для посредника. "
+        "После доставки доверие вырастет на 5 пунктов. "
+        "Один активный заказ на аккаунт.",
+        title, reward, duration / 60, requiredTrust);
+    gCrimeUISelectedTemplate[playerid] = templateId;
     CrimeUI_Open(playerid, CRIME_DLG_OFFER);
     return ShowPlayerDialog(playerid, CRIME_DLG_OFFER, DIALOG_STYLE_MSGBOX,
-        "{FFD15C}Теневой рынок | Подробности", body, "Принять", "Назад");
+        "{FFD15C}Заказ посредника", body, "Принять", "Назад");
 #else
+    #pragma unused templateId
     return CrimeUI_Main(playerid);
 #endif
 }
@@ -284,13 +364,13 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Предложение{FFFFFF}\nВ разделе «Доступные заказы» выберите работу и подтвердите принятие.\n\n{FFD15C}2. Получение груза{FFFFFF}\nОткройте «Маршрут и действие», доберитесь до точки и нажмите «Забрать».\n\n{FFD15C}3. Доставка{FFFFFF}\nПовторите действие в новой точке и нажмите «Передать».\n\n{FFD15C}4. Оплата{FFFFFF}\nДеньги зачисляются после подтверждения MySQL. Повторная выплата невозможна.\n\n{FFD15C}5. Сохранение{FFFFFF}\nСостояние сохраняется при выходе. Срок задания продолжает идти.\n\nПри необходимости откажитесь от заказа в главном меню. Все действия доступны через один вход: /crime.",
+        "{FFD15C}1. Посредник{FFFFFF}\nВыберите контакт, найдите его в городе и поговорите рядом с ним. После знакомства появятся заказы.\n\n{FFD15C}2. Получение груза{FFFFFF}\nОткройте «Маршрут и действие», доберитесь до точки и нажмите «Забрать».\n\n{FFD15C}3. Доставка{FFFFFF}\nПовторите действие в новой точке и нажмите «Передать».\n\n{FFD15C}4. Оплата{FFFFFF}\nДеньги зачисляются после подтверждения MySQL. Повторная выплата невозможна.\n\n{FFD15C}5. Сохранение{FFFFFF}\nСостояние сохраняется при выходе. Срок задания продолжает идти.\n\nПри необходимости откажитесь от заказа в главном меню. Все действия доступны через один вход: /crime.",
         "Назад", "Закрыть");
 }
 
 stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
 {
-    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_HELP) return 0;
+    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_CONTACT) return 0;
 #if defined TARKENSO_DB_PRIMARY
     if (gCrimeUIDialog[playerid] != dialogid ||
         gCrimeUIAuthToken[playerid] != gAuthToken[playerid] ||
@@ -310,6 +390,8 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
     {
         if (dialogid == CRIME_DLG_MAIN) return 1;
         if (dialogid == CRIME_DLG_OFFER) return CrimeUI_Offers(playerid);
+        if (dialogid == CRIME_DLG_OFFERS) return CrimeUI_ContactDetail(playerid, gCrimeUIContact[playerid]);
+        if (dialogid == CRIME_DLG_CONTACT) return CrimeUI_Contacts(playerid);
         return CrimeUI_Main(playerid);
     }
     switch (dialogid)
@@ -319,7 +401,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
             if (listitem < 0 || listitem > 6) return 1;
             switch (listitem)
             {
-                case 0: return CrimeUI_Offers(playerid);
+                case 0: return CrimeUI_Contacts(playerid);
                 case 1: return CrimeUI_Active(playerid);
                 case 2: return CrimeUI_Route(playerid);
                 case 3: return CrimeUI_History(playerid);
@@ -328,14 +410,31 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
                 case 6: return CrimeUI_Help(playerid);
             }
         }
+        case CRIME_DLG_CONTACTS:
+        {
+            if (listitem < 0 || listitem >= CRIME_CONTACT_COUNT) return 1;
+            return CrimeUI_ContactDetail(playerid, listitem + 1);
+        }
+        case CRIME_DLG_CONTACT:
+        {
+            new broker = gCrimeUIContact[playerid];
+            if (!CrimeContacts_Introduce(playerid, broker))
+            {
+                SendClientMessage(playerid, CRIME_ERROR,
+                    "Подойдите к посреднику и повторите разговор.");
+                return CrimeUI_ContactDetail(playerid, broker);
+            }
+            return CrimeUI_Offers(playerid);
+        }
         case CRIME_DLG_OFFERS:
         {
-            if (listitem != 0) return CrimeUI_Offers(playerid);
-            return CrimeUI_OfferDetail(playerid);
+            if (listitem < 0 || listitem >= gCrimeUIOfferCount[playerid])
+                return CrimeUI_Offers(playerid);
+            return CrimeUI_OfferDetail(playerid, gCrimeUIOfferId[playerid][listitem]);
         }
         case CRIME_DLG_OFFER:
         {
-            Crime_Start(playerid); // Revalidates org, unique active and DB conditions.
+            Crime_Start(playerid, gCrimeUISelectedTemplate[playerid]); // SQL and proximity rechecked.
             return CrimeUI_Route(playerid);
         }
         case CRIME_DLG_ACTIVE: return CrimeUI_Route(playerid);
