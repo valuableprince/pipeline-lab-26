@@ -77,7 +77,7 @@ class Crime02ContractTests(unittest.TestCase):
         ui = (ROOT / "gamemodes/includes/crime_ui.inc").read_text("utf-8")
         for name in ("Crime_Start", "Crime_Advance", "Crime_Settle",
                      "Crime_Abort", "Crime_Expire", "Crime_LoadActive"):
-            self.assertRegex(SOURCE, r"stock (?:bool:)?"+name+r"\\(")
+            self.assertRegex(SOURCE, r"stock (?:bool:)?"+name+r"\(")
         self.assertNotIn("stock Crime_Command(", SOURCE)
         self.assertIn("IsPlayerInRangeOfPoint", SOURCE)
         self.assertIn("faction != Leader_PlayerOrg(playerid)", SOURCE)
