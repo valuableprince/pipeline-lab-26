@@ -23,7 +23,13 @@ stock Leader_UI_Main(playerid)
     new org = Leader_PlayerOrg(playerid), name[48], title[96];
     if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Вы не состоите в организации.");
     Leader_OrgTitle(org, name, sizeof(name));
-    format(title, sizeof(title), "%s | Ранг %d", name,
+    if (Leader_IsCriminal(org))
+    {
+        new role[32];
+        Leader_CrimeRankTitle(Leader_PlayerRank(playerid), role, sizeof(role));
+        format(title, sizeof(title), "%s | Ранг %d: %s", name, Leader_PlayerRank(playerid), role);
+    }
+    else format(title, sizeof(title), "%s | Ранг %d", name,
         Leader_PublicRank(org,Leader_PlayerRank(playerid)));
     gFactionDialogMode[playerid] = 1;
     ShowPlayerDialog(playerid, LEADER_DLG_MAIN, DIALOG_STYLE_LIST,
@@ -50,7 +56,15 @@ stock Leader_UI_Roster(playerid)
     body[0] = EOS;
     for (new i = 0; i < gFactionCount[org - 1] && count < 25; i++)
     {
-        format(line, sizeof(line), "%s | Ранг %d%s\n",
+        if (Leader_IsCriminal(org))
+        {
+            new role[32];
+            Leader_CrimeRankTitle(gFactionMemberRank[org - 1][i], role, sizeof(role));
+            format(line, sizeof(line), "%s | %d: %s%s\n",
+                gFactionMemberName[org - 1][i], gFactionMemberRank[org - 1][i], role,
+                Leader_FindOnline(gFactionMemberName[org - 1][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
+        }
+        else format(line, sizeof(line), "%s | Ранг %d%s\n",
             gFactionMemberName[org - 1][i],
             Leader_PublicRank(org,gFactionMemberRank[org - 1][i]),
             Leader_FindOnline(gFactionMemberName[org - 1][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
@@ -82,7 +96,9 @@ stock Leader_UI_Input(playerid, action)
                 "LEADER | Повышение",
                 org==FACTION_FINANCE ?
                     ("Минфин: ID и ранг 1-3 (3=заместитель), например: 12 2") :
-                    ("Укажите ID и новый ранг (1-9), например: 12 4"),
+                    (Leader_IsCriminal(org) ?
+                        ("Синдикат: ID и ранг 1-4 (4=заместитель), например: 12 3") :
+                        ("Укажите ID и новый ранг (1-9), например: 12 4")),
                 "Применить", "Отмена");
         }
     }
