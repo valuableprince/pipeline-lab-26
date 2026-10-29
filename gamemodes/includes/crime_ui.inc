@@ -69,14 +69,7 @@ stock CrimeUI_Main(playerid)
             phase == 1 ? ("Ожидает получения") : ("В пути"));
     else format(status, sizeof(status), "Нет активного заказа");
     format(body, sizeof(body),
-        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\n"
-        "Доступные заказы\t%s\n"
-        "Мой контракт\t%s\n"
-        "Маршрут и действие\t%s\n"
-        "История контрактов\tПоследние 6\n"
-        "Журнал операций\tПоследние 8\n"
-        "Отказаться от контракта\t%s\n"
-        "Обучение\tКак это работает",
+        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nДоступные заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает",
         id ? ("Уже есть заказ") : ("Ночной рейс"),
         status, id ? ("Доступен") : ("Нет активного заказа"),
         id ? ("Доступно") : ("Нет активного заказа"));
@@ -99,8 +92,7 @@ stock CrimeUI_Offers(playerid)
     }
     new body[300];
     if (!rows) format(body, sizeof(body),
-        "{FFD15C}Предложение\t{FFD15C}Вознаграждение\t{FFD15C}Срок{FFFFFF}\n"
-        "Нет доступных заказов\t-\t-");
+        "{FFD15C}Предложение\t{FFD15C}Вознаграждение\t{FFD15C}Срок{FFFFFF}\nНет доступных заказов\t-\t-");
     else
     {
         if (!cache_get_value_name(0, "title", title, sizeof(title)) ||
@@ -111,8 +103,7 @@ stock CrimeUI_Offers(playerid)
             return SendClientMessage(playerid, CRIME_ERROR, "Неверные данные предложения.");
         }
         format(body, sizeof(body),
-            "{FFD15C}Предложение\t{FFD15C}Вознаграждение\t{FFD15C}Срок{FFFFFF}\n"
-            "%s\t$%d\t%d мин.", title, reward, duration / 60);
+            "{FFD15C}Предложение\t{FFD15C}Вознаграждение\t{FFD15C}Срок{FFFFFF}\n%s\t$%d\t%d мин.", title, reward, duration / 60);
     }
     cache_delete(c);
     CrimeUI_Open(playerid, CRIME_DLG_OFFERS);
@@ -141,14 +132,7 @@ stock CrimeUI_OfferDetail(playerid)
     cache_delete(c);
     new body[520];
     format(body, sizeof(body),
-        "{FFD15C}ЗАКАЗ: {FFFFFF}%s\n\n"
-        "{FFD15C}НАГРАДА:{FFFFFF} $%d\n"
-        "{FFD15C}СРОК:{FFFFFF} %d минут\n"
-        "{FFD15C}ТИП:{FFFFFF} одиночная перевозка\n\n"
-        "Получите груз в порту Лос-Сантоса и отвезите его получателю. "
-        "На маршруте нужно будет открыть меню и подтвердить каждое действие.\n\n"
-        "{FFD15C}УСЛОВИЯ:{FFFFFF} сотрудник синдиката 6-8, не более "
-        "одного активного заказа. Принятие фиксируется в базе.",
+        "{FFD15C}ЗАКАЗ: {FFFFFF}%s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}ТИП:{FFFFFF} одиночная перевозка\n\nПолучите груз в порту Лос-Сантоса и отвезите его получателю. На маршруте нужно будет открыть меню и подтвердить каждое действие.\n\n{FFD15C}УСЛОВИЯ:{FFFFFF} сотрудник синдиката 6-8, не более одного активного заказа. Принятие фиксируется в базе.",
         title, reward, duration / 60);
     CrimeUI_Open(playerid, CRIME_DLG_OFFER);
     return ShowPlayerDialog(playerid, CRIME_DLG_OFFER, DIALOG_STYLE_MSGBOX,
@@ -172,14 +156,7 @@ stock CrimeUI_Active(playerid)
     }
     new body[520];
     format(body, sizeof(body),
-        "{FFD15C}КОНТРАКТ:{FFFFFF} #%d\n"
-        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n"
-        "{FFD15C}ОРГАНИЗАЦИЯ:{FFFFFF} %d\n"
-        "{FFD15C}НАГРАДА:{FFFFFF} $%d\n"
-        "{FFD15C}ОСТАЛОСЬ:{FFFFFF} %d минут\n"
-        "{FFD15C}ЭТАП:{FFFFFF} %s\n\n"
-        "Нажмите «Маршрут», чтобы увидеть нужную точку "
-        "и выполнить следующее действие.",
+        "{FFD15C}КОНТРАКТ:{FFFFFF} #%d\n{FFD15C}ЗАКАЗ:{FFFFFF} %s\n{FFD15C}ОРГАНИЗАЦИЯ:{FFFFFF} %d\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}ОСТАЛОСЬ:{FFFFFF} %d минут\n{FFD15C}ЭТАП:{FFFFFF} %s\n\nНажмите «Маршрут», чтобы увидеть нужную точку и выполнить следующее действие.",
         id, title, faction, reward, (deadline - gettime() + 59) / 60,
         phase == 1 ? ("Получение груза") : ("Передача получателю"));
     CrimeUI_Open(playerid, CRIME_DLG_ACTIVE);
@@ -204,13 +181,7 @@ stock CrimeUI_Route(playerid)
         Float:z = phase == 1 ? pickup[2] : delivery[2];
     new body[540];
     format(body, sizeof(body),
-        "{FFD15C}КОНТРАКТ:{FFFFFF} #%d — %s\n"
-        "{FFD15C}ЗАДАЧА:{FFFFFF} %s\n\n"
-        "{FFD15C}ТОЧКА НА КАРТЕ:{FFFFFF}\n"
-        "X: %.1f\nY: %.1f\nZ: %.1f\n"
-        "{FFD15C}РАДИУС:{FFFFFF} 12 метров\n\n"
-        "Доберитесь до указанного места, затем нажмите "
-        "«%s». Если вы далеко от точки, операция не выполнится.",
+        "{FFD15C}КОНТРАКТ:{FFFFFF} #%d — %s\n{FFD15C}ЗАДАЧА:{FFFFFF} %s\n\n{FFD15C}ТОЧКА НА КАРТЕ:{FFFFFF}\nX: %.1f\nY: %.1f\nZ: %.1f\n{FFD15C}РАДИУС:{FFFFFF} 12 метров\n\nДоберитесь до указанного места, затем нажмите «%s». Если вы далеко от точки, операция не выполнится.",
         id, title, phase == 1 ? ("Забрать груз") : ("Доставить груз"),
         x, y, z, phase == 1 ? ("Забрать") : ("Передать"));
     CrimeUI_Open(playerid, CRIME_DLG_ROUTE);
@@ -233,10 +204,7 @@ stock CrimeUI_Cancel(playerid)
     }
     new body[350];
     format(body, sizeof(body),
-        "Вы действительно хотите отказаться от контракта #%d — %s?\n\n"
-        "{FFD15C}ПОСЛЕДСТВИЯ:{FFFFFF}\n"
-        "Заказ будет закрыт без выплаты. "
-        "Отмену невозможно будет откатить.",
+        "Вы действительно хотите отказаться от контракта #%d — %s?\n\n{FFD15C}ПОСЛЕДСТВИЯ:{FFFFFF}\nЗаказ будет закрыт без выплаты. Отмену невозможно будет откатить.",
         id, title);
     CrimeUI_Open(playerid, CRIME_DLG_CANCEL);
     return ShowPlayerDialog(playerid, CRIME_DLG_CANCEL, DIALOG_STYLE_MSGBOX,
@@ -316,19 +284,7 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Предложение{FFFFFF}\n"
-        "В разделе «Доступные заказы» выберите работу и подтвердите принятие.\n\n"
-        "{FFD15C}2. Получение груза{FFFFFF}\n"
-        "Откройте «Маршрут и действие», доберитесь до точки и нажмите «Забрать».\n\n"
-        "{FFD15C}3. Доставка{FFFFFF}\n"
-        "Повторите действие в новой точке и нажмите «Передать».\n\n"
-        "{FFD15C}4. Оплата{FFFFFF}\n"
-        "Деньги зачисляются после подтверждения MySQL. "
-        "Повторная выплата невозможна.\n\n"
-        "{FFD15C}5. Сохранение{FFFFFF}\n"
-        "Состояние сохраняется при выходе. Срок задания продолжает идти.\n\n"
-        "При необходимости откажитесь от заказа в главном меню. "
-        "Все действия доступны через один вход: /crime.",
+        "{FFD15C}1. Предложение{FFFFFF}\nВ разделе «Доступные заказы» выберите работу и подтвердите принятие.\n\n{FFD15C}2. Получение груза{FFFFFF}\nОткройте «Маршрут и действие», доберитесь до точки и нажмите «Забрать».\n\n{FFD15C}3. Доставка{FFFFFF}\nПовторите действие в новой точке и нажмите «Передать».\n\n{FFD15C}4. Оплата{FFFFFF}\nДеньги зачисляются после подтверждения MySQL. Повторная выплата невозможна.\n\n{FFD15C}5. Сохранение{FFFFFF}\nСостояние сохраняется при выходе. Срок задания продолжает идти.\n\nПри необходимости откажитесь от заказа в главном меню. Все действия доступны через один вход: /crime.",
         "Назад", "Закрыть");
 }
 
