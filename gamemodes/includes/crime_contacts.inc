@@ -7,6 +7,8 @@
 #define CRIME_CONTACT_RADIUS (5.0)
 #define CRIME_TRUST_REWARD (5)
 
+forward CrimeContacts_Shutdown();
+
 new bool:gCrimeContactEnabled[CRIME_CONTACT_COUNT];
 new gCrimeContactActor[CRIME_CONTACT_COUNT];
 new gCrimeContactName[CRIME_CONTACT_COUNT][64];
