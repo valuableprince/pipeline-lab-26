@@ -88,7 +88,7 @@ stock bool:Crime_Expire(playerid)
     return true;
 }
 
-stock bool:Crime_LoadActive(playerid, &id, &state, &faction,
+stock bool:Crime_LoadActive(playerid, &id, &phase, &faction,
     &reward, &deadline, Float:pickup[], Float:delivery[], title[], titleSize)
 {
     id = 0;
@@ -106,7 +106,7 @@ stock bool:Crime_LoadActive(playerid, &id, &state, &faction,
     if (rows == 1)
     {
         new bool:ok = cache_get_value_name_int(0, "contract_id", id) &&
-            cache_get_value_name_int(0, "state", state) &&
+            cache_get_value_name_int(0, "state", phase) &&
             cache_get_value_name_int(0, "faction_id", faction) &&
             cache_get_value_name_int(0, "reward_amount", reward) &&
             cache_get_value_name_int(0, "expires_at", deadline) &&
@@ -118,7 +118,7 @@ stock bool:Crime_LoadActive(playerid, &id, &state, &faction,
             cache_get_value_name_float(0, "delivery_y", delivery[1]) &&
             cache_get_value_name_float(0, "delivery_z", delivery[2]);
         if (!ok || id <= 0 || reward <= 0 || reward > 50000 ||
-            deadline <= gettime() || (state != 1 && state != 2))
+            deadline <= gettime() || (phase != 1 && phase != 2))
         {
             cache_delete(c);
             return false;
@@ -187,28 +187,28 @@ stock Crime_Status(playerid, bool:route = false)
 #if defined TARKENSO_DB_PRIMARY
     if (!Crime_Expire(playerid))
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка обновления контрактов.");
-    new id, state, faction, reward, deadline, title[68];
+    new id, phase, faction, reward, deadline, title[68];
     new Float:pickup[3], Float:delivery[3], msg[160];
-    if (!Crime_LoadActive(playerid, id, state, faction, reward, deadline,
+    if (!Crime_LoadActive(playerid, id, phase, faction, reward, deadline,
         pickup, delivery, title, sizeof(title)))
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось прочитать контракт.");
     if (!id)
         return SendClientMessage(playerid, CRIME_COLOR,
             "Активного заказа нет. /crime offer, затем /crime start.");
     format(msg, sizeof(msg), "Контракт #%d: %s | %s | $%d | осталось %d мин.",
-        id, title, state == 1 ? ("Получите груз") : ("Доставьте груз"),
+        id, title, phase == 1 ? ("Получите груз") : ("Доставьте груз"),
         reward, (deadline - gettime() + 59) / 60);
     SendClientMessage(playerid, CRIME_COLOR, msg);
     if (route)
     {
-        new Float:x = state == 1 ? pickup[0] : delivery[0],
-            Float:y = state == 1 ? pickup[1] : delivery[1],
-            Float:z = state == 1 ? pickup[2] : delivery[2];
+        new Float:x = phase == 1 ? pickup[0] : delivery[0],
+            Float:y = phase == 1 ? pickup[1] : delivery[1],
+            Float:z = phase == 1 ? pickup[2] : delivery[2];
         format(msg, sizeof(msg), "Точка: X %.1f, Y %.1f, Z %.1f | Радиус 12 м.",
             x, y, z);
         SendClientMessage(playerid, CRIME_COLOR, msg);
         SendClientMessage(playerid, CRIME_COLOR,
-            state == 1 ? ("На месте: /crime pickup") : ("На месте: /crime deliver"));
+            phase == 1 ? ("На месте: /crime pickup") : ("На месте: /crime deliver"));
     }
 #endif
     return 1;
@@ -259,12 +259,12 @@ stock Crime_Advance(playerid, bool:deliveryStage)
 #if defined TARKENSO_DB_PRIMARY
     if (gGovTransferBusy[playerid] || !Crime_Expire(playerid))
         return SendClientMessage(playerid, CRIME_ERROR, "Операция временно недоступна.");
-    new id, state, faction, reward, deadline, title[68];
+    new id, phase, faction, reward, deadline, title[68];
     new Float:pickup[3], Float:drop[3];
-    if (!Crime_LoadActive(playerid, id, state, faction, reward, deadline,
+    if (!Crime_LoadActive(playerid, id, phase, faction, reward, deadline,
         pickup, drop, title, sizeof(title)))
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось прочитать контракт.");
-    if (!id || state != (deliveryStage ? 2 : 1))
+    if (!id || phase != (deliveryStage ? 2 : 1))
         return SendClientMessage(playerid, CRIME_ERROR,
             "Сейчас этот этап недоступен. Проверьте /crime status.");
     if (faction != Leader_PlayerOrg(playerid))
@@ -405,9 +405,9 @@ stock Crime_Abort(playerid)
 #if defined TARKENSO_DB_PRIMARY
     if (gGovTransferBusy[playerid] || !Crime_Expire(playerid))
         return SendClientMessage(playerid, CRIME_ERROR, "Операция временно недоступна.");
-    new id, state, faction, reward, deadline, title[68];
+    new id, phase, faction, reward, deadline, title[68];
     new Float:pickup[3], Float:delivery[3];
-    if (!Crime_LoadActive(playerid, id, state, faction, reward, deadline,
+    if (!Crime_LoadActive(playerid, id, phase, faction, reward, deadline,
         pickup, delivery, title, sizeof(title)))
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка чтения контракта.");
     if (!id) return SendClientMessage(playerid, CRIME_ERROR, "Нет активного заказа.");
@@ -462,7 +462,7 @@ stock Crime_History(playerid, bool:journal = false)
         journal ? ("Последние события контрактов:") : ("Последние контракты:"));
     for (new i; i < rows; i++)
     {
-        new id, state, reward, kind[24];
+        new id, phase, reward, kind[24];
         if (!cache_get_value_name_int(i, "contract_id", id)) break;
         if (journal)
         {
@@ -471,10 +471,10 @@ stock Crime_History(playerid, bool:journal = false)
         }
         else
         {
-            if (!cache_get_value_name_int(i, "state", state) ||
+            if (!cache_get_value_name_int(i, "state", phase) ||
                 !cache_get_value_name_int(i, "reward_amount", reward)) break;
             format(line, sizeof(line), "#%d | состояние %d | награда $%d%s",
-                id, state, reward, state == 3 ? (" выплачена") : (""));
+                id, phase, reward, phase == 3 ? (" выплачена") : (""));
         }
         SendClientMessage(playerid, CRIME_COLOR, line);
     }
