@@ -178,8 +178,6 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "economy.inc"
 #include "admin_ui.inc"
 #include "leader_system.inc"
-#include "crime_contracts.inc"
-#include "crime_ui.inc"
 #include "leader_ui.inc"
 #include "orvelar_hud.inc"
 #include "cleaner_job.inc"
@@ -198,6 +196,8 @@ forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
 forward bool:GovBond_UI_OnError(errorid,const callback[],const query[]);
 forward GovBond_UI_PublicReport(playerid);
 #include "db_primary.inc"
+#include "crime_contracts.inc"
+#include "crime_ui.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
 #include "bond_fund.inc"
