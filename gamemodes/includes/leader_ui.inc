@@ -3,6 +3,9 @@
 #endif
 #define _signal_leader_ui_included
 
+// Dialogue entrypoint is implemented in crime_ui.inc after db_primary.inc.
+forward CrimeUI_Main(playerid);
+
 // Стандартные SA-MP/open.mp диалоги, без TextDraw.
 #define LEADER_DLG_MAIN (6600)
 #define LEADER_DLG_MANAGE (6601)
