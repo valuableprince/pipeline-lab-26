@@ -29,7 +29,7 @@ def main():
         a = scalar(con, "SELECT account_id FROM accounts WHERE username='CrimeSoloA'")
         assert a
         assert scalar(con, "SELECT COUNT(*) FROM crime_contacts") == 3
-        assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates") == 3
+        assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates") == 6
         assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=33") == 1
 
         # No in-world introduction means no access to the broker's offers.
