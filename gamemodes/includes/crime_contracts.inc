@@ -10,7 +10,7 @@
 #define CRIME_INTERACT_RADIUS (12.0)
 
 new bool:gCrimeReady;
-forward Crime_Settle(playerid, id, reward, faction, decision = 0);
+forward Crime_Settle(playerid, id, reward, faction, decision);
 forward bool:CrimeScenario_Info(playerid, id, &kind, &choice);
 forward bool:CrimeContacts_Init();
 forward CrimeContacts_Shutdown();
