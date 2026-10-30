@@ -115,9 +115,7 @@ stock bool:Passport_Load(playerid)
 
     new query[360], affected;
     mysql_format(gDBPrimary, query, sizeof(query),
-        "INSERT INTO player_passports (account_id,issued_on) "
-        "SELECT account_id,DATE(created_at) FROM accounts WHERE account_id=%d "
-        "ON DUPLICATE KEY UPDATE account_id=account_id",
+        "INSERT INTO player_passports (account_id,issued_on) SELECT account_id,DATE(created_at) FROM accounts WHERE account_id=%d ON DUPLICATE KEY UPDATE account_id=account_id",
         gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(query, affected)) return false;
 
@@ -126,17 +124,14 @@ stock bool:Passport_Load(playerid)
     if (gPassportPendingBirth[playerid][0])
     {
         mysql_format(gDBPrimary, query, sizeof(query),
-            "UPDATE player_passports SET birth_date='%e' "
-            "WHERE account_id=%d AND birth_date IS NULL",
+            "UPDATE player_passports SET birth_date='%e' WHERE account_id=%d AND birth_date IS NULL",
             gPassportPendingBirth[playerid], gDBPrimaryAccountId[playerid]);
         if (!DBPrimary_Execute(query, affected)) return false;
         gPassportPendingBirth[playerid][0] = EOS;
     }
 
     mysql_format(gDBPrimary, query, sizeof(query),
-        "SELECT passport_id,CAST(issued_on AS CHAR(10)) AS issue_date,"
-        "COALESCE(CAST(birth_date AS CHAR(10)),'') AS birth_date "
-        "FROM player_passports WHERE account_id=%d LIMIT 1",
+        "SELECT passport_id,CAST(issued_on AS CHAR(10)) AS issue_date,COALESCE(CAST(birth_date AS CHAR(10)),'') AS birth_date FROM player_passports WHERE account_id=%d LIMIT 1",
         gDBPrimaryAccountId[playerid]);
     new Cache:c = mysql_query(gDBPrimary, query);
     new rows, passportID, issueDate[11], birthDate[11];
@@ -163,8 +158,7 @@ stock bool:Passport_SaveBirth(playerid, const birthISO[])
         return false;
     new q[220], changed;
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE player_passports SET birth_date='%e' "
-        "WHERE passport_id=%d AND account_id=%d AND birth_date IS NULL",
+        "UPDATE player_passports SET birth_date='%e' WHERE passport_id=%d AND account_id=%d AND birth_date IS NULL",
         birthISO, gPassportID[playerid], gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1) return false;
     format(gPassportBirth[playerid], sizeof(gPassportBirth[]), "%s", birthISO);
@@ -199,18 +193,7 @@ stock Passport_Build(playerid, body[], size)
     Passport_FriendlyDate(gPassportBirth[playerid], birth, sizeof(birth));
     Passport_FriendlyDate(gPassportIssued[playerid], issued, sizeof(issued));
     format(body, size,
-        "{D5B477}TARKENSO ROLEPLAY GAME\n"
-        "{8EACBC}ГОСУДАРСТВЕННЫЙ РЕЕСТР НАСЕЛЕНИЯ\n"
-        "{8EACBC}____________________________________\n\n"
-        "{8EACBC}Имя гражданина: {FFFFFF}%s\n\n"
-        "{8EACBC}Категория резидента: {D5B477}%d\n\n"
-        "{8EACBC}Номер паспорта: {D5B477}TK-%06d\n\n"
-        "{8EACBC}Дата рождения: {FFFFFF}%s\n"
-        "{8EACBC}Гражданство: {FFFFFF}Штат Сан-Андреас\n"
-        "{8EACBC}Место регистрации: {FFFFFF}%s\n"
-        "{8EACBC}Дата выдачи: {FFFFFF}%s\n"
-        "{8EACBC}Срок действия: {FFFFFF}Бессрочно\n\n"
-        "{D5B477}ОФИЦИАЛЬНЫЙ ДОКУМЕНТ  {8EACBC}|  TARKENSO",
+        "{D5B477}TARKENSO ROLEPLAY GAME\n{8EACBC}ГОСУДАРСТВЕННЫЙ РЕЕСТР НАСЕЛЕНИЯ\n{8EACBC}____________________________________\n\n{8EACBC}Имя гражданина: {FFFFFF}%s\n\n{8EACBC}Категория резидента: {D5B477}%d\n\n{8EACBC}Номер паспорта: {D5B477}TK-%06d\n\n{8EACBC}Дата рождения: {FFFFFF}%s\n{8EACBC}Гражданство: {FFFFFF}Штат Сан-Андреас\n{8EACBC}Место регистрации: {FFFFFF}%s\n{8EACBC}Дата выдачи: {FFFFFF}%s\n{8EACBC}Срок действия: {FFFFFF}Бессрочно\n\n{D5B477}ОФИЦИАЛЬНЫЙ ДОКУМЕНТ  {8EACBC}|  TARKENSO",
         gAccountName[playerid], gCharacterLevel[playerid], gPassportID[playerid],
         birth, region, issued);
     return 1;
@@ -222,11 +205,7 @@ stock Passport_BirthPrompt(playerid, bool:invalid = false)
         gPassportBirth[playerid][0]) return 1;
     new message[360];
     format(message, sizeof(message),
-        "{D5B477}ДАТА РОЖДЕНИЯ ПЕРСОНАЖА\n\n"
-        "{FFFFFF}Для завершения паспорта укажите дату рождения.\n"
-        "{8EACBC}Формат: ДД.ММ.ГГГГ, возраст 18-100 лет.\n"
-        "{8EACBC}Дату можно указать только один раз.\n\n%s"
-        "{FFFFFF}Введите дату рождения:",
+        "{D5B477}ДАТА РОЖДЕНИЯ ПЕРСОНАЖА\n\n{FFFFFF}Для завершения паспорта укажите дату рождения.\n{8EACBC}Формат: ДД.ММ.ГГГГ, возраст 18-100 лет.\n{8EACBC}Дату можно указать только один раз.\n\n%s{FFFFFF}Введите дату рождения:",
         invalid ? "{E57373}Некорректная дата. Проверьте календарь и возраст.\n\n" : "");
     gPassportBirthDialog[playerid] = true;
     ShowPlayerDialog(playerid, PASSPORT_DLG_BIRTH, DIALOG_STYLE_INPUT,
