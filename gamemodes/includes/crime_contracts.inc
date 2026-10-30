@@ -8,6 +8,7 @@
 #define CRIME_COLOR (0xC7C7C7FF)
 #define CRIME_ERROR (0xE27E82FF)
 #define CRIME_INTERACT_RADIUS (12.0)
+#define CRIME_WORLD_RADIUS (3.5)
 
 new bool:gCrimeReady;
 forward Crime_Settle(playerid, id, reward, faction, decision);
