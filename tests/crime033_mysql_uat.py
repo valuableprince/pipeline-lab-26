@@ -2,7 +2,7 @@
 import mysql.connector
 from crime02_mysql_uat import CFG, run, scalar, pickup
 from crime023_mysql_uat import resolve
-from crime032_mysql_uat import bid, close, finalize, incident
+from crime032_mysql_uat import bid, close, finalize, incident, followup
 
 def make_round(db,contact,bucket_offset=-3):
     tid=scalar(db,"SELECT template_id FROM crime_contract_templates WHERE mode_id=3 AND contact_id=%s",(contact,))
@@ -48,6 +48,8 @@ def main():
         assert scalar(db,"SELECT resolved_at FROM crime_tender_incidents WHERE contract_id=%s",(cid,))>0
         assert scalar(db, """SELECT COUNT(*) FROM crime_contract_events
              WHERE contract_id=%s AND event_type='INCIDENT_RESOLVED'""",(cid,))==1
+        assert not resolve(db,cid,a,6,0)
+        assert followup(db,cid,a,6)
         assert resolve(db,cid,a,6,0)
         assert not resolve(db,cid,a,6,0)
         assert scalar(db,"SELECT balance FROM accounts WHERE account_id=%s",(a,))==before+base+300
@@ -67,6 +69,8 @@ def main():
         assert incident(db,careful,a,6,1)
         assert not incident(db,careful,a,6,2)
         assert scalar(db,"SELECT reward_amount FROM crime_contracts WHERE contract_id=%s",(careful,))==base2
+        assert not resolve(db,careful,a,6,0)
+        assert followup(db,careful,a,6)
         assert resolve(db,careful,a,6,0)
         assert scalar(db,"SELECT risk_delta FROM crime_contracts WHERE contract_id=%s",(careful,))==-12
         assert scalar(db,"SELECT balance FROM accounts WHERE account_id=%s",(a,))==before2+base2
