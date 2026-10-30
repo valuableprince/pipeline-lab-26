@@ -23,7 +23,7 @@ class SoloScenarios(unittest.TestCase):
             self.assertIn(template, SQL)
             self.assertIn(f",5,{kind})", SQL)
         self.assertIn("NOT NULL DEFAULT 0", SQL)
-        self.assertIn("version=36 LIMIT 1", CORE)
+        self.assertIn("version=37 LIMIT 1", CORE)
 
     def test_persistent_stages_and_atomic_outcomes(self):
         for token in ("t.contact_id,t.scenario_kind",
@@ -32,7 +32,7 @@ class SoloScenarios(unittest.TestCase):
                       "c.scenario_choice IN(1,2)",
                       "INSERT INTO crime_contact_trust_events",
                       "WHEN scenario_resolution=2 THEN 2",
-                      "WHEN scenario_choice=1 THEN 5 ELSE 3",
+                      "WHEN scenario_choice=1 THEN 5+",
                       "LEAST(100", "Crime_Rollback();"):
             self.assertIn(token, CORE)
         fragment=CORE.split("stock Crime_Settle(",1)[1].split("stock Crime_Abort(",1)[0]
