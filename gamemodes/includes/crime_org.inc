@@ -42,7 +42,7 @@ stock bool:CrimeOrg_ReadContact(playerid, contactId, &standing,
 #if defined TARKENSO_DB_PRIMARY
     if (!Crime_Available(playerid) ||
         contactId < 1 || contactId > CRIME_CONTACT_COUNT) return false;
-    new org = Leader_PlayerOrg(playerid), q[370], rows = 0;
+    new org = Leader_PlayerOrg(playerid), q[650], rows = 0;
     if (!Leader_IsCriminal(org)) return false;
     mysql_format(gDBPrimary, q, sizeof(q),
         "SELECT p.standing,p.completed_count,EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=p.faction_id AND a.contact_id=p.contact_id AND a.asset_code=1) stash,EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=p.faction_id AND a.contact_id=p.contact_id AND a.asset_code=2) network FROM crime_syndicate_contacts p WHERE p.faction_id=%d AND p.contact_id=%d LIMIT 1",
