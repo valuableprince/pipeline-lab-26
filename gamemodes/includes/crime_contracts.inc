@@ -44,6 +44,7 @@ forward bool:CrimeRecovery_Init();
 forward CrimeRecovery_Shutdown();
 forward CrimeRecovery_Reset(playerid);
 forward CrimeRecoveryUI_Board(playerid);
+forward CrimeRank_Board(playerid);
 
 stock Crime_Init()
 {
