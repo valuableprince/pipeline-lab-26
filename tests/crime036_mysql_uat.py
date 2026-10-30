@@ -4,11 +4,11 @@ from crime02_mysql_uat import CFG, run, scalar, begin
 
 
 def start(db,account,faction,contact,method):
+    run(db,"""UPDATE crime_contact_recoveries SET state=4
+       WHERE account_id=%s AND state IN(1,2)
+         AND expires_at<=UNIX_TIMESTAMP()""",(account,))
     begin(db)
     try:
-        run(db,"""UPDATE crime_contact_recoveries SET state=4
-           WHERE account_id=%s AND state IN(1,2)
-             AND expires_at<=UNIX_TIMESTAMP()""",(account,))
         n,rid=run(db, """INSERT INTO crime_contact_recoveries
            (account_id,faction_id,contact_id,method,started_at,expires_at)
            SELECT m.account_id,m.faction_id,p.contact_id,%s,
