@@ -87,6 +87,30 @@ def interview(con, cid, account, faction, question):
 def resolve(con, cid, account, faction, decision):
     begin(con)
     try:
+        round_id=scalar(con,
+            "SELECT COALESCE(competition_id,0) FROM crime_contracts WHERE contract_id=%s AND account_id=%s AND faction_id=%s AND state=2",
+            (cid,account,faction))
+        if round_id is None:
+            run(con,"ROLLBACK")
+            return False
+        if round_id:
+            changed,_=run(con, """
+                UPDATE crime_competition_rounds r JOIN crime_contracts c
+                  ON c.competition_id=r.round_id
+                SET r.state=2,r.winner_contract_id=c.contract_id,
+                  r.winner_faction_id=c.faction_id,
+                  r.winner_account_id=c.account_id,r.closed_at=UNIX_TIMESTAMP()
+                WHERE r.round_id=%s AND r.state=1 AND r.expires_at>UNIX_TIMESTAMP()
+                  AND c.contract_id=%s AND c.account_id=%s AND c.faction_id=%s
+                  AND c.mode_id=2 AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP()
+            """,(round_id,cid,account,faction))
+            if changed!=1:
+                run(con,"ROLLBACK")
+                return False
+            run(con, """UPDATE crime_contracts
+                SET state=5,finished_at=UNIX_TIMESTAMP()
+                WHERE competition_id=%s AND contract_id<>%s AND state IN(1,2)""",
+                (round_id,cid))
         version = scalar(con, "SELECT row_version FROM accounts WHERE account_id=%s", (account,))
         changed, _ = run(con, """
             UPDATE accounts a JOIN crime_contracts c ON c.account_id=a.account_id
@@ -171,11 +195,11 @@ def resolve(con, cid, account, faction, decision):
             INSERT INTO crime_syndicate_influence_events
              (contract_id,faction_id,contact_id,influence_delta,standing_delta)
             SELECT c.contract_id,c.faction_id,c.contact_id,
-              (CASE WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+
+              (CASE WHEN c.mode_id=2 THEN 8 WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+
                (CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a
                  WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id
                    AND a.asset_code=1) THEN 1 ELSE 0 END),
-              (CASE WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+
+              (CASE WHEN c.mode_id=2 THEN 5 WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+
                (CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a
                  WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id
                    AND a.asset_code=2) THEN 1 ELSE 0 END)
@@ -212,13 +236,13 @@ def main():
         account = scalar(con,
             "SELECT account_id FROM accounts WHERE username='CrimeSoloA'")
         assert account
-        assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates") == 6
+        assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates WHERE mode_id=1") == 6
         assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=37") == 1
         # Keep the original branching outcome test focused on settlement;
         # retry policies have their own integration acceptance suite.
         run(con, "UPDATE crime_contract_templates SET cooldown_seconds=0 WHERE template_id=4")
         # Original templates remain couriers.
-        assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates WHERE scenario_kind=0") == 3
+        assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates WHERE scenario_kind=0 AND mode_id=1") == 3
         assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates WHERE scenario_kind BETWEEN 1 AND 3") == 3
         trust_start = scalar(con, """SELECT trust FROM crime_contact_progress
             WHERE account_id=%s AND contact_id=2""", (account,))
