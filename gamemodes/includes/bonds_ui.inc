@@ -155,6 +155,113 @@ stock BondsUI_Main(playerid)
     return 1;
 }
 
+// GOV-MAT-UX: payment reminders use committed claims, never a clock guess.
+// Pending payouts are shown at login (including offline maturities); new
+// maturity/insurance allocations notify players currently in-game.
+stock BondsUI_NotifyMaturityLogin(playerid)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(playerid<0 || playerid>=MAX_PLAYERS || !BondSettlement_IsReady() ||
+       !IsPlayerConnected(playerid) || IsPlayerNPC(playerid) ||
+       gAuthState[playerid]!=AUTH_READY || !gDBPrimaryLoaded[playerid] ||
+       gDBPrimaryAccountId[playerid]<=0)return 1;
+    gBondsUIMaturitySeq[playerid]++;
+    new query[660];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "SELECT i.issue_code,c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected AS available FROM government_bond_claims c JOIN government_bond_issues i ON i.issue_id=c.issue_id WHERE c.account_id=%d AND i.maturity_event_key IS NOT NULL AND c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded>c.amount_collected ORDER BY i.issue_id DESC LIMIT 4",
+        gDBPrimaryAccountId[playerid]);
+    if(!mysql_tquery(gDBPrimary,query,"BondsUI_OnMaturityLogin","iiii",
+        playerid,gAuthToken[playerid],gDBPrimaryAccountId[playerid],
+        gBondsUIMaturitySeq[playerid]))
+        print("[GOV-MAT-UX] Could not queue login maturity notice.");
+#else
+    #pragma unused playerid
+#endif
+    return 1;
+}
+
+stock BondsUI_NotifyMaturityOnline(issueId)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(!BondSettlement_IsReady() || issueId<=0)return 1;
+    new query[510];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "SELECT i.issue_code,c.account_id,c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded-c.amount_collected AS available FROM government_bond_claims c JOIN government_bond_issues i ON i.issue_id=c.issue_id WHERE c.issue_id=%d AND i.maturity_event_key IS NOT NULL AND c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded>c.amount_collected LIMIT 2000",
+        issueId);
+    if(!mysql_tquery(gDBPrimary,query,"BondsUI_OnMaturityOnline","i",issueId))
+        print("[GOV-MAT-UX] Could not queue online maturity notice.");
+#else
+    #pragma unused issueId
+#endif
+    return 1;
+}
+
+stock BondsUI_SendMaturityNotice(playerid,const issueCode[],amount,bool:offline)
+{
+    if(amount<=0 || !issueCode[0])return 1;
+    new message[156];
+    format(message,sizeof(message),offline?
+        "Минфин: по %s ожидает выплата $%d. Получите в /bonds.":
+        "Минфин: по %s доступна выплата $%d. Получите в /bonds.",
+        issueCode,amount);
+    SendClientMessage(playerid,COLOR_AMBER,message);
+    return 1;
+}
+
+public BondsUI_OnMaturityLogin(playerid,authToken,accountId,seq)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if(playerid<0 || playerid>=MAX_PLAYERS || !IsPlayerConnected(playerid) ||
+       IsPlayerNPC(playerid) || gAuthState[playerid]!=AUTH_READY ||
+       !gDBPrimaryLoaded[playerid] || gAuthToken[playerid]!=authToken ||
+       gDBPrimaryAccountId[playerid]!=accountId ||
+       gBondsUIMaturitySeq[playerid]!=seq)return 1;
+    new rows=0;
+    if(mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows>4)
+        return 1;
+    for(new i=0;i<rows && i<3;i++)
+    {
+        new code[65],amount;
+        if(cache_get_value_name(i,"issue_code",code,sizeof(code)) &&
+           cache_get_value_name_int(i,"available",amount))
+            BondsUI_SendMaturityNotice(playerid,code,amount,true);
+    }
+    if(rows>3)SendClientMessage(playerid,COLOR_AMBER,
+        "Есть и другие выплаты по облигациям. Откройте /bonds.");
+#else
+    #pragma unused playerid,authToken,accountId,seq
+#endif
+    return 1;
+}
+
+public BondsUI_OnMaturityOnline(issueId)
+{
+#if defined TARKENSO_DB_PRIMARY
+    new rows=0;
+    if(issueId<=0 || mysql_errno(gDBPrimary)!=0 ||
+       !cache_get_row_count(rows) || rows>2000)return 1;
+    for(new i=0;i<rows;i++)
+    {
+        new accountId,amount,code[65];
+        if(!cache_get_value_name_int(i,"account_id",accountId) ||
+           !cache_get_value_name_int(i,"available",amount) ||
+           !cache_get_value_name(i,"issue_code",code,sizeof(code)) ||
+           amount<=0)continue;
+        for(new playerid=0;playerid<MAX_PLAYERS;playerid++)
+        {
+            if(IsPlayerConnected(playerid) && !IsPlayerNPC(playerid) &&
+               gAuthState[playerid]==AUTH_READY &&
+               gDBPrimaryLoaded[playerid] &&
+               gDBPrimaryAccountId[playerid]==accountId)
+                BondsUI_SendMaturityNotice(playerid,code,amount,false);
+        }
+    }
+#else
+    #pragma unused issueId
+#endif
+    return 1;
+}
+
 stock bool:BondsUI_Query(playerid, const query[], kind, bool:detail = false)
 {
 #if defined TARKENSO_DB_PRIMARY
