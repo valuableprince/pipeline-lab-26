@@ -799,7 +799,7 @@ stock GovBond_UI_ConfirmDraft(playerid)
     GovBond_UI_DayWord(gGovUIMaturityDays[playerid],maturityDayWord,sizeof(maturityDayWord));
     GovBond_UI_TypeLabel(gGovUIType[playerid],typeLabel,sizeof(typeLabel));
     format(body,sizeof(body),
-        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Цель: {E8EDF3}%s\n{E8EDF3}Тип: {E8EDF3}%s\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Количество: {E8EDF3}%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Размещение: %d %s\n{E8EDF3}Погашение через: %d %s после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
+        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {FFD15C}%s\n{E8EDF3}Цель: {FFD15C}%s\n{E8EDF3}Тип: {FFD15C}%s\n{E8EDF3}Номинал: {FFD15C}$%d\n{E8EDF3}Количество: {FFD15C}%d\n{E8EDF3}Общий номинал: {FFD15C}$%d\n{E8EDF3}Доходность: {FFD15C}%d.%02d%%\n{E8EDF3}Размещение: {FFD15C}%d %s\n{E8EDF3}Погашение через: {FFD15C}%d %s после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
         gGovUITitle[playerid],gGovUIPurpose[playerid],typeLabel,
         gGovUIFace[playerid],gGovUIQuantity[playerid],
         gGovUIFace[playerid]*gGovUIQuantity[playerid],
@@ -808,7 +808,7 @@ stock GovBond_UI_ConfirmDraft(playerid)
         gGovUIMaturityDays[playerid],maturityDayWord);
     if(gGovUIEditing[playerid])
         format(codeHint,sizeof(codeHint),
-            "\n{E8EDF3}Сохраняется код выпуска %s.",
+            "\n{E8EDF3}Сохраняется код выпуска {FFD15C}%s{E8EDF3}.",
             gGovUISelectedCode[playerid]);
     else format(codeHint,sizeof(codeHint),
             "\n{E8EDF3}Уникальный код выпуска назначит MySQL.");
