@@ -44,11 +44,11 @@ stock bool:CrimeReconnect_ReadPending(playerid, &bidId, &tenderId, &closesAt)
     return true;
 }
 
-stock bool:CrimeReconnect_ReadContract(playerid, &contractId, &state,
+stock bool:CrimeReconnect_ReadContract(playerid, &contractId, &phase,
     &faction, &deadline, &kind, title[], titleSize)
 {
     contractId=0;
-    state=0;
+    phase=0;
     faction=0;
     deadline=0;
     kind=0;
@@ -65,12 +65,12 @@ stock bool:CrimeReconnect_ReadContract(playerid, &contractId, &state,
     }
     if(rows==1 &&
        (!cache_get_value_name_int(0,"contract_id",contractId) ||
-        !cache_get_value_name_int(0,"state",state) ||
+        !cache_get_value_name_int(0,"state",phase) ||
         !cache_get_value_name_int(0,"faction_id",faction) ||
         !cache_get_value_name_int(0,"expires_at",deadline) ||
         !cache_get_value_name_int(0,"scenario_kind",kind) ||
         !cache_get_value_name(0,"title",title,titleSize) ||
-        contractId<=0 || (state!=1 && state!=2) ||
+        contractId<=0 || (phase!=1 && phase!=2) ||
         faction<6 || faction>8 || deadline<=0 || kind<0 || kind>3))
     {
         cache_delete(c);
@@ -100,9 +100,9 @@ stock CrimeReconnect_Notify(playerid)
                 "[Криминальная система] Не удалось обновить итоги тендера. Проверьте /crime.");
     }
 
-    new contractId,state,faction,deadline,kind,title[68];
+    new contractId,phase,faction,deadline,kind,title[68];
     new bool:contractOK=CrimeReconnect_ReadContract(playerid,contractId,
-        state,faction,deadline,kind,title,sizeof(title));
+        phase,faction,deadline,kind,title,sizeof(title));
     if(!contractOK)
         return SendClientMessage(playerid,CRIME_ERROR,
             "[Криминальная система] Не удалось проверить незавершённые задания. Откройте /crime.");
@@ -130,11 +130,11 @@ stock CrimeReconnect_Notify(playerid)
                 contractId,title);
             SendClientMessage(playerid,CRIME_COLOR,text);
             new stage[64];
-            CrimeScenario_StageLabel(kind,state,stage,sizeof(stage));
+            CrimeScenario_StageLabel(kind,phase,stage,sizeof(stage));
             // Tender delivery has mandatory physical NPC stages after pickup.
             // Read the persisted choices so the notice never suggests that
             // final delivery is already available before both encounters.
-            if(kind==0 && state==2)
+            if(kind==0 && phase==2)
             {
                 new contact,code,choice;
                 if(CrimeIncident_Info(playerid,contractId,contact,code,choice))
