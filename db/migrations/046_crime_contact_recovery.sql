@@ -2,7 +2,7 @@
 -- Apply once after 045 with the server stopped and a verified backup.
 -- One active recovery across all contacts per account; one start per 60 min per contact.
 CREATE TABLE crime_contact_recoveries (
-  recovery_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  recovery_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   account_id BIGINT UNSIGNED NOT NULL,
   faction_id TINYINT UNSIGNED NOT NULL,
   contact_id TINYINT UNSIGNED NOT NULL,
