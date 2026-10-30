@@ -105,10 +105,12 @@ def resolve(con, cid, account, faction, decision):
             run(con, "ROLLBACK")
             return False
         changed, _ = run(con, """UPDATE crime_contracts
-            SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%s
+            SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%s,
+                risk_delta=CASE WHEN scenario_kind=0 THEN -8 WHEN %s=2 THEN 20
+                  WHEN interview_question=2 THEN 8 WHEN scenario_choice=2 THEN 5 ELSE -12 END
             WHERE contract_id=%s AND account_id=%s AND faction_id=%s
               AND state=2 AND expires_at>UNIX_TIMESTAMP()""",
-            (decision, cid, account, faction))
+            (decision, decision, cid, account, faction))
         assert changed == 1
         changed, _ = run(con, """
             INSERT INTO crime_contract_rewards
@@ -143,6 +145,26 @@ def resolve(con, cid, account, faction, decision):
                 p.completed_count=p.completed_count+1
             WHERE c.contract_id=%s AND c.account_id=%s AND c.state=3""",
             (cid, account))
+        assert changed == 1
+        # Risk ledger is created before the progress update. A transaction
+        # rollback must undo both heat and the money sent to the account.
+        changed, _ = run(con, """
+            INSERT INTO crime_contact_heat_events
+            (contract_id,account_id,contact_id,heat_delta)
+            SELECT c.contract_id,c.account_id,c.contact_id,
+              GREATEST(-CAST(p.heat AS SIGNED),
+                LEAST(100-CAST(p.heat AS SIGNED),c.risk_delta))
+            FROM crime_contracts c JOIN crime_contact_progress p
+              ON p.account_id=c.account_id AND p.contact_id=c.contact_id
+            WHERE c.contract_id=%s AND c.account_id=%s AND c.state=3
+        """,(cid,account))
+        assert changed == 1
+        changed, _ = run(con, """
+            UPDATE crime_contact_progress p JOIN crime_contact_heat_events h
+              ON h.account_id=p.account_id AND h.contact_id=p.contact_id
+            SET p.heat=GREATEST(0,LEAST(100,CAST(p.heat AS SIGNED)+h.heat_delta))
+            WHERE h.contract_id=%s AND h.account_id=%s
+        """,(cid,account))
         assert changed == 1
         run(con, "COMMIT")
         return True
