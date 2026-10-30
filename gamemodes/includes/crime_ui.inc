@@ -150,33 +150,43 @@ stock CrimeUI_Offers(playerid)
         if (c != Cache:0) cache_delete(c);
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось получить предложения.");
     }
+    new offerIds[CRIME_OFFER_MAX], offerRewards[CRIME_OFFER_MAX],
+        offerDuration[CRIME_OFFER_MAX], offerTitles[CRIME_OFFER_MAX][68];
+    new count = 0;
+    // Copy the active MySQL result before issuing eligibility queries.
+    // Nested mysql_query calls must not invalidate the outer cache.
+    for (new i; i < rows; i++)
+    {
+        if (!cache_get_value_name_int(i, "template_id", offerIds[i]) ||
+            !cache_get_value_name_int(i, "reward_amount", offerRewards[i]) ||
+            !cache_get_value_name_int(i, "duration_seconds", offerDuration[i]) ||
+            !cache_get_value_name(i, "title", offerTitles[i], 68))
+        {
+            cache_delete(c);
+            return SendClientMessage(playerid, CRIME_ERROR, "Ошибка чтения предложений.");
+        }
+        count++;
+    }
+    cache_delete(c);
     format(body, sizeof(body),
         "{FFD15C}Предложение\t{FFD15C}Награда\t{FFD15C}Доступность{FFFFFF}\n");
     gCrimeUIOfferCount[playerid] = 0;
-    for (new i = 0; i < rows; i++)
+    for (new i; i < count; i++)
     {
-        new id, reward, duration, title[68];
-        if (!cache_get_value_name_int(i, "template_id", id) ||
-            !cache_get_value_name_int(i, "reward_amount", reward) ||
-            !cache_get_value_name_int(i, "duration_seconds", duration) ||
-            !cache_get_value_name(i, "title", title, sizeof(title))) break;
         new remaining, alreadyDone, status[45];
-        if (!Crime_OfferEligibility(playerid, id, remaining, alreadyDone))
-        {
-            cache_delete(c);
+        if (!Crime_OfferEligibility(playerid, offerIds[i], remaining, alreadyDone))
             return SendClientMessage(playerid, CRIME_ERROR,
                 "Не удалось проверить доступность заданий.");
-        }
-        gCrimeUIOfferId[playerid][i] = id;
+        gCrimeUIOfferId[playerid][i] = offerIds[i];
         gCrimeUIOfferCount[playerid]++;
         if (alreadyDone) format(status, sizeof(status), "Пройдено");
         else if (remaining > 0)
             format(status, sizeof(status), "Через %d мин", (remaining + 59) / 60);
-        else format(status, sizeof(status), "Доступно (%d мин)", duration / 60);
-        format(line, sizeof(line), "%s\t$%d\t%s\n", title, reward, status);
+        else format(status, sizeof(status), "Доступно (%d мин)", offerDuration[i] / 60);
+        format(line, sizeof(line), "%s\t$%d\t%s\n",
+            offerTitles[i], offerRewards[i], status);
         strcat(body, line, sizeof(body));
     }
-    cache_delete(c);
     if (!gCrimeUIOfferCount[playerid])
         strcat(body, "Пока нет заказов\t-\t-\n", sizeof(body));
     CrimeUI_Open(playerid, CRIME_DLG_OFFERS);
