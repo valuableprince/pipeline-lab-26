@@ -13,7 +13,7 @@ stock bool:CrimeTender_Finalize(tenderId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if(tenderId<=0 || !Crime_Exec("START TRANSACTION")) return false;
-    new q[1150],rows=0,state=0,closes=0;
+    new q[1600],rows=0,state=0,closes=0;
     mysql_format(gDBPrimary,q,sizeof(q),
         "SELECT state,closes_at FROM crime_tender_rounds WHERE tender_id=%d FOR UPDATE",tenderId);
     new Cache:c=mysql_query(gDBPrimary,q);
