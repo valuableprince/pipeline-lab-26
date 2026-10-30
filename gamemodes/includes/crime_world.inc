@@ -170,6 +170,89 @@ stock bool:CrimeWorld_Collect(playerid, id, faction)
 #endif
 }
 
+
+stock bool:CrimeWorld_InterviewInfo(playerid, id, &question, &interviewedAt)
+{
+    question = 0;
+    interviewedAt = 0;
+#if defined TARKENSO_DB_PRIMARY
+    if (!Crime_Available(playerid) || id <= 0) return false;
+    new q[260], rows = 0;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "SELECT interview_question,interviewed_at FROM crime_contracts WHERE account_id=%d AND contract_id=%d AND scenario_kind IN(1,2,3) AND state=2 LIMIT 1",
+        gDBPrimaryAccountId[playerid], id);
+    new Cache:c = mysql_query(gDBPrimary, q);
+    if (c == Cache:0 || mysql_errno(gDBPrimary) ||
+        !cache_get_row_count(rows) || rows != 1 ||
+        !cache_get_value_name_int(0, "interview_question", question) ||
+        !cache_get_value_name_int(0, "interviewed_at", interviewedAt))
+    {
+        if (c != Cache:0) cache_delete(c);
+        return false;
+    }
+    cache_delete(c);
+    return question >= 0 && question <= 2 && interviewedAt >= 0;
+#else
+    #pragma unused playerid, id
+    return false;
+#endif
+}
+
+stock bool:CrimeWorld_InterviewReady(playerid, id)
+{
+    new question, interviewedAt;
+    return CrimeWorld_InterviewInfo(playerid, id, question, interviewedAt) &&
+        interviewedAt > 0;
+}
+
+stock bool:CrimeWorld_Interview(playerid, id, faction, question)
+{
+#if defined TARKENSO_DB_PRIMARY
+    if (!Crime_Available(playerid) || gGovTransferBusy[playerid] ||
+        !Leader_IsCriminal(faction) ||
+        faction != Leader_PlayerOrg(playerid) ||
+        (question != 1 && question != 2) ||
+        IsPlayerInAnyVehicle(playerid) ||
+        GetPlayerInterior(playerid) != 0 ||
+        GetPlayerVirtualWorld(playerid) != 0) return false;
+
+    // The position and stage are checked a second time on the dialog click,
+    // rather than trusting the NPC interaction which originally opened it.
+    new contractId, phase, contractFaction, reward, deadline, title[68];
+    new Float:pickup[3], Float:delivery[3];
+    if (!Crime_Expire(playerid) ||
+        !Crime_LoadActive(playerid, contractId, phase, contractFaction,
+            reward, deadline, pickup, delivery, title, sizeof(title)) ||
+        id != contractId || phase != 2 || faction != contractFaction ||
+        !IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS,
+            delivery[0], delivery[1], delivery[2])) return false;
+
+    new q[450], affected = 0;
+    if (!Crime_Exec("START TRANSACTION")) return false;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE crime_contracts SET interview_question=%d,interviewed_at=UNIX_TIMESTAMP() WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND scenario_kind IN(1,2,3) AND state=2 AND scenario_choice IN(1,2) AND interviewed_at=0 AND expires_at>UNIX_TIMESTAMP()",
+        question, id, gDBPrimaryAccountId[playerid], faction);
+    if (!DBPrimary_Execute(q, affected) || affected != 1)
+    {
+        Crime_Rollback();
+        return false;
+    }
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'WITNESS_INTERVIEWED')",
+        id, gDBPrimaryAccountId[playerid]);
+    if (!DBPrimary_Execute(q, affected) || affected != 1)
+    {
+        Crime_Rollback();
+        return false;
+    }
+    if (!Crime_Exec("COMMIT")) return false;
+    return true;
+#else
+    #pragma unused playerid, id, faction, question
+    return false;
+#endif
+}
+
 // KEY_YES is the standard GTA Y/affirmative interaction key.
 // The mission is optional and this callback never consumes unrelated keys.
 stock CrimeWorld_OnKeys(playerid, KEY:newkeys, KEY:oldkeys)
@@ -205,6 +288,7 @@ stock CrimeWorld_OnKeys(playerid, KEY:newkeys, KEY:oldkeys)
             "Улику не удалось зарегистрировать. Попробуйте ещё раз.");
         return 1;
     }
-    CrimeUI_Scene(playerid);
+    if (phase == 2) CrimeUI_Witness(playerid);
+    else CrimeUI_Scene(playerid);
     return 1;
 }
