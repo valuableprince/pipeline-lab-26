@@ -200,6 +200,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "crime_contacts.inc"
 #include "crime_scenarios.inc"
 #include "crime_ui.inc"
+#include "crime_world.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
 #include "bond_fund.inc"
@@ -894,6 +895,7 @@ public OnGameModeExit()
     gAdminJailTimer = 0;
     PayDay_Shutdown();
     Economy_Shutdown();
+    CrimeWorld_Shutdown();
     CrimeContacts_Shutdown();
     Admin_ClockShutdown();
     Auth_Autosave();
@@ -955,6 +957,7 @@ public OnPlayerConnect(playerid)
     Leader_OnConnect(playerid);
     Leader_UI_Reset(playerid);
     CrimeUI_Reset(playerid);
+    CrimeWorld_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
     OrvelarHUD_OnConnect(playerid);
     gAuthToken[playerid]++;
@@ -1049,6 +1052,7 @@ public OnPlayerDisconnect(playerid, reason)
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
     CrimeUI_Reset(playerid);
+    CrimeWorld_Reset(playerid);
     gAuthToken[playerid]++;
     gAuthState[playerid] = AUTH_NONE;
     gAuthDialogOpen[playerid] = false;
@@ -1216,6 +1220,7 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     }
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeWorld_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
     return 1;
