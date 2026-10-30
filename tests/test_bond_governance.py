@@ -374,6 +374,27 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("gGovUIOfferDays[playerid],offerDayWord,",UI)
         self.assertIn("gGovUIMaturityDays[playerid],maturityDayWord);",UI)
 
+    def test_signing_and_approval_are_not_duplicate_menu_actions(self):
+        # BOND-UI-09: signing a draft is the only approval entry point.
+        issue=UI.split("if(dialogid==GOVUI_ISSUE)",1)[1].split(
+            "if(dialogid==GOVUI_ACTION)",1)[0]
+        actions=UI.split("stock GovBond_UI_Actions(playerid)",1)[1].split(
+            "stock GovBond_UI_ConfirmAction(playerid,action)",1)[0]
+        menu_handler=UI.split("if(dialogid==GOVUI_ACTION)",1)[1].split(
+            "if(dialogid==GOVUI_APPROVAL_REASON)",1)[0]
+        self.assertIn('body,"Подписать","Отклонить"',UI)
+        self.assertIn("gGovUIAction[playerid]=2;",issue)
+        self.assertIn("return GovBond_UI_ExecuteAction(playerid);",issue)
+        self.assertNotIn("Утвердить выпуск (заместитель/министр)",actions)
+        self.assertIn("Открыть размещение (заместитель/министр)",actions)
+        self.assertIn("Отменить непроданный выпуск (заместитель/министр)",actions)
+        self.assertIn("Вернуться к реестру",actions)
+        self.assertIn("if(listitem==0)return GovBond_UI_ConfirmAction(playerid,3);",menu_handler)
+        self.assertIn("if(listitem==1)return GovBond_UI_ConfirmAction(playerid,4);",menu_handler)
+        self.assertNotIn("listitem+2",menu_handler)
+        self.assertIn("CALL gov_bond_official_approve",UI)
+        self.assertIn("CALL gov_bond_official_open",UI)
+
     def test_draft_confirmation_highlights_all_values(self):
         # BOND-UI-08: every field value is yellow, but labels remain light.
         block=UI.split("stock GovBond_UI_ConfirmDraft(playerid)",1)[1].split(
