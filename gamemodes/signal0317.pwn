@@ -164,6 +164,7 @@ forward bool:AdminPunish_IsJailed(playerid);
 forward bool:AdminPunish_Release(playerid, const actor[]);
 forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 
+#include "notification_style.inc"
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "console_ru.inc"
