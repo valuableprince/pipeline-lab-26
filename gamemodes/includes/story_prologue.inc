@@ -252,9 +252,9 @@ stock bool:Story_Advance(playerid, expected)
     Story_UpdateMarker(playerid);
     new objective[150];
     Story_ObjectiveText(playerid, objective, sizeof(objective));
-    SendClientMessage(playerid, STORY_COLOR, objective);
+    TNotify_Send(playerid,TNOTIFY_STORY,TNOTIFY_INFO,objective);
     if (gStoryStage[playerid] == STORY_DONE)
-        SendClientMessage(playerid, STORY_COLOR,
+        TNotify_Send(playerid,TNOTIFY_STORY,TNOTIFY_SUCCESS,
             "ПРОЛОГ ЗАВЕРШЁН. Номер 17. История продолжится в следующей главе.");
     return true;
 }
@@ -273,7 +273,7 @@ stock Story_OnSpawn(playerid)
     }
     new objective[150];
     Story_ObjectiveText(playerid, objective, sizeof(objective));
-    SendClientMessage(playerid, STORY_COLOR, objective);
+    TNotify_Send(playerid,TNOTIFY_STORY,TNOTIFY_INFO,objective);
     return 1;
 }
 
