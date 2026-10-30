@@ -14,6 +14,18 @@ stock CrimeReconnect_Reset(playerid)
     return 1;
 }
 
+// Inline open.mp/SAMP chat colours match the /crime dialog palette:
+// gold #FFD15C: prefix and emphasis, white #FFFFFF: body,
+// grey #C7C7C7: hints, muted red #E27E82: warnings.
+stock CrimeReconnect_Chat(playerid, bool:warning, const body[])
+{
+    new line[165];
+    format(line,sizeof(line),
+        "{FFD15C}[Криминальная система]{FFFFFF} %s",body);
+    return SendClientMessage(playerid,
+        warning ? CRIME_ERROR : CRIME_COLOR,line);
+}
+
 #if defined TARKENSO_DB_PRIMARY
 stock bool:CrimeReconnect_ReadPending(playerid, &bidId, &tenderId, &closesAt)
 {
@@ -96,16 +108,20 @@ stock CrimeReconnect_Notify(playerid)
         // The existing SQL transaction handles solo NPC awards exactly once.
         justDecided=CrimeTender_Finalize(tenderId);
         if(!justDecided)
-            SendClientMessage(playerid,CRIME_ERROR,
-                "[Криминальная система] Не удалось обновить итоги тендера. Проверьте /crime.");
+        {
+            CrimeReconnect_Chat(playerid,true,
+                "{E27E82}Не удалось обновить итоги тендера.{FFFFFF}");
+            SendClientMessage(playerid,CRIME_COLOR,
+                "{C7C7C7}Проверьте результаты в {FFD15C}/crime{C7C7C7}.");
+        }
     }
 
     new contractId,phase,faction,deadline,kind,title[68];
     new bool:contractOK=CrimeReconnect_ReadContract(playerid,contractId,
         phase,faction,deadline,kind,title,sizeof(title));
     if(!contractOK)
-        return SendClientMessage(playerid,CRIME_ERROR,
-            "[Криминальная система] Не удалось проверить незавершённые задания. Откройте /crime.");
+        return CrimeReconnect_Chat(playerid,true,
+            "{E27E82}Не удалось проверить незавершённые задания.{FFFFFF}");
     if(contractId>0)
     {
         new text[175];
@@ -114,20 +130,23 @@ stock CrimeReconnect_Notify(playerid)
             // Only inform about an expiration after COMMIT succeeds. This
             // also applies the existing tender penalty exactly once.
             if(!Crime_Expire(playerid))
-                return SendClientMessage(playerid,CRIME_ERROR,
-                    "[Криминальная система] Не удалось обновить срок контракта. Проверьте /crime.");
+                return CrimeReconnect_Chat(playerid,true,
+                    "{E27E82}Не удалось обновить срок контракта.{FFFFFF}");
+            CrimeReconnect_Chat(playerid,true,
+                "{E27E82}Контракт просрочен.{FFFFFF}");
             format(text,sizeof(text),
-                "[Криминальная система] Контракт #%d «%s» просрочен.",
+                "{C7C7C7}Контракт {FFD15C}#%d{C7C7C7}: {FFFFFF}%s",
                 contractId,title);
-            SendClientMessage(playerid,CRIME_ERROR,text);
+            SendClientMessage(playerid,CRIME_COLOR,text);
             SendClientMessage(playerid,CRIME_COLOR,
-                "Время истекло во время отсутствия. История: /crime.");
+                "{C7C7C7}Время истекло. История: {FFD15C}/crime{C7C7C7}.");
         }
         else
         {
+            CrimeReconnect_Chat(playerid,false,
+                "{FFFFFF}Остался {FFD15C}незавершённый контракт{FFFFFF}.");
             format(text,sizeof(text),
-                "[Криминальная система] Незавершённый контракт #%d «%s».",
-                contractId,title);
+                "{FFD15C}Контракт #%d{FFFFFF}: %s",contractId,title);
             SendClientMessage(playerid,CRIME_COLOR,text);
             new stage[64];
             CrimeScenario_StageLabel(kind,phase,stage,sizeof(stage));
@@ -153,15 +172,16 @@ stock CrimeReconnect_Notify(playerid)
             }
             new mins=(deadline-gettime()+59)/60;
             if(mins<1) mins=1;
-            format(text,sizeof(text),"Этап: %s. Осталось: %d мин.",
+            format(text,sizeof(text),
+                "{FFD15C}Этап:{FFFFFF} %s. {FFD15C}Осталось:{FFFFFF} %d мин.",
                 stage,mins);
             SendClientMessage(playerid,CRIME_COLOR,text);
             if(faction==Leader_PlayerOrg(playerid))
                 SendClientMessage(playerid,CRIME_COLOR,
-                    "Продолжить задание: /crime -> Мой контракт / Маршрут.");
+                    "{C7C7C7}Продолжить задание: {FFD15C}/crime{C7C7C7} -> Мой контракт / Маршрут.");
             else
                 SendClientMessage(playerid,CRIME_ERROR,
-                    "Вы больше не состоите в синдикате этого заказа. Проверьте /crime.");
+                    "{E27E82}Членство в синдикате изменилось.{C7C7C7} Проверьте {FFD15C}/crime{C7C7C7}.");
         }
     }
 
@@ -171,11 +191,13 @@ stock CrimeReconnect_Notify(playerid)
         new msg[156],remaining=(closesAt-gettime()+59)/60;
         if(remaining<1) remaining=1;
         format(msg,sizeof(msg),
-            "[Криминальная система] Заявка на тендер #%d ожидает решения NPC (%d мин.).",
-            tenderId,remaining);
+            "{FFFFFF}Тендер {FFD15C}#%d{FFFFFF}: ожидает решения NPC.",
+            tenderId);
+        CrimeReconnect_Chat(playerid,false,msg);
+        format(msg,sizeof(msg),
+            "{C7C7C7}Осталось: {FFD15C}%d мин.{C7C7C7} Проверить: {FFD15C}/crime{C7C7C7}.",
+            remaining);
         SendClientMessage(playerid,CRIME_COLOR,msg);
-        SendClientMessage(playerid,CRIME_COLOR,
-            "Результат конкурса: /crime -> Конкурсы предложений.");
         return 1;
     }
     if(!justDecided) return 1;
@@ -192,13 +214,17 @@ stock CrimeReconnect_Notify(playerid)
        !cache_get_value_name_int(0,"state",bidState))
     {
         if(c!=Cache:0) cache_delete(c);
-        return SendClientMessage(playerid,CRIME_ERROR,
-            "[Криминальная система] Итог заявки недоступен. Проверьте /crime.");
+        return CrimeReconnect_Chat(playerid,true,
+            "{E27E82}Итог заявки недоступен.{C7C7C7} Проверьте {FFD15C}/crime{C7C7C7}.");
     }
     cache_delete(c);
     if(bidState==3)
+    {
+        CrimeReconnect_Chat(playerid,false,
+            "{FFFFFF}Заявка на тендер {E27E82}не выбрана NPC{FFFFFF}.");
         SendClientMessage(playerid,CRIME_COLOR,
-            "[Криминальная система] Ваша заявка на тендер не выбрана NPC. Новые заказы: /crime.");
+            "{C7C7C7}Новые заказы: {FFD15C}/crime{C7C7C7}.");
+    }
     return 1;
 }
 #else
