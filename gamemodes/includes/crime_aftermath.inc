@@ -98,7 +98,8 @@ stock CrimeAftermath_Route(playerid,contractId)
 {
     new contact,choice,stateCode;
     new result=CrimeAftermath_Info(playerid,contractId,contact,choice,stateCode);
-    if(result<=0 || stateCode==2) return result;
+    if(result<=0) return result;
+    if(stateCode==2) return 0;
     new slot=(contact-1)*2+choice-1;
     if(!gCrimeAftermathReady[slot]) return -1;
     new body[530];
@@ -188,6 +189,7 @@ stock bool:CrimeAftermath_Complete(playerid,contractId)
 
 stock CrimeAftermath_OnDialog(playerid,dialogid,response,listitem)
 {
+    #pragma unused listitem
     if(dialogid!=CRIME_AFTERMATH_DLG) return 0;
 #if defined TARKENSO_DB_PRIMARY
     if(gCrimeUIDialog[playerid]!=dialogid ||
