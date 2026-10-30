@@ -178,6 +178,6 @@ class CouponContracts(unittest.TestCase):
         self.assertIn("026_bond_payday_coupons.sql",CI)
         self.assertIn("gov07_coupon_mysql_uat.py",CI)
         self.assertEqual(len(set(re.findall(
-            r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI))),14)
+            r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI))),16)
 
 if __name__=="__main__":unittest.main()
