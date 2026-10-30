@@ -23,7 +23,7 @@ class SoloScenarios(unittest.TestCase):
             self.assertIn(template, SQL)
             self.assertIn(f",5,{kind})", SQL)
         self.assertIn("NOT NULL DEFAULT 0", SQL)
-        self.assertIn("version=35 LIMIT 1", CORE)
+        self.assertIn("version=36 LIMIT 1", CORE)
 
     def test_persistent_stages_and_atomic_outcomes(self):
         for token in ("t.contact_id,t.scenario_kind",
@@ -56,7 +56,7 @@ class SoloScenarios(unittest.TestCase):
                        "Передать полное досье", "Умалчивать о находке",
                        "Предложить честное примирение"):
             self.assertIn(choice, SCRIPTS)
-        self.assertIn("IsPlayerInRangeOfPoint(playerid, CRIME_INTERACT_RADIUS", UI)
+        self.assertIn("IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS", UI)
         self.assertNotIn("cmd:crimescene", GAME)
 
 
