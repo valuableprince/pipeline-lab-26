@@ -13,13 +13,13 @@ stock bool:CrimeTender_Finalize(tenderId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if(tenderId<=0 || !Crime_Exec("START TRANSACTION")) return false;
-    new q[1600],rows=0,state=0,closes=0;
+    new q[1600],rows=0,roundState=0,closes=0;
     mysql_format(gDBPrimary,q,sizeof(q),
         "SELECT state,closes_at FROM crime_tender_rounds WHERE tender_id=%d FOR UPDATE",tenderId);
     new Cache:c=mysql_query(gDBPrimary,q);
     if(c==Cache:0 || mysql_errno(gDBPrimary) ||
        !cache_get_row_count(rows) || rows!=1 ||
-       !cache_get_value_name_int(0,"state",state) ||
+       !cache_get_value_name_int(0,"state",roundState) ||
        !cache_get_value_name_int(0,"closes_at",closes))
     {
         if(c!=Cache:0) cache_delete(c);
@@ -27,7 +27,7 @@ stock bool:CrimeTender_Finalize(tenderId)
         return false;
     }
     cache_delete(c);
-    if(state!=1 || closes>gettime()) return Crime_Exec("COMMIT");
+    if(roundState!=1 || closes>gettime()) return Crime_Exec("COMMIT");
 
     new bidId=0,account=0,faction=0,code=0;
     mysql_format(gDBPrimary,q,sizeof(q),
