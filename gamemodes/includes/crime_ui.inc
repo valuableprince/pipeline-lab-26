@@ -762,6 +762,14 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
             if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
                 pickup, delivery, title, sizeof(title)) || !id)
                 return CrimeUI_Main(playerid);
+            // An intermediate tender encounter is NOT an ordinary delivery
+            // button. It must be resolved by walking to its NPC and using Y.
+            if (phase == 2)
+            {
+                new contact, code, incidentChoice;
+                if (CrimeIncident_Info(playerid, id, contact, code, incidentChoice) &&
+                    incidentChoice == 0) return CrimeUI_Main(playerid);
+            }
             new kind, choice;
             if (!CrimeScenario_Info(playerid, id, kind, choice))
                 return CrimeUI_Main(playerid);
