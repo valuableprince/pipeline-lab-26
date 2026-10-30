@@ -1398,8 +1398,10 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_TYPE)
     {
-        if(gGovUIStage[playerid]!=9 || !response || listitem<0 || listitem>2)
-            return 1;
+        if(gGovUIStage[playerid]!=9)return 1;
+        // Cancelling the type selector must return to the treasury main menu.
+        if(!response)return GovBond_UI_Main(playerid);
+        if(listitem<0 || listitem>2)return 1;
         switch(listitem)
         {
             case 0: format(gGovUIType[playerid],16,"GENERAL");
