@@ -25,6 +25,8 @@ forward bool:CrimeWorld_EvidenceReady(playerid, id);
 forward bool:CrimeWorld_InterviewReady(playerid, id);
 forward bool:CrimeWorld_InterviewInfo(playerid, id, &question, &interviewedAt);
 forward bool:CrimeWorld_Interview(playerid, id, faction, question);
+forward bool:CrimeComp_RoundForContract(playerid, contractId, faction, &roundId);
+forward bool:CrimeComp_Claim(playerid, roundId, contractId, faction);
 
 stock Crime_Init()
 {
@@ -32,7 +34,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=40 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=41 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -40,7 +42,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 040 missing; world asset operations disabled.");
+        print("[CRIME-02] Migration 041 missing; competitive rounds disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -373,7 +375,15 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Нет соединения с базой.");
     }
-    new q[1600], changed;
+    new q[1600], changed, competitionRound=0;
+    if (!CrimeComp_RoundForContract(playerid,id,faction,competitionRound) ||
+        (competitionRound>0 && !CrimeComp_Claim(playerid,competitionRound,id,faction)))
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid]=false;
+        return SendClientMessage(playerid,CRIME_ERROR,
+            "Соперники уже выиграли либо общий конкурс закрыт. Награда не начислена.");
+    }
     // Account row + contract row remain in the same transaction. CAS rejects
     // stale account versions. On errors every step (including money) rolls back.
     mysql_format(gDBPrimary, q, sizeof(q),
@@ -459,7 +469,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
     // Assets improve influence / contact standing but NEVER player cash.
     // All rows and the unique contract ledger remain in the payout transaction.
     mysql_format(gDBPrimary, q, sizeof(q),
-        "INSERT INTO crime_syndicate_influence_events(contract_id,faction_id,contact_id,influence_delta,standing_delta) SELECT c.contract_id,c.faction_id,c.contact_id,(CASE WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+(CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id AND a.asset_code=1 AND a.activated_at>0) THEN 1 ELSE 0 END),(CASE WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+(CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id AND a.asset_code=2 AND a.activated_at>0) THEN 1 ELSE 0 END) FROM crime_contracts c WHERE c.contract_id=%d AND c.account_id=%d AND c.faction_id=%d AND c.state=3",
+        "INSERT INTO crime_syndicate_influence_events(contract_id,faction_id,contact_id,influence_delta,standing_delta) SELECT c.contract_id,c.faction_id,c.contact_id,(CASE WHEN c.mode_id=2 THEN 8 WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+(CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id AND a.asset_code=1 AND a.activated_at>0) THEN 1 ELSE 0 END),(CASE WHEN c.mode_id=2 THEN 5 WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+(CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id AND a.asset_code=2 AND a.activated_at>0) THEN 1 ELSE 0 END) FROM crime_contracts c WHERE c.contract_id=%d AND c.account_id=%d AND c.faction_id=%d AND c.state=3",
         id, gDBPrimaryAccountId[playerid], faction);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
