@@ -23,6 +23,8 @@ forward CrimeWorld_Reset(playerid);
 forward CrimeWorld_ShowClue(playerid, contractId, kind, phase, Float:x, Float:y, Float:z);
 forward bool:CrimeWorld_EvidenceReady(playerid, id);
 forward bool:CrimeWorld_InterviewReady(playerid, id);
+forward bool:CrimeWorld_InterviewInfo(playerid, id, &question, &interviewedAt);
+forward bool:CrimeWorld_Interview(playerid, id, faction, question);
 
 stock Crime_Init()
 {
