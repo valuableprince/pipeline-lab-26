@@ -579,6 +579,17 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         format(body,sizeof(body),
             "{E8EDF3}%s ВЫПУСКА {FFD15C}%s {E8EDF3}ОТКЛОНЕНО\n\n{E8EDF3}%s\n\n{E8EDF3}Решение не выполнено. Причина уточнена по текущим данным MariaDB.",
             action==4?"ОТМЕНА":"ОТКРЫТИЕ РАЗМЕЩЕНИЯ",code,reason);
+        if(action==4 && sold>0 && rank>=3)
+        {
+            new notice[150];
+            format(notice,sizeof(notice),
+                "Казначейство: выпуск %s нельзя отменить. Продано облигаций: %d.",
+                code,sold);
+            SendClientMessage(playerid,COLOR_RED,notice);
+        }
+        else
+            SendClientMessage(playerid,COLOR_AMBER,
+                "Казначейство отказало. Подробная причина показана в окне.");
         gGovUIStage[playerid]=13;
         ShowPlayerDialog(playerid,GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX,
             "{E8EDF3}Минфин | Почему казначейство отказало",body,"Понятно","");
