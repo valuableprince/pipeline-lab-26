@@ -553,7 +553,7 @@ stock BondsUI_ShowSellQuantity(playerid)
     }
     new body[450];
     format(body,sizeof(body),
-        "{E8EDF3}ДОСРОЧНАЯ ПРОДАЖА ГОСУДАРСТВУ\\n\\n{E8EDF3}Выпуск: %s\\n{E8EDF3}Цена за облигацию: $%d (98%% номинала)\\n{E8EDF3}Можно продать: от 1 до %d шт.\\n\\n{E8EDF3}Ранее начисленные купоны остаются вам. По проданным бумагам новые купоны не начисляются.",
+        "{E8EDF3}ДОСРОЧНАЯ ПРОДАЖА ГОСУДАРСТВУ\n\n{E8EDF3}Выпуск: %s\n{E8EDF3}Цена за облигацию: $%d (98%% номинала)\n{E8EDF3}Можно продать: от 1 до %d шт.\n\n{E8EDF3}Ранее начисленные купоны остаются вам. По проданным бумагам новые купоны не начисляются.",
         gBondsUISelectedCode[playerid],gBondsUISellUnitPrice[playerid],
         gBondsUISellMax[playerid]);
     gBondsUIStage[playerid]=BONDS_UI_SELL_QTY;
@@ -572,7 +572,7 @@ stock BondsUI_ConfirmSell(playerid,quantity)
     gBondsUISellQuantity[playerid]=quantity;
     new body[460],payment=quantity*gBondsUISellUnitPrice[playerid];
     format(body,sizeof(body),
-        "{E8EDF3}ПОДТВЕРЖДЕНИЕ ДОСРОЧНОЙ ПРОДАЖИ\\n\\n{E8EDF3}Выпуск: %s\\n{E8EDF3}Количество: %d шт.\\n{E8EDF3}Цена одной: $%d (98%%)\\n{E8EDF3}К получению: $%d\\n\\n{E8EDF3}Государство погасит выкупленные бумаги. Будущие купоны прекратятся. Операция состоится только после проверки средств казны.",
+        "{E8EDF3}ПОДТВЕРЖДЕНИЕ ДОСРОЧНОЙ ПРОДАЖИ\n\n{E8EDF3}Выпуск: %s\n{E8EDF3}Количество: %d шт.\n{E8EDF3}Цена одной: $%d (98%%)\n{E8EDF3}К получению: $%d\n\n{E8EDF3}Государство погасит выкупленные бумаги. Будущие купоны прекратятся. Операция состоится только после проверки средств казны.",
         gBondsUISelectedCode[playerid],quantity,
         gBondsUISellUnitPrice[playerid],payment);
     gBondsUIStage[playerid]=BONDS_UI_SELL_CONFIRM;
@@ -832,7 +832,7 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         if(!response)return BondsUI_LoadList(playerid,BONDS_UI_PORTFOLIO,gBondsUIPage[playerid]);
         ShowPlayerDialog(playerid,BONDS_DLG_POSITION_ACTION,DIALOG_STYLE_LIST,
             "{E8EDF3}TARKENSO | Действия с облигациями",
-            "{E8EDF3}Получить выплату по погашению\\n{E8EDF3}Продать государству досрочно (98%)\\n{E8EDF3}Обновить карточку",
+            "{E8EDF3}Получить выплату по погашению\n{E8EDF3}Продать государству досрочно (98%)\n{E8EDF3}Обновить карточку",
             "Выбрать","Назад");
         return 1;
     }
