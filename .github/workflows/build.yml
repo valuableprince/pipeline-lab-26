@@ -423,7 +423,7 @@ jobs:
 
 
   publish_amx:
-    name: Publish compiled AMX to main
+    name: Stage compiled AMX for protected-main PR
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [sql_security, gov00_mysql_uat, compile]
     runs-on: ubuntu-latest
@@ -478,5 +478,9 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "build: publish main AMX from ${BUILD_SOURCE_SHA:0:12} [skip ci]"
-          git push origin HEAD:main
+          # Direct pushes to protected main are forbidden (GH013). Stage a PR.
+          PUBLISH_BRANCH="ci/amx-${BUILD_SOURCE_SHA:0:12}"
+          git checkout -b "$PUBLISH_BRANCH"
+          git commit -m "build: verified AMX from ${BUILD_SOURCE_SHA:0:12}"
+          git push origin "HEAD:refs/heads/$PUBLISH_BRANCH"
+          echo "Verified binary staged as $PUBLISH_BRANCH. Merge through required PR checks."
