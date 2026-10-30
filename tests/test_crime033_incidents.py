@@ -16,7 +16,7 @@ class IncidentContracts(unittest.TestCase):
                       "incident_code","resolved_at","mode_id=3 AND state IN(1,2)",
                       "VALUES (43)"):
             self.assertIn(token,DB)
-        self.assertIn("version=43 LIMIT 1",CORE)
+        self.assertIn("version=44 LIMIT 1",CORE)
         self.assertIn("043_crime_tender_incidents.sql",BUILD)
         self.assertIn("crime033_mysql_uat.py",BUILD)
 
@@ -27,8 +27,8 @@ class IncidentContracts(unittest.TestCase):
         self.assertLess(section.index('INSERT INTO crime_contracts'),section.index('INSERT INTO crime_tender_incidents'))
         self.assertLess(section.index('INSERT INTO crime_tender_incidents'),section.rindex('Crime_Exec("COMMIT")'))
         settle=CORE.split("stock Crime_Settle(",1)[1].split("stock Crime_Abort(",1)[0]
-        self.assertIn("c.mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents",settle)
-        self.assertIn("mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents",settle)
+        self.assertIn("c.mode_id<>3 OR (EXISTS(SELECT 1 FROM crime_tender_incidents",settle)
+        self.assertIn("mode_id<>3 OR (EXISTS(SELECT 1 FROM crime_tender_incidents",settle)
         self.assertIn("risk_delta=CASE WHEN mode_id=3",settle)
         self.assertIn("WHEN mode_id=3 THEN -12",settle)
         self.assertIn("THEN 12",settle)
