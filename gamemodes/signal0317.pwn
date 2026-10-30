@@ -826,7 +826,7 @@ public OnGameModeInit()
     SetGameModeText("RPG | СИГНАЛ: 03:17");
     // GTA SA wheelie/jump/airtime payouts are disabled on this RP server.
     EnableStuntBonusForAll(false);
-    ShowPlayerMarkers(PLAYER_MARKERS_MODE_OFF);
+    ShowPlayerMarkers(PLAYER_MARKERS_MODE_STREAMED);
     ShowNameTags(true);
     DisableInteriorEnterExits();
     AddPlayerClass(26, START_X, START_Y, START_Z, START_A, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
@@ -998,6 +998,7 @@ public OnPlayerConnect(playerid)
     GovDebt_Reset(playerid);
     GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
+    Leader_ApplyPlayerColor(playerid);
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
     return 1;
@@ -1125,6 +1126,9 @@ public OnPlayerSpawn(playerid)
         AuthCamera_SetOpeningView(playerid);
         return 1;
     }
+
+    // Restore faction/neutral color after each respawn (also refreshes TAB).
+    Leader_ApplyPlayerColor(playerid);
 
     if (!gAccountSpawned[playerid])
     {
