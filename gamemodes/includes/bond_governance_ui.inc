@@ -74,6 +74,9 @@ new gGovUIPendingAction[MAX_PLAYERS];
 // Snapshot the issue being opened; asynchronous dialog clicks cannot rename it.
 new gGovUIPendingIssue[MAX_PLAYERS];
 new gGovUIPendingCode[MAX_PLAYERS][65];
+// A separate, post-rollback read explains a failed OPEN/CANCEL without changing SQL.
+new gGovUIReasonAction[MAX_PLAYERS];
+new gGovUIReasonCode[MAX_PLAYERS][65];
 new gGovUIStage[MAX_PLAYERS];
 new gGovUIWizardStep[MAX_PLAYERS];
 new gGovUIRole[MAX_PLAYERS];
@@ -119,6 +122,8 @@ stock GovBond_UI_Reset(playerid)
     gGovUIPendingAction[playerid]=0;
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
+    gGovUIReasonAction[playerid]=0;
+    gGovUIReasonCode[playerid][0]=EOS;
     gGovUIStage[playerid]=0;
     gGovUIWizardStep[playerid]=0;
     gGovUIRole[playerid]=0;
@@ -239,9 +244,9 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
     gGovUIPendingFundAmount[playerid]=(action==8)?gGovUIFundAmount[playerid]:0;
-    if (action==3)
+    if (action==3 || action==4)
     {
-        // These values must match the committed SQL result in OnWrite.
+        // Keep the exact issue across the asynchronous SQL result and diagnostics.
         gGovUIPendingIssue[playerid]=gGovUISelectedIssue[playerid];
         format(gGovUIPendingCode[playerid],65,"%s",gGovUISelectedCode[playerid]);
     }
@@ -355,6 +360,27 @@ stock bool:GovBond_UI_LoadApprovalReason(playerid)
     return GovBond_UI_Query(playerid,query,5);
 #else
     #pragma unused playerid
+    return false;
+#endif
+}
+
+// Read-only diagnosis after a failed OPEN/CANCEL transaction. SQL is still the
+// sole authority; this fresh snapshot cannot authorize or replay the action.
+stock bool:GovBond_UI_LoadActionReason(playerid,action,const issueCode[])
+{
+#if defined TARKENSO_DB_PRIMARY
+    if((action!=3 && action!=4) || !issueCode[0] ||
+       !GovBond_UI_Authorized(playerid))return false;
+    new query[1350];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "SELECT i.issue_code,i.status,i.sold_quantity,(SELECT COUNT(*) FROM government_bond_holdings h WHERE h.issue_id=i.issue_id AND h.quantity>0) AS holder_count,COALESCE((SELECT g.max_exposure-g.released_exposure FROM bond_fund_guarantees g WHERE g.issue_code=i.issue_code LIMIT 1),0) AS guarantee_left,(i.offer_start_at>UTC_TIMESTAMP()) AS offer_not_started,(i.offer_end_at<=UTC_TIMESTAMP()) AS offer_expired,COALESCE((SELECT m.rank_id FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id WHERE m.account_id=%d AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP() LIMIT 1),0) AS role_rank FROM government_bond_issues i WHERE i.issue_code='%e' LIMIT 1",
+        gDBPrimaryAccountId[playerid],issueCode);
+    if(!GovBond_UI_Query(playerid,query,7))return false;
+    gGovUIReasonAction[playerid]=action;
+    format(gGovUIReasonCode[playerid],65,"%s",issueCode);
+    return true;
+#else
+    #pragma unused playerid,action,issueCode
     return false;
 #endif
 }
@@ -489,6 +515,73 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUIStage[playerid]=13;
         ShowPlayerDialog(playerid,GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX,
             "{E8EDF3}Минфин | Почему отказано в подписи",body,"Понятно","");
+        return 1;
+    }
+    if (kind==7)
+    {
+        new action=gGovUIReasonAction[playerid],expectedCode[65];
+        format(expectedCode,sizeof(expectedCode),"%s",gGovUIReasonCode[playerid]);
+        gGovUIReasonAction[playerid]=0;
+        gGovUIReasonCode[playerid][0]=EOS;
+        new code[65],status[20],sold,holders,guarantee,notStarted,expired,rank;
+        if((action!=3 && action!=4) || !expectedCode[0] || rows!=1 ||
+           !cache_get_value_name(0,"issue_code",code,sizeof(code)) ||
+           strcmp(code,expectedCode) ||
+           !cache_get_value_name(0,"status",status,sizeof(status)) ||
+           !cache_get_value_name_int(0,"sold_quantity",sold) ||
+           !cache_get_value_name_int(0,"holder_count",holders) ||
+           !cache_get_value_name_int(0,"guarantee_left",guarantee) ||
+           !cache_get_value_name_int(0,"offer_not_started",notStarted) ||
+           !cache_get_value_name_int(0,"offer_expired",expired) ||
+           !cache_get_value_name_int(0,"role_rank",rank))
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "Казначейство отказало. Причину не удалось уточнить. Обновите реестр.");
+            return 1;
+        }
+        new label[45],reason[360],body[720];
+        GovBond_UI_IssueStatusLabel(status,label,sizeof(label));
+        if(rank<3)
+            format(reason,sizeof(reason),
+                "У вас нет права принимать это решение.\nДействие доступно только заместителю или министру финансов (ранг 3-4).");
+        else if(action==4 && sold>0)
+            format(reason,sizeof(reason),
+                "Отмена выпуска запрещена. Продано облигаций: %d.\nУ выпуска уже есть инвесторы. Отмена нарушит их права.",
+                sold);
+        else if(action==4 && holders>0)
+            format(reason,sizeof(reason),
+                "Отмена выпуска запрещена. Зарегистрировано инвесторов: %d.\nДаже если счётчик продаж устарел, облигации игроков нельзя аннулировать.",
+                holders);
+        else if(action==4 && strcmp(status,"DRAFT") &&
+                strcmp(status,"APPROVED") && strcmp(status,"OFFERING"))
+            format(reason,sizeof(reason),
+                "Выпуск уже имеет состояние \"%s\".\nОтмена разрешена только до окончания размещения, если никто не купил облигации.",
+                label);
+        else if(action==4 && strcmp(status,"DRAFT") && guarantee<=0)
+            format(reason,sizeof(reason),
+                "У выпуска нет действующей страховой гарантии.\nОтмену нельзя провести с таким состоянием фонда. Обновите реестр.");
+        else if(action==3 && strcmp(status,"APPROVED"))
+            format(reason,sizeof(reason),
+                "Состояние выпуска: \"%s\".\nОткрыть продажу можно только после подписания займа, пока его статус \"Утверждён\".",
+                label);
+        else if(action==3 && notStarted)
+            format(reason,sizeof(reason),
+                "Срок размещения ещё не начался.\nПроверьте дату открытия выпуска в реестре.");
+        else if(action==3 && expired)
+            format(reason,sizeof(reason),
+                "Срок размещения уже истёк.\nОткрыть продажу после окончания установленного срока нельзя.");
+        else if(action==3 && guarantee<=0)
+            format(reason,sizeof(reason),
+                "У выпуска нет действующей страховой гарантии.\nСначала необходимо обеспечить выпуск страховым фондом.");
+        else
+            format(reason,sizeof(reason),
+                "Выполнить действие сейчас не удалось.\nСостояние выпуска или казны могло измениться.\nОбновите реестр; если отказ повторится, обратитесь к администратору.");
+        format(body,sizeof(body),
+            "{E8EDF3}%s ВЫПУСКА {FFD15C}%s {E8EDF3}ОТКЛОНЕНО\n\n{E8EDF3}%s\n\n{E8EDF3}Решение не выполнено. Причина уточнена по текущим данным MariaDB.",
+            action==4?"ОТМЕНА":"ОТКРЫТИЕ РАЗМЕЩЕНИЯ",code,reason);
+        gGovUIStage[playerid]=13;
+        ShowPlayerDialog(playerid,GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX,
+            "{E8EDF3}Минфин | Почему казначейство отказало",body,"Понятно","");
         return 1;
     }
     if (kind==6)
@@ -1314,7 +1407,8 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
         new needle[68];
         format(needle,sizeof(needle),"'%s'",gGovUIPendingEvent[playerid]);
         if(strfind(query,needle,true)<0)continue;
-        new failedAction=gGovUIPendingAction[playerid];
+        new failedAction=gGovUIPendingAction[playerid],failedCode[65];
+        format(failedCode,sizeof(failedCode),"%s",gGovUIPendingCode[playerid]);
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
@@ -1332,9 +1426,15 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
                     SendClientMessage(playerid,COLOR_RED,
                         "Подпись отклонена. Не удалось проверить причину. Обновите реестр.");
             }
+            else if(failedAction==3 || failedAction==4)
+            {
+                if(!GovBond_UI_LoadActionReason(playerid,failedAction,failedCode))
+                    SendClientMessage(playerid,COLOR_RED,
+                        "Казначейство отказало. Причину не удалось уточнить. Обновите реестр.");
+            }
             else
                 SendClientMessage(playerid,COLOR_RED,
-                    "Казначейство отклонило действие. Обновите выпуск и проверьте полномочия.");
+                    "Казначейство не выполнило операцию. Обновите реестр или обратитесь к администратору.");
         }
         break;
     }
