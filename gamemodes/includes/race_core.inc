@@ -69,7 +69,7 @@ stock Race_Broadcast(const message[])
 {
     for (new playerid = 0; playerid < MAX_PLAYERS; playerid++)
         if (gRaceJoined[playerid] && IsPlayerConnected(playerid))
-            SendClientMessage(playerid, RACE_COLOR, message);
+            TNotify_Send(playerid,TNOTIFY_RACE,TNOTIFY_INFO,message);
     return 1;
 }
 
@@ -230,7 +230,7 @@ stock Race_Join(playerid)
     new message[112];
     format(message, sizeof(message), "Гоночный мир %d. Место %d/%d. Выход: /race leave.",
         RACE_WORLD_ID, gRaceCount, RACE_MAX_PLAYERS);
-    SendClientMessage(playerid, RACE_COLOR, message);
+    TNotify_Send(playerid,TNOTIFY_RACE,TNOTIFY_INFO,message);
     Race_StartCountdown();
     return 1;
 }
@@ -246,7 +246,7 @@ stock Race_Status(playerid)
     else
         format(message, sizeof(message), "Набор на гонку: %d/%d. Старт при %d участниках.",
             gRaceCount, RACE_MAX_PLAYERS, RACE_MIN_PLAYERS);
-    SendClientMessage(playerid, RACE_COLOR, message);
+    TNotify_Send(playerid,TNOTIFY_RACE,TNOTIFY_INFO,message);
     return 1;
 }
 
@@ -439,7 +439,7 @@ stock Race_Shutdown()
 cmd:race(playerid, params[])
 {
     if (isnull(params))
-        return SendClientMessage(playerid, RACE_COLOR, "Гонки: /race join, leave, status, stats, top.");
+        return TNotify_Send(playerid,TNOTIFY_RACE,TNOTIFY_HINT,"Команды: /race join, leave, status, stats, top.");
     if (!strcmp(params, "join", true)) return Race_Join(playerid);
     if (!strcmp(params, "status", true)) return Race_Status(playerid);
     if (!strcmp(params, "stats", true)) return RaceProgress_Stats(playerid);
@@ -449,10 +449,10 @@ cmd:race(playerid, params[])
         if (!gRaceJoined[playerid])
             return SendClientMessage(playerid, COLOR_GREY, "Вы не участвуете в гонке.");
         Race_Remove(playerid);
-        SendClientMessage(playerid, RACE_COLOR, "Вы вернулись в основной мир.");
+        TNotify_Send(playerid,TNOTIFY_RACE,TNOTIFY_SUCCESS,"Вы вернулись в основной мир.");
         return 1;
     }
-    return SendClientMessage(playerid, RACE_COLOR, "Гонки: /race join, leave, status, stats, top.");
+    return TNotify_Send(playerid,TNOTIFY_RACE,TNOTIFY_HINT,"Команды: /race join, leave, status, stats, top.");
 }
 
 cmd:raceaudio(playerid, params[])
