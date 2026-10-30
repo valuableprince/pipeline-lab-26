@@ -336,6 +336,21 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertLess(block.index("if(!response)"),block.index("switch(listitem)"))
         self.assertNotIn("|| !response ||",block)
 
+    def test_expired_offering_is_not_labelled_as_active(self):
+        # A stored OFFERING state may persist until the maturity assessment.
+        # Read-only presentation must respect the actual offer_end_at window.
+        self.assertEqual(UI.count(
+            "(i.status='OFFERING' AND i.offer_end_at<=UTC_TIMESTAMP()) AS offering_expired"),2)
+        self.assertEqual(UI.count('cache_get_value_name_int(i,"offering_expired",expired)'),1)
+        self.assertEqual(UI.count('cache_get_value_name_int(0,"offering_expired",expired)'),1)
+        self.assertEqual(UI.count(
+            'if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");'),2)
+        self.assertEqual(UI.count(
+            "WHERE status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP()) AS offering"),2)
+        # Keep the true SQL state for permission checks and payment processing.
+        self.assertIn('format(gGovUISelectedStatus[playerid],20,"%s",status);',UI)
+        self.assertNotIn("UPDATE government_bond_issues SET",UI)
+
     def test_distinct_dialog_ids(self):
         import re
         ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON|FUND_AMOUNT|FUND_CONFIRM)\s+\((\d+)\)",UI)
