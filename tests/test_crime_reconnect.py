@@ -47,7 +47,7 @@ class ReconnectNotice(unittest.TestCase):
             "Встреча со вторым связным",
             "deadline-gettime()+59",
             "SendClientMessage(playerid,CRIME_COLOR,text)",
-            "Продолжить задание: /crime",
+            "Продолжить задание: {FFD15C}/crime",
             "Контракт #%d",
             "Не удалось проверить незавершённые задания",
         ]:
@@ -85,6 +85,29 @@ class ReconnectNotice(unittest.TestCase):
         self.assertIn('WHERE tender_id=%d AND state=1',TENDER)
         self.assertIn("UNIQUE KEY uq_tender_one_pending",
                       (ROOT/"db/migrations/042_crime_tender_offers.sql").read_text(encoding="utf-8"))
+
+    def test_chat_palette_matches_crime_dialogs(self):
+        # Single colored prefix, white information, grey contextual hints,
+        # yellow key values and muted red warnings. All messages remain
+        # in the established /crime palette, not arbitrary RGB colors.
+        self.assertIn('{FFD15C}[Криминальная система]{FFFFFF} %s',RECONNECT)
+        self.assertIn('stock CrimeReconnect_Chat(playerid, bool:warning, const body[])',RECONNECT)
+        self.assertEqual(RECONNECT.count('[Криминальная система]'),1)
+        self.assertIn('warning ? CRIME_ERROR : CRIME_COLOR',RECONNECT)
+        self.assertIn('{FFD15C}Контракт #%d{FFFFFF}: %s',RECONNECT)
+        self.assertIn('{FFD15C}Этап:{FFFFFF}',RECONNECT)
+        self.assertIn('{FFD15C}Осталось:{FFFFFF}',RECONNECT)
+        self.assertIn('{C7C7C7}Продолжить задание:',RECONNECT)
+        self.assertIn('{E27E82}Контракт просрочен.{FFFFFF}',RECONNECT)
+        self.assertIn('{E27E82}Не удалось обновить итоги тендера.{FFFFFF}',RECONNECT)
+        self.assertIn('{E27E82}Итог заявки недоступен.',RECONNECT)
+        self.assertIn('{FFFFFF}Тендер {FFD15C}#%d{FFFFFF}: ожидает решения NPC.',RECONNECT)
+        self.assertIn('{E27E82}не выбрана NPC{FFFFFF}',RECONNECT)
+        self.assertIn('{FFD15C}/crime{C7C7C7}',RECONNECT)
+        self.assertNotIn('0xFF0000',RECONNECT)
+        # SQL statements and reconnect timing must not change with styling.
+        self.assertIn('CrimeTender_Finalize(tenderId)',RECONNECT)
+        self.assertIn('Crime_Expire(playerid)',RECONNECT)
 
     def test_ci_and_without_new_migration(self):
         self.assertIn("tests/crime_reconnect_mysql_uat.py",WORKFLOW)
