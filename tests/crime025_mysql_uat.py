@@ -1,7 +1,7 @@
 """CRIME-02.5 MariaDB UAT: durable physical clue, one-time event, no bypass."""
 from crime02_mysql_uat import CFG, run, scalar, begin
 from crime024_mysql_uat import attempt
-from crime023_mysql_uat import first_stage, resolve
+from crime023_mysql_uat import first_stage, interview, resolve
 import mysql.connector
 
 
@@ -36,7 +36,7 @@ def main():
         a = scalar(con,
             "SELECT account_id FROM accounts WHERE username='CrimeSoloA'")
         assert a is not None
-        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=36") == 1
+        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=37") == 1
 
         # Restore availability from previous CRIME-02.3/02.4 tests (disposable only).
         run(con, """UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-2000
@@ -66,6 +66,8 @@ def main():
         assert first_stage(con, cid, a, 6, 1)
         assert not collect(con, cid, a, 6)  # No evidence events after stage change.
         assert not first_stage(con, cid, a, 6, 1)
+        assert not resolve(con, cid, a, 6, 1)
+        assert interview(con, cid, a, 6, 2)
         assert resolve(con, cid, a, 6, 1)
         assert not resolve(con, cid, a, 6, 1)
         assert scalar(con, """SELECT COUNT(*) FROM crime_contract_rewards
