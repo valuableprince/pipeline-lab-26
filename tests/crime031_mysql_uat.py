@@ -67,6 +67,12 @@ def main():
         assert a and b
         assert scalar(db,"SELECT COUNT(*) FROM schema_migrations WHERE version=41")==1
         assert scalar(db,"SELECT COUNT(*) FROM crime_contract_templates WHERE mode_id=2")==3
+        # CRIME-02.1 deliberately leaves CrimeSoloB with an open courier
+        # in its isolated fixture; close that test-only job before racing.
+        run(db, """UPDATE crime_contracts SET state=5,finished_at=UNIX_TIMESTAMP()
+            WHERE account_id=%s AND competition_id IS NULL AND state IN(1,2)""",
+            (b,))
+        assert scalar(db,"SELECT COUNT(*) FROM crime_contracts WHERE account_id=%s AND state IN(1,2)",(b,))==0
         # Established trust and contacts are durable, but the isolated UAT
         # grants fixtures the required 5 reputation/standing directly.
         for acc,cid in ((a,2),(a,3),(b,2),(b,1)):
