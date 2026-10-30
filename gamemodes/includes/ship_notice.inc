@@ -137,8 +137,8 @@ stock ShipNotice_Depart(port)
         port == SHIP_PORT_LS ? ("Сан-Фиерро") : ("Лос-Сантос"));
     TNotify_All(TNOTIFY_SHIP,TNOTIFY_INFO,message);
     format(message, sizeof(message),
-        "Путь ~%d ч %d мин; прибытие около %02d:%02d (время сервера).",
-        travelHours, travelRest, etaHour, etaMinute);
+        "Путь ~%d ч %d мин; прибытие через ~%d ч %d мин, около %02d:%02d (время сервера).",
+        travelHours, travelRest, travelHours, travelRest, etaHour, etaMinute);
     TNotify_All(TNOTIFY_SHIP,TNOTIFY_INFO,message);
     if (!toBerth)
         TNotify_All(TNOTIFY_SHIP,TNOTIFY_HINT,
