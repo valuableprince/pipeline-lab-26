@@ -25,7 +25,7 @@ class CrimeDialogTests(unittest.TestCase):
 
     def test_dialog_id_allocation_and_entrypoint(self):
         ids = re.findall(r"#define CRIME_DLG_[A-Z_]+\s+\((\d+)\)", UI)
-        self.assertEqual([int(x) for x in ids], list(range(7950, 7964)))
+        self.assertEqual([int(x) for x in ids], list(range(7950, 7968)))
         self.assertIn('#include "crime_ui.inc"', GAME)
         self.assertIn('CrimeUI_OnDialog(playerid, dialogid, response, listitem)', GAME)
         self.assertEqual(GAME.count("CrimeUI_Reset(playerid);"), 2)
