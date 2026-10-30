@@ -132,6 +132,9 @@ def resolve(con, cid, account, faction, decision):
               AND c.faction_id=%s AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP()
               AND (c.scenario_kind=0 OR
                 (c.scenario_choice IN(1,2) AND c.interviewed_at>0 AND %s IN(1,2)))
+              AND (c.mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents i
+                  WHERE i.contract_id=c.contract_id AND i.choice IN(1,2)
+                    AND i.resolved_at>0))
               AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r
                              WHERE r.contract_id=c.contract_id)""",
             (account, version, cid, faction, decision))
@@ -140,11 +143,14 @@ def resolve(con, cid, account, faction, decision):
             return False
         changed, _ = run(con, """UPDATE crime_contracts
             SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%s,
-                risk_delta=CASE WHEN scenario_kind=0 THEN -8 WHEN %s=2 THEN 20
+                risk_delta=CASE WHEN mode_id=3 AND EXISTS(SELECT 1 FROM crime_tender_incidents i WHERE i.contract_id=%s AND i.choice=2) THEN 12 WHEN mode_id=3 THEN -12 WHEN scenario_kind=0 THEN -8 WHEN %s=2 THEN 20
                   WHEN interview_question=2 THEN 8 WHEN scenario_choice=2 THEN 5 ELSE -12 END
             WHERE contract_id=%s AND account_id=%s AND faction_id=%s
-              AND state=2 AND expires_at>UNIX_TIMESTAMP()""",
-            (decision, decision, cid, account, faction))
+              AND state=2 AND expires_at>UNIX_TIMESTAMP()
+              AND (mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents i
+                  WHERE i.contract_id=%s AND i.choice IN(1,2)
+                    AND i.resolved_at>0))""",
+            (decision, cid, decision, cid, account, faction, cid))
         assert changed == 1
         changed, _ = run(con, """
             INSERT INTO crime_contract_rewards
