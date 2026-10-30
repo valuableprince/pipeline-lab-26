@@ -64,9 +64,7 @@ stock CrimeRecoveryUI_Method(playerid,contact)
     return ShowPlayerDialog(playerid,CRIME_RECOVERY_DLG_METHOD,
         DIALOG_STYLE_TABLIST_HEADERS,
         "{FFD15C}Теневой рынок | Способ восстановления",
-        "{FFD15C}Метод\t{FFD15C}После выполнения{FFFFFF}\n"
-        "Тихая легенда\tВнимание -25, доверие +1\n"
-        "Отвлекающий манёвр\tВнимание -35, связи -3\n",
+        "{FFD15C}Метод\t{FFD15C}После выполнения{FFFFFF}\nТихая легенда\tВнимание -25, доверие +1\nОтвлекающий манёвр\tВнимание -35, связи -3\n",
         "Начать","Назад");
 }
 
