@@ -29,7 +29,7 @@ class Crime04ReplayContracts(unittest.TestCase):
             "Crime_OfferEligibility(playerid, templateId, left, finished)",
             "t.is_repeatable=1 OR NOT EXISTS",
             "h.state IN(3,5)", "h.state=3",
-            "h.finished_at>UNIX_TIMESTAMP()-t.cooldown_seconds",
+            "h.finished_at>UNIX_TIMESTAMP()-(t.cooldown_seconds+p.heat*10)",
             "CASE WHEN t.scenario_kind=0 THEN 0 ELSE 1+FLOOR(RAND()*3) END",
             "INSERT INTO crime_contracts",
             "Crime_Rollback()",
@@ -44,7 +44,7 @@ class Crime04ReplayContracts(unittest.TestCase):
             "new offerIds[CRIME_OFFER_MAX]",
             "cache_delete(c);",
             "if (alreadyDone)", "Через %d мин", "Пройдено",
-            "gCrimeUISelectedTemplate[playerid] = alreadyDone || remaining > 0 ? 0 : templateId",
+            "gCrimeUISelectedTemplate[playerid] = alreadyDone || remaining != 0 ? 0 : templateId",
             "CrimeScenario_EventInfo(playerid, id, eventId)",
             "CrimeScenario_EventText(kind, eventId, phase",
         ):
