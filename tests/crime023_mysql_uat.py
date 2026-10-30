@@ -61,6 +61,29 @@ def first_stage(con, cid, account, faction, clue):
         raise
 
 
+def interview(con, cid, account, faction, question):
+    begin(con)
+    try:
+        changed, _ = run(con, """UPDATE crime_contracts
+            SET interview_question=%s,interviewed_at=UNIX_TIMESTAMP()
+            WHERE contract_id=%s AND account_id=%s AND faction_id=%s
+              AND scenario_kind IN(1,2,3) AND state=2
+              AND scenario_choice IN(1,2) AND interviewed_at=0
+              AND expires_at>UNIX_TIMESTAMP()""",
+            (question,cid,account,faction))
+        if changed != 1:
+            run(con, "ROLLBACK")
+            return False
+        run(con, """INSERT INTO crime_contract_events
+            (contract_id,actor_account_id,event_type)
+            VALUES(%s,%s,'WITNESS_INTERVIEWED')""",(cid,account))
+        run(con, "COMMIT")
+        return True
+    except Exception:
+        run(con, "ROLLBACK")
+        raise
+
+
 def resolve(con, cid, account, faction, decision):
     begin(con)
     try:
@@ -74,7 +97,7 @@ def resolve(con, cid, account, faction, decision):
               AND a.txn_serial<1000000000 AND c.contract_id=%s
               AND c.faction_id=%s AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP()
               AND (c.scenario_kind=0 OR
-                (c.scenario_choice IN(1,2) AND %s IN(1,2)))
+                (c.scenario_choice IN(1,2) AND c.interviewed_at>0 AND %s IN(1,2)))
               AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r
                              WHERE r.contract_id=c.contract_id)""",
             (account, version, cid, faction, decision))
@@ -105,7 +128,7 @@ def resolve(con, cid, account, faction, decision):
             SELECT contract_id,account_id,contact_id,
                 CASE WHEN scenario_kind=0 THEN 5
                      WHEN scenario_resolution=2 THEN 2
-                     WHEN scenario_choice=1 THEN 5 ELSE 3 END
+                     WHEN scenario_choice=1 THEN 5+(CASE WHEN interview_question=1 THEN 1 ELSE 0 END) ELSE 3 END
             FROM crime_contracts WHERE contract_id=%s
               AND account_id=%s AND state=3""", (cid, account))
         assert changed == 1
@@ -116,7 +139,7 @@ def resolve(con, cid, account, faction, decision):
             SET p.trust=LEAST(100,p.trust+(CASE
                 WHEN c.scenario_kind=0 THEN 5
                 WHEN c.scenario_resolution=2 THEN 2
-                WHEN c.scenario_choice=1 THEN 5 ELSE 3 END)),
+                WHEN c.scenario_choice=1 THEN 5+(CASE WHEN c.interview_question=1 THEN 1 ELSE 0 END) ELSE 3 END)),
                 p.completed_count=p.completed_count+1
             WHERE c.contract_id=%s AND c.account_id=%s AND c.state=3""",
             (cid, account))
@@ -135,7 +158,7 @@ def main():
             "SELECT account_id FROM accounts WHERE username='CrimeSoloA'")
         assert account
         assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates") == 6
-        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=36") == 1
+        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=37") == 1
         # Keep the original branching outcome test focused on settlement;
         # retry policies have their own integration acceptance suite.
         run(con, "UPDATE crime_contract_templates SET cooldown_seconds=0 WHERE template_id=4")
@@ -163,11 +186,14 @@ def main():
             assert not first_stage(con, cid, account, 6, clue)  # No replay.
             assert scalar(con, "SELECT scenario_choice FROM crime_contracts WHERE contract_id=%s", (cid,)) == clue
             assert not resolve(con, cid, account, 6, 0)  # Invalid resolution.
+            assert not resolve(con, cid, account, 6, decision)  # Witness not interviewed.
+            assert interview(con, cid, account, 6, 2)  # Pressure: legacy trust values.
+            assert not interview(con, cid, account, 6, 1)  # Cannot change testimony.
             assert resolve(con, cid, account, 6, decision)
             assert not resolve(con, cid, account, 6, decision)
             assert scalar(con, "SELECT scenario_resolution FROM crime_contracts WHERE contract_id=%s", (cid,)) == decision
             assert scalar(con, "SELECT trust_delta FROM crime_contact_trust_events WHERE contract_id=%s", (cid,)) == expected_trust
-            assert scalar(con, "SELECT COUNT(*) FROM crime_contract_events WHERE contract_id=%s", (cid,)) == 4
+            assert scalar(con, "SELECT COUNT(*) FROM crime_contract_events WHERE contract_id=%s", (cid,)) == 5
             earned += 2800
             gained += expected_trust
             assert scalar(con, "SELECT balance FROM accounts WHERE account_id=%s", (account,)) == old_balance+earned
