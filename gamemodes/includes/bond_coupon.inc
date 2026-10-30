@@ -287,9 +287,9 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
             gBondCouponNotifyBusy[playerid]=false;
             return 1;
         }
-    SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,offline?
-        "{D9AA55}[Госзаймы] За время отсутствия начислены купоны:":
-        "{D9AA55}[Госзаймы] Начислены купоны за PayDay:");
+    TNotify_Send(playerid,TNOTIFY_FINANCE,TNOTIFY_SUCCESS,offline?
+        "За время отсутствия начислены купоны:":
+        "Начислены купоны за PayDay:");
     for(new i=0;i<rows;i++)
     {
         if(!cache_get_value_name(i,"issue_code",code,sizeof(code)) ||
@@ -298,21 +298,21 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
         new message[145];
         format(message,sizeof(message),"{FFFFFF}%s: {B6E4B3}+$%s",
             code,amount);
-        SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,message);
+        TNotify_Detail(playerid,TNOTIFY_SUCCESS,message);
     }
     if(series>rows)
     {
         new extra[110];
         format(extra,sizeof(extra),
             "{9FAAB8}Других выпусков с начислениями: %d",series-rows);
-        SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,extra);
+        TNotify_Detail(playerid,TNOTIFY_HINT,extra);
     }
     new summary[145];
     format(summary,sizeof(summary),
         "{D9AA55}Всего начислено: {B6E4B3}+$%s",total);
-    SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,summary);
-    SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,
-        "{9FAAB8}На условном купонном счёте. Подробнее: /bonds");
+    TNotify_Detail(playerid,TNOTIFY_SUCCESS,summary);
+    TNotify_Detail(playerid,TNOTIFY_HINT,
+        "На условном купонном счёте. Подробнее: /bonds");
 
     // ACK only after messages were sent, only up to the snapshot max ID.
     // If ACK fails, messages may repeat, but the user never loses coupons.
