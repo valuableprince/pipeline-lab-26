@@ -46,7 +46,7 @@ class RpAnimationsContract(unittest.TestCase):
                   "gCleanerDuty[playerid]", "PLAYER_STATE_ONFOOT",
                   "SPECIAL_ACTION_NONE", "GetPlayerVelocity(playerid"):
             self.assertIn(s, ANIM)
-        self.assertEqual(GAME.count("RPAnim_Reset(playerid);"), 4)
+        self.assertEqual(GAME.count("RPAnim_Reset(playerid);"), 5)
         self.assertIn("if (newstate != PLAYER_STATE_ONFOOT) RPAnim_Reset(playerid);", GAME)
         self.assertIn("RPAnim_Active(playerid)", CHAT)
         self.assertIn("RP_SPEECH_ANIM_TIME, SYNC_NONE", CHAT)
