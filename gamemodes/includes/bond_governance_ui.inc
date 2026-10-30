@@ -520,10 +520,12 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             return GovBond_UI_DrawMain(playerid);
         }
         new body[640];
+        // BOND-UI-07: keep explanations neutral; mark money in yellow and
+        // indicate fund availability in green/red without changing its logic.
         format(body,sizeof(body),
-            "{E8EDF3}ПОПОЛНЕНИЕ СТРАХОВОГО ФОНДА\n\nКазна: $%d\nОбязательный остаток: $%d\nСтраховой резерв: $%d\nВыдано гарантий: $%d\nСвободно для перевода: $%d\n\nВведите сумму от $1 до $%d.\nДеньги останутся в казне, но станут страховым резервом.\nСтатус фонда: %s.",
+            "{E8EDF3}ПОПОЛНЕНИЕ СТРАХОВОГО ФОНДА\n\n{E8EDF3}Казна: {FFD15C}$%d\n{E8EDF3}Обязательный остаток: {FFD15C}$%d\n{E8EDF3}Страховой резерв: {FFD15C}$%d\n{E8EDF3}Выдано гарантий: {FFD15C}$%d\n{E8EDF3}Свободно для перевода: {FFD15C}$%d\n\n{E8EDF3}Введите сумму от {FFD15C}$1{E8EDF3} до {FFD15C}$%d{E8EDF3}.\n{E8EDF3}Деньги останутся в казне, но станут страховым резервом.\n{E8EDF3}Статус фонда: %s{E8EDF3}.",
             cash,minReserve,reserved,committed,freeBudget,maximum,
-            enabled?"Включён":"Выключен");
+            enabled?"{78D8AA}Включён":"{E48A8A}Выключен");
         gGovUIStage[playerid]=14;
         ShowPlayerDialog(playerid,GOVUI_FUND_AMOUNT,DIALOG_STYLE_INPUT,
             "{E8EDF3}Минфин | Пополнить страховой фонд",
