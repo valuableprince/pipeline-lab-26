@@ -326,6 +326,16 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("gov08_fund_mysql_uat.py",CI)
         self.assertNotIn("GivePlayerMoney(",UI)
 
+    def test_cancel_loan_type_returns_to_treasury_main(self):
+        # Manual UAT 3.1: Back on loan-type selection must not close /bondgov.
+        block=UI.split("if(dialogid==GOVUI_TYPE)",1)[1].split(
+            "if(dialogid==GOVUI_INPUT)",1)[0]
+        self.assertIn("if(gGovUIStage[playerid]!=9)return 1;",block)
+        self.assertIn("if(!response)return GovBond_UI_Main(playerid);",block)
+        self.assertIn("if(listitem<0 || listitem>2)return 1;",block)
+        self.assertLess(block.index("if(!response)"),block.index("switch(listitem)"))
+        self.assertNotIn("|| !response ||",block)
+
     def test_distinct_dialog_ids(self):
         import re
         ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON|FUND_AMOUNT|FUND_CONFIRM)\s+\((\d+)\)",UI)
