@@ -32,7 +32,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=37 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=38 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -40,7 +40,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 037 missing; witness interviews disabled.");
+        print("[CRIME-02] Migration 038 missing; local risk system disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -179,15 +179,18 @@ stock bool:Crime_OfferEligibility(playerid, templateId, &remaining, &oneTimeDone
     oneTimeDone = 0;
 #if defined TARKENSO_DB_PRIMARY
     if (!Crime_Available(playerid) || templateId <= 0) return false;
-    new q[690], rows = 0, cooldown, repeatable, lastFinished, completions;
+    new q[880], rows = 0, cooldown, repeatable, lastFinished, completions, heat, kind;
     mysql_format(gDBPrimary, q, sizeof(q),
-        "SELECT t.cooldown_seconds,t.is_repeatable,COALESCE((SELECT MAX(c.finished_at) FROM crime_contracts c WHERE c.account_id=%d AND c.template_id=t.template_id AND c.state IN(3,5)),0) last_finished,(SELECT COUNT(*) FROM crime_contracts c WHERE c.account_id=%d AND c.template_id=t.template_id AND c.state=3) completions FROM crime_contract_templates t WHERE t.template_id=%d LIMIT 1",
-        gDBPrimaryAccountId[playerid], gDBPrimaryAccountId[playerid], templateId);
+        "SELECT t.cooldown_seconds,t.is_repeatable,t.scenario_kind,COALESCE(p.heat,0) heat,COALESCE((SELECT MAX(c.finished_at) FROM crime_contracts c WHERE c.account_id=%d AND c.template_id=t.template_id AND c.state IN(3,5)),0) last_finished,(SELECT COUNT(*) FROM crime_contracts c WHERE c.account_id=%d AND c.template_id=t.template_id AND c.state=3) completions FROM crime_contract_templates t LEFT JOIN crime_contact_progress p ON p.account_id=%d AND p.contact_id=t.contact_id WHERE t.template_id=%d LIMIT 1",
+        gDBPrimaryAccountId[playerid], gDBPrimaryAccountId[playerid],
+        gDBPrimaryAccountId[playerid], templateId);
     new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) ||
         !cache_get_row_count(rows) || rows != 1 ||
         !cache_get_value_name_int(0, "cooldown_seconds", cooldown) ||
         !cache_get_value_name_int(0, "is_repeatable", repeatable) ||
+        !cache_get_value_name_int(0, "scenario_kind", kind) ||
+        !cache_get_value_name_int(0, "heat", heat) ||
         !cache_get_value_name_int(0, "last_finished", lastFinished) ||
         !cache_get_value_name_int(0, "completions", completions))
     {
@@ -195,8 +198,14 @@ stock bool:Crime_OfferEligibility(playerid, templateId, &remaining, &oneTimeDone
         return false;
     }
     cache_delete(c);
-    if (cooldown < 0 || cooldown > 86400) return false;
+    if (cooldown < 0 || cooldown > 86400 || heat < 0 || heat > 100) return false;
     oneTimeDone = !repeatable && completions > 0;
+    if (kind > 0 && heat >= 70)
+    {
+        remaining = -1; // The contact refuses sensitive work until local heat falls.
+        return true;
+    }
+    cooldown += heat * 10;
     if (lastFinished > 0 && cooldown > 0)
     {
         remaining = lastFinished + cooldown - gettime();
@@ -226,7 +235,7 @@ stock Crime_Start(playerid, templateId)
         return SendClientMessage(playerid, CRIME_ERROR, "Нет соединения с базой.");
     new q[1800], changed;
     mysql_format(gDBPrimary, q, sizeof(q),
-        "INSERT INTO crime_contracts(template_id,account_id,faction_id,mode_id,reward_amount,started_at,expires_at,contact_id,scenario_kind,scenario_event) SELECT t.template_id,m.account_id,m.faction_id,t.mode_id,t.reward_amount,UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+t.duration_seconds,t.contact_id,t.scenario_kind,CASE WHEN t.scenario_kind=0 THEN 0 ELSE 1+FLOOR(RAND()*3) END FROM crime_contract_templates t JOIN faction_members m ON m.account_id=%d AND m.faction_id=%d JOIN crime_contact_progress p ON p.account_id=m.account_id AND p.contact_id=t.contact_id AND p.trust>=t.required_trust WHERE t.template_id=%d AND t.contact_id=%d AND t.mode_id=1 AND t.is_enabled=1 AND (t.is_repeatable=1 OR NOT EXISTS(SELECT 1 FROM crime_contracts h WHERE h.account_id=m.account_id AND h.template_id=t.template_id AND h.state=3)) AND NOT EXISTS(SELECT 1 FROM crime_contracts h WHERE h.account_id=m.account_id AND h.template_id=t.template_id AND h.state IN(3,5) AND h.finished_at>UNIX_TIMESTAMP()-t.cooldown_seconds)",
+        "INSERT INTO crime_contracts(template_id,account_id,faction_id,mode_id,reward_amount,started_at,expires_at,contact_id,scenario_kind,scenario_event) SELECT t.template_id,m.account_id,m.faction_id,t.mode_id,t.reward_amount,UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+t.duration_seconds,t.contact_id,t.scenario_kind,CASE WHEN t.scenario_kind=0 THEN 0 ELSE 1+FLOOR(RAND()*3) END FROM crime_contract_templates t JOIN faction_members m ON m.account_id=%d AND m.faction_id=%d JOIN crime_contact_progress p ON p.account_id=m.account_id AND p.contact_id=t.contact_id AND p.trust>=t.required_trust AND (t.scenario_kind=0 OR p.heat<70) WHERE t.template_id=%d AND t.contact_id=%d AND t.mode_id=1 AND t.is_enabled=1 AND (t.is_repeatable=1 OR NOT EXISTS(SELECT 1 FROM crime_contracts h WHERE h.account_id=m.account_id AND h.template_id=t.template_id AND h.state=3)) AND NOT EXISTS(SELECT 1 FROM crime_contracts h WHERE h.account_id=m.account_id AND h.template_id=t.template_id AND h.state IN(3,5) AND h.finished_at>UNIX_TIMESTAMP()-(t.cooldown_seconds+p.heat*10))",
         gDBPrimaryAccountId[playerid], org, templateId, broker);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
@@ -236,6 +245,8 @@ stock Crime_Start(playerid, templateId)
         {
             if (finished) return SendClientMessage(playerid, CRIME_ERROR,
                 "Этот сюжетный контракт уже пройден. Повторно принять его нельзя.");
+            if (left < 0) return SendClientMessage(playerid, CRIME_ERROR,
+                "Посредник пока отказывает в сложных заказах: слишком много внимания. Выполняйте обычные перевозки.");
             if (left > 0)
             {
                 new notice[130];
@@ -362,7 +373,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Нет соединения с базой.");
     }
-    new q[860], changed;
+    new q[1000], changed;
     // Account row + contract row remain in the same transaction. CAS rejects
     // stale account versions. On errors every step (including money) rolls back.
     mysql_format(gDBPrimary, q, sizeof(q),
@@ -376,8 +387,8 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
             "Выплата отклонена: заказ истёк, уже оплачен или кошелёк изменился.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contracts SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%d WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=2 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR interviewed_at>0)",
-        decision, id, gDBPrimaryAccountId[playerid], faction);
+        "UPDATE crime_contracts SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%d,risk_delta=CASE WHEN scenario_kind=0 THEN -8 WHEN %d=2 THEN 20 WHEN interview_question=2 THEN 8 WHEN scenario_choice=2 THEN 5 ELSE -12 END WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=2 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR interviewed_at>0)",
+        decision, decision, id, gDBPrimaryAccountId[playerid], faction);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
         Crime_Rollback();
@@ -422,6 +433,27 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         Crime_Rollback();
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить доверие. Выплата отменена.");
+    }
+    // Heat is independent from trust and is settled in the very same
+    // transaction as the wallet. The contract ID is its idempotency key.
+    // The ledger records the ACTUAL delta after the 0..100 clamp.
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "INSERT INTO crime_contact_heat_events(contract_id,account_id,contact_id,heat_delta) SELECT c.contract_id,c.account_id,c.contact_id,GREATEST(-p.heat,LEAST(100-p.heat,c.risk_delta)) FROM crime_contracts c JOIN crime_contact_progress p ON p.account_id=c.account_id AND p.contact_id=c.contact_id WHERE c.contract_id=%d AND c.account_id=%d AND c.state=3",
+        id, gDBPrimaryAccountId[playerid]);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось записать риск. Выплата отменена.");
+    }
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE crime_contact_progress p JOIN crime_contact_heat_events h ON h.account_id=p.account_id AND h.contact_id=p.contact_id SET p.heat=p.heat+h.heat_delta WHERE h.contract_id=%d AND h.account_id=%d",
+        id, gDBPrimaryAccountId[playerid]);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить риск. Выплата отменена.");
     }
     if (!Crime_Exec("COMMIT"))
     {
