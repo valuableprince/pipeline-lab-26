@@ -351,6 +351,28 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn('format(gGovUISelectedStatus[playerid],20,"%s",status);',UI)
         self.assertNotIn("UPDATE government_bond_issues SET",UI)
 
+    def test_bond_term_day_forms_are_grammatically_correct(self):
+        # 1 день, 2 дня, 5 дней, 11 дней, 21 день, etc.
+        block=UI.split("stock GovBond_UI_DayWord(",1)[1].split(
+            "stock GovBond_UI_TypeLabel(",1)[0]
+        for marker in (
+            "lastTwo=days%100,last=days%10",
+            "lastTwo>=11 && lastTwo<=14",
+            'format(output,size,"дней")',
+            'last==1',
+            'format(output,size,"день")',
+            'last>=2 && last<=4',
+            'format(output,size,"дня")',
+        ):
+            self.assertIn(marker,block)
+        self.assertIn("Размещение: {E8EDF3}%d %s",UI)
+        self.assertIn("Погашение: {E8EDF3}через %d %s после размещения",UI)
+        self.assertIn("Размещение: %d %s",UI)
+        self.assertIn("Погашение через: %d %s после размещения",UI)
+        self.assertIn("offerDays,offerDayWord,maturityDays,maturityDayWord",UI)
+        self.assertIn("gGovUIOfferDays[playerid],offerDayWord,",UI)
+        self.assertIn("gGovUIMaturityDays[playerid],maturityDayWord);",UI)
+
     def test_distinct_dialog_ids(self):
         import re
         ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON|FUND_AMOUNT|FUND_CONFIRM)\s+\((\d+)\)",UI)
