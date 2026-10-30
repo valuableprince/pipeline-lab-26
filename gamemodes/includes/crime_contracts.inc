@@ -447,7 +447,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось записать риск. Выплата отменена.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contact_progress p JOIN crime_contact_heat_events h ON h.account_id=p.account_id AND h.contact_id=p.contact_id SET p.heat=GREATEST(0,LEAST(100,CAST(p.heat AS SIGNED)+h.heat_delta)) WHERE h.contract_id=%d AND h.account_id=%d",
+        "UPDATE crime_contact_progress p JOIN crime_contact_heat_events h ON h.account_id=p.account_id AND h.contact_id=p.contact_id SET p.heat=GREATEST(0,LEAST(100,CAST(p.heat AS SIGNED)+h.heat_delta)),p.heat_event_count=p.heat_event_count+1 WHERE h.contract_id=%d AND h.account_id=%d",
         id, gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
