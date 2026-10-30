@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "gamemodes/**"
+      # The binary-only commit must not trigger another CI build.
+      - "!gamemodes/**/*.amx"
       - "db/**"
       - "tests/**"
       - "data/payday/**"
@@ -418,3 +420,63 @@ jobs:
             build/tdstudio-test-run.log
           if-no-files-found: ignore
           retention-days: 3
+
+
+  publish_amx:
+    name: Publish compiled AMX to main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [sql_security, gov00_mysql_uat, compile]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout matching source revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Download compiled AMX from this successful build
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-output
+          path: build/published
+
+      - name: Verify and commit the release AMX
+        shell: bash
+        env:
+          BUILD_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -s build/published/compiled.amx
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import struct
+
+          source = Path("build/published/compiled.amx")
+          blob = source.read_bytes()
+          if len(blob) < 64:
+              raise SystemExit("AMX truncated")
+          declared_size, magic = struct.unpack_from("<IH", blob, 0)
+          if magic != 0xF1E0 or declared_size != len(blob):
+              raise SystemExit("AMX header invalid")
+          print("AMX sha256:", hashlib.sha256(blob).hexdigest())
+          print("AMX bytes:", len(blob))
+          PY
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse origin/main)" != "$BUILD_SOURCE_SHA" ]; then
+            echo "main advanced after this build; skipping stale AMX. New main push will publish its own artifact."
+            exit 0
+          fi
+          cp build/published/compiled.amx gamemodes/signal0317.amx
+          git add -f gamemodes/signal0317.amx
+          if git diff --cached --quiet; then
+            echo "The same AMX is already tracked."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: publish main AMX from ${BUILD_SOURCE_SHA:0:12} [skip ci]"
+          git push origin HEAD:main
