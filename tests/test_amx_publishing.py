@@ -20,7 +20,10 @@ class AMXPublishingContracts(unittest.TestCase):
         self.assertIn('git rev-parse origin/main', publisher)
         self.assertIn('BUILD_SOURCE_SHA', publisher)
         self.assertIn("git add -f gamemodes/signal0317.amx", publisher)
-        self.assertIn("git push origin HEAD:main", publisher)
+        self.assertNotIn("git push origin HEAD:main", publisher)
+        self.assertIn('PUBLISH_BRANCH="ci/amx-', publisher)
+        self.assertIn('git push origin "HEAD:refs/heads/$PUBLISH_BRANCH"', publisher)
+        self.assertIn("Merge through required PR checks", publisher)
 
     def test_generated_amx_does_not_retrigger_build(self):
         self.assertIn('"gamemodes/**"',WORKFLOW)
