@@ -502,9 +502,10 @@ stock Leader_OnReady(playerid)
     new title[48], message[120];
     Leader_OrgTitle(org, title, sizeof(title));
     format(message, sizeof(message), "Организация: %s, ранг %d. /fmenu", title, Leader_PlayerRank(playerid));
-    SendClientMessage(playerid, FACTION_COLOR, message);
+    TNotify_Send(playerid,TNOTIFY_FACTION,TNOTIFY_INFO,message);
     if (gFactionMemberRank[o][index] >= Leader_DeputyRank(org) && !Leader_ActiveTerm(org))
-        SendClientMessage(playerid, FACTION_ERROR, "Срок полномочий руководства истёк. Требуется продление.");
+        TNotify_Send(playerid,TNOTIFY_FACTION,TNOTIFY_WARNING,
+            "Срок полномочий руководства истёк. Требуется продление.");
     return 1;
 }
 
@@ -752,7 +753,7 @@ stock Leader_Command(playerid, const command[], const params[])
             !Leader_AddMember(org, gAccountName[playerid], 1))
             return SendClientMessage(playerid, FACTION_ERROR, "Не удалось сохранить вступление.");
         Leader_ClearPending(playerid);
-        SendClientMessage(playerid, FACTION_COLOR, "Вы приняты в организацию. /fmenu");
+        TNotify_Send(playerid,TNOTIFY_FACTION,TNOTIFY_SUCCESS,"Вы приняты в организацию. /fmenu");
         return 1;
     }
     if (!strcmp(command, "setleader", true) || !strcmp(command, "renewleader", true))
