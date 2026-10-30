@@ -577,8 +577,9 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             format(reason,sizeof(reason),
                 "Выполнить действие сейчас не удалось.\nСостояние выпуска или казны могло измениться.\nОбновите реестр; если отказ повторится, обратитесь к администратору.");
         format(body,sizeof(body),
-            "{E8EDF3}%s ВЫПУСКА {FFD15C}%s {E8EDF3}ОТКЛОНЕНО\n\n{E8EDF3}%s\n\n{E8EDF3}Решение не выполнено. Причина уточнена по текущим данным MariaDB.",
-            action==4?"ОТМЕНА":"ОТКРЫТИЕ РАЗМЕЩЕНИЯ",code,reason);
+            "{E8EDF3}%s ВЫПУСКА {FFD15C}%s {E8EDF3}%s\n\n{E8EDF3}%s\n\n{E8EDF3}Решение не выполнено. Причина уточнена по текущим данным MariaDB.",
+            action==4?"ОТМЕНА":"ОТКРЫТИЕ РАЗМЕЩЕНИЯ",code,
+            action==4?"ОТКЛОНЕНА":"ОТКЛОНЕНО",reason);
         if(action==4 && sold>0 && rank>=3)
         {
             new notice[150];
