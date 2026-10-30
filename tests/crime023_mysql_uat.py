@@ -107,6 +107,16 @@ def resolve(con, cid, account, faction, decision):
             if changed!=1:
                 run(con,"ROLLBACK")
                 return False
+            run(con,"""INSERT INTO crime_contract_events
+                (contract_id,actor_account_id,event_type)
+                SELECT contract_id,account_id,'RACE_WON' FROM crime_contracts
+                WHERE contract_id=%s AND account_id=%s AND state=2""",
+                (cid,account))
+            run(con,"""INSERT INTO crime_contract_events
+                (contract_id,actor_account_id,event_type)
+                SELECT contract_id,account_id,'RACE_LOST' FROM crime_contracts
+                WHERE competition_id=%s AND contract_id<>%s AND state IN(1,2)""",
+                (round_id,cid))
             run(con, """UPDATE crime_contracts
                 SET state=5,finished_at=UNIX_TIMESTAMP()
                 WHERE competition_id=%s AND contract_id<>%s AND state IN(1,2)""",
