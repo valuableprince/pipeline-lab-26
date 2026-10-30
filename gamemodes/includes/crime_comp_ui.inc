@@ -70,7 +70,7 @@ stock CrimeCompUI_Detail(playerid, roundId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if(roundId<=0 || !CrimeComp_Refresh(playerid))return CrimeCompUI_Board(playerid);
-    new q[610],rows=0,contact=0,state=0,deadline=0,winner=0,reward=0,entries=0,title[68];
+    new q[610],rows=0,contact=0,roundState=0,deadline=0,winner=0,reward=0,entries=0,title[68];
     mysql_format(gDBPrimary,q,sizeof(q),
         "SELECT r.contact_id,r.state,r.expires_at,COALESCE(r.winner_faction_id,0) winner_faction_id,t.title,t.reward_amount,(SELECT COUNT(*) FROM crime_contracts c WHERE c.competition_id=r.round_id) entries FROM crime_competition_rounds r JOIN crime_contract_templates t ON t.template_id=r.template_id WHERE r.round_id=%d LIMIT 1",
         roundId);
@@ -78,7 +78,7 @@ stock CrimeCompUI_Detail(playerid, roundId)
     if(c==Cache:0 || mysql_errno(gDBPrimary) ||
        !cache_get_row_count(rows) || rows!=1 ||
        !cache_get_value_name_int(0,"contact_id",contact) ||
-       !cache_get_value_name_int(0,"state",state) ||
+       !cache_get_value_name_int(0,"state",roundState) ||
        !cache_get_value_name_int(0,"expires_at",deadline) ||
        !cache_get_value_name_int(0,"winner_faction_id",winner) ||
        !cache_get_value_name_int(0,"reward_amount",reward) ||
@@ -91,14 +91,14 @@ stock CrimeCompUI_Detail(playerid, roundId)
     cache_delete(c);
     if(contact<1 || contact>CRIME_CONTACT_COUNT)return CrimeCompUI_Board(playerid);
     new body[750],status[100];
-    if(state==2)format(status,sizeof(status),"Победил синдикат %d.",winner);
-    else if(state==3 || deadline<=gettime()+CRIME_COMP_MIN_LEFT)
+    if(roundState==2)format(status,sizeof(status),"Победил синдикат %d.",winner);
+    else if(roundState==3 || deadline<=gettime()+CRIME_COMP_MIN_LEFT)
         format(status,sizeof(status),"Приём заявок закрыт.");
     else format(status,sizeof(status),"Осталось %d минут.",(deadline-gettime()+59)/60);
     format(body,sizeof(body),
         "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СИНДИКАТУ:{FFFFFF} +8 влияние, +5 отношения\n{FFD15C}УЧАСТНИКИ:{FFFFFF} %d/3\n{FFD15C}СОСТОЯНИЕ:{FFFFFF} %s\n\nТолько первый доставивший груз получает награду. Каждый синдикат — один исполнитель. Конкурентов нет? Выиграть можно одному. Для участия лично подойдите к NPC (доверие 5, связи 5, внимание ниже 70).",
         title,gCrimeContactName[contact-1],reward,entries,status);
-    gCompUISelected[playerid]=(state==1 &&
+    gCompUISelected[playerid]=(roundState==1 &&
         deadline>gettime()+CRIME_COMP_MIN_LEFT) ? roundId : 0;
     CrimeUI_Open(playerid,COMP_DLG_DETAIL);
     return ShowPlayerDialog(playerid,COMP_DLG_DETAIL,DIALOG_STYLE_MSGBOX,
