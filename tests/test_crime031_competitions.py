@@ -43,7 +43,7 @@ class SharedCompetition(unittest.TestCase):
                   "CrimeComp_Claim(playerid,competitionRound,id,faction)",
                   "INSERT INTO crime_contract_rewards",
                   "INSERT INTO crime_syndicate_influence_events",
-                  "CASE WHEN c.mode_id=2 THEN 8", "CASE WHEN c.mode_id=2 THEN 5"):
+                  "CASE WHEN c.mode_id=2 THEN 8", "WHEN c.mode_id=2 THEN 5"):
             self.assertIn(x,CORE)
         block=CORE.split("stock Crime_Settle(",1)[1].split("stock Crime_Abort(",1)[0]
         self.assertLess(block.index('Crime_Exec("START TRANSACTION")'),
