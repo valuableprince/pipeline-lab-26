@@ -368,11 +368,34 @@ class BondGovernanceContracts(unittest.TestCase):
             self.assertIn(marker,block)
         self.assertIn("Размещение: {E8EDF3}%d %s",UI)
         self.assertIn("Погашение: {E8EDF3}через %d %s после размещения",UI)
-        self.assertIn("Размещение: %d %s",UI)
-        self.assertIn("Погашение через: %d %s после размещения",UI)
+        self.assertIn("Размещение: {FFD15C}%d %s",UI)
+        self.assertIn("Погашение через: {FFD15C}%d %s после размещения",UI)
         self.assertIn("offerDays,offerDayWord,maturityDays,maturityDayWord",UI)
         self.assertIn("gGovUIOfferDays[playerid],offerDayWord,",UI)
         self.assertIn("gGovUIMaturityDays[playerid],maturityDayWord);",UI)
+
+    def test_draft_confirmation_highlights_all_values(self):
+        # BOND-UI-08: every field value is yellow, but labels remain light.
+        block=UI.split("stock GovBond_UI_ConfirmDraft(playerid)",1)[1].split(
+            "// A rejection is final",1)[0]
+        for label,template in (
+            ("Название", "%s"),
+            ("Цель", "%s"),
+            ("Тип", "%s"),
+            ("Номинал", "$%d"),
+            ("Количество", "%d"),
+            ("Общий номинал", "$%d"),
+            ("Доходность", "%d.%02d%%"),
+            ("Размещение", "%d %s"),
+            ("Погашение через", "%d %s после размещения"),
+        ):
+            with self.subTest(label=label):
+                self.assertIn(f"{{E8EDF3}}{label}: {{FFD15C}}{template}",block)
+        self.assertIn("Сохраняется код выпуска {FFD15C}%s{E8EDF3}.",block)
+        self.assertIn("{E8EDF3}Отправка заявки не открывает продажу",block)
+        self.assertIn("gGovUIFace[playerid]*gGovUIQuantity[playerid]",block)
+        self.assertIn("new body[900]",block)
+        self.assertIn("GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX",block)
 
     def test_fund_lessons_explain_state_treasury_not_minister_wallet(self):
         # User acceptance test 5.1: the fund reserves treasury funds, not player cash.
