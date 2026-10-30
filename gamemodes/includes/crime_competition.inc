@@ -88,7 +88,7 @@ stock CrimeComp_Start(playerid, roundId)
 #if defined TARKENSO_DB_PRIMARY
     if (!CrimeComp_Refresh(playerid) || !Crime_Expire(playerid))
         return SendClientMessage(playerid,CRIME_ERROR,"Не удалось обновить конкурс.");
-    new contact=0,rows=0,q[420];
+    new contact=0,rows=0,q[1850];
     mysql_format(gDBPrimary,q,sizeof(q),
         "SELECT contact_id FROM crime_competition_rounds WHERE round_id=%d AND state=1 AND expires_at>UNIX_TIMESTAMP()+%d LIMIT 1",
         roundId,CRIME_COMP_MIN_LEFT);
