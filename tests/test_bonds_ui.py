@@ -190,10 +190,42 @@ class BondInvestorUiContracts(unittest.TestCase):
 
     def test_dialog_constants_are_separate_and_stable(self):
         constants=re.findall(r"#define\s+BONDS_DLG_\w+\s+\((\d+)\)",UI)
-        self.assertEqual(len(constants),14)
-        self.assertEqual(len(set(constants)),14)
-        self.assertEqual(set(map(int,constants)),set(range(6700,6714)))
+        self.assertEqual(len(constants),16)
+        self.assertEqual(len(set(constants)),16)
+        self.assertEqual(set(map(int,constants)),set(range(6700,6716)))
         self.assertIn("gBondsUILoading[playerid] || gGovTransferBusy[playerid]",UI)
+
+
+    def test_completed_claims_move_to_read_only_history(self):
+        self.assertIn("WHERE c.claim_id IS NULL OR c.amount_collected<c.principal_due+c.interest_due",UI)
+        self.assertIn("c.amount_collected>=c.principal_due+c.interest_due",UI)
+        self.assertIn("i.maturity_event_key IS NOT NULL",UI)
+        self.assertIn("BONDS_DLG_HISTORY,DIALOG_STYLE_TABLIST_HEADERS",UI)
+        self.assertIn("BONDS_DLG_HISTORY_DETAIL,DIALOG_STYLE_MSGBOX",UI)
+        self.assertIn("case 5:return BondsUI_LoadList(playerid,BONDS_UI_HISTORY);",UI)
+        self.assertIn("if(dialogid==BONDS_DLG_HISTORY_DETAIL)",UI)
+        self.assertIn("Все выплаты получены. Запись сохранена в финансовой истории.",UI)
+        self.assertNotIn("DELETE FROM government_bond_claims",UI)
+        self.assertNotIn("UPDATE government_bond_claims",UI)
+
+    def test_maturity_notices_are_commit_confirmed_and_login_safe(self):
+        self.assertIn("BondsUI_NotifyMaturityOnline(issueId);",BACKEND)
+        self.assertIn("BondsUI_NotifyMaturityLogin(playerid);",MAIN)
+        self.assertIn("i.maturity_event_key IS NOT NULL",UI)
+        self.assertIn("c.principal_budget_awarded+c.interest_budget_awarded+c.insurance_awarded>c.amount_collected",UI)
+        self.assertIn("gAuthToken[playerid]!=authToken",UI)
+        self.assertIn("gDBPrimaryAccountId[playerid]!=accountId",UI)
+        self.assertIn("gBondsUIMaturitySeq[playerid]!=seq",UI)
+        self.assertIn("Минфин: по %s доступна выплата $%d.",UI)
+        self.assertIn("Минфин: по %s ожидает выплата $%d.",UI)
+
+    def test_claim_receipt_confirmation_references_paid_amount(self):
+        self.assertIn("gBondsUIPendingPayAmount[playerid]=gBondsUIClaimAmount[playerid];",UI)
+        self.assertIn('format(gBondsUIPendingPayCode[playerid],65,"%s",gBondsUISelectedCode[playerid]);',UI)
+        self.assertIn("Минфин перечислил $%d по облигациям %s.",UI)
+        self.assertIn("После полного расчёта выпуск перейдёт",UI)
+        self.assertIn("gBondsUIPendingPayAmount[playerid]=0;",UI)
+
 
 
 if __name__=="__main__":
