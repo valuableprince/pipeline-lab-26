@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 MAIN=(ROOT/"gamemodes/signal0317.pwn").read_text(encoding="utf-8")
 RECONNECT=(ROOT/"gamemodes/includes/crime_reconnect.inc").read_text(encoding="utf-8")
+NOTIFY=(ROOT/"gamemodes/includes/notification_style.inc").read_text(encoding="utf-8")
 CORE=(ROOT/"gamemodes/includes/crime_contracts.inc").read_text(encoding="utf-8")
 TENDER=(ROOT/"gamemodes/includes/crime_tenders.inc").read_text(encoding="utf-8")
 WORKFLOW=(ROOT/".github/workflows/build.yml").read_text(encoding="utf-8")
@@ -90,10 +91,13 @@ class ReconnectNotice(unittest.TestCase):
         # Single colored prefix, white information, grey contextual hints,
         # yellow key values and muted red warnings. All messages remain
         # in the established /crime palette, not arbitrary RGB colors.
-        self.assertIn('{FFD15C}[Криминальная система]{FFFFFF} %s',RECONNECT)
+        self.assertIn('format(label,labelSize,"Криминальная система");',NOTIFY)
+        self.assertIn('format(accent,accentSize,"FFD15C");',NOTIFY)
+        self.assertIn('"{%s}[%s] {%s}%s"',NOTIFY)
         self.assertIn('stock CrimeReconnect_Chat(playerid, bool:warning, const body[])',RECONNECT)
-        self.assertEqual(RECONNECT.count('[Криминальная система]'),1)
-        self.assertIn('warning ? CRIME_ERROR : CRIME_COLOR',RECONNECT)
+        self.assertIn('return TNotify_Send(playerid,TNOTIFY_CRIME,',RECONNECT)
+        self.assertEqual(RECONNECT.count('[Криминальная система]'),0)
+        self.assertIn('warning ? TNOTIFY_WARNING : TNOTIFY_INFO',RECONNECT)
         self.assertIn('{FFD15C}Контракт #%d{FFFFFF}: %s',RECONNECT)
         self.assertIn('{FFD15C}Этап:{FFFFFF}',RECONNECT)
         self.assertIn('{FFD15C}Осталось:{FFFFFF}',RECONNECT)
