@@ -21,6 +21,7 @@ class PassportTests(unittest.TestCase):
             "REFERENCES accounts(account_id) ON DELETE RESTRICT",
             "SELECT account_id, DATE(created_at) FROM accounts ORDER BY account_id",
             "INSERT INTO schema_migrations (version) VALUES (31)",
+            "AUTO_INCREMENT=500001",
         ):
             self.assertIn(phrase, MIG)
         self.assertIn("TK-%06d", PASSPORT)

@@ -11,7 +11,7 @@ CREATE TABLE player_passports (
       REFERENCES accounts(account_id) ON DELETE RESTRICT,
     CONSTRAINT chk_passport_birth CHECK (birth_date IS NULL OR
       birth_date BETWEEN '1900-01-01' AND '2100-12-31')
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=500001;
 
 -- Deterministic backfill; no change to balance, experience or authorization.
 INSERT INTO player_passports (account_id, issued_on)
