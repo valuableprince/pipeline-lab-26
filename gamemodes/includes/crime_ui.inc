@@ -19,6 +19,10 @@
 #define CRIME_DLG_SCENE      (7961)
 #define CRIME_DLG_INTERVIEW  (7962)
 #define CRIME_DLG_TESTIMONY  (7963)
+#define CRIME_DLG_ORG        (7964)
+#define CRIME_DLG_ORG_CONTACT (7965)
+#define CRIME_DLG_ORG_ASSETS  (7966)
+#define CRIME_DLG_ORG_BUY     (7967)
 #define CRIME_OFFER_MAX      (8)
 
 forward CrimeUI_Testimony(playerid);
@@ -31,6 +35,8 @@ new gCrimeUISelectedTemplate[MAX_PLAYERS];
 new gCrimeUISceneContract[MAX_PLAYERS];
 new gCrimeUIScenePhase[MAX_PLAYERS];
 new gCrimeUIWitnessContract[MAX_PLAYERS];
+new gCrimeUIOrgContact[MAX_PLAYERS];
+new gCrimeUIOrgAsset[MAX_PLAYERS];
 new gCrimeUIOfferCount[MAX_PLAYERS];
 new gCrimeUIOfferId[MAX_PLAYERS][CRIME_OFFER_MAX];
 
@@ -44,6 +50,8 @@ stock CrimeUI_Reset(playerid)
     gCrimeUISceneContract[playerid] = 0;
     gCrimeUIScenePhase[playerid] = 0;
     gCrimeUIWitnessContract[playerid] = 0;
+    gCrimeUIOrgContact[playerid] = 0;
+    gCrimeUIOrgAsset[playerid] = 0;
     gCrimeUIOfferCount[playerid] = 0;
     return 1;
 }
@@ -93,7 +101,7 @@ stock CrimeUI_Main(playerid)
             phase == 1 ? ("Ожидает получения") : ("В пути"));
     else format(status, sizeof(status), "Нет активного заказа");
     format(body, sizeof(body),
-        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nПосредники и заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает",
+        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nПосредники и заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает\nСиндикат и активы\tВлияние и связи",
         id ? ("Доступны другие контакты") : ("Три города"),
         status, id ? ("Доступен") : ("Нет активного заказа"),
         id ? ("Доступно") : ("Нет активного заказа"));
@@ -417,6 +425,91 @@ stock CrimeUI_Testimony(playerid)
         "{FFD15C}Показания участника", body, "Решение", "Назад");
 }
 
+// Organization progression and assets: viewable by any faction member;
+// purchases are strictly leader/deputy only, rechecked by the SQL transaction.
+stock CrimeUI_Organization(playerid)
+{
+    new influence, done;
+    if (!CrimeOrg_ReadFaction(playerid, influence, done))
+        return SendClientMessage(playerid, CRIME_ERROR, "Состояние синдиката недоступно.");
+    new body[760], line[180], standing, count, stash, network;
+    format(body, sizeof(body),
+        "{FFD15C}Посредник\t{FFD15C}Отношения\t{FFD15C}Активы{FFFFFF}\n");
+    for (new i = 1; i <= CRIME_CONTACT_COUNT; i++)
+    {
+        if (!CrimeOrg_ReadContact(playerid, i, standing, count, stash, network))
+            return SendClientMessage(playerid, CRIME_ERROR, "Не удалось прочитать связи синдиката.");
+        format(line, sizeof(line), "%s\t%d/100\t%d/2\n",
+            gCrimeContactName[i-1], standing, stash + network);
+        strcat(body, line, sizeof(body));
+    }
+    new title[115];
+    format(title, sizeof(title), "Синдикат #%d | Влияние: %d | Дел: %d",
+        Leader_PlayerOrg(playerid), influence, done);
+    CrimeUI_Open(playerid, CRIME_DLG_ORG);
+    return ShowPlayerDialog(playerid, CRIME_DLG_ORG, DIALOG_STYLE_TABLIST_HEADERS,
+        title, body, "Подробнее", "Назад");
+}
+
+stock CrimeUI_OrgContact(playerid, contactId)
+{
+    if (contactId < 1 || contactId > CRIME_CONTACT_COUNT) return CrimeUI_Organization(playerid);
+    new standing, done, stash, network, influence, total;
+    if (!CrimeOrg_ReadContact(playerid, contactId, standing, done, stash, network) ||
+        !CrimeOrg_ReadFaction(playerid, influence, total))
+        return SendClientMessage(playerid, CRIME_ERROR, "Связи синдиката недоступны.");
+    gCrimeUIOrgContact[playerid] = contactId;
+    new body[540];
+    format(body, sizeof(body),
+        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ОТНОШЕНИЯ:{FFFFFF} %d/100\n{FFD15C}ДЕЛА СИНДИКАТА:{FFFFFF} %d\n{FFD15C}ОБЩЕЕ ВЛИЯНИЕ:{FFFFFF} %d\n\n{FFD15C}ТАЙНИК:{FFFFFF} %s\nБонус: +1 влияние за заказ у этого посредника.\n{FFD15C}СЕТЬ ИНФОРМАТОРОВ:{FFFFFF} %s\nБонус: +1 отношения за заказ у этого посредника.\n\nПокупка только для руководства (ранги 4-5).",
+        gCrimeContactName[contactId-1], standing, done, influence,
+        stash ? ("Приобретён") : ("Нет"),
+        network ? ("Приобретена") : ("Нет"));
+    CrimeUI_Open(playerid, CRIME_DLG_ORG_CONTACT);
+    return ShowPlayerDialog(playerid, CRIME_DLG_ORG_CONTACT, DIALOG_STYLE_MSGBOX,
+        "{FFD15C}Связи синдиката", body, "Активы", "Назад");
+}
+
+stock CrimeUI_OrgAssets(playerid)
+{
+    new cid = gCrimeUIOrgContact[playerid];
+    if (cid < 1 || cid > CRIME_CONTACT_COUNT) return CrimeUI_Organization(playerid);
+    new standing, done, stash, network, body[440];
+    if (!CrimeOrg_ReadContact(playerid, cid, standing, done, stash, network))
+        return SendClientMessage(playerid, CRIME_ERROR, "Активы недоступны.");
+    format(body, sizeof(body),
+        "{FFD15C}Актив\t{FFD15C}Цена\t{FFD15C}Состояние{FFFFFF}\nТайник\t15 влияния\t%s\nСеть информаторов\t30 влияния\t%s",
+        stash ? ("Куплен") : ("Отношения 10+"),
+        network ? ("Куплена") : ("Отношения 20+"));
+    CrimeUI_Open(playerid, CRIME_DLG_ORG_ASSETS);
+    return ShowPlayerDialog(playerid, CRIME_DLG_ORG_ASSETS, DIALOG_STYLE_TABLIST_HEADERS,
+        "{FFD15C}Активы посредника", body, "Подробнее", "Назад");
+}
+
+stock CrimeUI_OrgBuyDialog(playerid, assetCode)
+{
+    if (assetCode != 1 && assetCode != 2) return CrimeUI_OrgAssets(playerid);
+    new cid = gCrimeUIOrgContact[playerid], standing, done, stash, network, influence, total;
+    if (!CrimeOrg_ReadContact(playerid, cid, standing, done, stash, network) ||
+        !CrimeOrg_ReadFaction(playerid, influence, total))
+        return CrimeUI_Organization(playerid);
+    new cost = CrimeOrg_AssetCost(assetCode),
+        needed = CrimeOrg_AssetStanding(assetCode),
+        owned = assetCode == 1 ? stash : network,
+        body[400];
+    format(body, sizeof(body),
+        "{FFD15C}АКТИВ:{FFFFFF} %s\n{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ЦЕНА:{FFFFFF} %d влияния\n{FFD15C}ТРЕБУЮТСЯ ОТНОШЕНИЯ:{FFFFFF} %d/100\n{FFD15C}СЕЙЧАС:{FFFFFF} влияние %d; отношения %d\n{FFD15C}СТАТУС:{FFFFFF} %s\n\nСписывается только влияние организации, не деньги игрока.",
+        assetCode == 1 ? ("Тайник") : ("Сеть информаторов"),
+        gCrimeContactName[cid-1], cost, needed, influence, standing,
+        owned ? ("Уже куплен") : ("Не приобретён"));
+    gCrimeUIOrgAsset[playerid] = owned || influence < cost ||
+        standing < needed ? 0 : assetCode;
+    CrimeUI_Open(playerid, CRIME_DLG_ORG_BUY);
+    return ShowPlayerDialog(playerid, CRIME_DLG_ORG_BUY, DIALOG_STYLE_MSGBOX,
+        "{FFD15C}Развитие синдиката", body,
+        gCrimeUIOrgAsset[playerid] ? ("Приобрести") : ("Назад"), "Закрыть");
+}
+
 stock CrimeUI_Cancel(playerid)
 {
     new id, phase, faction, reward, deadline, title[68];
@@ -531,7 +624,7 @@ stock CrimeUI_Help(playerid)
 
 stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
 {
-    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_TESTIMONY) return 0;
+    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_ORG_BUY) return 0;
 #if defined TARKENSO_DB_PRIMARY
     if (gCrimeUIDialog[playerid] != dialogid ||
         gCrimeUIAuthToken[playerid] != gAuthToken[playerid] ||
@@ -556,13 +649,16 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
         if (dialogid == CRIME_DLG_SCENE) return CrimeUI_Route(playerid);
         if (dialogid == CRIME_DLG_INTERVIEW || dialogid == CRIME_DLG_TESTIMONY)
             return CrimeUI_Route(playerid);
+        if (dialogid == CRIME_DLG_ORG_CONTACT) return CrimeUI_Organization(playerid);
+        if (dialogid == CRIME_DLG_ORG_ASSETS) return CrimeUI_OrgContact(playerid, gCrimeUIOrgContact[playerid]);
+        if (dialogid == CRIME_DLG_ORG_BUY) return CrimeUI_OrgAssets(playerid);
         return CrimeUI_Main(playerid);
     }
     switch (dialogid)
     {
         case CRIME_DLG_MAIN:
         {
-            if (listitem < 0 || listitem > 6) return 1;
+            if (listitem < 0 || listitem > 7) return 1;
             switch (listitem)
             {
                 case 0: return CrimeUI_Contacts(playerid);
@@ -572,7 +668,30 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
                 case 4: return CrimeUI_History(playerid, true);
                 case 5: return CrimeUI_Cancel(playerid);
                 case 6: return CrimeUI_Help(playerid);
+                case 7: return CrimeUI_Organization(playerid);
             }
+        }
+        case CRIME_DLG_ORG:
+        {
+            if (listitem < 0 || listitem >= CRIME_CONTACT_COUNT)
+                return CrimeUI_Organization(playerid);
+            return CrimeUI_OrgContact(playerid, listitem+1);
+        }
+        case CRIME_DLG_ORG_CONTACT:
+            return CrimeUI_OrgAssets(playerid);
+        case CRIME_DLG_ORG_ASSETS:
+        {
+            if (listitem < 0 || listitem > 1) return CrimeUI_OrgAssets(playerid);
+            return CrimeUI_OrgBuyDialog(playerid, listitem+1);
+        }
+        case CRIME_DLG_ORG_BUY:
+        {
+            new cid = gCrimeUIOrgContact[playerid],
+                code = gCrimeUIOrgAsset[playerid];
+            if (code == 0) return CrimeUI_OrgAssets(playerid);
+            gCrimeUIOrgAsset[playerid] = 0; // Single-use even with a replayed click.
+            CrimeOrg_Buy(playerid, cid, code);
+            return CrimeUI_OrgContact(playerid, cid);
         }
         case CRIME_DLG_CONTACTS:
         {
