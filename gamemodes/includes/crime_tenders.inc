@@ -74,6 +74,14 @@ stock bool:CrimeTender_Finalize(tenderId)
         }
         cache_delete(c);
         mysql_format(gDBPrimary,q,sizeof(q),
+            "INSERT INTO crime_tender_incidents(contract_id,incident_code) VALUES (%d,1+MOD(%d,3))",
+            contractId,contractId);
+        if(!Crime_Exec(q))
+        {
+            Crime_Rollback();
+            return false;
+        }
+        mysql_format(gDBPrimary,q,sizeof(q),
             "UPDATE crime_tender_rounds SET state=2,winner_bid_id=%d,winner_contract_id=%d,decided_at=UNIX_TIMESTAMP() WHERE tender_id=%d AND state=1",
             bidId,contractId,tenderId);
         if(!DBPrimary_Execute(q,changed) || changed!=1)
