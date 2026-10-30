@@ -32,6 +32,16 @@ stock GovBond_UI_IssueStatusLabel(const status[],output[],size)
     return 1;
 }
 
+stock GovBond_UI_DayWord(days,output[],size)
+{
+    new lastTwo=days%100,last=days%10;
+    if(lastTwo>=11 && lastTwo<=14)format(output,size,"дней");
+    else if(last==1)format(output,size,"день");
+    else if(last>=2 && last<=4)format(output,size,"дня");
+    else format(output,size,"дней");
+    return 1;
+}
+
 stock GovBond_UI_TypeLabel(const kind[],output[],size)
 {
     if (!strcmp(kind,"GENERAL")) format(output,size,"Общий бюджетный заём");
@@ -619,15 +629,17 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUISelectedIssue[playerid]=id;
         format(gGovUISelectedCode[playerid],65,"%s",code);
         format(gGovUISelectedStatus[playerid],20,"%s",status);
-        new body[1700],extra[400];
+        new body[1700],extra[400],offerDayWord[8],maturityDayWord[8];
+        GovBond_UI_DayWord(offerDays,offerDayWord,sizeof(offerDayWord));
+        GovBond_UI_DayWord(maturityDays,maturityDayWord,sizeof(maturityDayWord));
         GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
         if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");
         GovBond_UI_TypeLabel(issueType,typeLabel,sizeof(typeLabel));
         format(body,sizeof(body),
-            "{E8EDF3}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{E8EDF3}Код выпуска: {E8EDF3}%s\n{E8EDF3}Подал заявку: {E8EDF3}%s\n{E8EDF3}Действующий министр: {E8EDF3}%s\n{E8EDF3}Состояние: {E8EDF3}%s\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Назначение: {E8EDF3}%s\n{E8EDF3}Тип займа: {E8EDF3}%s\n{E8EDF3}Количество облигаций: {E8EDF3}%d\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Продано: %d\n{E8EDF3}Гарантия: $%d\n\n{E8EDF3}Размещение: {E8EDF3}%d дней\n{E8EDF3}Погашение: {E8EDF3}через %d дней после размещения\n{E8EDF3}Дата подачи (UTC): {E8EDF3}%s\n{E8EDF3}Дата выпуска (UTC): {E8EDF3}%s\n{E8EDF3}Окончание размещения: {E8EDF3}%s\n{E8EDF3}Погашение (UTC): {E8EDF3}%s",
+            "{E8EDF3}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{E8EDF3}Код выпуска: {E8EDF3}%s\n{E8EDF3}Подал заявку: {E8EDF3}%s\n{E8EDF3}Действующий министр: {E8EDF3}%s\n{E8EDF3}Состояние: {E8EDF3}%s\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Назначение: {E8EDF3}%s\n{E8EDF3}Тип займа: {E8EDF3}%s\n{E8EDF3}Количество облигаций: {E8EDF3}%d\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Продано: %d\n{E8EDF3}Гарантия: $%d\n\n{E8EDF3}Размещение: {E8EDF3}%d %s\n{E8EDF3}Погашение: {E8EDF3}через %d %s после размещения\n{E8EDF3}Дата подачи (UTC): {E8EDF3}%s\n{E8EDF3}Дата выпуска (UTC): {E8EDF3}%s\n{E8EDF3}Окончание размещения: {E8EDF3}%s\n{E8EDF3}Погашение (UTC): {E8EDF3}%s",
             code,applicant,minister,statusLabel,title,purpose,typeLabel,total,face,
             face*total,yield/100,yield%100,sold,exposure,
-            offerDays,maturityDays,createdAt,offerStart,offerEnd,maturity);
+            offerDays,offerDayWord,maturityDays,maturityDayWord,createdAt,offerStart,offerEnd,maturity);
         if(!strcmp(status,"REJECTED"))
         {
             format(extra,sizeof(extra),
@@ -780,15 +792,18 @@ stock GovBond_UI_Wizard(playerid,step)
 
 stock GovBond_UI_ConfirmDraft(playerid)
 {
-    new body[900],typeLabel[48],codeHint[170];
+    new body[900],typeLabel[48],codeHint[170],offerDayWord[8],maturityDayWord[8];
+    GovBond_UI_DayWord(gGovUIOfferDays[playerid],offerDayWord,sizeof(offerDayWord));
+    GovBond_UI_DayWord(gGovUIMaturityDays[playerid],maturityDayWord,sizeof(maturityDayWord));
     GovBond_UI_TypeLabel(gGovUIType[playerid],typeLabel,sizeof(typeLabel));
     format(body,sizeof(body),
-        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Цель: {E8EDF3}%s\n{E8EDF3}Тип: {E8EDF3}%s\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Количество: {E8EDF3}%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Размещение: %d дней\n{E8EDF3}Погашение через: %d дней после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
+        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Цель: {E8EDF3}%s\n{E8EDF3}Тип: {E8EDF3}%s\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Количество: {E8EDF3}%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Размещение: %d %s\n{E8EDF3}Погашение через: %d %s после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
         gGovUITitle[playerid],gGovUIPurpose[playerid],typeLabel,
         gGovUIFace[playerid],gGovUIQuantity[playerid],
         gGovUIFace[playerid]*gGovUIQuantity[playerid],
         gGovUIYield[playerid]/100,gGovUIYield[playerid]%100,
-        gGovUIOfferDays[playerid],gGovUIMaturityDays[playerid]);
+        gGovUIOfferDays[playerid],offerDayWord,
+        gGovUIMaturityDays[playerid],maturityDayWord);
     if(gGovUIEditing[playerid])
         format(codeHint,sizeof(codeHint),
             "\n{E8EDF3}Сохраняется код выпуска %s.",
