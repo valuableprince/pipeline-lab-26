@@ -211,6 +211,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "crime_intel_ui.inc"
 #include "crime_recovery.inc"
 #include "crime_recovery_ui.inc"
+#include "crime_leaderboard.inc"
 #include "crime_world.inc"
 #include "crime_assets.inc"
 #include "treasury.inc"
@@ -976,6 +977,7 @@ public OnPlayerConnect(playerid)
     CrimeAftermath_Reset(playerid);
     CrimeIntel_Reset(playerid);
     CrimeRecovery_Reset(playerid);
+    CrimeRank_Reset(playerid);
     CrimeWorld_Reset(playerid);
     CrimeAssets_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
@@ -1076,6 +1078,7 @@ public OnPlayerDisconnect(playerid, reason)
     CrimeAftermath_Reset(playerid);
     CrimeIntel_Reset(playerid);
     CrimeRecovery_Reset(playerid);
+    CrimeRank_Reset(playerid);
     CrimeWorld_Reset(playerid);
     CrimeAssets_Reset(playerid);
     gAuthToken[playerid]++;
@@ -1350,6 +1353,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (CrimeAftermath_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeIntelUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeRecoveryUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeRank_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
