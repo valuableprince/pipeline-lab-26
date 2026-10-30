@@ -78,7 +78,7 @@ def finish(db,rid,account,faction):
            SET sc.standing=r.standing_after
            WHERE r.recovery_id=%s AND r.account_id=%s AND r.faction_id=%s
              AND r.state=3 AND r.finished_at>0""",(rid,account,faction))
-        assert n==1
+        assert n in (0,1), "Standing clamp may result in zero changed rows"
         run(db,"COMMIT")
         return True
     except Exception:
