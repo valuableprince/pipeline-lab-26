@@ -581,6 +581,8 @@ stock CrimeUI_History(playerid, bool:journal = false)
             else if (!strcmp(event, "CLUE_FOUND")) format(label, sizeof(label), "Улика изучена");
             else if (!strcmp(event, "EVIDENCE_FOUND")) format(label, sizeof(label), "Улика обнаружена");
             else if (!strcmp(event, "WITNESS_INTERVIEWED")) format(label, sizeof(label), "Свидетель опрошен");
+            else if (!strcmp(event, "RACE_WON")) format(label, sizeof(label), "Победа в конкурсе");
+            else if (!strcmp(event, "RACE_LOST")) format(label, sizeof(label), "Уступил соперникам");
             else if (!strcmp(event, "COMPLETED")) format(label, sizeof(label), "Выполнен");
             else if (!strcmp(event, "EXPIRED")) format(label, sizeof(label), "Срок истёк");
             else if (!strcmp(event, "ABORTED")) format(label, sizeof(label), "Отменён");
