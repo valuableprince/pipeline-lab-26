@@ -17,7 +17,10 @@ class StartRegionContract(unittest.TestCase):
         region_handler = M.split("case DIALOG_REGION:", 1)[1].split("case DIALOG_LOGIN:", 1)[0]
         self.assertIn("bcrypt_hash(playerid", region_handler)
         self.assertIn("gStartRegion[playerid] = listitem + REGION_FORT_CARSON;", region_handler)
-        self.assertIn("dialogid != DIALOG_REGION) return 0;", M)
+        self.assertIn("dialogid != DIALOG_REGION && dialogid != DIALOG_BIRTH) return 0;", M)
+        self.assertIn("case DIALOG_BIRTH:", region_handler)
+        self.assertLess(region_handler.index("Passport_ParseBirth(inputtext"),
+                        region_handler.index("bcrypt_hash(playerid"))
         for name in ("Форт-Карсон", "Лос-Сантос", "Паломино-Крик"):
             self.assertIn(name, D)
 
