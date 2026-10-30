@@ -168,3 +168,73 @@ stock CrimeScenario_EventText(kind, eventId, phase, output[], size)
         format(output, size, "События дела недоступны. Проверьте состояние контракта.");
     return 1;
 }
+
+stock CrimeScenario_InterviewChoices(kind, output[], size)
+{
+    switch (kind)
+    {
+        case 1: format(output, size,
+            "{FFD15C}Вопрос\t{FFD15C}Подход{FFFFFF}\nСверить показания с найденной уликой\tПроверка фактов\nПотребовать объяснений немедленно\tДавление");
+        case 2: format(output, size,
+            "{FFD15C}Вопрос\t{FFD15C}Подход{FFFFFF}\nСопоставить запись и журнал охраны\tПроверка фактов\nОбвинить охранника в пропаже\tДавление");
+        case 3: format(output, size,
+            "{FFD15C}Вопрос\t{FFD15C}Подход{FFFFFF}\nУточнить условия по расписке\tПроверка фактов\nПотребовать немедленного согласия\tДавление");
+        default: format(output, size, "Свидетель недоступен");
+    }
+    return 1;
+}
+
+// NPC testimony is deterministic for the frozen event, the evidence
+// gathered earlier and the selected question. There is no client-side roll.
+stock CrimeScenario_Testimony(kind, eventId, question, clueChoice, output[], size)
+{
+    new witness[65], subject[110], reaction[175];
+    switch (kind)
+    {
+        case 1:
+        {
+            format(witness, sizeof(witness), "Свидетель исчезновения");
+            switch (eventId)
+            {
+                case 1: format(subject, sizeof(subject), "Накладная указывает иной номер вагона.");
+                case 2: format(subject, sizeof(subject), "Телефон исчезнувшего нашли без SIM-карты.");
+                case 3: format(subject, sizeof(subject), "Записка на куртке противоречит маршруту.");
+            }
+        }
+        case 2:
+        {
+            format(witness, sizeof(witness), "Работник склада");
+            switch (eventId)
+            {
+                case 1: format(subject, sizeof(subject), "В учёте не хватает двух коробок.");
+                case 2: format(subject, sizeof(subject), "Ночной сигнал тревоги не внесён в журнал.");
+                case 3: format(subject, sizeof(subject), "Номер контейнера подменён в ведомости.");
+            }
+        }
+        case 3:
+        {
+            format(witness, sizeof(witness), "Участник переговоров");
+            switch (eventId)
+            {
+                case 1: format(subject, sizeof(subject), "Сумма в расписке не совпадает с требованием.");
+                case 2: format(subject, sizeof(subject), "Перевозчик и заказчик спорят о сроке.");
+                case 3: format(subject, sizeof(subject), "В договоре обнаружена неверная дата.");
+            }
+        }
+    }
+    if (question == 1)
+    {
+        if (clueChoice == 1)
+            format(reaction, sizeof(reaction),
+                "NPC сверил подробную улику и подтвердил расхождение. Досье стало убедительнее.");
+        else
+            format(reaction, sizeof(reaction),
+                "NPC ответил на вопросы, но поверхностной улики недостаточно для полной проверки.");
+    }
+    else format(reaction, sizeof(reaction),
+        "После давления NPC замкнулся. Свидетельство получено, но его надёжность вызывает сомнения.");
+    format(output, size,
+        "{FFD15C}СОБЕСЕДНИК:{FFFFFF} %s\n{FFD15C}ФАКТ:{FFFFFF} %s\n\n%s\n\n{FFD15C}ИТОГ:{FFFFFF} Подготовьте решение для посредника.",
+        witness, subject, reaction);
+    return 1;
+}
