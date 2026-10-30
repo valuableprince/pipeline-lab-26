@@ -114,7 +114,7 @@ stock bool:Passport_Load(playerid)
         return false;
 
     new query[360], affected;
-    format(query, sizeof(query),
+    mysql_format(gDBPrimary, query, sizeof(query),
         "INSERT INTO player_passports (account_id,issued_on) "
         "SELECT account_id,DATE(created_at) FROM accounts WHERE account_id=%d "
         "ON DUPLICATE KEY UPDATE account_id=account_id",
@@ -125,15 +125,15 @@ stock bool:Passport_Load(playerid)
     // Existing records cannot be overwritten by repeat registration.
     if (gPassportPendingBirth[playerid][0])
     {
-        format(query, sizeof(query),
-            "UPDATE player_passports SET birth_date='%s' "
+        mysql_format(gDBPrimary, query, sizeof(query),
+            "UPDATE player_passports SET birth_date='%e' "
             "WHERE account_id=%d AND birth_date IS NULL",
             gPassportPendingBirth[playerid], gDBPrimaryAccountId[playerid]);
         if (!DBPrimary_Execute(query, affected)) return false;
         gPassportPendingBirth[playerid][0] = EOS;
     }
 
-    format(query, sizeof(query),
+    mysql_format(gDBPrimary, query, sizeof(query),
         "SELECT passport_id,CAST(issued_on AS CHAR(10)) AS issue_date,"
         "COALESCE(CAST(birth_date AS CHAR(10)),'') AS birth_date "
         "FROM player_passports WHERE account_id=%d LIMIT 1",
@@ -162,8 +162,8 @@ stock bool:Passport_SaveBirth(playerid, const birthISO[])
         gPassportID[playerid] <= 0 || gPassportBirth[playerid][0])
         return false;
     new q[220], changed;
-    format(q, sizeof(q),
-        "UPDATE player_passports SET birth_date='%s' "
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE player_passports SET birth_date='%e' "
         "WHERE passport_id=%d AND account_id=%d AND birth_date IS NULL",
         birthISO, gPassportID[playerid], gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1) return false;
