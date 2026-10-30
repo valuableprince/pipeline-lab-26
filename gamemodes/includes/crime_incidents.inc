@@ -206,6 +206,14 @@ stock bool:CrimeIncident_Resolve(playerid,contractId,choice)
         }
     }
     mysql_format(gDBPrimary,q,sizeof(q),
+        "INSERT INTO crime_tender_aftermath(contract_id,choice) SELECT i.contract_id,i.choice FROM crime_tender_incidents i JOIN crime_contracts c ON c.contract_id=i.contract_id WHERE i.contract_id=%d AND i.choice=%d AND i.resolved_at>0 AND c.account_id=%d AND c.mode_id=3 AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP()",
+        contractId,choice,gDBPrimaryAccountId[playerid]);
+    if(!DBPrimary_Execute(q,affected) || affected!=1)
+    {
+        Crime_Rollback();
+        return false;
+    }
+    mysql_format(gDBPrimary,q,sizeof(q),
         "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'INCIDENT_RESOLVED')",
         contractId,gDBPrimaryAccountId[playerid]);
     if(!Crime_Exec(q))
