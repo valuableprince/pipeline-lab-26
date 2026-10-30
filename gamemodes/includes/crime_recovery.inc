@@ -190,7 +190,9 @@ stock bool:CrimeRecovery_Finish(playerid,recoveryId)
     mysql_format(gDBPrimary,q,sizeof(q),
         "UPDATE crime_syndicate_contacts sc JOIN crime_contact_recoveries r ON r.faction_id=sc.faction_id AND r.contact_id=sc.contact_id SET sc.standing=r.standing_after WHERE r.recovery_id=%d AND r.account_id=%d AND r.faction_id=%d AND r.state=3 AND r.finished_at>0",
         id,gDBPrimaryAccountId[playerid],Leader_PlayerOrg(playerid));
-    if(!DBPrimary_Execute(q,affected) || affected!=1)
+    // A quiet route does not change standing; a risky route can hit the
+    // zero clamp. Both are valid updates with 0 changed rows in MySQL.
+    if(!Crime_Exec(q))
     {
         Crime_Rollback();
         return false;
