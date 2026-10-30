@@ -93,7 +93,7 @@ stock CrimeUI_Main(playerid)
         return SendClientMessage(playerid, CRIME_ERROR,
             "Теневой рынок доступен сотрудникам криминальных организаций.");
     new id, phase, faction, reward, deadline, title[68];
-    new Float:pickup[3], Float:delivery[3], body[450], status[96];
+    new Float:pickup[3], Float:delivery[3], body[570], status[96];
     if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
         pickup, delivery, title, sizeof(title)))
         return SendClientMessage(playerid, CRIME_ERROR,
@@ -103,7 +103,7 @@ stock CrimeUI_Main(playerid)
             phase == 1 ? ("Ожидает получения") : ("В пути"));
     else format(status, sizeof(status), "Нет активного заказа");
     format(body, sizeof(body),
-        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nПосредники и заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает\nСиндикат и активы\tВлияние и связи",
+        "{FFD15C}Раздел\t{FFD15C}Состояние{FFFFFF}\nПосредники и заказы\t%s\nМой контракт\t%s\nМаршрут и действие\t%s\nИстория контрактов\tПоследние 6\nЖурнал операций\tПоследние 8\nОтказаться от контракта\t%s\nОбучение\tКак это работает\nСиндикат и активы\tВлияние и связи\nОбщие конкурсы\tТри синдиката",
         id ? ("Доступны другие контакты") : ("Три города"),
         status, id ? ("Доступен") : ("Нет активного заказа"),
         id ? ("Доступно") : ("Нет активного заказа"));
@@ -557,7 +557,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
             gDBPrimaryAccountId[playerid]);
     else
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT c.contract_id,c.state,c.reward_amount,c.scenario_kind,COALESCE(r.trust_delta,0) trust_delta,COALESCE(h.heat_delta,0) heat_delta FROM crime_contracts c LEFT JOIN crime_contact_trust_events r ON r.contract_id=c.contract_id LEFT JOIN crime_contact_heat_events h ON h.contract_id=c.contract_id WHERE c.account_id=%d ORDER BY c.contract_id DESC LIMIT 6",
+            "SELECT c.contract_id,c.state,c.reward_amount,c.scenario_kind,COALESCE(c.competition_id,0) competition_id,COALESCE(r.trust_delta,0) trust_delta,COALESCE(h.heat_delta,0) heat_delta FROM crime_contracts c LEFT JOIN crime_contact_trust_events r ON r.contract_id=c.contract_id LEFT JOIN crime_contact_heat_events h ON h.contract_id=c.contract_id WHERE c.account_id=%d ORDER BY c.contract_id DESC LIMIT 6",
             gDBPrimaryAccountId[playerid]);
     new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) || !cache_get_row_count(rows))
@@ -571,7 +571,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
         "{FFD15C}Контракт\t{FFD15C}Состояние\t{FFD15C}Награда{FFFFFF}\n");
     for (new i; i < rows; i++)
     {
-        new id, phase, reward, kind = 0, trustGain = 0, heatDelta = 0, event[24], label[64];
+        new id, phase, reward, kind = 0, roundId = 0, trustGain = 0, heatDelta = 0, event[24], label[64];
         if (!cache_get_value_name_int(i, "contract_id", id)) break;
         if (journal)
         {
@@ -592,6 +592,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
             if (!cache_get_value_name_int(i, "state", phase) ||
                 !cache_get_value_name_int(i, "reward_amount", reward) ||
                 !cache_get_value_name_int(i, "scenario_kind", kind) ||
+                !cache_get_value_name_int(i, "competition_id", roundId) ||
                 !cache_get_value_name_int(i, "trust_delta", trustGain) ||
                 !cache_get_value_name_int(i, "heat_delta", heatDelta)) break;
             switch (phase)
@@ -603,6 +604,8 @@ stock CrimeUI_History(playerid, bool:journal = false)
                 case 5: format(label, sizeof(label), "Отменён");
                 default: format(label, sizeof(label), "Неизвестен");
             }
+            if (roundId > 0 && phase == 5) format(label, sizeof(label), "Уступил соперникам");
+            else if (roundId > 0 && phase == 3) format(label, sizeof(label), "Победа синдиката");
             if (kind > 0 && phase == 3 && trustGain > 0)
             {
                 format(line, sizeof(line), "#%d\t%s (+%d дов., риск %d)\t$%d\n",
@@ -634,7 +637,7 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие. Рискованные решения повышают внимание; доставки снижают его.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\n{FFD15C}6. Синдикат{FFFFFF}\nКонтракты дают влияние и связи с NPC. Руководство покупает активы за влияние. Для активации и обслуживания подойдите к объекту возле посредника и нажмите Y.\n\nВсё управление доступно из /crime и меню организации.",
+        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие. Рискованные решения повышают внимание; доставки снижают его.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\n{FFD15C}6. Синдикат{FFFFFF}\nКонтракты дают влияние и связи с NPC. Руководство покупает активы за влияние. Для активации и обслуживания подойдите к объекту возле посредника и нажмите Y.\n\n{FFD15C}7. Общие конкурсы{FFFFFF}\nКаждый час появляются три общих заказа. Первый доставивший синдикат получает награду и дополнительное влияние. Можно победить даже одному.\n\nВсё управление доступно из /crime и меню организации.",
         "Назад", "Закрыть");
 }
 
@@ -674,7 +677,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
     {
         case CRIME_DLG_MAIN:
         {
-            if (listitem < 0 || listitem > 7) return 1;
+            if (listitem < 0 || listitem > 8) return 1;
             switch (listitem)
             {
                 case 0: return CrimeUI_Contacts(playerid);
@@ -685,6 +688,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
                 case 5: return CrimeUI_Cancel(playerid);
                 case 6: return CrimeUI_Help(playerid);
                 case 7: return CrimeUI_Organization(playerid);
+                case 8: return CrimeCompUI_Board(playerid);
             }
         }
         case CRIME_DLG_ORG:
