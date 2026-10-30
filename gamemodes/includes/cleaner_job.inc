@@ -447,10 +447,10 @@ stock Cleaner_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
         ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.1,
             false, false, false, false, 0, SYNC_NONE);
         ClearAnimations(playerid);
-        SendClientMessage(playerid, CLEANER_COLOR,
-            "Смена началась! Мешок выдан. Собирайте мусор, подходя к нему.");
-        SendClientMessage(playerid, COLOR_GREY,
-            "Сдать мусор: /trashdrop у контейнера. Закончить смену: левый ALT у NPC.");
+        TNotify_Send(playerid,TNOTIFY_WORK,TNOTIFY_SUCCESS,
+            "Смена началась. Мешок выдан. Подходите к мусору для сбора.");
+        TNotify_Send(playerid,TNOTIFY_WORK,TNOTIFY_HINT,
+            "Сдать: /trashdrop у контейнера. Завершить: левый ALT у NPC.");
         return 1;
     }
     // Сдать мусор можно только у контейнера, а не у диспетчера.
@@ -459,7 +459,7 @@ stock Cleaner_OnKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
             "Сначала сдайте мусор у контейнера через /trashdrop, затем завершайте смену.");
     if (!Cleaner_FinishNightContract(playerid)) return 1;
     Cleaner_EndShift(playerid);
-    SendClientMessage(playerid, CLEANER_COLOR,
+    TNotify_Send(playerid,TNOTIFY_WORK,TNOTIFY_SUCCESS,
         "Смена завершена. До встречи!");
     return 1;
 }
