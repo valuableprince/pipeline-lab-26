@@ -139,7 +139,7 @@ class CouponContracts(unittest.TestCase):
             "COUNT(*) OVER()",
             "LIMIT %d",
             "if(rows==0)",
-            "SendClientMessage(playerid,BOND_COUPON_CHAT_COLOR,offline?",
+            "TNotify_Send(playerid,TNOTIFY_FINANCE,TNOTIFY_SUCCESS,offline?",
             "За время отсутствия начислены купоны",
             "Начислены купоны за PayDay",
             "Всего начислено",
