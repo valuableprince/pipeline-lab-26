@@ -17,7 +17,7 @@ class CrimePhysicalScenes(unittest.TestCase):
                       "WHERE c.scenario_kind BETWEEN 1 AND 3",
                       "VALUES (36)"):
             self.assertIn(token, SQL)
-        self.assertIn("version=43 LIMIT 1", CORE)
+        self.assertIn("version=44 LIMIT 1", CORE)
         self.assertIn("evidence_found_at>0 AND %d IN(1,2)", CORE)
         self.assertIn("CrimeWorld_EvidenceReady(playerid, id)", CORE)
         self.assertIn("CrimeWorld_Init()", CORE)
