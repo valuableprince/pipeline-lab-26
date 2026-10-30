@@ -106,17 +106,14 @@ stock bool:CrimeRecovery_Start(playerid,contact,method)
        IsPlayerInAnyVehicle(playerid) ||
        contact<1 || contact>3 || method<1 || method>2 ||
        !CrimeContacts_Near(playerid,contact) ||
-       !Crime_Expire(playerid) ||
-       !Crime_Exec("START TRANSACTION")) return false;
+       !Crime_Expire(playerid)) return false;
     new q[1200],affected;
     mysql_format(gDBPrimary,q,sizeof(q),
         "UPDATE crime_contact_recoveries SET state=4 WHERE account_id=%d AND state IN(1,2) AND expires_at<=UNIX_TIMESTAMP()",
         gDBPrimaryAccountId[playerid]);
-    if(!Crime_Exec(q))
-    {
-        Crime_Rollback();
-        return false;
-    }
+    // Expiry cleanup is durable even when the new mission is rejected
+    // for cooldown, heat or faction changes.
+    if(!Crime_Exec(q) || !Crime_Exec("START TRANSACTION")) return false;
     mysql_format(gDBPrimary,q,sizeof(q),
         "INSERT INTO crime_contact_recoveries(account_id,faction_id,contact_id,method,started_at,expires_at) SELECT m.account_id,m.faction_id,p.contact_id,%d,UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+1200 FROM faction_members m JOIN crime_contact_progress p ON p.account_id=m.account_id AND p.contact_id=%d AND p.heat>=60 JOIN crime_syndicate_contacts sc ON sc.faction_id=m.faction_id AND sc.contact_id=p.contact_id WHERE m.account_id=%d AND m.faction_id=%d AND NOT EXISTS(SELECT 1 FROM crime_contact_recoveries r WHERE r.account_id=m.account_id AND r.state IN(1,2)) AND NOT EXISTS(SELECT 1 FROM crime_contact_recoveries old WHERE old.account_id=m.account_id AND old.contact_id=p.contact_id AND old.started_at>UNIX_TIMESTAMP()-3600) AND NOT EXISTS(SELECT 1 FROM crime_contracts c WHERE c.account_id=m.account_id AND c.state IN(1,2))",
         method,contact,gDBPrimaryAccountId[playerid],Leader_PlayerOrg(playerid));
