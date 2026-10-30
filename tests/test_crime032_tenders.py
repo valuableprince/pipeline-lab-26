@@ -21,7 +21,7 @@ class TenderTests(unittest.TestCase):
                   "'TENDER_SF_01'","'TENDER_LV_01'",
                   "VALUES (42)"):
             self.assertIn(s,SQL)
-        self.assertIn("version=45 LIMIT 1",CORE)
+        self.assertIn("version=46 LIMIT 1",CORE)
         self.assertIn("042_crime_tender_offers.sql",BUILD)
         self.assertIn("crime032_mysql_uat.py",BUILD)
 
