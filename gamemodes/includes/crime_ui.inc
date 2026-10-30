@@ -124,10 +124,13 @@ stock CrimeUI_ContactDetail(playerid, contactId)
     new trust, completed, introduced;
     if (!CrimeContacts_Progress(playerid, contactId, trust, completed, introduced))
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось загрузить доверие.");
-    new i = contactId - 1, body[620];
+    new heat;
+    if (!CrimeContacts_Heat(playerid, contactId, heat))
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось загрузить уровень внимания.");
+    new i = contactId - 1, body[720];
     format(body, sizeof(body),
-        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ГОРОД:{FFFFFF} %s\n{FFD15C}ДОВЕРИЕ:{FFFFFF} %d/100\n{FFD15C}ВЫПОЛНЕННЫЕ ЗАКАЗЫ:{FFFFFF} %d\n{FFD15C}ЗНАКОМСТВО:{FFFFFF} %s\n\n{FFD15C}МЕСТО ВСТРЕЧИ:{FFFFFF}\nX %.1f, Y %.1f, Z %.1f\n\nПодойдите к посреднику на расстояние до 5 метров и нажмите «Поговорить». После знакомства откроются его предложения.",
-        gCrimeContactName[i], gCrimeContactCity[i], trust, completed,
+        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ГОРОД:{FFFFFF} %s\n{FFD15C}ДОВЕРИЕ:{FFFFFF} %d/100\n{FFD15C}ВНИМАНИЕ:{FFFFFF} %d/100\n{FFD15C}ВЫПОЛНЕННЫЕ ЗАКАЗЫ:{FFFFFF} %d\n{FFD15C}ЗНАКОМСТВО:{FFFFFF} %s\n\n{FFD15C}МЕСТО ВСТРЕЧИ:{FFFFFF}\nX %.1f, Y %.1f, Z %.1f\n\nПодойдите к посреднику на расстояние до 5 метров и нажмите «Поговорить». После знакомства откроются его предложения.",
+        gCrimeContactName[i], gCrimeContactCity[i], trust, heat, completed,
         introduced ? ("Состоится повторная встреча") : ("Вы ещё не знакомы"),
         gCrimeContactPos[i][0], gCrimeContactPos[i][1], gCrimeContactPos[i][2]);
     gCrimeUIContact[playerid] = contactId;
@@ -186,6 +189,7 @@ stock CrimeUI_Offers(playerid)
         gCrimeUIOfferId[playerid][i] = offerIds[i];
         gCrimeUIOfferCount[playerid]++;
         if (alreadyDone) format(status, sizeof(status), "Пройдено");
+        else if (remaining < 0) format(status, sizeof(status), "Высокое внимание");
         else if (remaining > 0)
             format(status, sizeof(status), "Через %d мин", (remaining + 59) / 60);
         else format(status, sizeof(status), "Доступно (%d мин)", offerDuration[i] / 60);
@@ -232,6 +236,8 @@ stock CrimeUI_OfferDetail(playerid, templateId)
         return SendClientMessage(playerid, CRIME_ERROR, "Нельзя проверить доступность.");
     if (alreadyDone) format(availability, sizeof(availability),
         "Уникальный заказ уже пройден: повторное принятие запрещено.");
+    else if (remaining < 0) format(availability, sizeof(availability),
+        "Слишком много внимания. Выполняйте обычные перевозки, чтобы снизить риск.");
     else if (remaining > 0) format(availability, sizeof(availability),
         "Повтор будет доступен через %d минут.", (remaining + 59) / 60);
     else format(availability, sizeof(availability),
@@ -243,7 +249,7 @@ stock CrimeUI_OfferDetail(playerid, templateId)
         scenarioKind == 0 ? ("Перевезите груз. Успешная сдача даст +5 доверия.") :
         ("Найдите улики и примите два решения. От выборов зависит доверие."),
         availability);
-    gCrimeUISelectedTemplate[playerid] = alreadyDone || remaining > 0 ? 0 : templateId;
+    gCrimeUISelectedTemplate[playerid] = alreadyDone || remaining != 0 ? 0 : templateId;
     CrimeUI_Open(playerid, CRIME_DLG_OFFER);
     return ShowPlayerDialog(playerid, CRIME_DLG_OFFER, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Заказ посредника", body,
@@ -442,7 +448,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
             gDBPrimaryAccountId[playerid]);
     else
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT c.contract_id,c.state,c.reward_amount,c.scenario_kind,COALESCE(r.trust_delta,0) trust_delta FROM crime_contracts c LEFT JOIN crime_contact_trust_events r ON r.contract_id=c.contract_id WHERE c.account_id=%d ORDER BY c.contract_id DESC LIMIT 6",
+            "SELECT c.contract_id,c.state,c.reward_amount,c.scenario_kind,COALESCE(r.trust_delta,0) trust_delta,COALESCE(h.heat_delta,0) heat_delta FROM crime_contracts c LEFT JOIN crime_contact_trust_events r ON r.contract_id=c.contract_id LEFT JOIN crime_contact_heat_events h ON h.contract_id=c.contract_id WHERE c.account_id=%d ORDER BY c.contract_id DESC LIMIT 6",
             gDBPrimaryAccountId[playerid]);
     new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) || !cache_get_row_count(rows))
@@ -456,7 +462,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
         "{FFD15C}Контракт\t{FFD15C}Состояние\t{FFD15C}Награда{FFFFFF}\n");
     for (new i; i < rows; i++)
     {
-        new id, phase, reward, kind = 0, trustGain = 0, event[24], label[64];
+        new id, phase, reward, kind = 0, trustGain = 0, heatDelta = 0, event[24], label[64];
         if (!cache_get_value_name_int(i, "contract_id", id)) break;
         if (journal)
         {
@@ -477,7 +483,8 @@ stock CrimeUI_History(playerid, bool:journal = false)
             if (!cache_get_value_name_int(i, "state", phase) ||
                 !cache_get_value_name_int(i, "reward_amount", reward) ||
                 !cache_get_value_name_int(i, "scenario_kind", kind) ||
-                !cache_get_value_name_int(i, "trust_delta", trustGain)) break;
+                !cache_get_value_name_int(i, "trust_delta", trustGain) ||
+                !cache_get_value_name_int(i, "heat_delta", heatDelta)) break;
             switch (phase)
             {
                 case 1: format(label, sizeof(label), "Ожидает груза");
@@ -489,9 +496,12 @@ stock CrimeUI_History(playerid, bool:journal = false)
             }
             if (kind > 0 && phase == 3 && trustGain > 0)
             {
-                format(line, sizeof(line), "#%d\t%s (+%d доверия)\t$%d\n",
-                    id, label, trustGain, reward);
+                format(line, sizeof(line), "#%d\t%s (+%d дов., риск %d)\t$%d\n",
+                    id, label, trustGain, heatDelta, reward);
             }
+            else if (phase == 3)
+                format(line, sizeof(line), "#%d\t%s (риск %d)\t$%d\n",
+                    id, label, heatDelta, reward);
             else format(line, sizeof(line), "#%d\t%s\t$%d\n", id, label, reward);
         }
         strcat(body, line, sizeof(body));
@@ -515,7 +525,7 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\nВсё управление доступно из /crime и меню организации.",
+        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие. Рискованные решения повышают внимание; доставки снижают его.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\nВсё управление доступно из /crime и меню организации.",
         "Назад", "Закрыть");
 }
 
