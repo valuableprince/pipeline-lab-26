@@ -307,7 +307,7 @@ stock CrimeUI_Route(playerid)
         CrimeScenario_EventText(kind, eventId, phase, narrative, sizeof(narrative));
         strcat(body, "\n\n{FFD15C}ОБСТОЯТЕЛЬСТВА:{FFFFFF} ", sizeof(body));
         strcat(body, narrative, sizeof(body));
-        strcat(body, "\n\n{FFD15C}ВЗАИМОДЕЙСТВИЕ:{FFFFFF} Подойдите к улике или NPC на 3.5 м и нажмите Y.", sizeof(body);
+        strcat(body, "\n\n{FFD15C}ВЗАИМОДЕЙСТВИЕ:{FFFFFF} Подойдите к улике или NPC на 3.5 м и нажмите Y.", sizeof(body));
     }
     CrimeUI_Open(playerid, CRIME_DLG_ROUTE);
     return ShowPlayerDialog(playerid, CRIME_DLG_ROUTE, DIALOG_STYLE_MSGBOX,
