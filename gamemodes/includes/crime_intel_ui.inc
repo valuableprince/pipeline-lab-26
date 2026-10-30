@@ -71,9 +71,7 @@ stock CrimeIntelUI_Decision(playerid,contractId)
     return ShowPlayerDialog(playerid,CRIME_INTEL_DLG_DECISION,
         DIALOG_STYLE_TABLIST_HEADERS,
         "{FFD15C}Оперативная сводка | Решение",
-        "{FFD15C}Действие\t{FFD15C}Результат{FFFFFF}\n"
-        "Передать в архив синдиката\tВлияние +4, связи +1\n"
-        "Стереть следы\tВнимание -10, доверие +1\n",
+        "{FFD15C}Действие\t{FFD15C}Результат{FFFFFF}\nПередать в архив синдиката\tВлияние +4, связи +1\nСтереть следы\tВнимание -10, доверие +1\n",
         "Подтвердить","Назад");
 }
 
