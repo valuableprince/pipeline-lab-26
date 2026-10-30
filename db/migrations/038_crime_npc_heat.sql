@@ -3,6 +3,7 @@
 -- heat 0..100 is per account AND per contact; no other factions are affected.
 ALTER TABLE crime_contact_progress
   ADD COLUMN heat TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN heat_event_count INT UNSIGNED NOT NULL DEFAULT 0,
   ADD CONSTRAINT chk_crime_contact_heat CHECK (heat BETWEEN 0 AND 100);
 
 ALTER TABLE crime_contracts
