@@ -17,6 +17,8 @@
 #define CRIME_DLG_CONTACTS   (7959)
 #define CRIME_DLG_CONTACT    (7960)
 #define CRIME_DLG_SCENE      (7961)
+#define CRIME_DLG_INTERVIEW  (7962)
+#define CRIME_DLG_TESTIMONY  (7963)
 #define CRIME_OFFER_MAX      (8)
 
 new gCrimeUIDialog[MAX_PLAYERS];
@@ -26,6 +28,7 @@ new gCrimeUIContact[MAX_PLAYERS];
 new gCrimeUISelectedTemplate[MAX_PLAYERS];
 new gCrimeUISceneContract[MAX_PLAYERS];
 new gCrimeUIScenePhase[MAX_PLAYERS];
+new gCrimeUIWitnessContract[MAX_PLAYERS];
 new gCrimeUIOfferCount[MAX_PLAYERS];
 new gCrimeUIOfferId[MAX_PLAYERS][CRIME_OFFER_MAX];
 
@@ -38,6 +41,7 @@ stock CrimeUI_Reset(playerid)
     gCrimeUISelectedTemplate[playerid] = 0;
     gCrimeUISceneContract[playerid] = 0;
     gCrimeUIScenePhase[playerid] = 0;
+    gCrimeUIWitnessContract[playerid] = 0;
     gCrimeUIOfferCount[playerid] = 0;
     return 1;
 }
@@ -337,6 +341,12 @@ stock CrimeUI_Scene(playerid)
             "Подойдите к объекту, нажмите Y и изучите улику.");
         return CrimeUI_Route(playerid);
     }
+    if (phase == 2 && !CrimeWorld_InterviewReady(playerid, id))
+    {
+        SendClientMessage(playerid, CRIME_ERROR,
+            "Сначала поговорите с участником дела (Y).");
+        return CrimeUI_Route(playerid);
+    }
     new body[470];
     CrimeScenario_Choices(kind, phase, body, sizeof(body));
     gCrimeUISceneContract[playerid] = id;
@@ -344,6 +354,59 @@ stock CrimeUI_Scene(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_SCENE);
     return ShowPlayerDialog(playerid, CRIME_DLG_SCENE, DIALOG_STYLE_TABLIST_HEADERS,
         "{FFD15C}Решение по делу", body, "Выбрать", "Назад");
+}
+
+// Witness interview is a separate mandatory stage between evidence and
+// final resolution. Every dialog reopening checks the current SQL contract.
+stock CrimeUI_Witness(playerid)
+{
+    new id, phase, faction, reward, deadline, title[68];
+    new Float:pickup[3], Float:delivery[3];
+    if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
+        pickup, delivery, title, sizeof(title)) || !id || phase != 2 ||
+        faction != Leader_PlayerOrg(playerid) ||
+        IsPlayerInAnyVehicle(playerid) || GetPlayerInterior(playerid) != 0 ||
+        GetPlayerVirtualWorld(playerid) != 0 ||
+        !IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS,
+            delivery[0], delivery[1], delivery[2]))
+        return CrimeUI_Main(playerid);
+    new kind, choice, question, interviewedAt;
+    if (!CrimeScenario_Info(playerid, id, kind, choice) || kind == 0 ||
+        !CrimeWorld_InterviewInfo(playerid, id, question, interviewedAt))
+        return CrimeUI_Main(playerid);
+    if (interviewedAt > 0) return CrimeUI_Testimony(playerid);
+    new body[460];
+    CrimeScenario_InterviewChoices(kind, body, sizeof(body));
+    gCrimeUIWitnessContract[playerid] = id;
+    CrimeUI_Open(playerid, CRIME_DLG_INTERVIEW);
+    return ShowPlayerDialog(playerid, CRIME_DLG_INTERVIEW, DIALOG_STYLE_TABLIST_HEADERS,
+        "{FFD15C}Разговор с участником", body, "Спросить", "Назад");
+}
+
+stock CrimeUI_Testimony(playerid)
+{
+    new id, phase, faction, reward, deadline, title[68];
+    new Float:pickup[3], Float:delivery[3];
+    if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
+        pickup, delivery, title, sizeof(title)) || !id || phase != 2 ||
+        faction != Leader_PlayerOrg(playerid) ||
+        IsPlayerInAnyVehicle(playerid) || GetPlayerInterior(playerid) != 0 ||
+        GetPlayerVirtualWorld(playerid) != 0 ||
+        !IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS,
+            delivery[0], delivery[1], delivery[2]))
+        return CrimeUI_Main(playerid);
+    new kind, choice, question, interviewedAt, eventId;
+    if (!CrimeScenario_Info(playerid, id, kind, choice) || kind == 0 ||
+        !CrimeWorld_InterviewInfo(playerid, id, question, interviewedAt) ||
+        interviewedAt <= 0 ||
+        !CrimeScenario_EventInfo(playerid, id, eventId))
+        return CrimeUI_Main(playerid);
+    new body[540];
+    CrimeScenario_Testimony(kind, eventId, question, choice, body, sizeof(body));
+    gCrimeUIWitnessContract[playerid] = id;
+    CrimeUI_Open(playerid, CRIME_DLG_TESTIMONY);
+    return ShowPlayerDialog(playerid, CRIME_DLG_TESTIMONY, DIALOG_STYLE_MSGBOX,
+        "{FFD15C}Показания участника", body, "Решение", "Назад");
 }
 
 stock CrimeUI_Cancel(playerid)
@@ -450,13 +513,13 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ предмета-улики или NPC-участника нажмите Y. Выбор влияет на доверие, обстоятельства меняются.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\nВсё управление доступно из /crime и меню организации.",
+        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\nВсё управление доступно из /crime и меню организации.",
         "Назад", "Закрыть");
 }
 
 stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
 {
-    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_SCENE) return 0;
+    if (dialogid < CRIME_DLG_MAIN || dialogid > CRIME_DLG_TESTIMONY) return 0;
 #if defined TARKENSO_DB_PRIMARY
     if (gCrimeUIDialog[playerid] != dialogid ||
         gCrimeUIAuthToken[playerid] != gAuthToken[playerid] ||
@@ -479,6 +542,8 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
         if (dialogid == CRIME_DLG_OFFERS) return CrimeUI_ContactDetail(playerid, gCrimeUIContact[playerid]);
         if (dialogid == CRIME_DLG_CONTACT) return CrimeUI_Contacts(playerid);
         if (dialogid == CRIME_DLG_SCENE) return CrimeUI_Route(playerid);
+        if (dialogid == CRIME_DLG_INTERVIEW || dialogid == CRIME_DLG_TESTIMONY)
+            return CrimeUI_Route(playerid);
         return CrimeUI_Main(playerid);
     }
     switch (dialogid)
@@ -541,6 +606,34 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
             Crime_Advance(playerid, phase == 2); // Classic courier remains unchanged.
             if (phase == 1) return CrimeUI_Route(playerid);
             return CrimeUI_Main(playerid);
+        }
+        case CRIME_DLG_INTERVIEW:
+        {
+            if (listitem < 0 || listitem > 1) return CrimeUI_Main(playerid);
+            new id, phase, faction, reward, deadline, title[68];
+            new Float:pickup[3], Float:delivery[3];
+            if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
+                pickup, delivery, title, sizeof(title)) || !id || phase != 2 ||
+                id != gCrimeUIWitnessContract[playerid])
+                return CrimeUI_Main(playerid);
+            if (!CrimeWorld_Interview(playerid, id, faction, listitem + 1))
+            {
+                SendClientMessage(playerid, CRIME_ERROR,
+                    "Не удалось сохранить разговор. Проверьте свой контракт.");
+                return CrimeUI_Route(playerid);
+            }
+            return CrimeUI_Testimony(playerid);
+        }
+        case CRIME_DLG_TESTIMONY:
+        {
+            new id, phase, faction, reward, deadline, title[68];
+            new Float:pickup[3], Float:delivery[3];
+            if (!CrimeUI_ReadActive(playerid, id, phase, faction, reward, deadline,
+                pickup, delivery, title, sizeof(title)) || !id || phase != 2 ||
+                id != gCrimeUIWitnessContract[playerid] ||
+                !CrimeWorld_InterviewReady(playerid, id))
+                return CrimeUI_Main(playerid);
+            return CrimeUI_Scene(playerid);
         }
         case CRIME_DLG_SCENE:
         {
