@@ -7,6 +7,7 @@ from build_contracts import assert_staged
 ROOT=Path(__file__).resolve().parents[1]
 SQL=(ROOT/"db/migrations/023_bond_governance.sql").read_text("utf-8")
 UI=(ROOT/"gamemodes/includes/bond_governance_ui.inc").read_text("utf-8")
+EDU=(ROOT/"gamemodes/includes/bond_education.inc").read_text("utf-8")
 MAIN=(ROOT/"gamemodes/signal0317.pwn").read_text("utf-8")
 COMMANDS=(ROOT/"gamemodes/includes/commands.inc").read_text("utf-8")
 DB=(ROOT/"gamemodes/includes/db_primary.inc").read_text("utf-8")
@@ -372,6 +373,25 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("offerDays,offerDayWord,maturityDays,maturityDayWord",UI)
         self.assertIn("gGovUIOfferDays[playerid],offerDayWord,",UI)
         self.assertIn("gGovUIMaturityDays[playerid],maturityDayWord);",UI)
+
+    def test_fund_lessons_explain_state_treasury_not_minister_wallet(self):
+        # User acceptance test 5.1: the fund reserves treasury funds, not player cash.
+        intro=EDU.split("case 3: format(body,sizeof(body),",1)[1].split("case 4:",1)[0]
+        lesson=EDU.split("case 9: format(body,sizeof(body),",1)[1].split("case 10:",1)[0]
+        faq=EDU.split("case 11: format(body,sizeof(body),",1)[1].split("gBondEduTopic[playerid]=topic;",1)[0]
+        self.assertIn("из казны, а не из своего кармана",intro)
+        self.assertIn("не из личного кошелька министра",lesson)
+        self.assertIn("Личные деньги игрока не списываются.",lesson)
+        self.assertIn("Общий баланс казны не меняется",lesson)
+        self.assertIn("страховой резерв растёт на $1000",lesson)
+        self.assertIn("свободных денег становится на $1000 меньше",lesson)
+        self.assertIn("ПОЧЕМУ НЕ СПИСАЛИСЬ ДЕНЬГИ У МИНИСТРА?",faq)
+        self.assertIn("return BondEducation_Open(playerid,1);",UI)
+        self.assertIn("BOND_EDU_TOPIC_COUNT (12)",EDU)
+        sql=(ROOT/"db/migrations/029_minfin_fund_capitalization.sql").read_text("utf-8")
+        self.assertIn("bond_fund_reserved=bond_fund_reserved+p_amount",sql)
+        self.assertNotIn("SET balance=balance-p_amount",sql)
+        self.assertNotIn("UPDATE accounts",sql)
 
     def test_fund_topup_dialog_highlights_values_and_status(self):
         # BOND-UI-07: only this finance form uses semantic colors.
