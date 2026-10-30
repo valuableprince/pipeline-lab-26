@@ -17,7 +17,7 @@ class CrimePhysicalScenes(unittest.TestCase):
                       "WHERE c.scenario_kind BETWEEN 1 AND 3",
                       "VALUES (36)"):
             self.assertIn(token, SQL)
-        self.assertIn("version=36 LIMIT 1", CORE)
+        self.assertIn("version=37 LIMIT 1", CORE)
         self.assertIn("evidence_found_at>0 AND %d IN(1,2)", CORE)
         self.assertIn("CrimeWorld_EvidenceReady(playerid, id)", CORE)
         self.assertIn("CrimeWorld_Init()", CORE)
@@ -54,7 +54,7 @@ class CrimePhysicalScenes(unittest.TestCase):
     def test_menu_cannot_bypass_physical_interaction(self):
         self.assertIn("CrimeWorld_ShowClue(playerid, id, kind, phase, x, y, z)", UI)
         self.assertIn("CrimeWorld_EvidenceReady(playerid, id)", UI)
-        self.assertIn("CrimeUI_Scene(playerid);", WORLD)
+        self.assertIn("CrimeUI_Witness(playerid);", WORLD)
         self.assertIn("if (kind != 0) return 1;", UI)
         self.assertIn("CrimeWorld_Reset(playerid)", UI)
         self.assertIn("IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS", UI)
