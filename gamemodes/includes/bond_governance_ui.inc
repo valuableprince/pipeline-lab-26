@@ -680,7 +680,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             if(!cache_get_value_name_int(0,"bonds_boughtback",countBuyback) ||
                !cache_get_value_name_int(0,"buyback_cost",costBuyback))return 1;
             format(extra,sizeof(extra),
-                "\\n{E8EDF3}Досрочно выкуплено: %d шт.\\n{E8EDF3}Расходы на выкуп: $%d",
+                "\n{E8EDF3}Досрочно выкуплено: %d шт.\n{E8EDF3}Расходы на выкуп: $%d",
                 countBuyback,costBuyback);
             strcat(body,extra,sizeof(body));
         }
