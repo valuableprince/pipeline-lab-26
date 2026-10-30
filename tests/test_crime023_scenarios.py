@@ -23,7 +23,7 @@ class SoloScenarios(unittest.TestCase):
             self.assertIn(template, SQL)
             self.assertIn(f",5,{kind})", SQL)
         self.assertIn("NOT NULL DEFAULT 0", SQL)
-        self.assertIn("version=43 LIMIT 1", CORE)
+        self.assertIn("version=44 LIMIT 1", CORE)
 
     def test_persistent_stages_and_atomic_outcomes(self):
         for token in ("t.contact_id,t.scenario_kind",
