@@ -310,6 +310,9 @@ jobs:
       - name: CRIME-03.6 high-heat solo recovery, replay and 60-minute cooldown
         run: python3 tests/crime036_mysql_uat.py
 
+      - name: CRIME-03.7 read-only ranking, event history and balance UAT
+        run: python3 tests/crime037_mysql_uat.py
+
   compile:
     name: Compile
     needs: sql_security
