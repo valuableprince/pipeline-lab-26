@@ -19,7 +19,7 @@ class Intel(unittest.TestCase):
                   "expires_at INT UNSIGNED","chk_crime_intel_closed",
                   "VALUES (45)", "c.finished_at+1800"):
             self.assertIn(s,DB)
-        self.assertIn("version=45 LIMIT 1",C)
+        self.assertIn("version=46 LIMIT 1",C)
         self.assertIn("045_crime_intelligence_cases.sql",BUILD)
         self.assertIn("crime035_mysql_uat.py",BUILD)
         self.assertIn("CRIME_INTEL_DLG_BOARD (7975)",E)
@@ -63,7 +63,7 @@ class Intel(unittest.TestCase):
     def test_menu_and_solo_flow(self):
         self.assertIn("Оперативные сводки",MAIN)
         self.assertIn("case 10: return CrimeIntelUI_Board(playerid);",MAIN)
-        self.assertIn("listitem > 10",MAIN)
+        self.assertIn("listitem > 11",MAIN)
         self.assertIn("Количество груза",UI)
         self.assertIn("Номер пломбы",UI)
         self.assertIn("Время отправления",UI)
