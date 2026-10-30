@@ -18,7 +18,7 @@ class WorldAssetOperations(unittest.TestCase):
                      "PRIMARY KEY (faction_id,contact_id,asset_code,service_count)",
                      "activated_at=acquired_at", "VALUES (40)"):
             self.assertIn(part, SQL)
-        self.assertIn("version=45 LIMIT 1",CORE)
+        self.assertIn("version=46 LIMIT 1",CORE)
         self.assertIn("040_crime_asset_operations.sql",CI)
         self.assertIn("crime029_mysql_uat.py",CI)
 
