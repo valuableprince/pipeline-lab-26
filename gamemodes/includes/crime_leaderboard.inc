@@ -38,14 +38,7 @@ stock CrimeRank_Board(playerid)
     // Three indexed aggregate probes per organization. Deliberately NO
     // writes and NO competition refresh: viewing results cannot create a round.
     new Cache:c=mysql_query(gDBPrimary,
-        "SELECT p.faction_id,p.influence,"
-        "(SELECT COUNT(*) FROM crime_competition_rounds r JOIN crime_contract_rewards rr ON rr.contract_id=r.winner_contract_id WHERE r.winner_faction_id=p.faction_id AND r.state=2) race_wins,"
-        "(SELECT COUNT(*) FROM crime_contracts x JOIN crime_contract_events e ON e.contract_id=x.contract_id AND e.event_type='RACE_LOST' WHERE x.faction_id=p.faction_id AND x.mode_id=2) race_losses,"
-        "(SELECT COUNT(*) FROM crime_contracts x JOIN crime_contract_rewards rr ON rr.contract_id=x.contract_id WHERE x.faction_id=p.faction_id AND x.mode_id=3 AND x.state=3) tender_done,"
-        "(SELECT COUNT(*) FROM crime_tender_bids b JOIN crime_tender_rounds r ON r.tender_id=b.tender_id WHERE b.faction_id=p.faction_id AND b.state=3 AND r.state IN(2,3)) tender_lost,"
-        "(SELECT COUNT(*) FROM crime_contracts x JOIN crime_contract_rewards rr ON rr.contract_id=x.contract_id WHERE x.faction_id=p.faction_id AND x.mode_id=1 AND x.state=3) solo_done,"
-        "(SELECT COALESCE(SUM(rr.amount),0) FROM crime_contract_rewards rr JOIN crime_contracts x ON x.contract_id=rr.contract_id WHERE x.faction_id=p.faction_id) total_paid "
-        "FROM crime_syndicate_progress p WHERE p.faction_id IN(6,7,8) ORDER BY p.faction_id");
+        "SELECT p.faction_id,p.influence,(SELECT COUNT(*) FROM crime_competition_rounds r JOIN crime_contract_rewards rr ON rr.contract_id=r.winner_contract_id WHERE r.winner_faction_id=p.faction_id AND r.state=2) race_wins,(SELECT COUNT(*) FROM crime_contracts x JOIN crime_contract_events e ON e.contract_id=x.contract_id AND e.event_type='RACE_LOST' WHERE x.faction_id=p.faction_id AND x.mode_id=2) race_losses,(SELECT COUNT(*) FROM crime_contracts x JOIN crime_contract_rewards rr ON rr.contract_id=x.contract_id WHERE x.faction_id=p.faction_id AND x.mode_id=3 AND x.state=3) tender_done,(SELECT COUNT(*) FROM crime_tender_bids b JOIN crime_tender_rounds r ON r.tender_id=b.tender_id WHERE b.faction_id=p.faction_id AND b.state=3 AND r.state IN(2,3)) tender_lost,(SELECT COUNT(*) FROM crime_contracts x JOIN crime_contract_rewards rr ON rr.contract_id=x.contract_id WHERE x.faction_id=p.faction_id AND x.mode_id=1 AND x.state=3) solo_done,(SELECT COALESCE(SUM(rr.amount),0) FROM crime_contract_rewards rr JOIN crime_contracts x ON x.contract_id=rr.contract_id WHERE x.faction_id=p.faction_id) total_paid FROM crime_syndicate_progress p WHERE p.faction_id IN(6,7,8) ORDER BY p.faction_id");
     new rows;
     if(c==Cache:0 || mysql_errno(gDBPrimary) ||
        !cache_get_row_count(rows) || rows!=CRIME_RANK_COUNT)
@@ -109,9 +102,7 @@ stock CrimeRank_Board(playerid)
         strcat(body,line,sizeof(body));
     }
     strcat(body,
-        "\nОчки: 5 за победу в гонке, 3 за оплаченный тендер.\n"
-        "Обычные заказы, влияние и проигранные заявки очков не дают.\n"
-        "Выберите синдикат, чтобы изучить историю результатов.",sizeof(body));
+        "\nОчки: 5 за победу в гонке, 3 за оплаченный тендер.\nОбычные заказы, влияние и проигранные заявки очков не дают.\nВыберите синдикат, чтобы изучить историю результатов.",sizeof(body));
     CrimeUI_Open(playerid,CRIME_RANK_DLG_BOARD);
     return ShowPlayerDialog(playerid,CRIME_RANK_DLG_BOARD,
         DIALOG_STYLE_TABLIST_HEADERS,
@@ -133,12 +124,7 @@ stock CrimeRank_History(playerid,faction)
     // 4 rejected tender bid, 5 expired/aborted awarded tender.
     // Only committed payout ledger entries qualify as a success.
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT h.refid,h.kind FROM ("
-        "SELECT x.contract_id refid,CASE WHEN e.event_type='RACE_WON' THEN 1 ELSE 2 END kind,UNIX_TIMESTAMP(e.created_at) stamp FROM crime_contract_events e JOIN crime_contracts x ON x.contract_id=e.contract_id WHERE x.faction_id=%d AND x.mode_id=2 AND (e.event_type='RACE_LOST' OR (e.event_type='RACE_WON' AND EXISTS(SELECT 1 FROM crime_contract_rewards rr WHERE rr.contract_id=x.contract_id))) "
-        "UNION ALL SELECT x.contract_id refid,3 kind,x.finished_at stamp FROM crime_contracts x JOIN crime_contract_rewards rr ON rr.contract_id=x.contract_id WHERE x.faction_id=%d AND x.mode_id=3 AND x.state=3 "
-        "UNION ALL SELECT b.bid_id refid,4 kind,r.decided_at stamp FROM crime_tender_bids b JOIN crime_tender_rounds r ON r.tender_id=b.tender_id WHERE b.faction_id=%d AND b.state=3 AND r.state IN(2,3) "
-        "UNION ALL SELECT x.contract_id refid,5 kind,x.finished_at stamp FROM crime_contracts x JOIN crime_tender_penalties p ON p.contract_id=x.contract_id WHERE x.faction_id=%d AND x.mode_id=3 AND x.state IN(4,5)"
-        ") h ORDER BY h.stamp DESC,h.refid DESC LIMIT 12",
+        "SELECT h.refid,h.kind FROM (SELECT x.contract_id refid,CASE WHEN e.event_type='RACE_WON' THEN 1 ELSE 2 END kind,UNIX_TIMESTAMP(e.created_at) stamp FROM crime_contract_events e JOIN crime_contracts x ON x.contract_id=e.contract_id WHERE x.faction_id=%d AND x.mode_id=2 AND (e.event_type='RACE_LOST' OR (e.event_type='RACE_WON' AND EXISTS(SELECT 1 FROM crime_contract_rewards rr WHERE rr.contract_id=x.contract_id))) UNION ALL SELECT x.contract_id refid,3 kind,x.finished_at stamp FROM crime_contracts x JOIN crime_contract_rewards rr ON rr.contract_id=x.contract_id WHERE x.faction_id=%d AND x.mode_id=3 AND x.state=3 UNION ALL SELECT b.bid_id refid,4 kind,r.decided_at stamp FROM crime_tender_bids b JOIN crime_tender_rounds r ON r.tender_id=b.tender_id WHERE b.faction_id=%d AND b.state=3 AND r.state IN(2,3) UNION ALL SELECT x.contract_id refid,5 kind,x.finished_at stamp FROM crime_contracts x JOIN crime_tender_penalties p ON p.contract_id=x.contract_id WHERE x.faction_id=%d AND x.mode_id=3 AND x.state IN(4,5)) h ORDER BY h.stamp DESC,h.refid DESC LIMIT 12",
         faction,faction,faction,faction);
     new Cache:c=mysql_query(gDBPrimary,query);
     if(c==Cache:0 || mysql_errno(gDBPrimary) ||
