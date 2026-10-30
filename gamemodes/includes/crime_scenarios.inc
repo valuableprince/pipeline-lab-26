@@ -79,3 +79,92 @@ stock CrimeScenario_Choices(kind, phase, body[], size)
     }
     return 1;
 }
+
+ // Contract-specific circumstances are rolled once on acceptance and persist
+ // through login/restart. They never grant money directly.
+stock bool:CrimeScenario_EventInfo(playerid, id, &eventId)
+{
+    eventId = 0;
+#if defined TARKENSO_DB_PRIMARY
+    if (!Crime_Available(playerid) || id <= 0) return false;
+    new q[220], rows = 0;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "SELECT scenario_event FROM crime_contracts WHERE account_id=%d AND contract_id=%d AND state IN(1,2) LIMIT 1",
+        gDBPrimaryAccountId[playerid], id);
+    new Cache:c = mysql_query(gDBPrimary, q);
+    if (c == Cache:0 || mysql_errno(gDBPrimary) ||
+        !cache_get_row_count(rows) || rows != 1 ||
+        !cache_get_value_name_int(0, "scenario_event", eventId))
+    {
+        if (c != Cache:0) cache_delete(c);
+        return false;
+    }
+    cache_delete(c);
+    return eventId >= 0 && eventId <= 3;
+#else
+    #pragma unused playerid, id
+    return false;
+#endif
+}
+
+// Three independently varied situations for each of the 3 solo narratives.
+// This text belongs in the route/dialog, not in client-trusted state.
+stock CrimeScenario_EventText(kind, eventId, phase, output[], size)
+{
+    if (kind == 0)
+    {
+        format(output, size, "Обычная доставка. Груз ждёт получателя.");
+        return 1;
+    }
+    switch (kind)
+    {
+        case 1:
+        {
+            switch (eventId)
+            {
+                case 1: format(output, size, phase == 1 ?
+                    ("Курьера видели у товарной станции. Накладная может содержать маршрут.") :
+                    ("Номер вагона не совпадает с показаниями. Решите, что сообщить заказчику."));
+                case 2: format(output, size, phase == 1 ?
+                    ("Телефон курьера обнаружен без SIM-карты. Свидетель помнит спор.") :
+                    ("В свидетельских показаниях есть пробел. Соберите окончательное досье."));
+                case 3: format(output, size, phase == 1 ?
+                    ("В порту нашли чужую куртку с запиской. Время ухода неизвестно.") :
+                    ("В записке указан другой адрес. Оцените, насколько надёжна улика."));
+            }
+        }
+        case 2:
+        {
+            switch (eventId)
+            {
+                case 1: format(output, size, phase == 1 ?
+                    ("В накладных склада недостаёт двух коробок. Пломбы выглядят целыми.") :
+                    ("Вторая ведомость противоречит первой. Зафиксируйте итог проверки."));
+                case 2: format(output, size, phase == 1 ?
+                    ("Ночью сработала сигнализация, но журнал охраны пуст.") :
+                    ("Охранник дал противоречивые объяснения. Решите, что сообщить."));
+                case 3: format(output, size, phase == 1 ?
+                    ("Найдена подмена номера контейнера на складе.") :
+                    ("Часть документов подписана задним числом. Составьте заключение."));
+            }
+        }
+        case 3:
+        {
+            switch (eventId)
+            {
+                case 1: format(output, size, phase == 1 ?
+                    ("Получатель требует пересмотреть цену и отказывается от прежней расписки.") :
+                    ("Условия расходятся с первоначальными. Предложите разрешение спора."));
+                case 2: format(output, size, phase == 1 ?
+                    ("Перевозчик опоздал, а заказчик обвиняет поставщика.") :
+                    ("Обе стороны согласны встретиться. Решите, какой исход предложить."));
+                case 3: format(output, size, phase == 1 ?
+                    ("В договоре оказалась неверная дата. Одна сторона угрожает разрывом.") :
+                    ("Исправленный документ готов. Выберите итог переговоров."));
+            }
+        }
+    }
+    if (eventId < 1 || eventId > 3)
+        format(output, size, "События дела недоступны. Проверьте состояние контракта.");
+    return 1;
+}
