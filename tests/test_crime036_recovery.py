@@ -70,7 +70,7 @@ class RecoveryContract(unittest.TestCase):
                       "CrimeRecovery_Shutdown()"):
             self.assertIn(token,GAME)
         self.assertIn("case 11: return CrimeRecoveryUI_Board(playerid);",MENU)
-        self.assertIn("if (listitem < 0 || listitem > 11)",MENU)
+        self.assertIn("if (listitem < 0 || listitem > 12)",MENU)
         self.assertIn("Восстановление связи",MENU)
         self.assertNotIn("CMD:recover",GAME)
 
