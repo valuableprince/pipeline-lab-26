@@ -26,6 +26,8 @@
 #define CRIME_OFFER_MAX      (8)
 
 forward CrimeUI_Testimony(playerid);
+forward CrimeAssets_Show(playerid, contactId, stash, network);
+forward bool:CrimeAssets_Status(playerid, contactId, assetCode, &activated, &remaining, &services);
 
 new gCrimeUIDialog[MAX_PLAYERS];
 new gCrimeUIAuthToken[MAX_PLAYERS];
@@ -459,9 +461,10 @@ stock CrimeUI_OrgContact(playerid, contactId)
         !CrimeOrg_ReadFaction(playerid, influence, total))
         return SendClientMessage(playerid, CRIME_ERROR, "Связи синдиката недоступны.");
     gCrimeUIOrgContact[playerid] = contactId;
-    new body[540];
+    CrimeAssets_Show(playerid, contactId, stash, network);
+    new body[720];
     format(body, sizeof(body),
-        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ОТНОШЕНИЯ:{FFFFFF} %d/100\n{FFD15C}ДЕЛА СИНДИКАТА:{FFFFFF} %d\n{FFD15C}ОБЩЕЕ ВЛИЯНИЕ:{FFFFFF} %d\n\n{FFD15C}ТАЙНИК:{FFFFFF} %s\nБонус: +1 влияние за заказ у этого посредника.\n{FFD15C}СЕТЬ ИНФОРМАТОРОВ:{FFFFFF} %s\nБонус: +1 отношения за заказ у этого посредника.\n\nПокупка только для руководства (ранги 4-5).",
+        "{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}ОТНОШЕНИЯ:{FFFFFF} %d/100\n{FFD15C}ДЕЛА СИНДИКАТА:{FFFFFF} %d\n{FFD15C}ОБЩЕЕ ВЛИЯНИЕ:{FFFFFF} %d\n\n{FFD15C}ТАЙНИК:{FFFFFF} %s\nБонус после активации: +1 влияние за заказ.\n{FFD15C}СЕТЬ ИНФОРМАТОРОВ:{FFFFFF} %s\nБонус после активации: +1 отношения за заказ.\n\nОбслуживание: откройте маршрут к NPC, подойдите к объекту и нажмите Y. Повтор — через 30 минут. Покупка для руководства (ранги 4-5).",
         gCrimeContactName[contactId-1], standing, done, influence,
         stash ? ("Приобретён") : ("Нет"),
         network ? ("Приобретена") : ("Нет"));
@@ -474,13 +477,26 @@ stock CrimeUI_OrgAssets(playerid)
 {
     new cid = gCrimeUIOrgContact[playerid];
     if (cid < 1 || cid > CRIME_CONTACT_COUNT) return CrimeUI_Organization(playerid);
-    new standing, done, stash, network, body[440];
+    new standing, done, stash, network, body[530];
     if (!CrimeOrg_ReadContact(playerid, cid, standing, done, stash, network))
         return SendClientMessage(playerid, CRIME_ERROR, "Активы недоступны.");
+    new activated, remaining, services, statusStash[65], statusNetwork[65];
+    if (!CrimeAssets_Status(playerid, cid, 1, activated, remaining, services))
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось проверить тайник.");
+    if (!stash) format(statusStash, sizeof(statusStash), "Не приобретён");
+    else if (!activated) format(statusStash, sizeof(statusStash), "Нужна активация");
+    else if (remaining > 0) format(statusStash, sizeof(statusStash), "Через %d мин", (remaining+59)/60);
+    else format(statusStash, sizeof(statusStash), "Доступно (Y)");
+    if (!CrimeAssets_Status(playerid, cid, 2, activated, remaining, services))
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось проверить информаторов.");
+    if (!network) format(statusNetwork, sizeof(statusNetwork), "Не приобретена");
+    else if (!activated) format(statusNetwork, sizeof(statusNetwork), "Нужна активация");
+    else if (remaining > 0) format(statusNetwork, sizeof(statusNetwork), "Через %d мин", (remaining+59)/60);
+    else format(statusNetwork, sizeof(statusNetwork), "Доступно (Y)");
     format(body, sizeof(body),
-        "{FFD15C}Актив\t{FFD15C}Цена\t{FFD15C}Состояние{FFFFFF}\nТайник\t15 влияния\t%s\nСеть информаторов\t30 влияния\t%s",
-        stash ? ("Куплен") : ("Отношения 10+"),
-        network ? ("Куплена") : ("Отношения 20+"));
+        "{FFD15C}Актив\t{FFD15C}Цена\t{FFD15C}Обслуживание{FFFFFF}\nТайник\t15 влияния\t%s\nСеть информаторов\t30 влияния\t%s",
+        statusStash, statusNetwork);
+    CrimeAssets_Show(playerid, cid, stash, network);
     CrimeUI_Open(playerid, CRIME_DLG_ORG_ASSETS);
     return ShowPlayerDialog(playerid, CRIME_DLG_ORG_ASSETS, DIALOG_STYLE_TABLIST_HEADERS,
         "{FFD15C}Активы посредника", body, "Подробнее", "Назад");
@@ -618,7 +634,7 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие. Рискованные решения повышают внимание; доставки снижают его.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\n{FFD15C}6. Синдикат{FFFFFF}\nКонтракты дают общее влияние и связи с NPC. Руководство (ранг 4-5) покупает тайники и информаторов за влияние.\n\nВсё управление доступно из /crime и меню организации.",
+        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nУ улики и у NPC нажмите Y. Поговорите со свидетелем, затем выберите исход. Точная проверка фактов улучшает доверие. Рискованные решения повышают внимание; доставки снижают его.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\n{FFD15C}6. Синдикат{FFFFFF}\nКонтракты дают влияние и связи с NPC. Руководство покупает активы за влияние. Для активации и обслуживания подойдите к объекту возле посредника и нажмите Y.\n\nВсё управление доступно из /crime и меню организации.",
         "Назад", "Закрыть");
 }
 
