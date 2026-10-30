@@ -40,7 +40,7 @@ class ReconnectNotice(unittest.TestCase):
             "deadline<=gettime()",
             "Crime_Expire(playerid)",
             "if(!Crime_Expire(playerid))",
-            "CrimeScenario_StageLabel(kind,state,stage,sizeof(stage))",
+            "CrimeScenario_StageLabel(kind,phase,stage,sizeof(stage))",
             "CrimeIncident_Info(playerid,contractId,contact,code,choice)",
             "CrimeAftermath_Info(playerid,contractId,",
             "Встреча с первым связным",
