@@ -9,16 +9,24 @@ def accept(con, account, faction, template, contact):
         changed, cid = run(con, """
             INSERT INTO crime_contracts
             (template_id,account_id,faction_id,mode_id,reward_amount,
-             started_at,expires_at,contact_id,scenario_kind)
+             started_at,expires_at,contact_id,scenario_kind,scenario_event)
             SELECT t.template_id,m.account_id,m.faction_id,t.mode_id,
                    t.reward_amount,UNIX_TIMESTAMP(),
-                   UNIX_TIMESTAMP()+t.duration_seconds,t.contact_id,t.scenario_kind
+                   UNIX_TIMESTAMP()+t.duration_seconds,t.contact_id,t.scenario_kind,
+                   CASE WHEN t.scenario_kind=0 THEN 0 ELSE 1+FLOOR(RAND()*3) END
             FROM crime_contract_templates t
             JOIN faction_members m ON m.account_id=%s AND m.faction_id=%s
             JOIN crime_contact_progress p ON p.account_id=m.account_id
               AND p.contact_id=t.contact_id AND p.trust>=t.required_trust
             WHERE t.template_id=%s AND t.contact_id=%s
               AND t.mode_id=1 AND t.is_enabled=1
+              AND (t.is_repeatable=1 OR NOT EXISTS(
+                  SELECT 1 FROM crime_contracts h WHERE h.account_id=m.account_id
+                  AND h.template_id=t.template_id AND h.state=3))
+              AND NOT EXISTS(SELECT 1 FROM crime_contracts h
+                  WHERE h.account_id=m.account_id AND h.template_id=t.template_id
+                  AND h.state IN(3,5)
+                  AND h.finished_at>UNIX_TIMESTAMP()-t.cooldown_seconds)
         """, (account, faction, template, contact))
         assert changed == 1
         run(con, """INSERT INTO crime_contract_events
@@ -127,7 +135,10 @@ def main():
             "SELECT account_id FROM accounts WHERE username='CrimeSoloA'")
         assert account
         assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates") == 6
-        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=34") == 1
+        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=35") == 1
+        # Keep the original branching outcome test focused on settlement;
+        # retry policies have their own integration acceptance suite.
+        run(con, "UPDATE crime_contract_templates SET cooldown_seconds=0 WHERE template_id=4")
         # Original templates remain couriers.
         assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates WHERE scenario_kind=0") == 3
         assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates WHERE scenario_kind BETWEEN 1 AND 3") == 3
