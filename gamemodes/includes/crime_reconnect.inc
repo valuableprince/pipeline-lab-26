@@ -131,6 +131,26 @@ stock CrimeReconnect_Notify(playerid)
             SendClientMessage(playerid,CRIME_COLOR,text);
             new stage[64];
             CrimeScenario_StageLabel(kind,state,stage,sizeof(stage));
+            // Tender delivery has mandatory physical NPC stages after pickup.
+            // Read the persisted choices so the notice never suggests that
+            // final delivery is already available before both encounters.
+            if(kind==0 && state==2)
+            {
+                new contact,code,choice;
+                if(CrimeIncident_Info(playerid,contractId,contact,code,choice))
+                {
+                    if(choice==0)
+                        format(stage,sizeof(stage),"Встреча с первым связным");
+                    else
+                    {
+                        new secondContact,secondChoice,secondState;
+                        if(CrimeAftermath_Info(playerid,contractId,
+                           secondContact,secondChoice,secondState)==1 &&
+                           secondState==1)
+                            format(stage,sizeof(stage),"Встреча со вторым связным");
+                    }
+                }
+            }
             new mins=(deadline-gettime()+59)/60;
             if(mins<1) mins=1;
             format(text,sizeof(text),"Этап: %s. Осталось: %d мин.",
