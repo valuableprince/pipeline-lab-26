@@ -20,7 +20,7 @@ class SharedCompetition(unittest.TestCase):
                   "mode_id,reward_amount", "'RACE_LS_01'", "'RACE_SF_01'",
                   "'RACE_LV_01'", "VALUES (41)"):
             self.assertIn(x,SQL)
-        self.assertIn("version=42 LIMIT 1",CORE)  # Newest gated schema
+        self.assertIn("version=43 LIMIT 1",CORE)  # Newest gated schema
         self.assertIn("041_crime_competitive_contracts.sql",BUILD)
         self.assertIn("crime031_mysql_uat.py",BUILD)
 
