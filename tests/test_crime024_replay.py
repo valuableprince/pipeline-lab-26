@@ -22,7 +22,7 @@ class Crime04ReplayContracts(unittest.TestCase):
         ):
             self.assertIn(token, SQL)
         self.assertNotIn("DELETE FROM", SQL)
-        self.assertIn("version=40 LIMIT 1", CORE)
+        self.assertIn("version=41 LIMIT 1", CORE)
 
     def test_authoritative_acceptance_and_one_active(self):
         for token in (
