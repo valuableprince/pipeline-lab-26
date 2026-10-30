@@ -29,6 +29,10 @@ forward bool:CrimeComp_RoundForContract(playerid, contractId, faction, &roundId)
 forward bool:CrimeComp_Claim(playerid, roundId, contractId, faction);
 forward bool:CrimeTender_Penalize(playerid, contractId);
 forward bool:CrimeTender_PenalizeExpired(playerid);
+forward bool:CrimeIncident_Init();
+forward CrimeIncident_Shutdown();
+forward CrimeIncident_Reset(playerid);
+forward CrimeIncident_Route(playerid, contractId);
 
 stock Crime_Init()
 {
@@ -36,7 +40,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=42 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=43 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -44,12 +48,18 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 042 missing; tender contracts disabled.");
+        print("[CRIME-02] Migration 043 missing; tender encounters disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
     if (!CrimeWorld_Init())
     {
+        CrimeContacts_Shutdown();
+        return 1;
+    }
+    if (!CrimeIncident_Init())
+    {
+        CrimeWorld_Shutdown();
         CrimeContacts_Shutdown();
         return 1;
     }
@@ -382,7 +392,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Нет соединения с базой.");
     }
-    new q[1600], changed, competitionRound=0;
+    new q[1800], changed, competitionRound=0;
     if (!CrimeComp_RoundForContract(playerid,id,faction,competitionRound) ||
         (competitionRound>0 && !CrimeComp_Claim(playerid,competitionRound,id,faction)))
     {
@@ -394,7 +404,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
     // Account row + contract row remain in the same transaction. CAS rejects
     // stale account versions. On errors every step (including money) rolls back.
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE accounts a JOIN crime_contracts c ON c.account_id=a.account_id SET a.balance=a.balance+c.reward_amount,a.txn_serial=a.txn_serial+1,a.row_version=a.row_version+1 WHERE a.account_id=%d AND a.row_version=%d AND a.balance<=1000000000-c.reward_amount AND a.txn_serial<1000000000 AND c.contract_id=%d AND c.faction_id=%d AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP() AND (c.scenario_kind=0 OR (c.scenario_choice IN(1,2) AND c.interviewed_at>0 AND %d IN(1,2))) AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r WHERE r.contract_id=c.contract_id)",
+        "UPDATE accounts a JOIN crime_contracts c ON c.account_id=a.account_id SET a.balance=a.balance+c.reward_amount,a.txn_serial=a.txn_serial+1,a.row_version=a.row_version+1 WHERE a.account_id=%d AND a.row_version=%d AND a.balance<=1000000000-c.reward_amount AND a.txn_serial<1000000000 AND c.contract_id=%d AND c.faction_id=%d AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP() AND (c.scenario_kind=0 OR (c.scenario_choice IN(1,2) AND c.interviewed_at>0 AND %d IN(1,2))) AND (c.mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents i WHERE i.contract_id=c.contract_id AND i.choice IN(1,2) AND i.resolved_at>0)) AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r WHERE r.contract_id=c.contract_id)",
         gDBPrimaryAccountId[playerid], oldVersion, id, faction, decision);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
@@ -404,8 +414,8 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
             "Выплата отклонена: заказ истёк, уже оплачен или кошелёк изменился.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contracts SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%d,risk_delta=CASE WHEN scenario_kind=0 THEN -8 WHEN %d=2 THEN 20 WHEN interview_question=2 THEN 8 WHEN scenario_choice=2 THEN 5 ELSE -12 END WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=2 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR interviewed_at>0)",
-        decision, decision, id, gDBPrimaryAccountId[playerid], faction);
+        "UPDATE crime_contracts SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%d,risk_delta=CASE WHEN mode_id=3 AND EXISTS(SELECT 1 FROM crime_tender_incidents i WHERE i.contract_id=%d AND i.choice=2) THEN 12 WHEN mode_id=3 THEN -12 WHEN scenario_kind=0 THEN -8 WHEN %d=2 THEN 20 WHEN interview_question=2 THEN 8 WHEN scenario_choice=2 THEN 5 ELSE -12 END WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=2 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR interviewed_at>0) AND (mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents i WHERE i.contract_id=%d AND i.choice IN(1,2) AND i.resolved_at>0))",
+        decision, id, decision, id, gDBPrimaryAccountId[playerid], faction, id);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
         Crime_Rollback();
