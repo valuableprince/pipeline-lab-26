@@ -32,7 +32,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=38 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=39 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -40,7 +40,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 038 missing; local risk system disabled.");
+        print("[CRIME-02] Migration 039 missing; syndicate progression disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -373,7 +373,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Нет соединения с базой.");
     }
-    new q[1000], changed;
+    new q[1600], changed;
     // Account row + contract row remain in the same transaction. CAS rejects
     // stale account versions. On errors every step (including money) rolls back.
     mysql_format(gDBPrimary, q, sizeof(q),
@@ -454,6 +454,36 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         Crime_Rollback();
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить риск. Выплата отменена.");
+    }
+    // The syndicate benefits even if only one member is online.
+    // Assets improve influence / contact standing but NEVER player cash.
+    // All rows and the unique contract ledger remain in the payout transaction.
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "INSERT INTO crime_syndicate_influence_events(contract_id,faction_id,contact_id,influence_delta,standing_delta) SELECT c.contract_id,c.faction_id,c.contact_id,(CASE WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+(CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id AND a.asset_code=1) THEN 1 ELSE 0 END),(CASE WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+(CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id AND a.asset_code=2) THEN 1 ELSE 0 END) FROM crime_contracts c WHERE c.contract_id=%d AND c.account_id=%d AND c.faction_id=%d AND c.state=3",
+        id, gDBPrimaryAccountId[playerid], faction);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось записать влияние. Выплата отменена.");
+    }
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE crime_syndicate_progress p JOIN crime_syndicate_influence_events e ON e.faction_id=p.faction_id SET p.influence=LEAST(1000000,p.influence+e.influence_delta),p.completed_count=p.completed_count+1 WHERE e.contract_id=%d AND e.faction_id=%d",
+        id, faction);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить влияние. Выплата отменена.");
+    }
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "UPDATE crime_syndicate_contacts p JOIN crime_syndicate_influence_events e ON e.faction_id=p.faction_id AND e.contact_id=p.contact_id SET p.standing=LEAST(100,p.standing+e.standing_delta),p.completed_count=p.completed_count+1 WHERE e.contract_id=%d AND e.faction_id=%d",
+        id, faction);
+    if (!DBPrimary_Execute(q, changed) || changed != 1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить связи. Выплата отменена.");
     }
     if (!Crime_Exec("COMMIT"))
     {
