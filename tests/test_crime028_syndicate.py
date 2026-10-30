@@ -17,7 +17,7 @@ class SyndicateInfluence(unittest.TestCase):
                   "contract_id INT UNSIGNED NOT NULL PRIMARY KEY",
                   "faction_id IN (6,7,8)","VALUES (39)"):
             self.assertIn(v,SQL)
-        self.assertIn("version=40 LIMIT 1",CORE)
+        self.assertIn("version=41 LIMIT 1",CORE)
         self.assertIn("039_crime_syndicate_influence.sql",WORKFLOW)
         self.assertIn("crime028_mysql_uat.py",WORKFLOW)
     def test_atomic_earn(self):
