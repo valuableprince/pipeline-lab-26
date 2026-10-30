@@ -395,6 +395,51 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("CALL gov_bond_official_approve",UI)
         self.assertIn("CALL gov_bond_official_open",UI)
 
+    def test_cancellation_denial_explains_sold_bonds_from_fresh_sql(self):
+        # BOND-UI-10 / UAT 6.13: no misleading generic SQL error for a
+        # cancellation of an issue that already has bond holders.
+        init=UI.split("stock bool:GovBond_UI_Write(",1)[1].split(
+            "stock GovBond_UI_Main(",1)[0]
+        fetch=UI.split("stock bool:GovBond_UI_LoadActionReason(",1)[1].split(
+            "// Re-read treasury capacity",1)[0]
+        onread=UI.split("if (kind==7)",1)[1].split("if (kind==6)",1)[0]
+        onerror=UI.split("public bool:GovBond_UI_OnError(",1)[1].split(
+            "stock GovBond_UI_OnDialog(",1)[0]
+        self.assertIn("if (action==3 || action==4)",init)
+        self.assertIn("gGovUIPendingCode[playerid]",init)
+        self.assertIn("gGovUIReasonAction[playerid]=0;",UI)
+        self.assertIn("gGovUIReasonCode[playerid][0]=EOS;",UI)
+        self.assertIn("gDBPrimaryAccountId[playerid],issueCode",fetch)
+        self.assertIn("GovBond_UI_Query(playerid,query,7)",fetch)
+        self.assertIn("FROM government_bond_holdings h",fetch)
+        self.assertIn("AS holder_count",fetch)
+        self.assertIn("i.sold_quantity",fetch)
+        self.assertIn("AS guarantee_left",fetch)
+        self.assertIn("AS role_rank",fetch)
+        self.assertIn("i.issue_code='%e' LIMIT 1",fetch)
+        self.assertNotIn("UPDATE ",fetch)
+        self.assertNotIn("CALL ",fetch)
+        self.assertIn('strcmp(code,expectedCode)',onread)
+        self.assertIn("else if(action==4 && sold>0)",onread)
+        self.assertIn("Продано облигаций: %d.",onread)
+        self.assertIn("У выпуска уже есть инвесторы. Отмена нарушит их права.",onread)
+        self.assertIn("else if(action==4 && holders>0)",onread)
+        self.assertIn("else if(action==3 && strcmp(status,\"APPROVED\"))",onread)
+        self.assertIn("else if(action==3 && expired)",onread)
+        self.assertIn("else if(action==3 && guarantee<=0)",onread)
+        self.assertIn("GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX",onread)
+        self.assertIn("new failedAction=gGovUIPendingAction[playerid],failedCode[65];",onerror)
+        self.assertIn("else if(failedAction==3 || failedAction==4)",onerror)
+        self.assertIn("GovBond_UI_LoadActionReason(playerid,failedAction,failedCode)",onerror)
+        self.assertNotIn("Казначейство отклонило действие. Обновите выпуск и проверьте полномочия.",UI)
+        issue_schema=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
+        cancel=issue_schema.split("CREATE PROCEDURE gov_bond_issue_cancel(",1)[1].split(
+            "END$",1)[0]
+        self.assertIn("v_sold <> 0",cancel)
+        self.assertIn("v_holder_count <> 0",cancel)
+        self.assertIn("SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='cannot cancel sold bond issue'",cancel)
+        self.assertIn("ROLLBACK",cancel)
+
     def test_draft_confirmation_highlights_all_values(self):
         # BOND-UI-08: every field value is yellow, but labels remain light.
         block=UI.split("stock GovBond_UI_ConfirmDraft(playerid)",1)[1].split(
