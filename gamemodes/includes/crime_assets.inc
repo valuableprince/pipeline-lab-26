@@ -81,6 +81,50 @@ stock CrimeAssets_Show(playerid, contactId, stash, network)
 #endif
 }
 
+// Public status for the menu. The cooldown and activation remain DB-owned.
+stock bool:CrimeAssets_Status(playerid, contactId, assetCode,
+    &activated, &remaining, &services)
+{
+    activated = 0;
+    remaining = 0;
+    services = 0;
+#if defined TARKENSO_DB_PRIMARY
+    if (!Crime_Available(playerid) || !Leader_IsCriminal(Leader_PlayerOrg(playerid)) ||
+        contactId < 1 || contactId > CRIME_CONTACT_COUNT ||
+        assetCode < 1 || assetCode > 2) return false;
+    new q[300], rows = 0, activatedAt = 0, last = 0;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "SELECT activated_at,last_serviced_at,service_count FROM crime_syndicate_assets WHERE faction_id=%d AND contact_id=%d AND asset_code=%d LIMIT 1",
+        Leader_PlayerOrg(playerid), contactId, assetCode);
+    new Cache:c = mysql_query(gDBPrimary, q);
+    if (c == Cache:0 || mysql_errno(gDBPrimary) ||
+        !cache_get_row_count(rows) || rows > 1)
+    {
+        if (c != Cache:0) cache_delete(c);
+        return false;
+    }
+    if (rows == 1 &&
+        (!cache_get_value_name_int(0, "activated_at", activatedAt) ||
+         !cache_get_value_name_int(0, "last_serviced_at", last) ||
+         !cache_get_value_name_int(0, "service_count", services)))
+    {
+        cache_delete(c);
+        return false;
+    }
+    cache_delete(c);
+    activated = activatedAt > 0;
+    if (last > 0)
+    {
+        remaining = last + CRIME_ASSET_COOLDOWN - gettime();
+        if (remaining < 0) remaining = 0;
+    }
+    return true;
+#else
+    #pragma unused playerid, contactId, assetCode
+    return false;
+#endif
+}
+
 stock CrimeAssets_Service(playerid, contactId, assetCode)
 {
 #if defined TARKENSO_DB_PRIMARY
