@@ -63,7 +63,7 @@ class Intel(unittest.TestCase):
     def test_menu_and_solo_flow(self):
         self.assertIn("Оперативные сводки",MAIN)
         self.assertIn("case 10: return CrimeIntelUI_Board(playerid);",MAIN)
-        self.assertIn("listitem > 11",MAIN)
+        self.assertIn("listitem > 12",MAIN)
         self.assertIn("Количество груза",UI)
         self.assertIn("Номер пломбы",UI)
         self.assertIn("Время отправления",UI)
