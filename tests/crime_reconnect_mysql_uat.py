@@ -15,7 +15,7 @@ SRC=(Path(__file__).resolve().parents[1] /
 
 
 def production_sql(prefix):
-    matches=re.findall(r'"(SELECT [^"\\n]+)"',SRC)
+    matches=re.findall(r'"(SELECT [^"]+)"',SRC)
     sql=[x for x in matches if x.startswith(prefix)]
     assert len(sql)==1,(prefix,len(sql))
     return sql[0].replace("%d","%s")
