@@ -29,8 +29,8 @@ CREATE TABLE crime_syndicate_asset_services (
   CONSTRAINT fk_crime_service_actor FOREIGN KEY (actor_account_id)
     REFERENCES accounts(account_id) ON DELETE RESTRICT,
   CONSTRAINT chk_crime_service_delta CHECK (
-    (asset_code=1 AND influence_delta=2 AND standing_delta=0)
-    OR (asset_code=2 AND influence_delta=0 AND standing_delta=2)
+    (asset_code=1 AND influence_delta BETWEEN 0 AND 2 AND standing_delta=0)
+    OR (asset_code=2 AND influence_delta=0 AND standing_delta BETWEEN 0 AND 2)
   )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
