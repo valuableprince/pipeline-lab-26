@@ -122,10 +122,14 @@ stock bool:CrimeIntel_Redeem(playerid,contractId,decision)
             contractId,gDBPrimaryAccountId[playerid],Leader_PlayerOrg(playerid));
         if(!Crime_Exec(q)) { Crime_Rollback(); return false; }
     }
-    mysql_format(gDBPrimary,q,sizeof(q),
-        "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'%s')",
-        contractId,gDBPrimaryAccountId[playerid],
-        decision==1 ? ("INTEL_ARCHIVED") : ("INTEL_ERASED"));
+    if(decision==1)
+        mysql_format(gDBPrimary,q,sizeof(q),
+            "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'INTEL_ARCHIVED')",
+            contractId,gDBPrimaryAccountId[playerid]);
+    else
+        mysql_format(gDBPrimary,q,sizeof(q),
+            "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) VALUES (%d,%d,'INTEL_ERASED')",
+            contractId,gDBPrimaryAccountId[playerid]);
     if(!Crime_Exec(q))
     {
         Crime_Rollback();
