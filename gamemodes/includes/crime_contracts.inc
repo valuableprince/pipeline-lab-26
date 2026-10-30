@@ -27,6 +27,8 @@ forward bool:CrimeWorld_InterviewInfo(playerid, id, &question, &interviewedAt);
 forward bool:CrimeWorld_Interview(playerid, id, faction, question);
 forward bool:CrimeComp_RoundForContract(playerid, contractId, faction, &roundId);
 forward bool:CrimeComp_Claim(playerid, roundId, contractId, faction);
+forward bool:CrimeTender_Penalize(playerid, contractId);
+forward bool:CrimeTender_PenalizeExpired(playerid);
 
 stock Crime_Init()
 {
@@ -34,7 +36,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=41 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=42 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -42,7 +44,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 041 missing; competitive rounds disabled.");
+        print("[CRIME-02] Migration 042 missing; tender contracts disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -102,6 +104,11 @@ stock bool:Crime_Expire(playerid)
         "UPDATE crime_contracts SET state=4,finished_at=UNIX_TIMESTAMP() WHERE account_id=%d AND state IN(1,2) AND expires_at<=UNIX_TIMESTAMP()",
         gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, affected))
+    {
+        Crime_Rollback();
+        return false;
+    }
+    if (!CrimeTender_PenalizeExpired(playerid))
     {
         Crime_Rollback();
         return false;
@@ -555,6 +562,11 @@ stock Crime_Abort(playerid)
     {
         Crime_Rollback();
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка журнала отмены.");
+    }
+    if (!CrimeTender_Penalize(playerid, id))
+    {
+        Crime_Rollback();
+        return SendClientMessage(playerid, CRIME_ERROR, "Не удалось учесть последствия отказа.");
     }
     if (!Crime_Exec("COMMIT"))
         return SendClientMessage(playerid, CRIME_ERROR, "Проверьте статус операции.");
