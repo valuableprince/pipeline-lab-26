@@ -79,6 +79,39 @@ stock bool:RP_CanSpeak(playerid)
     return Guard_AllowChat(playerid);
 }
 
+// A short speech gesture after a successful *normal* (non-command) chat line.
+// Never replace vehicle, scripted, combat, movement or custom RP animations.
+#define RP_SPEECH_ANIM_TIME (2400)
+
+stock RP_PlaySpeechAnimation(playerid)
+{
+    if (!IsPlayerConnected(playerid) || gAuthState[playerid] != AUTH_READY ||
+        !gAccountSpawned[playerid] || gAccountDead[playerid] || gAdminFrozen[playerid] ||
+        TDS_Active(playerid) || GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
+        GetPlayerSpecialAction(playerid) != SPECIAL_ACTION_NONE) return 0;
+
+    new Float:vx, Float:vy, Float:vz;
+    GetPlayerVelocity(playerid, vx, vy, vz);
+    // No animation while walking, running, falling or being pushed.
+    if (vx * vx + vy * vy + vz * vz > 0.0025) return 0;
+
+    new index = GetPlayerAnimationIndex(playerid);
+    if (index)
+    {
+        new library[32], animation[32];
+        GetAnimationName(index, library, sizeof(library), animation, sizeof(animation));
+        // Existing animations other than idle stances must not be interrupted.
+        if (strcmp(library, "PED", true) ||
+            (strfind(animation, "IDLE_", true) != 0 &&
+             strfind(animation, "idlestance", true) != 0)) return 0;
+    }
+
+    // No loop, no freeze and no ClearAnimations timer: the clip expires itself.
+    ApplyAnimation(playerid, "PED", "IDLE_CHAT", 4.1, false, false, false,
+        false, RP_SPEECH_ANIM_TIME, 0);
+    return 1;
+}
+
 stock RP_SendLocal(playerid, color, const message[], Float:radius)
 {
     new Float:x, Float:y, Float:z, Float:px, Float:py, Float:pz;

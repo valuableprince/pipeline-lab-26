@@ -1519,5 +1519,16 @@ public OnPlayerText(playerid, text[])
     cleanText[n] = EOS;
     format(message, sizeof(message), "%s(%d): %s", nickname, playerid, cleanText);
     RP_SendLocal(playerid, COLOR_WHITE, message, RP_RADIUS_SPEECH);
+    // Only actual spoken text triggers the short gesture, after chat is accepted.
+    new bool:hasSpeech = false;
+    for (new i = 0; i < n; i++)
+    {
+        if (cleanText[i] > ' ')
+        {
+            hasSpeech = true;
+            break;
+        }
+    }
+    if (hasSpeech) RP_PlaySpeechAnimation(playerid);
     return 0;
 }
