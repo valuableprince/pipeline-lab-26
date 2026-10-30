@@ -550,7 +550,7 @@ stock CrimeUI_Cancel(playerid)
 stock CrimeUI_History(playerid, bool:journal = false)
 {
 #if defined TARKENSO_DB_PRIMARY
-    new q[420], body[1300], line[165], rows;
+    new q[850], body[1300], line[165], rows;
     if (journal)
         mysql_format(gDBPrimary, q, sizeof(q),
             "SELECT e.contract_id,e.event_type FROM crime_contract_events e JOIN crime_contracts c ON c.contract_id=e.contract_id WHERE c.account_id=%d ORDER BY e.event_id DESC LIMIT 8",
