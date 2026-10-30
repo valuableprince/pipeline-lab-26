@@ -151,7 +151,7 @@ stock CrimeUI_Offers(playerid)
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось получить предложения.");
     }
     format(body, sizeof(body),
-        "{FFD15C}Предложение\t{FFD15C}Награда\t{FFD15C}Срок{FFFFFF}\n");
+        "{FFD15C}Предложение\t{FFD15C}Награда\t{FFD15C}Доступность{FFFFFF}\n");
     gCrimeUIOfferCount[playerid] = 0;
     for (new i = 0; i < rows; i++)
     {
@@ -160,10 +160,20 @@ stock CrimeUI_Offers(playerid)
             !cache_get_value_name_int(i, "reward_amount", reward) ||
             !cache_get_value_name_int(i, "duration_seconds", duration) ||
             !cache_get_value_name(i, "title", title, sizeof(title))) break;
+        new remaining, alreadyDone, status[45];
+        if (!Crime_OfferEligibility(playerid, id, remaining, alreadyDone))
+        {
+            cache_delete(c);
+            return SendClientMessage(playerid, CRIME_ERROR,
+                "Не удалось проверить доступность заданий.");
+        }
         gCrimeUIOfferId[playerid][i] = id;
         gCrimeUIOfferCount[playerid]++;
-        format(line, sizeof(line), "%s\t$%d\t%d мин\n",
-            title, reward, duration / 60);
+        if (alreadyDone) format(status, sizeof(status), "Пройдено");
+        else if (remaining > 0)
+            format(status, sizeof(status), "Через %d мин", (remaining + 59) / 60);
+        else format(status, sizeof(status), "Доступно (%d мин)", duration / 60);
+        format(line, sizeof(line), "%s\t$%d\t%s\n", title, reward, status);
         strcat(body, line, sizeof(body));
     }
     cache_delete(c);
@@ -201,16 +211,27 @@ stock CrimeUI_OfferDetail(playerid, templateId)
         return SendClientMessage(playerid, CRIME_ERROR, "Предложение больше недоступно.");
     }
     cache_delete(c);
-    new body[560];
+    new remaining, alreadyDone, availability[125];
+    if (!Crime_OfferEligibility(playerid, templateId, remaining, alreadyDone))
+        return SendClientMessage(playerid, CRIME_ERROR, "Нельзя проверить доступность.");
+    if (alreadyDone) format(availability, sizeof(availability),
+        "Уникальный заказ уже пройден: повторное принятие запрещено.");
+    else if (remaining > 0) format(availability, sizeof(availability),
+        "Повтор будет доступен через %d минут.", (remaining + 59) / 60);
+    else format(availability, sizeof(availability),
+        "Заказ доступен. После выполнения потребуется перерыв.");
+    new body[720];
     format(body, sizeof(body),
-        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\n%s",
+        "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n\n{FFD15C}НАГРАДА:{FFFFFF} $%d\n{FFD15C}СРОК:{FFFFFF} %d минут\n{FFD15C}НЕОБХОДИМО ДОВЕРИЕ:{FFFFFF} %d\n\n%s\n\n{FFD15C}ДОСТУПНОСТЬ:{FFFFFF} %s",
         title, reward, duration / 60, requiredTrust,
         scenarioKind == 0 ? ("Перевезите груз. Успешная сдача даст +5 доверия.") :
-        ("Найдите улики и примите два решения. От ваших выборов зависит прирост доверия."));
-    gCrimeUISelectedTemplate[playerid] = templateId;
+        ("Найдите улики и примите два решения. От выборов зависит доверие."),
+        availability);
+    gCrimeUISelectedTemplate[playerid] = alreadyDone || remaining > 0 ? 0 : templateId;
     CrimeUI_Open(playerid, CRIME_DLG_OFFER);
     return ShowPlayerDialog(playerid, CRIME_DLG_OFFER, DIALOG_STYLE_MSGBOX,
-        "{FFD15C}Заказ посредника", body, "Принять", "Назад");
+        "{FFD15C}Заказ посредника", body,
+        gCrimeUISelectedTemplate[playerid] ? ("Принять") : ("К списку"), "Назад");
 #else
     #pragma unused templateId
     return CrimeUI_Main(playerid);
@@ -262,11 +283,20 @@ stock CrimeUI_Route(playerid)
     new Float:x = phase == 1 ? pickup[0] : delivery[0],
         Float:y = phase == 1 ? pickup[1] : delivery[1],
         Float:z = phase == 1 ? pickup[2] : delivery[2];
-    new body[540];
+    new body[860];
     format(body, sizeof(body),
         "{FFD15C}КОНТРАКТ:{FFFFFF} #%d — %s\n{FFD15C}ЗАДАЧА:{FFFFFF} %s\n\n{FFD15C}ТОЧКА НА КАРТЕ:{FFFFFF}\nX: %.1f\nY: %.1f\nZ: %.1f\n{FFD15C}РАДИУС:{FFFFFF} 12 метров\n\nДоберитесь до указанного места, затем нажмите «%s». Если вы далеко от точки, операция не выполнится.",
         id, title, task,
         x, y, z, kind == 0 ? (phase == 1 ? ("Забрать") : ("Передать")) : ("Исследовать"));
+    if (kind > 0)
+    {
+        new eventId, narrative[240];
+        if (!CrimeScenario_EventInfo(playerid, id, eventId) || eventId < 1)
+            return SendClientMessage(playerid, CRIME_ERROR, "Обстоятельства дела недоступны.");
+        CrimeScenario_EventText(kind, eventId, phase, narrative, sizeof(narrative));
+        strcat(body, "\n\n{FFD15C}ОБСТОЯТЕЛЬСТВА:{FFFFFF} ", sizeof(body));
+        strcat(body, narrative, sizeof(body));
+    }
     CrimeUI_Open(playerid, CRIME_DLG_ROUTE);
     return ShowPlayerDialog(playerid, CRIME_DLG_ROUTE, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Маршрут", body,
@@ -404,7 +434,7 @@ stock CrimeUI_Help(playerid)
     CrimeUI_Open(playerid, CRIME_DLG_HELP);
     return ShowPlayerDialog(playerid, CRIME_DLG_HELP, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Обучение",
-        "{FFD15C}1. Посредник{FFFFFF}\nВыберите контакт, найдите его в городе и поговорите рядом с ним. После знакомства появятся заказы.\n\n{FFD15C}2. Получение груза{FFFFFF}\nОткройте «Маршрут и действие», доберитесь до точки и нажмите «Забрать».\n\n{FFD15C}3. Доставка{FFFFFF}\nПовторите действие в новой точке и нажмите «Передать».\n\n{FFD15C}4. Оплата{FFFFFF}\nДеньги зачисляются после подтверждения MySQL. Повторная выплата невозможна.\n\n{FFD15C}5. Сохранение{FFFFFF}\nСостояние сохраняется при выходе. Срок задания продолжает идти.\n\nПри необходимости откажитесь от заказа в главном меню. Все действия доступны через один вход: /crime.",
+        "{FFD15C}1. Посредник{FFFFFF}\nПриезжайте к NPC и откройте его заказы.\n\n{FFD15C}2. Задание{FFFFFF}\nПеревозите груз или изучите обстоятельства дела на двух точках.\n\n{FFD15C}3. Решения{FFFFFF}\nВ расследованиях выбор влияет на доверие. События меняются между прохождениями.\n\n{FFD15C}4. Повторение{FFFFFF}\nПосле перевозки нужно подождать 5 минут, после расследования — 15. Уникальные сюжетные дела нельзя проходить повторно.\n\n{FFD15C}5. Сохранение{FFFFFF}\nДеньги, прогресс и обстоятельства сохраняются в базе.\n\nВсё управление доступно из /crime и меню организации."
         "Назад", "Закрыть");
 }
 
@@ -475,6 +505,8 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
         }
         case CRIME_DLG_OFFER:
         {
+            if (gCrimeUISelectedTemplate[playerid] <= 0)
+                return CrimeUI_Offers(playerid);
             Crime_Start(playerid, gCrimeUISelectedTemplate[playerid]); // SQL and proximity rechecked.
             return CrimeUI_Route(playerid);
         }
