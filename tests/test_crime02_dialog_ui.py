@@ -57,7 +57,7 @@ class CrimeDialogTests(unittest.TestCase):
             "!Crime_Available(playerid)",
             "gCrimeUIDialog[playerid] = 0;",
             "if (!response)",
-            "if (listitem < 0 || listitem > 8)",
+            "if (listitem < 0 || listitem > 9)",
             "if (listitem < 0 || listitem >= gCrimeUIOfferCount[playerid])",
         ):
             self.assertIn(token, handler)
