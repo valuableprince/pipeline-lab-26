@@ -18,7 +18,7 @@ class Crime02ContractTests(unittest.TestCase):
         self.assertIn("cmd:crime(playerid, params[])", COMMANDS)
         self.assertIn("return CrimeUI_Main(playerid);", COMMANDS)
         self.assertIn("#if defined TARKENSO_DB_PRIMARY", SOURCE)
-        self.assertIn('version=44 LIMIT 1', SOURCE)
+        self.assertIn('version=45 LIMIT 1', SOURCE)
         self.assertIn('gDBPrimaryLoaded[playerid]', SOURCE)
         self.assertIn("Leader_IsCriminal(org)", SOURCE)
         self.assertIn("m.faction_id=%d", SOURCE)
