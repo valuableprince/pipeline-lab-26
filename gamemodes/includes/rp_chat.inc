@@ -87,7 +87,8 @@ stock RP_PlaySpeechAnimation(playerid)
 {
     if (!IsPlayerConnected(playerid) || gAuthState[playerid] != AUTH_READY ||
         !gAccountSpawned[playerid] || gAccountDead[playerid] || gAdminFrozen[playerid] ||
-        TDS_Active(playerid) || GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
+        TDS_Active(playerid) || RPAnim_Active(playerid) ||
+        GetPlayerState(playerid) != PLAYER_STATE_ONFOOT ||
         GetPlayerSpecialAction(playerid) != SPECIAL_ACTION_NONE) return 0;
 
     new Float:vx, Float:vy, Float:vz;
@@ -108,7 +109,7 @@ stock RP_PlaySpeechAnimation(playerid)
 
     // No loop, no freeze and no ClearAnimations timer: the clip expires itself.
     ApplyAnimation(playerid, "PED", "IDLE_CHAT", 4.1, false, false, false,
-        false, RP_SPEECH_ANIM_TIME, 0);
+        false, RP_SPEECH_ANIM_TIME, SYNC_NONE);
     return 1;
 }
 

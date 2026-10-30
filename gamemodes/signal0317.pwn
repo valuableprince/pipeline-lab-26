@@ -232,6 +232,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "ship_horn.inc"
 #include "ship_panel.inc"
 #include "tdstudio.inc"
+#include "rp_animations.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 #include "ship_notice.inc"
@@ -934,6 +935,7 @@ public OnPlayerConnect(playerid)
     DisablePlayerRaceCheckpoint(playerid);
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
+    RPAnim_Reset(playerid);
     AFK_Reset(playerid);
     Admin_OnConnect(playerid);
     AdminFly_Reset(playerid);
@@ -1013,6 +1015,7 @@ public OnPlayerDisconnect(playerid, reason)
     AdminFly_Reset(playerid);
     TDS_Reset(playerid, false);
     RP_Reset(playerid);
+    RPAnim_Reset(playerid);
     AFK_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     AuthProfiler_Reset(playerid);
@@ -1132,6 +1135,7 @@ public OnPlayerSpawn(playerid)
         return 1;
     }
 
+    RPAnim_Reset(playerid);
     // Restore faction/neutral color after each respawn (also refreshes TAB).
     Leader_ApplyPlayerColor(playerid);
 
@@ -1179,6 +1183,7 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    RPAnim_Reset(playerid);
     AFK_Reset(playerid);
     ShipCam_Reset(playerid);
     ShipPanel_Reset(playerid);
@@ -1219,6 +1224,7 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
         TDSInput_OnKeys(playerid, newkeys);
         return 1;
     }
+    if (RPAnim_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
@@ -1262,6 +1268,7 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    if (newstate != PLAYER_STATE_ONFOOT) RPAnim_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) ShipCam_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) ShipEditor_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
@@ -1302,6 +1309,7 @@ public OnVehicleDeath(vehicleid, killerid)
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     if (TDS_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (RPAnim_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
