@@ -438,7 +438,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
     // transaction as the wallet. The contract ID is its idempotency key.
     // The ledger records the ACTUAL delta after the 0..100 clamp.
     mysql_format(gDBPrimary, q, sizeof(q),
-        "INSERT INTO crime_contact_heat_events(contract_id,account_id,contact_id,heat_delta) SELECT c.contract_id,c.account_id,c.contact_id,GREATEST(-p.heat,LEAST(100-p.heat,c.risk_delta)) FROM crime_contracts c JOIN crime_contact_progress p ON p.account_id=c.account_id AND p.contact_id=c.contact_id WHERE c.contract_id=%d AND c.account_id=%d AND c.state=3",
+        "INSERT INTO crime_contact_heat_events(contract_id,account_id,contact_id,heat_delta) SELECT c.contract_id,c.account_id,c.contact_id,GREATEST(-CAST(p.heat AS SIGNED),LEAST(100-CAST(p.heat AS SIGNED),c.risk_delta)) FROM crime_contracts c JOIN crime_contact_progress p ON p.account_id=c.account_id AND p.contact_id=c.contact_id WHERE c.contract_id=%d AND c.account_id=%d AND c.state=3",
         id, gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
@@ -447,7 +447,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось записать риск. Выплата отменена.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contact_progress p JOIN crime_contact_heat_events h ON h.account_id=p.account_id AND h.contact_id=p.contact_id SET p.heat=p.heat+h.heat_delta WHERE h.contract_id=%d AND h.account_id=%d",
+        "UPDATE crime_contact_progress p JOIN crime_contact_heat_events h ON h.account_id=p.account_id AND h.contact_id=p.contact_id SET p.heat=GREATEST(0,LEAST(100,CAST(p.heat AS SIGNED)+h.heat_delta)) WHERE h.contract_id=%d AND h.account_id=%d",
         id, gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
