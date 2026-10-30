@@ -55,7 +55,7 @@ class AfkIndicatorContracts(unittest.TestCase):
     def test_documentation_and_encodings(self):
         for token in ("30 секунд", "5 секунд", "AFK", "виртуальн",
                       "после возвращения", "дисконнекте"):
-            self.assertIn(token, DOCS.casefold())
+            self.assertIn(token.casefold(), DOCS.casefold())
         GAME.encode("cp1251", errors="strict")
         AFK.encode("cp1251", errors="strict")
 
