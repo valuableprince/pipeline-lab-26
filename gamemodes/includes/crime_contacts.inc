@@ -148,6 +148,39 @@ stock bool:CrimeContacts_Progress(playerid, contactId, &trust, &completed, &intr
 #endif
 }
 
+
+// The heat is private to this contact and account; zero is the safe default
+// for players who have not yet spoken to the intermediary.
+stock bool:CrimeContacts_Heat(playerid, contactId, &heat)
+{
+    heat = 0;
+#if defined TARKENSO_DB_PRIMARY
+    if (!Crime_Available(playerid) || contactId < 1 ||
+        contactId > CRIME_CONTACT_COUNT) return false;
+    new q[230], rows = 0;
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "SELECT heat FROM crime_contact_progress WHERE account_id=%d AND contact_id=%d LIMIT 1",
+        gDBPrimaryAccountId[playerid], contactId);
+    new Cache:c = mysql_query(gDBPrimary, q);
+    if (c == Cache:0 || mysql_errno(gDBPrimary) ||
+        !cache_get_row_count(rows) || rows > 1)
+    {
+        if (c != Cache:0) cache_delete(c);
+        return false;
+    }
+    if (rows == 1 && !cache_get_value_name_int(0, "heat", heat))
+    {
+        cache_delete(c);
+        return false;
+    }
+    cache_delete(c);
+    return heat >= 0 && heat <= 100;
+#else
+    #pragma unused playerid, contactId
+    return false;
+#endif
+}
+
 stock bool:CrimeContacts_Introduce(playerid, contactId)
 {
 #if defined TARKENSO_DB_PRIMARY
