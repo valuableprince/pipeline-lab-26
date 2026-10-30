@@ -16,6 +16,9 @@ forward bool:CrimeContacts_Init();
 forward CrimeContacts_Shutdown();
 forward bool:CrimeContacts_Near(playerid, contactId);
 forward CrimeContacts_TemplateContact(templateId);
+forward bool:CrimeWorld_Init();
+forward CrimeWorld_Shutdown();
+forward bool:CrimeWorld_EvidenceReady(playerid, id);
 
 stock Crime_Init()
 {
@@ -23,7 +26,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=35 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=36 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -31,10 +34,15 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 035 missing; solo contracts disabled.");
+        print("[CRIME-02] Migration 036 missing; physical clue mode disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
+    if (!CrimeWorld_Init())
+    {
+        CrimeContacts_Shutdown();
+        return 1;
+    }
     gCrimeReady = true;
     print("[CRIME-02] Solo NPC contracts enabled (SQL-primary).");
 #else
@@ -279,12 +287,25 @@ stock Crime_Advance(playerid, bool:deliveryStage, decision = 0)
         (scenarioKind == 0 && decision != 0) ||
         (scenarioKind != 0 && (decision < 1 || decision > 2)))
         return SendClientMessage(playerid, CRIME_ERROR, "Выбор для этого задания недоступен.");
+    if (scenarioKind > 0)
+    {
+        if (GetPlayerInterior(playerid) != 0 ||
+            GetPlayerVirtualWorld(playerid) != 0 ||
+            IsPlayerInAnyVehicle(playerid) ||
+            !IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS,
+                deliveryStage ? drop[0] : pickup[0],
+                deliveryStage ? drop[1] : pickup[1],
+                deliveryStage ? drop[2] : pickup[2]) ||
+            (!deliveryStage && !CrimeWorld_EvidenceReady(playerid, id)))
+            return SendClientMessage(playerid, CRIME_ERROR,
+                "Сначала изучите улику или поговорите с участником рядом с ним (Y).");
+    }
     if (deliveryStage) return Crime_Settle(playerid, id, reward, faction, decision);
     if (!Crime_Exec("START TRANSACTION"))
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка начала операции.");
     new q[500], changed;
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contracts SET state=2,picked_up_at=UNIX_TIMESTAMP(),scenario_choice=%d WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=1 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR %d IN(1,2))",
+        "UPDATE crime_contracts SET state=2,picked_up_at=UNIX_TIMESTAMP(),scenario_choice=%d WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=1 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR (evidence_found_at>0 AND %d IN(1,2)))",
         decision, id, gDBPrimaryAccountId[playerid], faction, decision);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
