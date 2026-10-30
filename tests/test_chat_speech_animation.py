@@ -29,7 +29,7 @@ class SpeechGestureTests(unittest.TestCase):
             "stock RP_SendLocal", 1
         )[0]
         for value in ('"PED", "IDLE_CHAT"', "4.1, false, false, false,",
-                      "false, RP_SPEECH_ANIM_TIME, 0", "#"):
+                      "false, RP_SPEECH_ANIM_TIME, SYNC_NONE", "#"):
             if value == "#":
                 self.assertIn("#define RP_SPEECH_ANIM_TIME (2400)", RP)
             else:
