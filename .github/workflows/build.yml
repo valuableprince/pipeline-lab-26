@@ -313,6 +313,9 @@ jobs:
       - name: CRIME-03.7 read-only ranking, event history and balance UAT
         run: python3 tests/crime037_mysql_uat.py
 
+      - name: CRIME-UAT-01 login reminders, expired missions and pending NPC tenders
+        run: python3 tests/crime_reconnect_mysql_uat.py
+
   compile:
     name: Compile
     needs: sql_security
