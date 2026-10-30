@@ -18,7 +18,7 @@ class SoloRiskEconomy(unittest.TestCase):
                       "fk_crime_heat_progress", "chk_crime_contact_heat",
                       "chk_crime_contract_risk", "VALUES (38)"):
             self.assertIn(token,SCHEMA)
-        self.assertIn("version=42 LIMIT 1",CORE)
+        self.assertIn("version=43 LIMIT 1",CORE)
         self.assertIn("038_crime_npc_heat.sql",WORKFLOW)
         self.assertIn("crime027_mysql_uat.py",WORKFLOW)
 
