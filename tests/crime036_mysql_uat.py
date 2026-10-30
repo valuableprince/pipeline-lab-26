@@ -131,7 +131,7 @@ def main():
         run(db,"UPDATE crime_contact_recoveries SET started_at=UNIX_TIMESTAMP()-4000 WHERE recovery_id=%s",(safe,))
         abandoned=start(db,a,6,2,2)
         assert abandoned
-        run(db,"UPDATE crime_contact_recoveries SET expires_at=UNIX_TIMESTAMP()-1 WHERE recovery_id=%s",(abandoned,))
+        run(db,"UPDATE crime_contact_recoveries SET started_at=UNIX_TIMESTAMP()-1300,expires_at=UNIX_TIMESTAMP()-1 WHERE recovery_id=%s",(abandoned,))
         assert not field(db,abandoned,a,6)
         assert not finish(db,abandoned,a,6)
         assert scalar(db,"SELECT heat FROM crime_contact_progress WHERE account_id=%s AND contact_id=2",(a,))==100
