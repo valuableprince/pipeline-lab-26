@@ -103,6 +103,20 @@ cmd:bondgov(playerid, params[])
 }
 
 // Справка по ролям и темам вместо одного длинного списка команд.
+cmd:pass(playerid, params[])
+{
+    #pragma unused params
+    return Passport_Open(playerid);
+}
+cmd:showpass(playerid, params[])
+{
+    new target;
+    if (isnull(params) || sscanf(params, "u", target))
+        return SendClientMessage(playerid, COLOR_RED,
+            "Использование: /showpass ID (игрок в радиусе 3 метров).");
+    return Passport_Show(playerid, target);
+}
+
 cmd:help(playerid, params[])
 {
     new category[20];
@@ -123,7 +137,7 @@ cmd:help(playerid, params[])
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /mn, /story, /bonds, /bondgov, /position, /play, /report, /admins.");
+            "Игрок: /mn, /pass, /showpass ID, /story, /bonds, /position, /play, /report.");
         return 1;
     }
     if (!strcmp(category, "rp", true))

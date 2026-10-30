@@ -9,15 +9,24 @@
 #define PLAYER_MENU_STATS     (6431)
 #define PLAYER_MENU_GAME_HELP (6432)
 #define PLAYER_MENU_GAME_TOPIC (6433)
+#define PLAYER_MENU_DOCUMENTS  (6434)
 
 stock PlayerMenu_Open(playerid)
 {
     if (gAuthState[playerid] != AUTH_READY) return 1;
     ShowPlayerDialog(playerid, PLAYER_MENU_MAIN, DIALOG_STYLE_LIST,
         "Tarkenso RPG | Меню персонажа",
-        "1. Статистика персонажа\n2. Помощь по командам\n3. Помощь по игре",
+        "1. Статистика персонажа\n2. Помощь по командам\n3. Помощь по игре\n4. Документы",
         "Открыть", "Закрыть");
     return 1;
+}
+
+stock PlayerMenu_Documents(playerid)
+{
+    if (gAuthState[playerid] != AUTH_READY) return 1;
+    return ShowPlayerDialog(playerid, PLAYER_MENU_DOCUMENTS, DIALOG_STYLE_LIST,
+        "{D5B477}TARKENSO | Документы",
+        "{FFFFFF}1. Паспорт гражданина", "Открыть", "Назад");
 }
 
 stock PlayerMenu_Statistics(playerid)
@@ -85,7 +94,8 @@ stock PlayerMenu_OnDialog(playerid, dialogid, response, listitem)
 {
     if (dialogid != PLAYER_MENU_MAIN && dialogid != PLAYER_MENU_STATS &&
         dialogid != PLAYER_MENU_GAME_HELP &&
-        dialogid != PLAYER_MENU_GAME_TOPIC)return 0;
+        dialogid != PLAYER_MENU_GAME_TOPIC &&
+        dialogid != PLAYER_MENU_DOCUMENTS)return 0;
     if (gAuthState[playerid] != AUTH_READY) return 1;
     if (dialogid == PLAYER_MENU_MAIN)
     {
@@ -93,6 +103,13 @@ stock PlayerMenu_OnDialog(playerid, dialogid, response, listitem)
         if(listitem==0)return PlayerMenu_Statistics(playerid);
         if(listitem==1)return CommandHelp_Categories(playerid);
         if(listitem==2)return PlayerMenu_GameHelp(playerid);
+        if(listitem==3)return PlayerMenu_Documents(playerid);
+        return 1;
+    }
+    if (dialogid == PLAYER_MENU_DOCUMENTS)
+    {
+        if (!response) return PlayerMenu_Open(playerid);
+        if (listitem == 0) return Passport_Open(playerid);
         return 1;
     }
     if(dialogid==PLAYER_MENU_GAME_HELP)

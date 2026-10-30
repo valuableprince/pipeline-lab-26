@@ -41,6 +41,7 @@
 #define DIALOG_LOGIN        (6104)
 #define DIALOG_SUCCESS      (6105)
 #define DIALOG_REGION       (6106)
+#define DIALOG_BIRTH        (6107)
 
 enum E_AUTH_STATE
 {
@@ -50,6 +51,7 @@ enum E_AUTH_STATE
     AUTH_REGISTER_CONFIRM,
     AUTH_REGISTER_BACKGROUND,
     AUTH_REGISTER_REGION,
+    AUTH_REGISTER_BIRTH,
     AUTH_HASHING,
     AUTH_LOGIN,
     AUTH_VERIFYING,
@@ -197,6 +199,7 @@ forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
 forward bool:GovBond_UI_OnError(errorid,const callback[],const query[]);
 forward GovBond_UI_PublicReport(playerid);
 #include "db_primary.inc"
+#include "passport.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
 #include "bond_fund.inc"
@@ -616,6 +619,12 @@ stock Auth_ShowRegion(playerid)
     return AuthDialog_Region(playerid);
 }
 
+stock Auth_ShowBirth(playerid, error = 0)
+{
+    gAuthState[playerid] = AUTH_REGISTER_BIRTH;
+    return AuthDialog_BirthDate(playerid, error);
+}
+
 stock Auth_ShowLogin(playerid, failures = 0)
 {
     gAuthState[playerid] = AUTH_LOGIN;
@@ -702,6 +711,7 @@ stock Auth_EnterWorld(playerid)
     started = GetTickCount();
     PayDay_OnReady(playerid);
     AuthProfiler_Step(playerid, "payday_ready", started);
+    Passport_OnReady(playerid);
     // AUTH_READY + loaded MySQL account: deliver pending offline coupons.
     BondCoupon_NotifyPlayer(playerid,true);
     // Offline debt maturities remain payable; remind on successful login.
@@ -843,6 +853,11 @@ public OnGameModeInit()
         SendRconCommand("exit");
         return 0;
     }
+    if (!Passport_Init())
+    {
+        SendRconCommand("exit");
+        return 0;
+    }
     Treasury_Init();
     GovTransfer_Init();
     BondFund_Init();
@@ -936,6 +951,7 @@ public OnPlayerConnect(playerid)
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
     RPAnim_Reset(playerid);
+    Passport_Reset(playerid);
     AFK_Reset(playerid);
     Admin_OnConnect(playerid);
     AdminFly_Reset(playerid);
@@ -1016,6 +1032,7 @@ public OnPlayerDisconnect(playerid, reason)
     TDS_Reset(playerid, false);
     RP_Reset(playerid);
     RPAnim_Reset(playerid);
+    Passport_Reset(playerid);
     AFK_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     AuthProfiler_Reset(playerid);
@@ -1310,6 +1327,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     if (TDS_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (RPAnim_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (Passport_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
@@ -1329,7 +1347,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
         dialogid != DIALOG_CONFIRM && dialogid != DIALOG_BACKGROUND &&
         dialogid != DIALOG_LOGIN && dialogid != DIALOG_SUCCESS &&
-        dialogid != DIALOG_REGION) return 0;
+        dialogid != DIALOG_REGION && dialogid != DIALOG_BIRTH) return 0;
     if (!gAuthDialogOpen[playerid]) return 1;
     gAuthDialogOpen[playerid] = false;
 
@@ -1414,6 +1432,16 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
                 return 1;
             }
             gStartRegion[playerid] = listitem + REGION_FORT_CARSON;
+            Auth_ShowBirth(playerid);
+            return 1;
+        }
+        case DIALOG_BIRTH:
+        {
+            if (gAuthState[playerid] != AUTH_REGISTER_BIRTH) return 1;
+            if (!response) return Auth_ShowRegion(playerid);
+            if (!Passport_ParseBirth(inputtext, gPassportPendingBirth[playerid],
+                sizeof(gPassportPendingBirth[])))
+                return Auth_ShowBirth(playerid, 1);
             if (Auth_AccountExists(playerid))
             {
                 gPasswordPending[playerid][0] = EOS;
