@@ -39,6 +39,7 @@ forward CrimeAftermath_Shutdown();
 forward CrimeAftermath_Reset(playerid);
 forward CrimeAftermath_Route(playerid, contractId);
 forward CrimeAftermath_Info(playerid, contractId, &contact, &choice, &stateCode);
+forward CrimeIntelUI_Board(playerid);
 
 stock Crime_Init()
 {
@@ -46,7 +47,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=44 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=45 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -54,7 +55,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 044 missing; tender follow-ups disabled.");
+        print("[CRIME-02] Migration 045 missing; intelligence cases disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -524,6 +525,18 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         Crime_Rollback();
         gGovTransferBusy[playerid] = false;
         return SendClientMessage(playerid, CRIME_ERROR, "Не удалось сохранить связи. Выплата отменена.");
+    }
+    // Optional CRIME-03.5 dossier: create only on a completed tender, inside
+    // the same transaction as its wallet and exactly-once event ledgers.
+    mysql_format(gDBPrimary, q, sizeof(q),
+        "INSERT INTO crime_intelligence_cases(contract_id,puzzle_code,expires_at) SELECT contract_id,1+MOD(contract_id,3),UNIX_TIMESTAMP()+1800 FROM crime_contracts WHERE contract_id=%d AND account_id=%d AND mode_id=3 AND state=3",
+        id, gDBPrimaryAccountId[playerid]);
+    if (!DBPrimary_Execute(q, changed) || changed>1)
+    {
+        Crime_Rollback();
+        gGovTransferBusy[playerid] = false;
+        return SendClientMessage(playerid, CRIME_ERROR,
+            "Не удалось зарегистрировать сводку. Выплата отменена.");
     }
     if (!Crime_Exec("COMMIT"))
     {
