@@ -16,7 +16,7 @@ class WitnessContracts(unittest.TestCase):
         for part in ("ADD COLUMN interview_question","ADD COLUMN interviewed_at",
                      "picked_up_at", "state IN (2,3)", "VALUES (37)"):
             self.assertIn(part,SCHEMA)
-        self.assertIn("version=44 LIMIT 1",CORE)
+        self.assertIn("version=45 LIMIT 1",CORE)
         self.assertIn("037_crime_witness_interview.sql",WORKFLOW)
         self.assertIn("crime026_mysql_uat.py",WORKFLOW)
 
