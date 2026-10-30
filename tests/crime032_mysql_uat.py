@@ -104,6 +104,9 @@ def finalize(db,tid):
                   WHERE h.account_id=b.account_id AND h.state IN(1,2))""",
                 (bid_id,tid,account,faction,code))
             assert n==1
+            assert run(db, """INSERT INTO crime_tender_incidents
+                (contract_id,incident_code) VALUES(%s,1+MOD(%s,3))""",
+                (contract,contract))[0]==1
             assert run(db, """UPDATE crime_tender_rounds SET state=2,
                 winner_bid_id=%s,winner_contract_id=%s,decided_at=UNIX_TIMESTAMP()
                 WHERE tender_id=%s AND state=1""",(bid_id,contract,tid))[0]==1
@@ -118,6 +121,37 @@ def finalize(db,tid):
             THEN 2 ELSE 3 END WHERE tender_id=%s AND state=1""",(winner,tid))
         run(db,"COMMIT")
         return contract
+    except Exception:
+        run(db,"ROLLBACK")
+        raise
+
+def incident(db,cid,acc,faction,choice):
+    begin(db)
+    try:
+        n,_=run(db, """UPDATE crime_tender_incidents i JOIN crime_contracts c
+            ON c.contract_id=i.contract_id
+            JOIN faction_members m ON m.account_id=c.account_id
+              AND m.faction_id=c.faction_id
+            SET i.choice=%s,i.resolved_at=UNIX_TIMESTAMP()
+            WHERE i.contract_id=%s AND i.choice=0 AND c.account_id=%s
+              AND c.faction_id=%s AND c.mode_id=3 AND c.state=2
+              AND c.expires_at>UNIX_TIMESTAMP() AND c.reward_amount<=49700""",
+            (choice,cid,acc,faction))
+        if n!=1:
+            run(db,"ROLLBACK")
+            return False
+        if choice==2:
+            assert run(db, """UPDATE crime_contracts SET reward_amount=reward_amount+300
+                WHERE contract_id=%s AND account_id=%s AND mode_id=3 AND state=2
+                AND reward_amount<=49700 AND EXISTS(
+                    SELECT 1 FROM crime_tender_incidents i
+                    WHERE i.contract_id=%s AND i.choice=2 AND i.resolved_at>0)""",
+                (cid,acc,cid))[0]==1
+        run(db, """INSERT INTO crime_contract_events
+            (contract_id,actor_account_id,event_type)
+            VALUES(%s,%s,'INCIDENT_RESOLVED')""",(cid,acc))
+        run(db,"COMMIT")
+        return True
     except Exception:
         run(db,"ROLLBACK")
         raise
@@ -179,6 +213,7 @@ def main():
         before_b=scalar(db,"SELECT balance FROM accounts WHERE account_id=%s",(b,))
         before_a=scalar(db,"SELECT balance FROM accounts WHERE account_id=%s",(a,))
         pickup(db,winner,b,7)
+        assert incident(db,winner,b,7,1)
         assert resolve(db,winner,b,7,0)
         assert not resolve(db,winner,b,7,0)
         assert scalar(db,"SELECT balance FROM accounts WHERE account_id=%s",(b,))==before_b+2660
@@ -192,6 +227,7 @@ def main():
         assert scalar(db,"SELECT account_id FROM crime_contracts WHERE contract_id=%s",(sc,))==a
         assert scalar(db,"SELECT reward_amount FROM crime_contracts WHERE contract_id=%s",(sc,))==3700
         pickup(db,sc,a,6)
+        assert incident(db,sc,a,6,1)
         assert resolve(db,sc,a,6,0)
         # A winning bid is a real delivery; an abandoned one has consequences.
         assert bid(db,abort,b,7,2)
