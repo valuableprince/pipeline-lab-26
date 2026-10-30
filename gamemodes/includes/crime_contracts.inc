@@ -33,6 +33,7 @@ forward bool:CrimeIncident_Init();
 forward CrimeIncident_Shutdown();
 forward CrimeIncident_Reset(playerid);
 forward CrimeIncident_Route(playerid, contractId);
+forward bool:CrimeIncident_Info(playerid, contractId, &contact, &code, &choice);
 
 stock Crime_Init()
 {
