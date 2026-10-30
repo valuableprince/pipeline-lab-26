@@ -422,6 +422,8 @@ public BondSettlement_OnAutomated(issueId,kind)
     printf("[GOV-03] Bond assessment committed: issue=%d, step=%d.",issueId,kind);
     if (!BondFund_Reload())
         print("[GOV-03] Fund snapshot unavailable after automatic assessment.");
+    // Notify only after the maturity/insurance SQL transaction committed.
+    BondsUI_NotifyMaturityOnline(issueId);
 #else
     #pragma unused issueId,kind
 #endif

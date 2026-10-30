@@ -702,6 +702,8 @@ stock Auth_EnterWorld(playerid)
     AuthProfiler_Step(playerid, "payday_ready", started);
     // AUTH_READY + loaded MySQL account: deliver pending offline coupons.
     BondCoupon_NotifyPlayer(playerid,true);
+    // Offline debt maturities remain payable; remind on successful login.
+    BondsUI_NotifyMaturityLogin(playerid);
 
     started = GetTickCount();
     new Float:spawnX, Float:spawnY, Float:spawnZ, Float:spawnA;
