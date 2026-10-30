@@ -222,7 +222,10 @@ stock CrimeScenario_Testimony(kind, eventId, question, clueChoice, output[], siz
             }
         }
     }
-    if (question == 1)
+    if (question == 0)
+        format(reaction, sizeof(reaction),
+            "Это дело началось до обновления бесед. Предыдущие показания сохранены.");
+    else if (question == 1)
     {
         if (clueChoice == 1)
             format(reaction, sizeof(reaction),
