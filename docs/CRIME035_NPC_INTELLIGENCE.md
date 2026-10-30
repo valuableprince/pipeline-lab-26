@@ -1,7 +1,7 @@
 # CRIME-03.5 — Оперативные сводки после тендерных контрактов
 
 TARKENSO RolePlay Game · open.mp/Pawn · PR #111 · ветка
-\`feat/crime02-solo-contract-core\`.
+`feat/crime02-solo-contract-core`.
 
 ## Цель
 
@@ -14,7 +14,7 @@ TARKENSO RolePlay Game · open.mp/Pawn · PR #111 · ветка
 
 1. Победить в тендере, получить груз, пройти обе стадии
    CRIME-03.3–03.4 и успешно доставить его.
-2. Открыть \`/crime → Оперативные сводки\`. Досье действительно
+2. Открыть `/crime → Оперативные сводки`. Досье действует
    **30 минут** с момента успешной доставки (не с момента открытия меню).
 3. Вернуться к исходному посреднику **пешком** и открыть досье.
 4. Найти расхождение в документах: недостача груза, неверная
@@ -33,7 +33,7 @@ TARKENSO RolePlay Game · open.mp/Pawn · PR #111 · ветка
 
 ## Хранение и защита
 
-Новая таблица \`crime_intelligence_cases\`: contract_id — PK,
+Новая таблица `crime_intelligence_cases`: contract_id — PK,
 puzzle_code, attempts, next_attempt_at, solved_at, decision, closed_at
 и expires_at. Создание досье встроено в **ту же транзакцию**, что
 и начисление награды за успешную тендерную перевозку. У обычных
@@ -55,12 +55,12 @@ puzzle_code, attempts, next_attempt_at, solved_at, decision, closed_at
 
 ## Проверки и приёмка
 
-- Миграция: \`db/migrations/045_crime_intelligence_cases.sql\`
+- Миграция: `db/migrations/045_crime_intelligence_cases.sql`
   (выполнять последовательно после 044; остановка сервера,
   резервная копия).
-- Обработчики: \`crime_intel.inc\`, \`crime_intel_ui.inc\`.
-- Статические тесты: \`tests/test_crime035_intel.py\`.
-- MariaDB UAT: \`tests/crime035_mysql_uat.py\`: две ветки,
+- Обработчики: `crime_intel.inc`, `crime_intel_ui.inc`.
+- Статические тесты: `tests/test_crime035_intel.py`.
+- MariaDB UAT: `tests/crime035_mysql_uat.py`: две ветки,
   cooldown после ошибки, срок, повторное использование, защита
   другого аккаунта, отсутствие дополнительных денег.
 - Ручной GTA UAT при общем релизе: вернуться к NPC после доставки,
@@ -69,4 +69,4 @@ puzzle_code, attempts, next_attempt_at, solved_at, decision, closed_at
 
 Миграции 031–045 **не применять на игровом сервере** до
 общей ручной приёмки криминального модуля. PR остаётся draft,
-\`main\` не изменяется.
+`main` не изменяется.
