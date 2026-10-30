@@ -300,17 +300,19 @@ stock CrimeUI_Route(playerid)
         x, y, z, kind == 0 ? (phase == 1 ? ("Забрать") : ("Передать")) : ("Исследовать"));
     if (kind > 0)
     {
+        CrimeWorld_ShowClue(playerid, id, kind, phase, x, y, z);
         new eventId, narrative[240];
         if (!CrimeScenario_EventInfo(playerid, id, eventId) || eventId < 1)
             return SendClientMessage(playerid, CRIME_ERROR, "Обстоятельства дела недоступны.");
         CrimeScenario_EventText(kind, eventId, phase, narrative, sizeof(narrative));
         strcat(body, "\n\n{FFD15C}ОБСТОЯТЕЛЬСТВА:{FFFFFF} ", sizeof(body));
         strcat(body, narrative, sizeof(body));
+        strcat(body, "\n\n{FFD15C}ВЗАИМОДЕЙСТВИЕ:{FFFFFF} Подойдите к улике или NPC на 3.5 м и нажмите Y.", sizeof(body);
     }
     CrimeUI_Open(playerid, CRIME_DLG_ROUTE);
     return ShowPlayerDialog(playerid, CRIME_DLG_ROUTE, DIALOG_STYLE_MSGBOX,
         "{FFD15C}Теневой рынок | Маршрут", body,
-        kind == 0 ? (phase == 1 ? ("Забрать") : ("Передать")) : ("Решить"), "Назад");
+        kind == 0 ? (phase == 1 ? ("Забрать") : ("Передать")) : ("Понятно"), "Назад");
 }
 
 stock CrimeUI_Scene(playerid)
@@ -326,9 +328,13 @@ stock CrimeUI_Scene(playerid)
     new Float:x = phase == 1 ? pickup[0] : delivery[0],
         Float:y = phase == 1 ? pickup[1] : delivery[1],
         Float:z = phase == 1 ? pickup[2] : delivery[2];
-    if (!IsPlayerInRangeOfPoint(playerid, CRIME_INTERACT_RADIUS, x, y, z))
+    if (GetPlayerVirtualWorld(playerid) != 0 || GetPlayerInterior(playerid) != 0 ||
+        IsPlayerInAnyVehicle(playerid) ||
+        !IsPlayerInRangeOfPoint(playerid, CRIME_WORLD_RADIUS, x, y, z) ||
+        (phase == 1 && !CrimeWorld_EvidenceReady(playerid, id)))
     {
-        SendClientMessage(playerid, CRIME_ERROR, "Сначала доберитесь до точки задания.");
+        SendClientMessage(playerid, CRIME_ERROR,
+            "Подойдите к объекту, нажмите Y и изучите улику.");
         return CrimeUI_Route(playerid);
     }
     new body[470];
@@ -531,7 +537,7 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
             new kind, choice;
             if (!CrimeScenario_Info(playerid, id, kind, choice))
                 return CrimeUI_Main(playerid);
-            if (kind != 0) return CrimeUI_Scene(playerid);
+            if (kind != 0) return 1; // World action is activated only by KEY_YES.
             Crime_Advance(playerid, phase == 2); // Classic courier remains unchanged.
             if (phase == 1) return CrimeUI_Route(playerid);
             return CrimeUI_Main(playerid);
@@ -550,12 +556,14 @@ stock CrimeUI_OnDialog(playerid, dialogid, response, listitem)
             if (!CrimeScenario_Info(playerid, id, kind, choice) || kind == 0)
                 return CrimeUI_Main(playerid);
             Crime_Advance(playerid, phase == 2, listitem + 1);
+            CrimeWorld_Reset(playerid);
             if (phase == 1) return CrimeUI_Route(playerid);
             return CrimeUI_Main(playerid);
         }
         case CRIME_DLG_CANCEL:
         {
             Crime_Abort(playerid);
+            CrimeWorld_Reset(playerid);
             return CrimeUI_Main(playerid);
         }
         case CRIME_DLG_HISTORY, CRIME_DLG_JOURNAL, CRIME_DLG_HELP:
