@@ -67,7 +67,7 @@ stock CrimeTenderUI_Detail(playerid,tenderId)
 {
 #if defined TARKENSO_DB_PRIMARY
     if(tenderId<=0 || !CrimeTender_Refresh(playerid)) return CrimeTenderUI_Board(playerid);
-    new q[670],rows=0,contact=0,state=0,closes=0,winner=0,bids=0,reward=0,myCode=0,myState=0,title[68];
+    new q[670],rows=0,contact=0,roundState=0,closes=0,winner=0,bids=0,reward=0,myCode=0,myState=0,title[68];
     mysql_format(gDBPrimary,q,sizeof(q),
         "SELECT r.contact_id,r.state,r.closes_at,t.title,t.reward_amount,COALESCE(w.faction_id,0) winner,(SELECT COUNT(*) FROM crime_tender_bids z WHERE z.tender_id=r.tender_id) bids,COALESCE(b.offer_code,0) my_code,COALESCE(b.state,0) my_state FROM crime_tender_rounds r JOIN crime_contract_templates t ON t.template_id=r.template_id LEFT JOIN crime_tender_bids w ON w.bid_id=r.winner_bid_id LEFT JOIN crime_tender_bids b ON b.tender_id=r.tender_id AND b.account_id=%d WHERE r.tender_id=%d LIMIT 1",
         gDBPrimaryAccountId[playerid],tenderId);
@@ -75,7 +75,7 @@ stock CrimeTenderUI_Detail(playerid,tenderId)
     if(c==Cache:0 || mysql_errno(gDBPrimary) ||
        !cache_get_row_count(rows) || rows!=1 ||
        !cache_get_value_name_int(0,"contact_id",contact) ||
-       !cache_get_value_name_int(0,"state",state) ||
+       !cache_get_value_name_int(0,"state",roundState) ||
        !cache_get_value_name_int(0,"closes_at",closes) ||
        !cache_get_value_name_int(0,"reward_amount",reward) ||
        !cache_get_value_name_int(0,"winner",winner) ||
@@ -90,8 +90,8 @@ stock CrimeTenderUI_Detail(playerid,tenderId)
     cache_delete(c);
     if(contact<1 || contact>CRIME_CONTACT_COUNT) return CrimeTenderUI_Board(playerid);
     new body[860],status[100],mine[65];
-    if(state==2) format(status,sizeof(status),"Победил синдикат %d.",winner);
-    else if(state==3) format(status,sizeof(status),"NPC не нашёл исполнителя.");
+    if(roundState==2) format(status,sizeof(status),"Победил синдикат %d.",winner);
+    else if(roundState==3) format(status,sizeof(status),"NPC не нашёл исполнителя.");
     else format(status,sizeof(status),"Приём ещё %d секунд.",closes>gettime()?closes-gettime():0);
     if(!myCode) format(mine,sizeof(mine),"Вы пока не подали заявку.");
     else if(myState==1) format(mine,sizeof(mine),"Заявка %d ожидает решения.",myCode);
@@ -100,7 +100,7 @@ stock CrimeTenderUI_Detail(playerid,tenderId)
     format(body,sizeof(body),
         "{FFD15C}ЗАКАЗ:{FFFFFF} %s\n{FFD15C}ПОСРЕДНИК:{FFFFFF} %s\n{FFD15C}МАКС. ВОЗНАГРАЖДЕНИЕ:{FFFFFF} $%d\n{FFD15C}ЗАЯВОК:{FFFFFF} %d/3\n{FFD15C}РЕЗУЛЬТАТ:{FFFFFF} %s\n{FFD15C}ВАША ЗАЯВКА:{FFFFFF} %s\n\nПредложите цену и срок. NPC отдаёт заказ более выгодному и быстрому исполнителю; при равных условиях выигрывает первая заявка. После победы нужно забрать и доставить груз. Даже один игрок может выиграть. Заявку подают только лично посреднику при доверии и связях от 5, внимании ниже 70 и без активного задания.",
         title,gCrimeContactName[contact-1],reward,bids,status,mine);
-    gTenderUISelected[playerid]=(state==1 && closes>gettime() && myCode==0)?tenderId:0;
+    gTenderUISelected[playerid]=(roundState==1 && closes>gettime() && myCode==0)?tenderId:0;
     CrimeUI_Open(playerid,TENDER_DLG_DETAIL);
     return ShowPlayerDialog(playerid,TENDER_DLG_DETAIL,DIALOG_STYLE_MSGBOX,
         "{FFD15C}Конкурс предложений",body,
