@@ -67,6 +67,14 @@ stock bool:CrimeComp_Claim(playerid, roundId, contractId, faction)
         "UPDATE crime_competition_rounds r JOIN crime_contracts c ON c.competition_id=r.round_id SET r.state=2,r.winner_contract_id=c.contract_id,r.winner_faction_id=c.faction_id,r.winner_account_id=c.account_id,r.closed_at=UNIX_TIMESTAMP() WHERE r.round_id=%d AND r.state=1 AND r.expires_at>UNIX_TIMESTAMP() AND c.contract_id=%d AND c.account_id=%d AND c.faction_id=%d AND c.mode_id=2 AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP()",
         roundId,contractId,gDBPrimaryAccountId[playerid],faction);
     if (!DBPrimary_Execute(q,changed) || changed!=1) return false;
+    mysql_format(gDBPrimary,q,sizeof(q),
+        "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) SELECT contract_id,account_id,'RACE_WON' FROM crime_contracts WHERE contract_id=%d AND account_id=%d AND state=2",
+        contractId,gDBPrimaryAccountId[playerid]);
+    if (!Crime_Exec(q)) return false;
+    mysql_format(gDBPrimary,q,sizeof(q),
+        "INSERT INTO crime_contract_events(contract_id,actor_account_id,event_type) SELECT contract_id,account_id,'RACE_LOST' FROM crime_contracts WHERE competition_id=%d AND contract_id<>%d AND state IN(1,2)",
+        roundId,contractId);
+    if (!Crime_Exec(q)) return false;
     // Rival contracts are closed in the same transaction, releasing their
     // unique active-account slot; no loser wallet or trust is credited.
     mysql_format(gDBPrimary,q,sizeof(q),
