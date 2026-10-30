@@ -22,6 +22,7 @@ forward CrimeWorld_Shutdown();
 forward CrimeWorld_Reset(playerid);
 forward CrimeWorld_ShowClue(playerid, contractId, kind, phase, Float:x, Float:y, Float:z);
 forward bool:CrimeWorld_EvidenceReady(playerid, id);
+forward bool:CrimeWorld_InterviewReady(playerid, id);
 
 stock Crime_Init()
 {
@@ -29,7 +30,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=36 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=37 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -37,7 +38,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 036 missing; physical clue mode disabled.");
+        print("[CRIME-02] Migration 037 missing; witness interviews disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -299,7 +300,8 @@ stock Crime_Advance(playerid, bool:deliveryStage, decision = 0)
                 deliveryStage ? drop[0] : pickup[0],
                 deliveryStage ? drop[1] : pickup[1],
                 deliveryStage ? drop[2] : pickup[2]) ||
-            (!deliveryStage && !CrimeWorld_EvidenceReady(playerid, id)))
+            (!deliveryStage && !CrimeWorld_EvidenceReady(playerid, id)) ||
+            (deliveryStage && !CrimeWorld_InterviewReady(playerid, id)))
             return SendClientMessage(playerid, CRIME_ERROR,
                 "Сначала изучите улику или поговорите с участником рядом с ним (Y).");
     }
@@ -362,7 +364,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
     // Account row + contract row remain in the same transaction. CAS rejects
     // stale account versions. On errors every step (including money) rolls back.
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE accounts a JOIN crime_contracts c ON c.account_id=a.account_id SET a.balance=a.balance+c.reward_amount,a.txn_serial=a.txn_serial+1,a.row_version=a.row_version+1 WHERE a.account_id=%d AND a.row_version=%d AND a.balance<=1000000000-c.reward_amount AND a.txn_serial<1000000000 AND c.contract_id=%d AND c.faction_id=%d AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP() AND (c.scenario_kind=0 OR (c.scenario_choice IN(1,2) AND %d IN(1,2))) AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r WHERE r.contract_id=c.contract_id)",
+        "UPDATE accounts a JOIN crime_contracts c ON c.account_id=a.account_id SET a.balance=a.balance+c.reward_amount,a.txn_serial=a.txn_serial+1,a.row_version=a.row_version+1 WHERE a.account_id=%d AND a.row_version=%d AND a.balance<=1000000000-c.reward_amount AND a.txn_serial<1000000000 AND c.contract_id=%d AND c.faction_id=%d AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP() AND (c.scenario_kind=0 OR (c.scenario_choice IN(1,2) AND c.interviewed_at>0 AND %d IN(1,2))) AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r WHERE r.contract_id=c.contract_id)",
         gDBPrimaryAccountId[playerid], oldVersion, id, faction, decision);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
@@ -372,7 +374,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
             "Выплата отклонена: заказ истёк, уже оплачен или кошелёк изменился.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contracts SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%d WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=2 AND expires_at>UNIX_TIMESTAMP()",
+        "UPDATE crime_contracts SET state=3,finished_at=UNIX_TIMESTAMP(),scenario_resolution=%d WHERE contract_id=%d AND account_id=%d AND faction_id=%d AND state=2 AND expires_at>UNIX_TIMESTAMP() AND (scenario_kind=0 OR interviewed_at>0)",
         decision, id, gDBPrimaryAccountId[playerid], faction);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
@@ -402,7 +404,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
     // Reputation and its once-per-contract ledger are committed with money.
     // A duplicate completion can never add trust again.
     mysql_format(gDBPrimary, q, sizeof(q),
-        "INSERT INTO crime_contact_trust_events(contract_id,account_id,contact_id,trust_delta) SELECT contract_id,account_id,contact_id,CASE WHEN scenario_kind=0 THEN 5 WHEN scenario_resolution=2 THEN 2 WHEN scenario_choice=1 THEN 5 ELSE 3 END FROM crime_contracts WHERE contract_id=%d AND account_id=%d AND state=3",
+        "INSERT INTO crime_contact_trust_events(contract_id,account_id,contact_id,trust_delta) SELECT contract_id,account_id,contact_id,CASE WHEN scenario_kind=0 THEN 5 WHEN scenario_resolution=2 THEN 2 WHEN scenario_choice=1 THEN 5+(CASE WHEN interview_question=1 THEN 1 ELSE 0 END) ELSE 3 END FROM crime_contracts WHERE contract_id=%d AND account_id=%d AND state=3",
         id, gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
@@ -411,7 +413,7 @@ stock Crime_Settle(playerid, id, reward, faction, decision)
         return SendClientMessage(playerid, CRIME_ERROR, "Ошибка журнала доверия. Выплата отменена.");
     }
     mysql_format(gDBPrimary, q, sizeof(q),
-        "UPDATE crime_contact_progress p JOIN crime_contracts c ON c.account_id=p.account_id AND c.contact_id=p.contact_id SET p.trust=LEAST(100,p.trust+(CASE WHEN c.scenario_kind=0 THEN 5 WHEN c.scenario_resolution=2 THEN 2 WHEN c.scenario_choice=1 THEN 5 ELSE 3 END)),p.completed_count=p.completed_count+1 WHERE c.contract_id=%d AND c.account_id=%d AND c.state=3",
+        "UPDATE crime_contact_progress p JOIN crime_contracts c ON c.account_id=p.account_id AND c.contact_id=p.contact_id SET p.trust=LEAST(100,p.trust+(CASE WHEN c.scenario_kind=0 THEN 5 WHEN c.scenario_resolution=2 THEN 2 WHEN c.scenario_choice=1 THEN 5+(CASE WHEN c.interview_question=1 THEN 1 ELSE 0 END) ELSE 3 END)),p.completed_count=p.completed_count+1 WHERE c.contract_id=%d AND c.account_id=%d AND c.state=3",
         id, gDBPrimaryAccountId[playerid]);
     if (!DBPrimary_Execute(q, changed) || changed != 1)
     {
