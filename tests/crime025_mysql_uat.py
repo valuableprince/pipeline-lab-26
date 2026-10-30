@@ -78,8 +78,9 @@ def main():
             WHERE account_id=%s AND template_id=4 AND state=3""", (a,))
         stale = attempt(con, a, 6, 4, 2)
         assert stale
-        run(con, """UPDATE crime_contracts SET state=4,expires_at=UNIX_TIMESTAMP()-1,
-            finished_at=UNIX_TIMESTAMP() WHERE contract_id=%s""", (stale,))
+        run(con, """UPDATE crime_contracts SET state=4,started_at=UNIX_TIMESTAMP()-3600,
+            expires_at=UNIX_TIMESTAMP()-1,finished_at=UNIX_TIMESTAMP()
+            WHERE contract_id=%s""", (stale,))
         assert not collect(con, stale, a, 6)
         assert scalar(con, """SELECT COUNT(*) FROM crime_contract_events
             WHERE contract_id=%s AND event_type='EVIDENCE_FOUND'""", (stale,)) == 0
