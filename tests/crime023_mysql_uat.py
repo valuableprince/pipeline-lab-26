@@ -132,9 +132,13 @@ def resolve(con, cid, account, faction, decision):
               AND c.faction_id=%s AND c.state=2 AND c.expires_at>UNIX_TIMESTAMP()
               AND (c.scenario_kind=0 OR
                 (c.scenario_choice IN(1,2) AND c.interviewed_at>0 AND %s IN(1,2)))
-              AND (c.mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents i
+              AND (c.mode_id<>3 OR
+                (EXISTS(SELECT 1 FROM crime_tender_incidents i
                   WHERE i.contract_id=c.contract_id AND i.choice IN(1,2)
-                    AND i.resolved_at>0))
+                    AND i.resolved_at>0)
+                 AND EXISTS(SELECT 1 FROM crime_tender_aftermath x
+                  WHERE x.contract_id=c.contract_id AND x.state=2
+                    AND x.finished_at>0)))
               AND NOT EXISTS(SELECT 1 FROM crime_contract_rewards r
                              WHERE r.contract_id=c.contract_id)""",
             (account, version, cid, faction, decision))
@@ -147,10 +151,13 @@ def resolve(con, cid, account, faction, decision):
                   WHEN interview_question=2 THEN 8 WHEN scenario_choice=2 THEN 5 ELSE -12 END
             WHERE contract_id=%s AND account_id=%s AND faction_id=%s
               AND state=2 AND expires_at>UNIX_TIMESTAMP()
-              AND (mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents i
+              AND (mode_id<>3 OR (EXISTS(SELECT 1 FROM crime_tender_incidents i
                   WHERE i.contract_id=%s AND i.choice IN(1,2)
-                    AND i.resolved_at>0))""",
-            (decision, cid, decision, cid, account, faction, cid))
+                    AND i.resolved_at>0)
+               AND EXISTS(SELECT 1 FROM crime_tender_aftermath x
+                  WHERE x.contract_id=%s AND x.state=2
+                    AND x.finished_at>0)))""",
+            (decision, cid, decision, cid, account, faction, cid, cid))
         assert changed == 1
         changed, _ = run(con, """
             INSERT INTO crime_contract_rewards
@@ -168,7 +175,11 @@ def resolve(con, cid, account, faction, decision):
         changed, _ = run(con, """INSERT INTO crime_contact_trust_events
             (contract_id,account_id,contact_id,trust_delta)
             SELECT contract_id,account_id,contact_id,
-                CASE WHEN scenario_kind=0 THEN 5
+                CASE WHEN mode_id=3 THEN (CASE WHEN EXISTS(
+                       SELECT 1 FROM crime_tender_aftermath x
+                       WHERE x.contract_id=crime_contracts.contract_id
+                         AND x.choice=1 AND x.state=2) THEN 7 ELSE 2 END)
+                     WHEN scenario_kind=0 THEN 5
                      WHEN scenario_resolution=2 THEN 2
                      WHEN scenario_choice=1 THEN 5+(CASE WHEN interview_question=1 THEN 1 ELSE 0 END) ELSE 3 END
             FROM crime_contracts WHERE contract_id=%s
@@ -179,6 +190,10 @@ def resolve(con, cid, account, faction, decision):
             JOIN crime_contracts c ON c.account_id=p.account_id
                  AND c.contact_id=p.contact_id
             SET p.trust=LEAST(100,p.trust+(CASE
+                WHEN c.mode_id=3 THEN (CASE WHEN EXISTS(
+                  SELECT 1 FROM crime_tender_aftermath x
+                  WHERE x.contract_id=c.contract_id
+                    AND x.choice=1 AND x.state=2) THEN 7 ELSE 2 END)
                 WHEN c.scenario_kind=0 THEN 5
                 WHEN c.scenario_resolution=2 THEN 2
                 WHEN c.scenario_choice=1 THEN 5+(CASE WHEN c.interview_question=1 THEN 1 ELSE 0 END) ELSE 3 END)),
@@ -215,7 +230,10 @@ def resolve(con, cid, account, faction, decision):
                (CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a
                  WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id
                    AND a.asset_code=1) THEN 1 ELSE 0 END),
-              (CASE WHEN c.mode_id=2 THEN 5 WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+
+              (CASE WHEN c.mode_id=3 THEN (CASE WHEN EXISTS(
+                 SELECT 1 FROM crime_tender_aftermath x WHERE x.contract_id=c.contract_id
+                   AND x.choice=1 AND x.state=2) THEN 4 ELSE 1 END)
+               WHEN c.mode_id=2 THEN 5 WHEN c.scenario_kind=0 THEN 2 ELSE 4 END)+
                (CASE WHEN EXISTS(SELECT 1 FROM crime_syndicate_assets a
                  WHERE a.faction_id=c.faction_id AND a.contact_id=c.contact_id
                    AND a.asset_code=2) THEN 1 ELSE 0 END)
