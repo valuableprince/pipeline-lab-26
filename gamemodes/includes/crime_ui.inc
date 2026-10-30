@@ -21,6 +21,8 @@
 #define CRIME_DLG_TESTIMONY  (7963)
 #define CRIME_OFFER_MAX      (8)
 
+forward CrimeUI_Testimony(playerid);
+
 new gCrimeUIDialog[MAX_PLAYERS];
 new gCrimeUIAuthToken[MAX_PLAYERS];
 new gCrimeUIAccountId[MAX_PLAYERS];
