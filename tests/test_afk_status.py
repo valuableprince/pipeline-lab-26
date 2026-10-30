@@ -20,7 +20,7 @@ class AfkIndicatorContracts(unittest.TestCase):
         self.assertIn("public OnPlayerDeath(playerid", GAME)
 
     def test_detect_pause_not_motionless_player(self):
-        self.assertIn("#define AFK_TIMEOUT_SECONDS       (30)", AFK)
+        self.assertIn("#define AFK_TIMEOUT_SECONDS       (5)", AFK)
         self.assertIn("gAFKLastUpdate[playerid] = gettime();", AFK)
         self.assertIn("new elapsed = now - gAFKLastUpdate[i];", AFK)
         self.assertIn("if (elapsed < AFK_TIMEOUT_SECONDS)", AFK)
@@ -32,7 +32,7 @@ class AfkIndicatorContracts(unittest.TestCase):
             self.assertIn(guard, AFK)
 
     def test_3d_label_created_once_and_updated_on_timer(self):
-        self.assertIn("#define AFK_UPDATE_INTERVAL_MS    (5000)", AFK)
+        self.assertIn("#define AFK_UPDATE_INTERVAL_MS    (1000)", AFK)
         self.assertEqual(len(re.findall(r'SetTimer\(', AFK)), 1)
         self.assertNotIn("SetTimerEx(", AFK)
         self.assertIn('SetTimer("AFK_Tick", AFK_UPDATE_INTERVAL_MS, true)', AFK)
@@ -53,7 +53,7 @@ class AfkIndicatorContracts(unittest.TestCase):
         self.assertIn("if (gAFKTimer) KillTimer(gAFKTimer);", AFK)
 
     def test_documentation_and_encodings(self):
-        for token in ("30 секунд", "5 секунд", "AFK", "виртуальн",
+        for token in ("5 секунд", "1 секунду", "AFK", "виртуальн",
                       "после возвращения", "дисконнекте"):
             self.assertIn(token.casefold(), DOCS.casefold())
         GAME.encode("cp1251", errors="strict")

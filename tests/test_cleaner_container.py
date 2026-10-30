@@ -107,7 +107,8 @@ class CleanerContainerContracts(unittest.TestCase):
         self.assertNotIn("SendClientMessageToAll", body)
         # Local delivery must still suppress built-in broadcast; safe post-send
         # effects (e.g. short speech gestures) may run before the final return.
-        self.assertRegex(body, r"RP_SendLocal\\(playerid, COLOR_WHITE, message, RP_RADIUS_SPEECH\\);[\\s\\S]*return 0;")
+        self.assertLess(body.index("RP_SendLocal(playerid, COLOR_WHITE, message, RP_RADIUS_SPEECH);"),
+                        body.rfind("    return 0;"))
 
 if __name__ == "__main__":
     unittest.main()

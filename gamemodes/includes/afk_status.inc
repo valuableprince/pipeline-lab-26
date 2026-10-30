@@ -5,8 +5,8 @@
 
 // AFK-01. A missing stream of client updates indicates pause/alt-tab,
 // not merely standing still. A single timer serves all online players.
-#define AFK_TIMEOUT_SECONDS       (30)
-#define AFK_UPDATE_INTERVAL_MS    (5000)
+#define AFK_TIMEOUT_SECONDS       (5)
+#define AFK_UPDATE_INTERVAL_MS    (1000)
 #define AFK_LABEL_DISTANCE        (20.0)
 #define AFK_LABEL_COLOR           (0xB7BEC8FF)
 
