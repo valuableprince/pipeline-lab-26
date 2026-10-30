@@ -136,6 +136,8 @@ def main():
         assert not finish(db,abandoned,a,6)
         assert scalar(db,"SELECT heat FROM crime_contact_progress WHERE account_id=%s AND contact_id=2",(a,))==100
         # Cleanup preserves audit state, but does not permit immediate replay.
+        # Ensure the heat gate would ALLOW an attempt, isolating the cooldown.
+        run(db,"UPDATE crime_contact_progress SET heat=90 WHERE account_id=%s AND contact_id=3",(a,))
         assert start(db,a,6,3,1) is None, "Contact 3 recently served"
         assert scalar(db,"SELECT state FROM crime_contact_recoveries WHERE recovery_id=%s",(abandoned,))==4
         assert scalar(db,"SELECT balance FROM accounts WHERE account_id=%s",(a,))==before_wallet
