@@ -7,7 +7,6 @@
 // World geometry is read from templates, never trusted to the client.
 // No per-tick SQL and no global script checkpoint or map-icon slot usage.
 #define CRIME_WORLD_COUNT (3)
-#define CRIME_WORLD_RADIUS (3.5)
 
 new bool:gCrimeWitnessEnabled[CRIME_WORLD_COUNT];
 new gCrimeWitnessActor[CRIME_WORLD_COUNT];
