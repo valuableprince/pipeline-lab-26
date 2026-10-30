@@ -96,6 +96,8 @@ def main():
         run(con, "UPDATE crime_contract_templates SET is_repeatable=1 WHERE template_id=4")
 
         # Other template remains available; no global timer at low online.
+        run(con, """UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-1000
+            WHERE account_id=%s AND template_id=2 AND state=3""", (account,))
         third = attempt(con, account, 6, 2, 2)
         assert third
         assert scalar(con, "SELECT scenario_event FROM crime_contracts WHERE contract_id=%s", (third,)) == 0
