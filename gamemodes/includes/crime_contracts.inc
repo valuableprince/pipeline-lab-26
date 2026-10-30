@@ -18,6 +18,8 @@ forward bool:CrimeContacts_Near(playerid, contactId);
 forward CrimeContacts_TemplateContact(templateId);
 forward bool:CrimeWorld_Init();
 forward CrimeWorld_Shutdown();
+forward CrimeWorld_Reset(playerid);
+forward CrimeWorld_ShowClue(playerid, contractId, kind, phase, Float:x, Float:y, Float:z);
 forward bool:CrimeWorld_EvidenceReady(playerid, id);
 
 stock Crime_Init()
