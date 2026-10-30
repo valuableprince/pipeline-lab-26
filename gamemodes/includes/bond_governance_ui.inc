@@ -32,6 +32,16 @@ stock GovBond_UI_IssueStatusLabel(const status[],output[],size)
     return 1;
 }
 
+stock GovBond_UI_DayWord(days,output[],size)
+{
+    new lastTwo=days%100,last=days%10;
+    if(lastTwo>=11 && lastTwo<=14)format(output,size,"дней");
+    else if(last==1)format(output,size,"день");
+    else if(last>=2 && last<=4)format(output,size,"дня");
+    else format(output,size,"дней");
+    return 1;
+}
+
 stock GovBond_UI_TypeLabel(const kind[],output[],size)
 {
     if (!strcmp(kind,"GENERAL")) format(output,size,"Общий бюджетный заём");
@@ -64,6 +74,9 @@ new gGovUIPendingAction[MAX_PLAYERS];
 // Snapshot the issue being opened; asynchronous dialog clicks cannot rename it.
 new gGovUIPendingIssue[MAX_PLAYERS];
 new gGovUIPendingCode[MAX_PLAYERS][65];
+// A separate, post-rollback read explains a failed OPEN/CANCEL without changing SQL.
+new gGovUIReasonAction[MAX_PLAYERS];
+new gGovUIReasonCode[MAX_PLAYERS][65];
 new gGovUIStage[MAX_PLAYERS];
 new gGovUIWizardStep[MAX_PLAYERS];
 new gGovUIRole[MAX_PLAYERS];
@@ -109,6 +122,8 @@ stock GovBond_UI_Reset(playerid)
     gGovUIPendingAction[playerid]=0;
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
+    gGovUIReasonAction[playerid]=0;
+    gGovUIReasonCode[playerid][0]=EOS;
     gGovUIStage[playerid]=0;
     gGovUIWizardStep[playerid]=0;
     gGovUIRole[playerid]=0;
@@ -229,9 +244,9 @@ stock bool:GovBond_UI_Write(playerid,const sql[],action,const eventKey[])
     gGovUIPendingIssue[playerid]=0;
     gGovUIPendingCode[playerid][0]=EOS;
     gGovUIPendingFundAmount[playerid]=(action==8)?gGovUIFundAmount[playerid]:0;
-    if (action==3)
+    if (action==3 || action==4)
     {
-        // These values must match the committed SQL result in OnWrite.
+        // Keep the exact issue across the asynchronous SQL result and diagnostics.
         gGovUIPendingIssue[playerid]=gGovUISelectedIssue[playerid];
         format(gGovUIPendingCode[playerid],65,"%s",gGovUISelectedCode[playerid]);
     }
@@ -302,7 +317,7 @@ stock GovBond_UI_LoadIssues(playerid,page=0)
     if (!GovBond_UI_Authorized(playerid) || page<0 || page>500) return 1;
     new query[750];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.status,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
+        "SELECT i.issue_id,i.issue_code,i.status,(i.status='OFFERING' AND i.offer_end_at<=UTC_TIMESTAMP()) AS offering_expired,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
         page*GOVUI_ROWS);
     gGovUIPage[playerid]=page;
     if (!GovBond_UI_Query(playerid,query,2))
@@ -319,7 +334,7 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
     new query[1800];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'') AS applicant,COALESCE(rej.username,'') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1), '') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
+        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,(i.status='OFFERING' AND i.offer_end_at<=UTC_TIMESTAMP()) AS offering_expired,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'') AS applicant,COALESCE(rej.username,'') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1), '') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
     if (!GovBond_UI_Query(playerid,query,3))
@@ -349,6 +364,27 @@ stock bool:GovBond_UI_LoadApprovalReason(playerid)
 #endif
 }
 
+// Read-only diagnosis after a failed OPEN/CANCEL transaction. SQL is still the
+// sole authority; this fresh snapshot cannot authorize or replay the action.
+stock bool:GovBond_UI_LoadActionReason(playerid,action,const issueCode[])
+{
+#if defined TARKENSO_DB_PRIMARY
+    if((action!=3 && action!=4) || !issueCode[0] ||
+       !GovBond_UI_Authorized(playerid))return false;
+    new query[1350];
+    mysql_format(gDBPrimary,query,sizeof(query),
+        "SELECT i.issue_code,i.status,i.sold_quantity,(SELECT COUNT(*) FROM government_bond_holdings h WHERE h.issue_id=i.issue_id AND h.quantity>0) AS holder_count,COALESCE((SELECT g.max_exposure-g.released_exposure FROM bond_fund_guarantees g WHERE g.issue_code=i.issue_code LIMIT 1),0) AS guarantee_left,(i.offer_start_at>UTC_TIMESTAMP()) AS offer_not_started,(i.offer_end_at<=UTC_TIMESTAMP()) AS offer_expired,COALESCE((SELECT m.rank_id FROM faction_members m JOIN factions f ON f.faction_id=m.faction_id WHERE m.account_id=%d AND m.faction_id=5 AND m.rank_id IN (3,4) AND f.is_enabled=1 AND f.term_end>UNIX_TIMESTAMP() LIMIT 1),0) AS role_rank FROM government_bond_issues i WHERE i.issue_code='%e' LIMIT 1",
+        gDBPrimaryAccountId[playerid],issueCode);
+    if(!GovBond_UI_Query(playerid,query,7))return false;
+    gGovUIReasonAction[playerid]=action;
+    format(gGovUIReasonCode[playerid],65,"%s",issueCode);
+    return true;
+#else
+    #pragma unused playerid,action,issueCode
+    return false;
+#endif
+}
+
 // Re-read treasury capacity before offering any amount. This is advisory only;
 // the stored procedure takes the treasury row lock and checks it again.
 stock GovBond_UI_LoadFundBudget(playerid)
@@ -373,11 +409,11 @@ stock GovBond_UI_Report(playerid)
 #if defined TARKENSO_DB_PRIMARY
     new query[800];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
+        "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP()) AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
     // Compatibility with pre-030 staging: old report still loads normally.
     if(gBondBuybackReady)
         mysql_format(gDBPrimary,query,sizeof(query),
-            "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(quantity),0) FROM government_bond_buybacks) AS bonds_boughtback,(SELECT COALESCE(SUM(amount_paid),0) FROM government_bond_buybacks) AS buyback_cost,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
+            "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP()) AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(quantity),0) FROM government_bond_buybacks) AS bonds_boughtback,(SELECT COALESCE(SUM(amount_paid),0) FROM government_bond_buybacks) AS buyback_cost,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
     if (!GovBond_UI_Query(playerid,query,4))
         SendClientMessage(playerid,COLOR_RED,"Отчёт казны временно недоступен.");
 #else
@@ -481,6 +517,85 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             "{E8EDF3}Минфин | Почему отказано в подписи",body,"Понятно","");
         return 1;
     }
+    if (kind==7)
+    {
+        new action=gGovUIReasonAction[playerid],expectedCode[65];
+        format(expectedCode,sizeof(expectedCode),"%s",gGovUIReasonCode[playerid]);
+        gGovUIReasonAction[playerid]=0;
+        gGovUIReasonCode[playerid][0]=EOS;
+        new code[65],status[20],sold,holders,guarantee,notStarted,expired,rank;
+        if((action!=3 && action!=4) || !expectedCode[0] || rows!=1 ||
+           !cache_get_value_name(0,"issue_code",code,sizeof(code)) ||
+           strcmp(code,expectedCode) ||
+           !cache_get_value_name(0,"status",status,sizeof(status)) ||
+           !cache_get_value_name_int(0,"sold_quantity",sold) ||
+           !cache_get_value_name_int(0,"holder_count",holders) ||
+           !cache_get_value_name_int(0,"guarantee_left",guarantee) ||
+           !cache_get_value_name_int(0,"offer_not_started",notStarted) ||
+           !cache_get_value_name_int(0,"offer_expired",expired) ||
+           !cache_get_value_name_int(0,"role_rank",rank))
+        {
+            SendClientMessage(playerid,COLOR_RED,
+                "Казначейство отказало. Причину не удалось уточнить. Обновите реестр.");
+            return 1;
+        }
+        new label[45],reason[360],body[720];
+        GovBond_UI_IssueStatusLabel(status,label,sizeof(label));
+        if(rank<3)
+            format(reason,sizeof(reason),
+                "У вас нет права принимать это решение.\nДействие доступно только заместителю или министру финансов (ранг 3-4).");
+        else if(action==4 && sold>0)
+            format(reason,sizeof(reason),
+                "Отмена выпуска запрещена. Продано облигаций: %d.\nУ выпуска уже есть инвесторы. Отмена нарушит их права.",
+                sold);
+        else if(action==4 && holders>0)
+            format(reason,sizeof(reason),
+                "Отмена выпуска запрещена. Зарегистрировано инвесторов: %d.\nДаже если счётчик продаж устарел, облигации игроков нельзя аннулировать.",
+                holders);
+        else if(action==4 && strcmp(status,"DRAFT") &&
+                strcmp(status,"APPROVED") && strcmp(status,"OFFERING"))
+            format(reason,sizeof(reason),
+                "Выпуск уже имеет состояние \"%s\".\nОтмена разрешена только до окончания размещения, если никто не купил облигации.",
+                label);
+        else if(action==4 && strcmp(status,"DRAFT") && guarantee<=0)
+            format(reason,sizeof(reason),
+                "У выпуска нет действующей страховой гарантии.\nОтмену нельзя провести с таким состоянием фонда. Обновите реестр.");
+        else if(action==3 && strcmp(status,"APPROVED"))
+            format(reason,sizeof(reason),
+                "Состояние выпуска: \"%s\".\nОткрыть продажу можно только после подписания займа, пока его статус \"Утверждён\".",
+                label);
+        else if(action==3 && notStarted)
+            format(reason,sizeof(reason),
+                "Срок размещения ещё не начался.\nПроверьте дату открытия выпуска в реестре.");
+        else if(action==3 && expired)
+            format(reason,sizeof(reason),
+                "Срок размещения уже истёк.\nОткрыть продажу после окончания установленного срока нельзя.");
+        else if(action==3 && guarantee<=0)
+            format(reason,sizeof(reason),
+                "У выпуска нет действующей страховой гарантии.\nСначала необходимо обеспечить выпуск страховым фондом.");
+        else
+            format(reason,sizeof(reason),
+                "Выполнить действие сейчас не удалось.\nСостояние выпуска или казны могло измениться.\nОбновите реестр; если отказ повторится, обратитесь к администратору.");
+        format(body,sizeof(body),
+            "{E8EDF3}%s ВЫПУСКА {FFD15C}%s {E8EDF3}%s\n\n{E8EDF3}%s\n\n{E8EDF3}Решение не выполнено. Причина уточнена по текущим данным MariaDB.",
+            action==4?"ОТМЕНА":"ОТКРЫТИЕ РАЗМЕЩЕНИЯ",code,
+            action==4?"ОТКЛОНЕНА":"ОТКЛОНЕНО",reason);
+        if(action==4 && sold>0 && rank>=3)
+        {
+            new notice[150];
+            format(notice,sizeof(notice),
+                "Казначейство: выпуск %s нельзя отменить. Продано облигаций: %d.",
+                code,sold);
+            SendClientMessage(playerid,COLOR_RED,notice);
+        }
+        else
+            SendClientMessage(playerid,COLOR_AMBER,
+                "Казначейство отказало. Подробная причина показана в окне.");
+        gGovUIStage[playerid]=13;
+        ShowPlayerDialog(playerid,GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX,
+            "{E8EDF3}Минфин | Почему казначейство отказало",body,"Понятно","");
+        return 1;
+    }
     if (kind==6)
     {
         new cash,reserved,committed,enabled,freeBudget,maxTxn,minReserve;
@@ -510,10 +625,12 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             return GovBond_UI_DrawMain(playerid);
         }
         new body[640];
+        // BOND-UI-07: keep explanations neutral; mark money in yellow and
+        // indicate fund availability in green/red without changing its logic.
         format(body,sizeof(body),
-            "{E8EDF3}ПОПОЛНЕНИЕ СТРАХОВОГО ФОНДА\n\nКазна: $%d\nОбязательный остаток: $%d\nСтраховой резерв: $%d\nВыдано гарантий: $%d\nСвободно для перевода: $%d\n\nВведите сумму от $1 до $%d.\nДеньги останутся в казне, но станут страховым резервом.\nСтатус фонда: %s.",
+            "{E8EDF3}ПОПОЛНЕНИЕ СТРАХОВОГО ФОНДА\n\n{E8EDF3}Казна: {FFD15C}$%d\n{E8EDF3}Обязательный остаток: {FFD15C}$%d\n{E8EDF3}Страховой резерв: {FFD15C}$%d\n{E8EDF3}Выдано гарантий: {FFD15C}$%d\n{E8EDF3}Свободно для перевода: {FFD15C}$%d\n\n{E8EDF3}Введите сумму от {FFD15C}$1{E8EDF3} до {FFD15C}$%d{E8EDF3}.\n{E8EDF3}Деньги останутся в казне, но станут страховым резервом.\n{E8EDF3}Статус фонда: %s{E8EDF3}.",
             cash,minReserve,reserved,committed,freeBudget,maximum,
-            enabled?"Включён":"Выключен");
+            enabled?"{78D8AA}Включён":"{E48A8A}Выключен");
         gGovUIStage[playerid]=14;
         ShowPlayerDialog(playerid,GOVUI_FUND_AMOUNT,DIALOG_STYLE_INPUT,
             "{E8EDF3}Минфин | Пополнить страховой фонд",
@@ -543,13 +660,14 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUICount[playerid]=shown;
         gGovUIHasMore[playerid]=rows>GOVUI_ROWS;
         new body[2700],line[225],code[65],status[20],statusLabel[40],applicant[40];
-        new id,face,quantity,yield;
+        new id,face,quantity,yield,expired;
         format(body,sizeof(body),"{E8EDF3}Код\tЗаявитель\tКол-во\tНоминал\tСтатус\n");
         for(new i=0;i<shown;i++)
         {
             if (!cache_get_value_name_int(i,"issue_id",id) ||
                 !cache_get_value_name(i,"issue_code",code,sizeof(code)) ||
                 !cache_get_value_name(i,"status",status,sizeof(status)) ||
+                !cache_get_value_name_int(i,"offering_expired",expired) ||
                 !cache_get_value_name(i,"applicant",applicant,sizeof(applicant)) ||
                 !cache_get_value_name_int(i,"face_value",face) ||
                 !cache_get_value_name_int(i,"max_quantity",quantity) ||
@@ -559,6 +677,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             if(!applicant[0])format(applicant,sizeof(applicant),"Неизвестен");
             gGovUIRows[playerid][i]=id;
             GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
+            if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");
             format(line,sizeof(line),
                 "{E8EDF3}%s\t{E8EDF3}%s\t{E8EDF3}%d\t{E8EDF3}$%d\t{E8EDF3}%s\n",
                 code,applicant,quantity,face,statusLabel);
@@ -579,7 +698,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     if (kind==3)
     {
         new id,code[65],title[129],purpose[193],issueType[16],typeLabel[48],status[20];
-        new face,total,sold,yield,exposure,offerDays,maturityDays,creatorId;
+        new face,total,sold,yield,exposure,offerDays,maturityDays,creatorId,expired;
         new applicant[40],minister[40],rejector[40],reason[256],returnReason[256],statusLabel[40];
         new createdAt[32],offerStart[32],offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
@@ -589,6 +708,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name(0,"purpose",purpose,sizeof(purpose)) ||
             !cache_get_value_name(0,"issue_type",issueType,sizeof(issueType)) ||
             !cache_get_value_name(0,"status",status,sizeof(status)) ||
+            !cache_get_value_name_int(0,"offering_expired",expired) ||
             !cache_get_value_name(0,"applicant",applicant,sizeof(applicant)) ||
             !cache_get_value_name(0,"minister",minister,sizeof(minister)) ||
             !cache_get_value_name(0,"rejector",rejector,sizeof(rejector)) ||
@@ -616,14 +736,17 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUISelectedIssue[playerid]=id;
         format(gGovUISelectedCode[playerid],65,"%s",code);
         format(gGovUISelectedStatus[playerid],20,"%s",status);
-        new body[1700],extra[400];
+        new body[1700],extra[400],offerDayWord[8],maturityDayWord[8];
+        GovBond_UI_DayWord(offerDays,offerDayWord,sizeof(offerDayWord));
+        GovBond_UI_DayWord(maturityDays,maturityDayWord,sizeof(maturityDayWord));
         GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
+        if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");
         GovBond_UI_TypeLabel(issueType,typeLabel,sizeof(typeLabel));
         format(body,sizeof(body),
-            "{E8EDF3}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{E8EDF3}Код выпуска: {E8EDF3}%s\n{E8EDF3}Подал заявку: {E8EDF3}%s\n{E8EDF3}Действующий министр: {E8EDF3}%s\n{E8EDF3}Состояние: {E8EDF3}%s\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Назначение: {E8EDF3}%s\n{E8EDF3}Тип займа: {E8EDF3}%s\n{E8EDF3}Количество облигаций: {E8EDF3}%d\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Продано: %d\n{E8EDF3}Гарантия: $%d\n\n{E8EDF3}Размещение: {E8EDF3}%d дней\n{E8EDF3}Погашение: {E8EDF3}через %d дней после размещения\n{E8EDF3}Дата подачи (UTC): {E8EDF3}%s\n{E8EDF3}Дата выпуска (UTC): {E8EDF3}%s\n{E8EDF3}Окончание размещения: {E8EDF3}%s\n{E8EDF3}Погашение (UTC): {E8EDF3}%s",
+            "{E8EDF3}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{E8EDF3}Код выпуска: {E8EDF3}%s\n{E8EDF3}Подал заявку: {E8EDF3}%s\n{E8EDF3}Действующий министр: {E8EDF3}%s\n{E8EDF3}Состояние: {E8EDF3}%s\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Назначение: {E8EDF3}%s\n{E8EDF3}Тип займа: {E8EDF3}%s\n{E8EDF3}Количество облигаций: {E8EDF3}%d\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Продано: %d\n{E8EDF3}Гарантия: $%d\n\n{E8EDF3}Размещение: {E8EDF3}%d %s\n{E8EDF3}Погашение: {E8EDF3}через %d %s после размещения\n{E8EDF3}Дата подачи (UTC): {E8EDF3}%s\n{E8EDF3}Дата выпуска (UTC): {E8EDF3}%s\n{E8EDF3}Окончание размещения: {E8EDF3}%s\n{E8EDF3}Погашение (UTC): {E8EDF3}%s",
             code,applicant,minister,statusLabel,title,purpose,typeLabel,total,face,
             face*total,yield/100,yield%100,sold,exposure,
-            offerDays,maturityDays,createdAt,offerStart,offerEnd,maturity);
+            offerDays,offerDayWord,maturityDays,maturityDayWord,createdAt,offerStart,offerEnd,maturity);
         if(!strcmp(status,"REJECTED"))
         {
             format(extra,sizeof(extra),
@@ -680,7 +803,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             if(!cache_get_value_name_int(0,"bonds_boughtback",countBuyback) ||
                !cache_get_value_name_int(0,"buyback_cost",costBuyback))return 1;
             format(extra,sizeof(extra),
-                "\\n{E8EDF3}Досрочно выкуплено: %d шт.\\n{E8EDF3}Расходы на выкуп: $%d",
+                "\n{E8EDF3}Досрочно выкуплено: %d шт.\n{E8EDF3}Расходы на выкуп: $%d",
                 countBuyback,costBuyback);
             strcat(body,extra,sizeof(body));
         }
@@ -776,18 +899,21 @@ stock GovBond_UI_Wizard(playerid,step)
 
 stock GovBond_UI_ConfirmDraft(playerid)
 {
-    new body[900],typeLabel[48],codeHint[170];
+    new body[900],typeLabel[48],codeHint[170],offerDayWord[8],maturityDayWord[8];
+    GovBond_UI_DayWord(gGovUIOfferDays[playerid],offerDayWord,sizeof(offerDayWord));
+    GovBond_UI_DayWord(gGovUIMaturityDays[playerid],maturityDayWord,sizeof(maturityDayWord));
     GovBond_UI_TypeLabel(gGovUIType[playerid],typeLabel,sizeof(typeLabel));
     format(body,sizeof(body),
-        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Цель: {E8EDF3}%s\n{E8EDF3}Тип: {E8EDF3}%s\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Количество: {E8EDF3}%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Размещение: %d дней\n{E8EDF3}Погашение через: %d дней после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
+        "{E8EDF3}ПРОЕКТ ГОСУДАРСТВЕННОГО ЗАЙМА\n\n{E8EDF3}Название: {FFD15C}%s\n{E8EDF3}Цель: {FFD15C}%s\n{E8EDF3}Тип: {FFD15C}%s\n{E8EDF3}Номинал: {FFD15C}$%d\n{E8EDF3}Количество: {FFD15C}%d\n{E8EDF3}Общий номинал: {FFD15C}$%d\n{E8EDF3}Доходность: {FFD15C}%d.%02d%%\n{E8EDF3}Размещение: {FFD15C}%d %s\n{E8EDF3}Погашение через: {FFD15C}%d %s после размещения\n\n{E8EDF3}Отправка заявки не открывает продажу и не расходует бюджет.",
         gGovUITitle[playerid],gGovUIPurpose[playerid],typeLabel,
         gGovUIFace[playerid],gGovUIQuantity[playerid],
         gGovUIFace[playerid]*gGovUIQuantity[playerid],
         gGovUIYield[playerid]/100,gGovUIYield[playerid]%100,
-        gGovUIOfferDays[playerid],gGovUIMaturityDays[playerid]);
+        gGovUIOfferDays[playerid],offerDayWord,
+        gGovUIMaturityDays[playerid],maturityDayWord);
     if(gGovUIEditing[playerid])
         format(codeHint,sizeof(codeHint),
-            "\n{E8EDF3}Сохраняется код выпуска %s.",
+            "\n{E8EDF3}Сохраняется код выпуска {FFD15C}%s{E8EDF3}.",
             gGovUISelectedCode[playerid]);
     else format(codeHint,sizeof(codeHint),
             "\n{E8EDF3}Уникальный код выпуска назначит MySQL.");
@@ -932,7 +1058,7 @@ stock GovBond_UI_Actions(playerid)
     gGovUIStage[playerid]=7;
     ShowPlayerDialog(playerid,GOVUI_ACTION,DIALOG_STYLE_LIST,
         "{E8EDF3}Казначейство | Действия по выпуску",
-        "{E8EDF3}Утвердить выпуск (заместитель/министр)\n{E8EDF3}Открыть размещение (заместитель/министр)\n{E8EDF3}Отменить непроданный выпуск (заместитель/министр)\n{E8EDF3}Вернуться к реестру",
+        "{E8EDF3}Открыть размещение (заместитель/министр)\n{E8EDF3}Отменить непроданный выпуск (заместитель/министр)\n{E8EDF3}Вернуться к реестру",
         "Выбрать","Закрыть");
     return 1;
 }
@@ -1293,7 +1419,8 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
         new needle[68];
         format(needle,sizeof(needle),"'%s'",gGovUIPendingEvent[playerid]);
         if(strfind(query,needle,true)<0)continue;
-        new failedAction=gGovUIPendingAction[playerid];
+        new failedAction=gGovUIPendingAction[playerid],failedCode[65];
+        format(failedCode,sizeof(failedCode),"%s",gGovUIPendingCode[playerid]);
         gGovUIBusy[playerid]=false;
         gGovUIPendingEvent[playerid][0]=EOS;
         gGovUIPendingAction[playerid]=0;
@@ -1311,9 +1438,15 @@ public bool:GovBond_UI_OnError(errorid,const callback[],const query[])
                     SendClientMessage(playerid,COLOR_RED,
                         "Подпись отклонена. Не удалось проверить причину. Обновите реестр.");
             }
+            else if(failedAction==3 || failedAction==4)
+            {
+                if(!GovBond_UI_LoadActionReason(playerid,failedAction,failedCode))
+                    SendClientMessage(playerid,COLOR_RED,
+                        "Казначейство отказало. Причину не удалось уточнить. Обновите реестр.");
+            }
             else
                 SendClientMessage(playerid,COLOR_RED,
-                    "Казначейство отклонило действие. Обновите выпуск и проверьте полномочия.");
+                    "Казначейство не выполнило операцию. Обновите реестр или обратитесь к администратору.");
         }
         break;
     }
@@ -1398,8 +1531,10 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
     }
     if(dialogid==GOVUI_TYPE)
     {
-        if(gGovUIStage[playerid]!=9 || !response || listitem<0 || listitem>2)
-            return 1;
+        if(gGovUIStage[playerid]!=9)return 1;
+        // Cancelling the type selector must return to the treasury main menu.
+        if(!response)return GovBond_UI_Main(playerid);
+        if(listitem<0 || listitem>2)return 1;
         switch(listitem)
         {
             case 0: format(gGovUIType[playerid],16,"GENERAL");
@@ -1591,8 +1726,10 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         }
         if(gGovUIStage[playerid]!=7)return 1;
         if(!response)return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
-        if(listitem>=0 && listitem<=2)
-            return GovBond_UI_ConfirmAction(playerid,listitem+2);
+        // Approval is performed by the "Подписать" button on a DRAFT.
+        // In the action menu only opening and cancelling are available.
+        if(listitem==0)return GovBond_UI_ConfirmAction(playerid,3);
+        if(listitem==1)return GovBond_UI_ConfirmAction(playerid,4);
         return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
     }
     if(dialogid==GOVUI_APPROVAL_REASON)

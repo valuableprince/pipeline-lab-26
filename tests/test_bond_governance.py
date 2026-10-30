@@ -7,6 +7,7 @@ from build_contracts import assert_staged
 ROOT=Path(__file__).resolve().parents[1]
 SQL=(ROOT/"db/migrations/023_bond_governance.sql").read_text("utf-8")
 UI=(ROOT/"gamemodes/includes/bond_governance_ui.inc").read_text("utf-8")
+EDU=(ROOT/"gamemodes/includes/bond_education.inc").read_text("utf-8")
 MAIN=(ROOT/"gamemodes/signal0317.pwn").read_text("utf-8")
 COMMANDS=(ROOT/"gamemodes/includes/commands.inc").read_text("utf-8")
 DB=(ROOT/"gamemodes/includes/db_primary.inc").read_text("utf-8")
@@ -325,6 +326,178 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("INSERT INTO schema_migrations(version) VALUES (29)",sql)
         self.assertIn("gov08_fund_mysql_uat.py",CI)
         self.assertNotIn("GivePlayerMoney(",UI)
+
+    def test_cancel_loan_type_returns_to_treasury_main(self):
+        # Manual UAT 3.1: Back on loan-type selection must not close /bondgov.
+        block=UI.split("if(dialogid==GOVUI_TYPE)",1)[1].split(
+            "if(dialogid==GOVUI_INPUT)",1)[0]
+        self.assertIn("if(gGovUIStage[playerid]!=9)return 1;",block)
+        self.assertIn("if(!response)return GovBond_UI_Main(playerid);",block)
+        self.assertIn("if(listitem<0 || listitem>2)return 1;",block)
+        self.assertLess(block.index("if(!response)"),block.index("switch(listitem)"))
+        self.assertNotIn("|| !response ||",block)
+
+    def test_expired_offering_is_not_labelled_as_active(self):
+        # A stored OFFERING state may persist until the maturity assessment.
+        # Read-only presentation must respect the actual offer_end_at window.
+        self.assertEqual(UI.count(
+            "(i.status='OFFERING' AND i.offer_end_at<=UTC_TIMESTAMP()) AS offering_expired"),2)
+        self.assertEqual(UI.count('cache_get_value_name_int(i,"offering_expired",expired)'),1)
+        self.assertEqual(UI.count('cache_get_value_name_int(0,"offering_expired",expired)'),1)
+        self.assertEqual(UI.count(
+            'if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");'),2)
+        self.assertEqual(UI.count(
+            "WHERE status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP()) AS offering"),2)
+        # Keep the true SQL state for permission checks and payment processing.
+        self.assertIn('format(gGovUISelectedStatus[playerid],20,"%s",status);',UI)
+        self.assertNotIn("UPDATE government_bond_issues SET",UI)
+
+    def test_bond_term_day_forms_are_grammatically_correct(self):
+        # 1 день, 2 дня, 5 дней, 11 дней, 21 день, etc.
+        block=UI.split("stock GovBond_UI_DayWord(",1)[1].split(
+            "stock GovBond_UI_TypeLabel(",1)[0]
+        for marker in (
+            "lastTwo=days%100,last=days%10",
+            "lastTwo>=11 && lastTwo<=14",
+            'format(output,size,"дней")',
+            'last==1',
+            'format(output,size,"день")',
+            'last>=2 && last<=4',
+            'format(output,size,"дня")',
+        ):
+            self.assertIn(marker,block)
+        self.assertIn("Размещение: {E8EDF3}%d %s",UI)
+        self.assertIn("Погашение: {E8EDF3}через %d %s после размещения",UI)
+        self.assertIn("Размещение: {FFD15C}%d %s",UI)
+        self.assertIn("Погашение через: {FFD15C}%d %s после размещения",UI)
+        self.assertIn("offerDays,offerDayWord,maturityDays,maturityDayWord",UI)
+        self.assertIn("gGovUIOfferDays[playerid],offerDayWord,",UI)
+        self.assertIn("gGovUIMaturityDays[playerid],maturityDayWord);",UI)
+
+    def test_signing_and_approval_are_not_duplicate_menu_actions(self):
+        # BOND-UI-09: signing a draft is the only approval entry point.
+        issue=UI.split("if(dialogid==GOVUI_ISSUE)",1)[1].split(
+            "if(dialogid==GOVUI_ACTION)",1)[0]
+        actions=UI.split("stock GovBond_UI_Actions(playerid)",1)[1].split(
+            "stock GovBond_UI_ConfirmAction(playerid,action)",1)[0]
+        menu_handler=UI.split("if(dialogid==GOVUI_ACTION)",1)[1].split(
+            "if(dialogid==GOVUI_APPROVAL_REASON)",1)[0]
+        self.assertIn('body,"Подписать","Отклонить"',UI)
+        self.assertIn("gGovUIAction[playerid]=2;",issue)
+        self.assertIn("return GovBond_UI_ExecuteAction(playerid);",issue)
+        self.assertNotIn("Утвердить выпуск (заместитель/министр)",actions)
+        self.assertIn("Открыть размещение (заместитель/министр)",actions)
+        self.assertIn("Отменить непроданный выпуск (заместитель/министр)",actions)
+        self.assertIn("Вернуться к реестру",actions)
+        self.assertIn("if(listitem==0)return GovBond_UI_ConfirmAction(playerid,3);",menu_handler)
+        self.assertIn("if(listitem==1)return GovBond_UI_ConfirmAction(playerid,4);",menu_handler)
+        self.assertNotIn("listitem+2",menu_handler)
+        self.assertIn("CALL gov_bond_official_approve",UI)
+        self.assertIn("CALL gov_bond_official_open",UI)
+
+    def test_cancellation_denial_explains_sold_bonds_from_fresh_sql(self):
+        # BOND-UI-10 / UAT 6.13: no misleading generic SQL error for a
+        # cancellation of an issue that already has bond holders.
+        init=UI.split("stock bool:GovBond_UI_Write(",1)[1].split(
+            "stock GovBond_UI_Main(",1)[0]
+        fetch=UI.split("stock bool:GovBond_UI_LoadActionReason(",1)[1].split(
+            "// Re-read treasury capacity",1)[0]
+        onread=UI.split("if (kind==7)",1)[1].split("if (kind==6)",1)[0]
+        onerror=UI.split("public bool:GovBond_UI_OnError(",1)[1].split(
+            "stock GovBond_UI_OnDialog(",1)[0]
+        self.assertIn("if (action==3 || action==4)",init)
+        self.assertIn("gGovUIPendingCode[playerid]",init)
+        self.assertIn("gGovUIReasonAction[playerid]=0;",UI)
+        self.assertIn("gGovUIReasonCode[playerid][0]=EOS;",UI)
+        self.assertIn("gDBPrimaryAccountId[playerid],issueCode",fetch)
+        self.assertIn("GovBond_UI_Query(playerid,query,7)",fetch)
+        self.assertIn("FROM government_bond_holdings h",fetch)
+        self.assertIn("AS holder_count",fetch)
+        self.assertIn("i.sold_quantity",fetch)
+        self.assertIn("AS guarantee_left",fetch)
+        self.assertIn("AS role_rank",fetch)
+        self.assertIn("i.issue_code='%e' LIMIT 1",fetch)
+        self.assertNotIn("UPDATE ",fetch)
+        self.assertNotIn("CALL ",fetch)
+        self.assertIn('strcmp(code,expectedCode)',onread)
+        self.assertIn("else if(action==4 && sold>0)",onread)
+        self.assertIn("Продано облигаций: %d.",onread)
+        self.assertIn("У выпуска уже есть инвесторы. Отмена нарушит их права.",onread)
+        self.assertIn("Казначейство: выпуск %s нельзя отменить. Продано облигаций: %d.",onread)
+        self.assertIn("SendClientMessage(playerid,COLOR_RED,notice);",onread)
+        self.assertIn("else if(action==4 && holders>0)",onread)
+        self.assertIn("else if(action==3 && strcmp(status,\"APPROVED\"))",onread)
+        self.assertIn("else if(action==3 && expired)",onread)
+        self.assertIn("else if(action==3 && guarantee<=0)",onread)
+        self.assertIn("GOVUI_APPROVAL_REASON,DIALOG_STYLE_MSGBOX",onread)
+        self.assertIn("new failedAction=gGovUIPendingAction[playerid],failedCode[65];",onerror)
+        self.assertIn("else if(failedAction==3 || failedAction==4)",onerror)
+        self.assertIn("GovBond_UI_LoadActionReason(playerid,failedAction,failedCode)",onerror)
+        self.assertNotIn("Казначейство отклонило действие. Обновите выпуск и проверьте полномочия.",UI)
+        issue_schema=(ROOT/"db/migrations/020_government_bond_issues.sql").read_text("utf-8")
+        cancel=issue_schema.split("CREATE PROCEDURE gov_bond_issue_cancel(",1)[1].split(
+            "END$",1)[0]
+        self.assertIn("v_sold <> 0",cancel)
+        self.assertIn("v_holder_count <> 0",cancel)
+        self.assertIn("SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='cannot cancel sold bond issue'",cancel)
+        self.assertIn("ROLLBACK",cancel)
+
+    def test_draft_confirmation_highlights_all_values(self):
+        # BOND-UI-08: every field value is yellow, but labels remain light.
+        block=UI.split("stock GovBond_UI_ConfirmDraft(playerid)",1)[1].split(
+            "// A rejection is final",1)[0]
+        for label,template in (
+            ("Название", "%s"),
+            ("Цель", "%s"),
+            ("Тип", "%s"),
+            ("Номинал", "$%d"),
+            ("Количество", "%d"),
+            ("Общий номинал", "$%d"),
+            ("Доходность", "%d.%02d%%"),
+            ("Размещение", "%d %s"),
+            ("Погашение через", "%d %s после размещения"),
+        ):
+            with self.subTest(label=label):
+                self.assertIn(f"{{E8EDF3}}{label}: {{FFD15C}}{template}",block)
+        self.assertIn("Сохраняется код выпуска {FFD15C}%s{E8EDF3}.",block)
+        self.assertIn("{E8EDF3}Отправка заявки не открывает продажу",block)
+        self.assertIn("gGovUIFace[playerid]*gGovUIQuantity[playerid]",block)
+        self.assertIn("new body[900]",block)
+        self.assertIn("GOVUI_CONFIRM,DIALOG_STYLE_MSGBOX",block)
+
+    def test_fund_lessons_explain_state_treasury_not_minister_wallet(self):
+        # User acceptance test 5.1: the fund reserves treasury funds, not player cash.
+        intro=EDU.split("case 3: format(body,sizeof(body),",1)[1].split("case 4:",1)[0]
+        lesson=EDU.split("case 9: format(body,sizeof(body),",1)[1].split("case 10:",1)[0]
+        faq=EDU.split("case 11: format(body,sizeof(body),",1)[1].split("gBondEduTopic[playerid]=topic;",1)[0]
+        self.assertIn("из казны, а не из своего кармана",intro)
+        self.assertIn("не из личного кошелька министра",lesson)
+        self.assertIn("Личные деньги игрока не списываются.",lesson)
+        self.assertIn("Общий баланс казны не меняется",lesson)
+        self.assertIn("страховой резерв растёт на $1000",lesson)
+        self.assertIn("свободных денег становится на $1000 меньше",lesson)
+        self.assertIn("ПОЧЕМУ НЕ СПИСАЛИСЬ ДЕНЬГИ У МИНИСТРА?",faq)
+        self.assertIn("return BondEducation_Open(playerid,1);",UI)
+        self.assertIn("BOND_EDU_TOPIC_COUNT (12)",EDU)
+        sql=(ROOT/"db/migrations/029_minfin_fund_capitalization.sql").read_text("utf-8")
+        self.assertIn("bond_fund_reserved=bond_fund_reserved+p_amount",sql)
+        self.assertNotIn("SET balance=balance-p_amount",sql)
+        self.assertNotIn("UPDATE accounts",sql)
+
+    def test_fund_topup_dialog_highlights_values_and_status(self):
+        # BOND-UI-07: only this finance form uses semantic colors.
+        block=UI.split("if (kind==6)",1)[1].split("if (kind==1)",1)[0]
+        self.assertEqual(block.count("{FFD15C}$%d"),6)
+        self.assertIn("{E8EDF3}Казна: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Обязательный остаток: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Страховой резерв: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Выдано гарантий: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Свободно для перевода: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Введите сумму от {FFD15C}$1{E8EDF3} до {FFD15C}$%d{E8EDF3}.",block)
+        self.assertIn("enabled?\"{78D8AA}Включён\":\"{E48A8A}Выключен\"",block)
+        self.assertIn("{E8EDF3}Статус фонда: %s{E8EDF3}.",block)
+        self.assertIn("cash,minReserve,reserved,committed,freeBudget,maximum,",block)
+        self.assertIn('GOVUI_FUND_AMOUNT,DIALOG_STYLE_INPUT',block)
 
     def test_distinct_dialog_ids(self):
         import re

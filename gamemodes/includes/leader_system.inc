@@ -859,8 +859,8 @@ stock Leader_Command(playerid, const command[], const params[])
         if (org == FACTION_FINANCE)
         {
             if (second < 1 || second > 3)
-                return SendClientMessage(playerid,FACTION_ERROR,
-                    "Минфин: 1=стажёр, 2=специалист, 3=заместитель.");
+                return SendClientMessage(playerid, FACTION_COLOR,
+                    "Для Министерства финансов доступен ранг от 1 до 3.");
             // Finance ranks are persisted directly as 1,2,3,4.
         }
         if (second < 1 || second >= myRank || second >= Leader_LeaderRank(org))
