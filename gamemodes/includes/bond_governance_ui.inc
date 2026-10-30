@@ -953,7 +953,7 @@ stock GovBond_UI_Actions(playerid)
     gGovUIStage[playerid]=7;
     ShowPlayerDialog(playerid,GOVUI_ACTION,DIALOG_STYLE_LIST,
         "{E8EDF3}Казначейство | Действия по выпуску",
-        "{E8EDF3}Утвердить выпуск (заместитель/министр)\n{E8EDF3}Открыть размещение (заместитель/министр)\n{E8EDF3}Отменить непроданный выпуск (заместитель/министр)\n{E8EDF3}Вернуться к реестру",
+        "{E8EDF3}Открыть размещение (заместитель/министр)\n{E8EDF3}Отменить непроданный выпуск (заместитель/министр)\n{E8EDF3}Вернуться к реестру",
         "Выбрать","Закрыть");
     return 1;
 }
@@ -1614,8 +1614,10 @@ stock GovBond_UI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         }
         if(gGovUIStage[playerid]!=7)return 1;
         if(!response)return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
-        if(listitem>=0 && listitem<=2)
-            return GovBond_UI_ConfirmAction(playerid,listitem+2);
+        // Approval is performed by the "Подписать" button on a DRAFT.
+        // In the action menu only opening and cancelling are available.
+        if(listitem==0)return GovBond_UI_ConfirmAction(playerid,3);
+        if(listitem==1)return GovBond_UI_ConfirmAction(playerid,4);
         return GovBond_UI_LoadIssues(playerid,gGovUIPage[playerid]);
     }
     if(dialogid==GOVUI_APPROVAL_REASON)
