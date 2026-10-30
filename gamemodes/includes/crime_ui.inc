@@ -442,7 +442,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
             gDBPrimaryAccountId[playerid]);
     else
         mysql_format(gDBPrimary, q, sizeof(q),
-            "SELECT contract_id,state,reward_amount,scenario_kind,scenario_choice,scenario_resolution FROM crime_contracts WHERE account_id=%d ORDER BY contract_id DESC LIMIT 6",
+            "SELECT c.contract_id,c.state,c.reward_amount,c.scenario_kind,COALESCE(r.trust_delta,0) trust_delta FROM crime_contracts c LEFT JOIN crime_contact_trust_events r ON r.contract_id=c.contract_id WHERE c.account_id=%d ORDER BY c.contract_id DESC LIMIT 6",
             gDBPrimaryAccountId[playerid]);
     new Cache:c = mysql_query(gDBPrimary, q);
     if (c == Cache:0 || mysql_errno(gDBPrimary) || !cache_get_row_count(rows))
@@ -456,14 +456,16 @@ stock CrimeUI_History(playerid, bool:journal = false)
         "{FFD15C}Контракт\t{FFD15C}Состояние\t{FFD15C}Награда{FFFFFF}\n");
     for (new i; i < rows; i++)
     {
-        new id, phase, reward, kind = 0, clue = 0, resolution = 0, event[24], label[64];
+        new id, phase, reward, kind = 0, trustGain = 0, event[24], label[64];
         if (!cache_get_value_name_int(i, "contract_id", id)) break;
         if (journal)
         {
             if (!cache_get_value_name(i, "event_type", event, sizeof(event))) break;
             if (!strcmp(event, "ACCEPTED")) format(label, sizeof(label), "Принят");
             else if (!strcmp(event, "PICKED_UP")) format(label, sizeof(label), "Груз получен");
-            else if (!strcmp(event, "CLUE_FOUND")) format(label, sizeof(label), "Улика найдена");
+            else if (!strcmp(event, "CLUE_FOUND")) format(label, sizeof(label), "Улика изучена");
+            else if (!strcmp(event, "EVIDENCE_FOUND")) format(label, sizeof(label), "Улика обнаружена");
+            else if (!strcmp(event, "WITNESS_INTERVIEWED")) format(label, sizeof(label), "Свидетель опрошен");
             else if (!strcmp(event, "COMPLETED")) format(label, sizeof(label), "Выполнен");
             else if (!strcmp(event, "EXPIRED")) format(label, sizeof(label), "Срок истёк");
             else if (!strcmp(event, "ABORTED")) format(label, sizeof(label), "Отменён");
@@ -475,8 +477,7 @@ stock CrimeUI_History(playerid, bool:journal = false)
             if (!cache_get_value_name_int(i, "state", phase) ||
                 !cache_get_value_name_int(i, "reward_amount", reward) ||
                 !cache_get_value_name_int(i, "scenario_kind", kind) ||
-                !cache_get_value_name_int(i, "scenario_choice", clue) ||
-                !cache_get_value_name_int(i, "scenario_resolution", resolution)) break;
+                !cache_get_value_name_int(i, "trust_delta", trustGain)) break;
             switch (phase)
             {
                 case 1: format(label, sizeof(label), "Ожидает груза");
@@ -486,11 +487,10 @@ stock CrimeUI_History(playerid, bool:journal = false)
                 case 5: format(label, sizeof(label), "Отменён");
                 default: format(label, sizeof(label), "Неизвестен");
             }
-            if (kind > 0 && phase == 3)
+            if (kind > 0 && phase == 3 && trustGain > 0)
             {
-                new gain = resolution == 2 ? 2 : (clue == 1 ? 5 : 3);
                 format(line, sizeof(line), "#%d\t%s (+%d доверия)\t$%d\n",
-                    id, label, gain, reward);
+                    id, label, trustGain, reward);
             }
             else format(line, sizeof(line), "#%d\t%s\t$%d\n", id, label, reward);
         }
