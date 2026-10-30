@@ -17,7 +17,7 @@ class Aftermath(unittest.TestCase):
                      "chk_tender_aftermath_state","choice IN (1,2)","state IN (1,2)",
                      "VALUES (44)"):
             self.assertIn(word,SQL)
-        self.assertIn("version=44 LIMIT 1",C)
+        self.assertIn("version=45 LIMIT 1",C)
         self.assertIn("044_crime_tender_aftermath.sql",CI)
         self.assertIn("crime034_mysql_uat.py",CI)
         self.assertIn("CrimeAftermath_Init()",C)
