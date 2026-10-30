@@ -212,6 +212,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "crime_recovery.inc"
 #include "crime_recovery_ui.inc"
 #include "crime_leaderboard.inc"
+#include "crime_reconnect.inc"
 #include "crime_world.inc"
 #include "crime_assets.inc"
 #include "treasury.inc"
@@ -730,6 +731,8 @@ stock Auth_EnterWorld(playerid)
     SetPlayerVirtualWorld(playerid, 0);
     gAuthProfSpawnPending[playerid] = true; // Arm before possible synchronous callback.
     SpawnPlayer(playerid);
+    // Login-only, after full account/faction load and world spawn.
+    CrimeReconnect_Notify(playerid);
     AuthProfiler_Step(playerid, "spawn_request", started);
     AuthProfiler_WorldEnd(playerid);
     return 1;
@@ -978,6 +981,7 @@ public OnPlayerConnect(playerid)
     CrimeIntel_Reset(playerid);
     CrimeRecovery_Reset(playerid);
     CrimeRank_Reset(playerid);
+    CrimeReconnect_Reset(playerid);
     CrimeWorld_Reset(playerid);
     CrimeAssets_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
@@ -1079,6 +1083,7 @@ public OnPlayerDisconnect(playerid, reason)
     CrimeIntel_Reset(playerid);
     CrimeRecovery_Reset(playerid);
     CrimeRank_Reset(playerid);
+    CrimeReconnect_Reset(playerid);
     CrimeWorld_Reset(playerid);
     CrimeAssets_Reset(playerid);
     gAuthToken[playerid]++;
