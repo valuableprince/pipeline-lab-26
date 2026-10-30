@@ -423,6 +423,8 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("else if(action==4 && sold>0)",onread)
         self.assertIn("Продано облигаций: %d.",onread)
         self.assertIn("У выпуска уже есть инвесторы. Отмена нарушит их права.",onread)
+        self.assertIn("Казначейство: выпуск %s нельзя отменить. Продано облигаций: %d.",onread)
+        self.assertIn("SendClientMessage(playerid,COLOR_RED,notice);",onread)
         self.assertIn("else if(action==4 && holders>0)",onread)
         self.assertIn("else if(action==3 && strcmp(status,\"APPROVED\"))",onread)
         self.assertIn("else if(action==3 && expired)",onread)
