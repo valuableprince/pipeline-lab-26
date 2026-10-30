@@ -46,7 +46,7 @@ def first_stage(con, cid, account, faction, clue):
             SET state=2,picked_up_at=UNIX_TIMESTAMP(),scenario_choice=%s
             WHERE contract_id=%s AND account_id=%s AND faction_id=%s
               AND state=1 AND expires_at>UNIX_TIMESTAMP()
-              AND (scenario_kind=0 OR %s IN(1,2))""",
+              AND (scenario_kind=0 OR (evidence_found_at>0 AND %s IN(1,2)))""",
             (clue, cid, account, faction, clue))
         if changed != 1:
             run(con, "ROLLBACK")
@@ -135,7 +135,7 @@ def main():
             "SELECT account_id FROM accounts WHERE username='CrimeSoloA'")
         assert account
         assert scalar(con, "SELECT COUNT(*) FROM crime_contract_templates") == 6
-        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=35") == 1
+        assert scalar(con, "SELECT COUNT(*) FROM schema_migrations WHERE version=36") == 1
         # Keep the original branching outcome test focused on settlement;
         # retry policies have their own integration acceptance suite.
         run(con, "UPDATE crime_contract_templates SET cooldown_seconds=0 WHERE template_id=4")
@@ -152,7 +152,13 @@ def main():
             cid = accept(con, account, 6, 4, 2)
             assert scalar(con, "SELECT scenario_kind FROM crime_contracts WHERE contract_id=%s", (cid,)) == 1
             assert not resolve(con, cid, account, 6, 1)  # Cannot bypass clue.
+            assert not first_stage(con, cid, account, 6, clue)  # Evidence not touched.
             assert not first_stage(con, cid, account, 7, clue)  # Wrong faction.
+            run(con, """UPDATE crime_contracts SET evidence_found_at=UNIX_TIMESTAMP()
+                WHERE contract_id=%s AND account_id=%s AND state=1""", (cid, account))
+            run(con, """INSERT INTO crime_contract_events
+                (contract_id,actor_account_id,event_type)
+                VALUES(%s,%s,'EVIDENCE_FOUND')""", (cid, account))
             assert first_stage(con, cid, account, 6, clue)
             assert not first_stage(con, cid, account, 6, clue)  # No replay.
             assert scalar(con, "SELECT scenario_choice FROM crime_contracts WHERE contract_id=%s", (cid,)) == clue
@@ -161,7 +167,7 @@ def main():
             assert not resolve(con, cid, account, 6, decision)
             assert scalar(con, "SELECT scenario_resolution FROM crime_contracts WHERE contract_id=%s", (cid,)) == decision
             assert scalar(con, "SELECT trust_delta FROM crime_contact_trust_events WHERE contract_id=%s", (cid,)) == expected_trust
-            assert scalar(con, "SELECT COUNT(*) FROM crime_contract_events WHERE contract_id=%s", (cid,)) == 3
+            assert scalar(con, "SELECT COUNT(*) FROM crime_contract_events WHERE contract_id=%s", (cid,)) == 4
             earned += 2800
             gained += expected_trust
             assert scalar(con, "SELECT balance FROM accounts WHERE account_id=%s", (account,)) == old_balance+earned
