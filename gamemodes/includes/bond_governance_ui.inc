@@ -302,7 +302,7 @@ stock GovBond_UI_LoadIssues(playerid,page=0)
     if (!GovBond_UI_Authorized(playerid) || page<0 || page>500) return 1;
     new query[750];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.status,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
+        "SELECT i.issue_id,i.issue_code,i.status,(i.status='OFFERING' AND i.offer_end_at<=UTC_TIMESTAMP()) AS offering_expired,i.face_value,i.max_quantity,i.yield_basis_points,COALESCE(a.username,'') AS applicant FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id ORDER BY (i.status='DRAFT') DESC,i.issue_id DESC LIMIT 11 OFFSET %d",
         page*GOVUI_ROWS);
     gGovUIPage[playerid]=page;
     if (!GovBond_UI_Query(playerid,query,2))
@@ -319,7 +319,7 @@ stock GovBond_UI_LoadIssue(playerid,issueId)
     if (!GovBond_UI_Authorized(playerid) || issueId<=0) return 1;
     new query[1800];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'') AS applicant,COALESCE(rej.username,'') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1), '') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
+        "SELECT i.issue_id,i.issue_code,i.title,i.purpose,i.issue_type,i.status,(i.status='OFFERING' AND i.offer_end_at<=UTC_TIMESTAMP()) AS offering_expired,i.face_value,i.max_quantity,i.sold_quantity,i.yield_basis_points,i.insured_max_exposure,i.created_at,i.offer_start_at,i.offer_end_at,i.maturity_at,TIMESTAMPDIFF(DAY,i.offer_start_at,i.offer_end_at) AS offer_days,TIMESTAMPDIFF(DAY,i.offer_end_at,i.maturity_at) AS maturity_days,i.rejection_reason,i.returned_reason,i.created_by_account_id,COALESCE(a.username,'') AS applicant,COALESCE(rej.username,'') AS rejector,COALESCE((SELECT ma.username FROM faction_members fm JOIN factions fac ON fac.faction_id=fm.faction_id JOIN accounts ma ON ma.account_id=fm.account_id WHERE fm.faction_id=5 AND fm.rank_id=4 AND fac.is_enabled=1 AND fac.term_end>UNIX_TIMESTAMP() ORDER BY fm.account_id LIMIT 1), '') AS minister FROM government_bond_issues i LEFT JOIN accounts a ON a.account_id=i.created_by_account_id LEFT JOIN accounts rej ON rej.account_id=i.rejected_by_account_id WHERE i.issue_id=%d LIMIT 1",
         issueId);
     gGovUISelectedIssue[playerid]=issueId;
     if (!GovBond_UI_Query(playerid,query,3))
@@ -373,11 +373,11 @@ stock GovBond_UI_Report(playerid)
 #if defined TARKENSO_DB_PRIMARY
     new query[800];
     mysql_format(gDBPrimary,query,sizeof(query),
-        "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
+        "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP()) AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
     // Compatibility with pre-030 staging: old report still loads normally.
     if(gBondBuybackReady)
         mysql_format(gDBPrimary,query,sizeof(query),
-            "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING') AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(quantity),0) FROM government_bond_buybacks) AS bonds_boughtback,(SELECT COALESCE(SUM(amount_paid),0) FROM government_bond_buybacks) AS buyback_cost,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
+            "SELECT balance,bond_fund_reserved,bond_fund_committed,bond_payout_reserved,bond_crisis_state,(SELECT COUNT(*) FROM government_bond_issues) AS issues,(SELECT COUNT(*) FROM government_bond_issues WHERE status='OFFERING' AND offer_start_at<=UTC_TIMESTAMP() AND offer_end_at>UTC_TIMESTAMP()) AS offering,(SELECT COALESCE(SUM(sold_quantity),0) FROM government_bond_issues) AS bonds_sold,(SELECT COALESCE(SUM(quantity),0) FROM government_bond_buybacks) AS bonds_boughtback,(SELECT COALESCE(SUM(amount_paid),0) FROM government_bond_buybacks) AS buyback_cost,(SELECT COALESCE(SUM(principal_due+interest_due-principal_budget_awarded-interest_budget_awarded-insurance_awarded),0) FROM government_bond_claims) AS overdue FROM treasury_accounts WHERE code='state'");
     if (!GovBond_UI_Query(playerid,query,4))
         SendClientMessage(playerid,COLOR_RED,"Отчёт казны временно недоступен.");
 #else
@@ -543,13 +543,14 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         gGovUICount[playerid]=shown;
         gGovUIHasMore[playerid]=rows>GOVUI_ROWS;
         new body[2700],line[225],code[65],status[20],statusLabel[40],applicant[40];
-        new id,face,quantity,yield;
+        new id,face,quantity,yield,expired;
         format(body,sizeof(body),"{E8EDF3}Код\tЗаявитель\tКол-во\tНоминал\tСтатус\n");
         for(new i=0;i<shown;i++)
         {
             if (!cache_get_value_name_int(i,"issue_id",id) ||
                 !cache_get_value_name(i,"issue_code",code,sizeof(code)) ||
                 !cache_get_value_name(i,"status",status,sizeof(status)) ||
+                !cache_get_value_name_int(i,"offering_expired",expired) ||
                 !cache_get_value_name(i,"applicant",applicant,sizeof(applicant)) ||
                 !cache_get_value_name_int(i,"face_value",face) ||
                 !cache_get_value_name_int(i,"max_quantity",quantity) ||
@@ -559,6 +560,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             if(!applicant[0])format(applicant,sizeof(applicant),"Неизвестен");
             gGovUIRows[playerid][i]=id;
             GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
+            if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");
             format(line,sizeof(line),
                 "{E8EDF3}%s\t{E8EDF3}%s\t{E8EDF3}%d\t{E8EDF3}$%d\t{E8EDF3}%s\n",
                 code,applicant,quantity,face,statusLabel);
@@ -579,7 +581,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
     if (kind==3)
     {
         new id,code[65],title[129],purpose[193],issueType[16],typeLabel[48],status[20];
-        new face,total,sold,yield,exposure,offerDays,maturityDays,creatorId;
+        new face,total,sold,yield,exposure,offerDays,maturityDays,creatorId,expired;
         new applicant[40],minister[40],rejector[40],reason[256],returnReason[256],statusLabel[40];
         new createdAt[32],offerStart[32],offerEnd[32],maturity[32];
         if(rows!=1 || !cache_get_value_name_int(0,"issue_id",id) ||
@@ -589,6 +591,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
             !cache_get_value_name(0,"purpose",purpose,sizeof(purpose)) ||
             !cache_get_value_name(0,"issue_type",issueType,sizeof(issueType)) ||
             !cache_get_value_name(0,"status",status,sizeof(status)) ||
+            !cache_get_value_name_int(0,"offering_expired",expired) ||
             !cache_get_value_name(0,"applicant",applicant,sizeof(applicant)) ||
             !cache_get_value_name(0,"minister",minister,sizeof(minister)) ||
             !cache_get_value_name(0,"rejector",rejector,sizeof(rejector)) ||
@@ -618,6 +621,7 @@ public GovBond_UI_OnRead(playerid,authToken,accountId,serial,kind)
         format(gGovUISelectedStatus[playerid],20,"%s",status);
         new body[1700],extra[400];
         GovBond_UI_IssueStatusLabel(status,statusLabel,sizeof(statusLabel));
+        if(expired)format(statusLabel,sizeof(statusLabel),"Размещение завершено");
         GovBond_UI_TypeLabel(issueType,typeLabel,sizeof(typeLabel));
         format(body,sizeof(body),
             "{E8EDF3}ГОСУДАРСТВЕННАЯ ОБЛИГАЦИЯ\n\n{E8EDF3}Код выпуска: {E8EDF3}%s\n{E8EDF3}Подал заявку: {E8EDF3}%s\n{E8EDF3}Действующий министр: {E8EDF3}%s\n{E8EDF3}Состояние: {E8EDF3}%s\n\n{E8EDF3}Название: {E8EDF3}%s\n{E8EDF3}Назначение: {E8EDF3}%s\n{E8EDF3}Тип займа: {E8EDF3}%s\n{E8EDF3}Количество облигаций: {E8EDF3}%d\n{E8EDF3}Номинал: {E8EDF3}$%d\n{E8EDF3}Общий номинал: {E8EDF3}$%d\n{E8EDF3}Доходность: {E8EDF3}%d.%02d%%\n{E8EDF3}Продано: %d\n{E8EDF3}Гарантия: $%d\n\n{E8EDF3}Размещение: {E8EDF3}%d дней\n{E8EDF3}Погашение: {E8EDF3}через %d дней после размещения\n{E8EDF3}Дата подачи (UTC): {E8EDF3}%s\n{E8EDF3}Дата выпуска (UTC): {E8EDF3}%s\n{E8EDF3}Окончание размещения: {E8EDF3}%s\n{E8EDF3}Погашение (UTC): {E8EDF3}%s",
