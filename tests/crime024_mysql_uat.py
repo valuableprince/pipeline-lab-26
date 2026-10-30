@@ -18,6 +18,7 @@ def attempt(con, account, faction, template, broker):
           JOIN faction_members m ON m.account_id=%s AND m.faction_id=%s
           JOIN crime_contact_progress p ON p.account_id=m.account_id
             AND p.contact_id=t.contact_id AND p.trust>=t.required_trust
+              AND (t.scenario_kind=0 OR p.heat<70)
           WHERE t.template_id=%s AND t.contact_id=%s AND t.mode_id=1 AND t.is_enabled=1
             AND (t.is_repeatable=1 OR NOT EXISTS(
                 SELECT 1 FROM crime_contracts h WHERE h.account_id=m.account_id
@@ -25,7 +26,7 @@ def attempt(con, account, faction, template, broker):
             AND NOT EXISTS(SELECT 1 FROM crime_contracts h
                 WHERE h.account_id=m.account_id AND h.template_id=t.template_id
                   AND h.state IN(3,5)
-                  AND h.finished_at>UNIX_TIMESTAMP()-t.cooldown_seconds)
+                  AND h.finished_at>UNIX_TIMESTAMP()-(t.cooldown_seconds+p.heat*10))
         """, (account, faction, template, broker))
         if count == 1:
             run(con, """INSERT INTO crime_contract_events
@@ -60,7 +61,7 @@ def main():
         assert attempt(con, account, 6, 4, 2) is None
 
         # Backdate only the disposable test fixture to simulate cooldown expiry.
-        run(con, """UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-1000
+        run(con, """UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-3000
             WHERE account_id=%s AND template_id=4 AND state=3""", (account,))
         first = attempt(con, account, 6, 4, 2)
         assert first
@@ -83,7 +84,7 @@ def main():
         # Aborting should close the slot but briefly delay exact template replay.
         close(con, first, 5)
         assert attempt(con, account, 6, 4, 2) is None
-        run(con, "UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-1000 WHERE contract_id=%s", (first,))
+        run(con, "UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-3000 WHERE contract_id=%s", (first,))
         second = attempt(con, account, 6, 4, 2)
         assert second and second != first
         assert scalar(con, "SELECT scenario_event FROM crime_contracts WHERE contract_id=%s", (second,)) in (1, 2, 3)
@@ -96,7 +97,7 @@ def main():
         run(con, "UPDATE crime_contract_templates SET is_repeatable=1 WHERE template_id=4")
 
         # Other template remains available; no global timer at low online.
-        run(con, """UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-1000
+        run(con, """UPDATE crime_contracts SET finished_at=UNIX_TIMESTAMP()-3000
             WHERE account_id=%s AND template_id=2 AND state=3""", (account,))
         third = attempt(con, account, 6, 2, 2)
         assert third
