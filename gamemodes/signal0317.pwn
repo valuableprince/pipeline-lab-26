@@ -189,6 +189,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "race_progress.inc"
 #include "race_core.inc"
 #include "server_guard.inc"
+#include "afk_status.inc"
 #include "load_test.inc"
 #include "db_shadow.inc"
 // GOV-04 tagged SQL rollback helper is used by DBPrimary before its include.
@@ -850,6 +851,7 @@ public OnGameModeInit()
     GovDebt_Init();
     GovBond_UI_Init();
     RP_Init();
+    AFK_Init();
     Guard_Init();
     LoadTest_Init();
 
@@ -886,6 +888,7 @@ public OnGameModeExit()
     if (gAccountAutosaveTimer) KillTimer(gAccountAutosaveTimer);
     gAccountAutosaveTimer = 0;
     LoadTest_Shutdown();
+    AFK_Shutdown();
     Guard_Shutdown();
     if (gAdminJailTimer) KillTimer(gAdminJailTimer);
     gAdminJailTimer = 0;
@@ -931,6 +934,7 @@ public OnPlayerConnect(playerid)
     DisablePlayerRaceCheckpoint(playerid);
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
+    AFK_Reset(playerid);
     Admin_OnConnect(playerid);
     AdminFly_Reset(playerid);
     AdminPunish_Reset(playerid);
@@ -1009,6 +1013,7 @@ public OnPlayerDisconnect(playerid, reason)
     AdminFly_Reset(playerid);
     TDS_Reset(playerid, false);
     RP_Reset(playerid);
+    AFK_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     AuthProfiler_Reset(playerid);
     Guard_OnDisconnect(playerid);
@@ -1167,12 +1172,14 @@ public OnPlayerSpawn(playerid)
     CleanerDump_NavClear(playerid);
     Admin_ApplyEvent(playerid);
     if (!AdminPunish_OnSpawn(playerid)) Story_OnSpawn(playerid);
+    AFK_OnSpawn(playerid);
     AuthProfiler_FirstSpawnEnd(playerid);
     return 1;
 }
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    AFK_Reset(playerid);
     ShipCam_Reset(playerid);
     ShipPanel_Reset(playerid);
     ShipEditor_Reset(playerid);
@@ -1221,6 +1228,7 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 
 public OnPlayerUpdate(playerid)
 {
+    AFK_OnUpdate(playerid);
     if (TDS_Active(playerid)) TDSInput_OnUpdate(playerid);
     return 1;
 }
