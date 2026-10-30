@@ -373,6 +373,21 @@ class BondGovernanceContracts(unittest.TestCase):
         self.assertIn("gGovUIOfferDays[playerid],offerDayWord,",UI)
         self.assertIn("gGovUIMaturityDays[playerid],maturityDayWord);",UI)
 
+    def test_fund_topup_dialog_highlights_values_and_status(self):
+        # BOND-UI-07: only this finance form uses semantic colors.
+        block=UI.split("if (kind==6)",1)[1].split("if (kind==1)",1)[0]
+        self.assertEqual(block.count("{FFD15C}$%d"),6)
+        self.assertIn("{E8EDF3}Казна: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Обязательный остаток: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Страховой резерв: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Выдано гарантий: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Свободно для перевода: {FFD15C}$%d",block)
+        self.assertIn("{E8EDF3}Введите сумму от {FFD15C}$1{E8EDF3} до {FFD15C}$%d{E8EDF3}.",block)
+        self.assertIn("enabled?\"{78D8AA}Включён\":\"{E48A8A}Выключен\"",block)
+        self.assertIn("{E8EDF3}Статус фонда: %s{E8EDF3}.",block)
+        self.assertIn("cash,minReserve,reserved,committed,freeBudget,maximum,",block)
+        self.assertIn('GOVUI_FUND_AMOUNT,DIALOG_STYLE_INPUT',block)
+
     def test_distinct_dialog_ids(self):
         import re
         ids=re.findall(r"#define\s+GOVUI_(?:MAIN|TYPE|INPUT|CONFIRM|LIST|ISSUE|ACTION|REPORT|APPROVAL_REASON|FUND_AMOUNT|FUND_CONFIRM)\s+\((\d+)\)",UI)
