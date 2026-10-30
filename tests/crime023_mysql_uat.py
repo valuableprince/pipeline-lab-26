@@ -162,7 +162,8 @@ def resolve(con, cid, account, faction, decision):
         changed, _ = run(con, """
             UPDATE crime_contact_progress p JOIN crime_contact_heat_events h
               ON h.account_id=p.account_id AND h.contact_id=p.contact_id
-            SET p.heat=GREATEST(0,LEAST(100,CAST(p.heat AS SIGNED)+h.heat_delta))
+            SET p.heat=GREATEST(0,LEAST(100,CAST(p.heat AS SIGNED)+h.heat_delta)),
+                p.heat_event_count=p.heat_event_count+1
             WHERE h.contract_id=%s AND h.account_id=%s
         """,(cid,account))
         assert changed == 1
