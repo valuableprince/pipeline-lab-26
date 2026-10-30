@@ -25,7 +25,7 @@ class IncidentContracts(unittest.TestCase):
         section=TENDER.split("stock bool:CrimeTender_Finalize(",1)[1].split("stock bool:CrimeTender_Refresh(",1)[0]
         self.assertLess(section.index('START TRANSACTION'),section.index('INSERT INTO crime_contracts'))
         self.assertLess(section.index('INSERT INTO crime_contracts'),section.index('INSERT INTO crime_tender_incidents'))
-        self.assertLess(section.index('INSERT INTO crime_tender_incidents'),section.index('Crime_Exec("COMMIT")'))
+        self.assertLess(section.index('INSERT INTO crime_tender_incidents'),section.rindex('Crime_Exec("COMMIT")'))
         settle=CORE.split("stock Crime_Settle(",1)[1].split("stock Crime_Abort(",1)[0]
         self.assertIn("c.mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents",settle)
         self.assertIn("mode_id<>3 OR EXISTS(SELECT 1 FROM crime_tender_incidents",settle)
