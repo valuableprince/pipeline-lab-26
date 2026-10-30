@@ -14,16 +14,12 @@ stock CrimeReconnect_Reset(playerid)
     return 1;
 }
 
-// Inline open.mp/SAMP chat colours match the /crime dialog palette:
-// gold #FFD15C: prefix and emphasis, white #FFFFFF: body,
-// grey #C7C7C7: hints, muted red #E27E82: warnings.
+// Reconnect retains its rich /crime inline emphasis;
+// the shared notification formatter provides the common system label.
 stock CrimeReconnect_Chat(playerid, bool:warning, const body[])
 {
-    new line[165];
-    format(line,sizeof(line),
-        "{FFD15C}[Криминальная система]{FFFFFF} %s",body);
-    return SendClientMessage(playerid,
-        warning ? CRIME_ERROR : CRIME_COLOR,line);
+    return TNotify_Send(playerid,TNOTIFY_CRIME,
+        warning ? TNOTIFY_WARNING : TNOTIFY_INFO,body);
 }
 
 #if defined TARKENSO_DB_PRIMARY
