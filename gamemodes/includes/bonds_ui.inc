@@ -77,12 +77,15 @@ new gBondsUISellQuantity[MAX_PLAYERS];
 new gBondsUIPendingAction[MAX_PLAYERS];
 new gBondsUIPendingPayAmount[MAX_PLAYERS];
 new gBondsUIPendingPayCode[MAX_PLAYERS][65];
+new gBondsUIMaturitySeq[MAX_PLAYERS];
 new gBondsUIEventSerial;
 
 forward BondsUI_OnList(playerid, authToken, accountId, requestSeq, kind);
 forward BondsUI_OnDetail(playerid, authToken, accountId, requestSeq, kind);
 forward BondsUI_OnSettlement(playerid, bool:replayed);
 forward BondsUI_OnRejected(playerid);
+forward BondsUI_OnMaturityLogin(playerid,authToken,accountId,seq);
+forward BondsUI_OnMaturityOnline(issueId);
 
 stock BondsUI_Reset(playerid)
 {
@@ -108,6 +111,9 @@ stock BondsUI_Reset(playerid)
     gBondsUISellUnitPrice[playerid] = 0;
     gBondsUISellQuantity[playerid] = 0;
     gBondsUIPendingAction[playerid] = 0;
+    gBondsUIPendingPayAmount[playerid] = 0;
+    gBondsUIPendingPayCode[playerid][0] = EOS;
+    gBondsUIMaturitySeq[playerid]++;
     return 1;
 }
 
@@ -959,10 +965,14 @@ stock BondsUI_OnDialog(playerid,dialogid,response,listitem,const inputtext[])
         new eventKey[65];
         BondsUI_NewKey(playerid,eventKey,sizeof(eventKey));
         gBondsUIPendingAction[playerid]=2;
+        gBondsUIPendingPayAmount[playerid]=gBondsUIClaimAmount[playerid];
+        format(gBondsUIPendingPayCode[playerid],65,"%s",gBondsUISelectedCode[playerid]);
         if(!BondSettlement_Collect(playerid,eventKey,
             gBondsUIClaimId[playerid],gBondsUIClaimAmount[playerid]))
         {
             gBondsUIPendingAction[playerid]=0;
+            gBondsUIPendingPayAmount[playerid]=0;
+            gBondsUIPendingPayCode[playerid][0]=EOS;
             SendClientMessage(playerid,COLOR_RED,
                 "Выплата не принята. Обновите портфель.");
         }
@@ -979,6 +989,8 @@ public BondsUI_OnRejected(playerid)
     new bool:buyback=(gBondsUIPendingAction[playerid]==4);
     gBondsUIPendingAction[playerid]=0;
     gBondsUIPendingQty[playerid]=0;
+    gBondsUIPendingPayAmount[playerid]=0;
+    gBondsUIPendingPayCode[playerid][0]=EOS;
     if(buyback && IsPlayerConnected(playerid) && gAuthState[playerid]==AUTH_READY)
     {
         SendClientMessage(playerid,COLOR_RED,
@@ -996,8 +1008,12 @@ public BondsUI_OnSettlement(playerid,bool:replayed)
     if(!IsPlayerConnected(playerid) || gAuthState[playerid]!=AUTH_READY)
         return 1;
     new action=gBondsUIPendingAction[playerid],quantity=gBondsUIPendingQty[playerid];
+    new payAmount=gBondsUIPendingPayAmount[playerid],payCode[65];
+    format(payCode,sizeof(payCode),"%s",gBondsUIPendingPayCode[playerid]);
     gBondsUIPendingAction[playerid]=0;
     gBondsUIPendingQty[playerid]=0;
+    gBondsUIPendingPayAmount[playerid]=0;
+    gBondsUIPendingPayCode[playerid][0]=EOS;
     if(action==1 && quantity>0)
     {
         new notice[150];
@@ -1008,8 +1024,16 @@ public BondsUI_OnSettlement(playerid,bool:replayed)
         SendClientMessage(playerid,COLOR_AMBER,notice);
     }
     else if(action==2)
-        SendClientMessage(playerid,COLOR_AMBER,
-            replayed?"Выплата уже была перечислена.":"Выплата подтверждена и зачислена на кошелёк.");
+    {
+        new notice[160];
+        format(notice,sizeof(notice),replayed?
+            "Минфин: выплата $%d по %s уже проведена ранее.":
+            "Минфин перечислил $%d по облигациям %s. Деньги на кошельке.",
+            payAmount,payCode);
+        SendClientMessage(playerid,COLOR_AMBER,notice);
+        if(!replayed)SendClientMessage(playerid,COLOR_AMBER,
+            "После полного расчёта выпуск перейдёт в /bonds > История погашений.");
+    }
     else if(action==3)
         SendClientMessage(playerid,COLOR_AMBER,
             replayed?"Купоны уже перечислены ранее.":
