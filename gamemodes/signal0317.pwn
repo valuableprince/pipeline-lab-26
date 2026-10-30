@@ -209,6 +209,8 @@ forward GovBond_UI_PublicReport(playerid);
 #include "crime_aftermath.inc"
 #include "crime_intel.inc"
 #include "crime_intel_ui.inc"
+#include "crime_recovery.inc"
+#include "crime_recovery_ui.inc"
 #include "crime_world.inc"
 #include "crime_assets.inc"
 #include "treasury.inc"
@@ -905,6 +907,7 @@ public OnGameModeExit()
     gAdminJailTimer = 0;
     PayDay_Shutdown();
     Economy_Shutdown();
+    CrimeRecovery_Shutdown();
     CrimeAftermath_Shutdown();
     CrimeIncident_Shutdown();
     CrimeWorld_Shutdown();
@@ -972,6 +975,7 @@ public OnPlayerConnect(playerid)
     CrimeIncident_Reset(playerid);
     CrimeAftermath_Reset(playerid);
     CrimeIntel_Reset(playerid);
+    CrimeRecovery_Reset(playerid);
     CrimeWorld_Reset(playerid);
     CrimeAssets_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
@@ -1071,6 +1075,7 @@ public OnPlayerDisconnect(playerid, reason)
     CrimeIncident_Reset(playerid);
     CrimeAftermath_Reset(playerid);
     CrimeIntel_Reset(playerid);
+    CrimeRecovery_Reset(playerid);
     CrimeWorld_Reset(playerid);
     CrimeAssets_Reset(playerid);
     gAuthToken[playerid]++;
@@ -1243,6 +1248,7 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     if (CrimeWorld_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (CrimeIncident_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (CrimeAftermath_OnKeys(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeRecovery_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (CrimeAssets_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
@@ -1343,6 +1349,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (CrimeIncident_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeAftermath_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeIntelUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeRecoveryUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
