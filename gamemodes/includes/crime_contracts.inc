@@ -40,6 +40,10 @@ forward CrimeAftermath_Reset(playerid);
 forward CrimeAftermath_Route(playerid, contractId);
 forward CrimeAftermath_Info(playerid, contractId, &contact, &choice, &stateCode);
 forward CrimeIntelUI_Board(playerid);
+forward bool:CrimeRecovery_Init();
+forward CrimeRecovery_Shutdown();
+forward CrimeRecovery_Reset(playerid);
+forward CrimeRecoveryUI_Board(playerid);
 
 stock Crime_Init()
 {
@@ -47,7 +51,7 @@ stock Crime_Init()
 #if defined TARKENSO_DB_PRIMARY
     if (!DBPrimary_IsReady()) return 1;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=45 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=46 LIMIT 1");
     if (c == Cache:0) return 1;
     new rows = 0;
     new bool:ok = mysql_errno(gDBPrimary) == 0 &&
@@ -55,7 +59,7 @@ stock Crime_Init()
     cache_delete(c);
     if (!ok)
     {
-        print("[CRIME-02] Migration 045 missing; intelligence cases disabled.");
+        print("[CRIME-02] Migration 046 missing; recovery missions disabled.");
         return 1;
     }
     if (!CrimeContacts_Init()) return 1;
@@ -72,6 +76,14 @@ stock Crime_Init()
     }
     if (!CrimeAftermath_Init())
     {
+        CrimeIncident_Shutdown();
+        CrimeWorld_Shutdown();
+        CrimeContacts_Shutdown();
+        return 1;
+    }
+    if (!CrimeRecovery_Init())
+    {
+        CrimeAftermath_Shutdown();
         CrimeIncident_Shutdown();
         CrimeWorld_Shutdown();
         CrimeContacts_Shutdown();
