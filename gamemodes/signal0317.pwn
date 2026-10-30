@@ -200,7 +200,9 @@ forward GovBond_UI_PublicReport(playerid);
 #include "crime_contacts.inc"
 #include "crime_scenarios.inc"
 #include "crime_org.inc"
+#include "crime_competition.inc"
 #include "crime_ui.inc"
+#include "crime_comp_ui.inc"
 #include "crime_world.inc"
 #include "crime_assets.inc"
 #include "treasury.inc"
@@ -1320,6 +1322,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (CrimeCompUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (CrimeUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
