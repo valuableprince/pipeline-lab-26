@@ -223,20 +223,25 @@ stock Passport_Open(playerid)
             return SendClientMessage(playerid, COLOR_RED,
                 "Паспорт недоступен: проверьте соединение с реестром.");
     }
-    if (!gPassportBirth[playerid][0]) return Passport_BirthPrompt(playerid);
+    // A passport exists even when an older account has no birth date.
+    // Show the valid document immediately; DOB entry is an optional action.
     new body[850];
     Passport_Build(playerid, body, sizeof(body));
     return ShowPlayerDialog(playerid, PASSPORT_DLG_SELF, DIALOG_STYLE_MSGBOX,
-        "{D5B477}TARKENSO | Паспорт гражданина", body, "Закрыть", "");
+        "{D5B477}TARKENSO | Паспорт гражданина", body, "Закрыть",
+        gPassportBirth[playerid][0] ? "" : "Указать дату");
 }
 
 stock Passport_Show(playerid, target)
 {
     if (gAuthState[playerid] != AUTH_READY || !gAccountSpawned[playerid] ||
-        gAccountDead[playerid] || !gPassportID[playerid] ||
-        !gPassportBirth[playerid][0])
+        gAccountDead[playerid])
         return SendClientMessage(playerid, COLOR_RED,
-            "Сначала оформите данные паспорта через /pass.");
+            "Паспорт доступен после авторизации и появления в игровом мире.");
+    // Lazily repair a missing in-memory passport after a temporary SQL error.
+    if (!gPassportID[playerid] && !Passport_Load(playerid))
+        return SendClientMessage(playerid, COLOR_RED,
+            "Паспорт недоступен: проверьте соединение с реестром.");
     if (target == playerid || !IsPlayerConnected(target) || IsPlayerNPC(target) ||
         gAuthState[target] != AUTH_READY || !gAccountSpawned[target] ||
         gAccountDead[target])
@@ -265,8 +270,16 @@ stock Passport_Show(playerid, target)
 
 stock Passport_OnDialog(playerid, dialogid, response, const inputtext[])
 {
-    if (dialogid == PASSPORT_DLG_SELF || dialogid == PASSPORT_DLG_SHARED)
+    if (dialogid == PASSPORT_DLG_SELF)
+    {
+        // The optional second button is offered only on legacy records
+        // without DOB; never force those players to re-register.
+        if (!response && gAuthState[playerid] == AUTH_READY &&
+            gPassportID[playerid] > 0 && !gPassportBirth[playerid][0])
+            return Passport_BirthPrompt(playerid);
         return 1;
+    }
+    if (dialogid == PASSPORT_DLG_SHARED) return 1;
     if (dialogid != PASSPORT_DLG_BIRTH) return 0;
     if (!gPassportBirthDialog[playerid] ||
         gAuthState[playerid] != AUTH_READY) return 1;
