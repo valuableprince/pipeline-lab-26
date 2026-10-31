@@ -42,3 +42,7 @@ Stop open.mp. Restore config.json.before-rustext.bak (or remove only rustext fro
 ## Boundaries
 
 The installer does not access your hosting account or deploy automatically. If your host has no terminal/Python, use the verified upstream package manually and edit its config.json. The Github Actions compile only checks Pawn and test contracts; it cannot validate actual GTA font rendering.
+
+## Дополнительный индикатор: мешок уборщика
+
+При активной смене уборщика его правый нижний PlayerTextDraw отображает кириллический счётчик **МЕШОК: X/Y** вместо прежнего **BAG: X/Y**. Текст создаётся и динамически обновляется на сервере в CP1251, конвертация исходящего TextDraw RPC выполняется существующим rustext. После установки AMX убедиться в правильном отображении на клиенте при начале смены, поднятии мусора и освобождении мешка; также проверить корректную ширину надписи и отсутствие пересечения HUD. Без rustext/совместимого шрифта отображение кириллицы не гарантируется.
