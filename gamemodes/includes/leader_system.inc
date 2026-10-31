@@ -75,6 +75,20 @@ stock Leader_ColorForOrg(org)
     return PLAYER_COLOR_CIVILIAN;
 }
 
+// Player blips are rendered for OTHER clients, never for the local radar arrow.
+// Stream-in and faction transitions must both refresh the viewer-specific blip.
+stock Leader_RefreshRadarMarker(viewerid, targetid)
+{
+    if (!IsPlayerConnected(viewerid) || IsPlayerNPC(viewerid) ||
+        !IsPlayerConnected(targetid) || IsPlayerNPC(targetid) ||
+        viewerid == targetid) return 0;
+    new org = gFactionCachedOrg[targetid];
+    if (gAuthState[targetid] != AUTH_READY || !Leader_OrgValid(org)) org = 0;
+    // Preserve native streaming: no explicit global map icon or timer.
+    SetPlayerMarkerForPlayer(viewerid, targetid, Leader_ColorForOrg(org));
+    return 1;
+}
+
 // Called only at lifecycle transitions, never in a high-frequency player loop.
 stock Leader_ApplyPlayerColor(playerid)
 {
@@ -83,6 +97,11 @@ stock Leader_ApplyPlayerColor(playerid)
     // A stale/inaccessible faction or an unauthenticated player is neutral.
     if (gAuthState[playerid] != AUTH_READY || !Leader_OrgValid(org)) org = 0;
     SetPlayerColor(playerid, Leader_ColorForOrg(org));
+    // Force nearby clients to receive the updated color immediately,
+    // even if a previous per-viewer radar override was cached.
+    for (new viewerid = 0; viewerid < MAX_PLAYERS; viewerid++)
+        if (IsPlayerConnected(viewerid) && viewerid != playerid)
+            Leader_RefreshRadarMarker(viewerid, playerid);
     return 1;
 }
 

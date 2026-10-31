@@ -1303,6 +1303,13 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     return 1;
 }
 
+public OnPlayerStreamIn(playerid, forplayerid)
+{
+    // Streaming can recreate a radar blip with its previous tint.
+    Leader_RefreshRadarMarker(forplayerid, playerid);
+    return 1;
+}
+
 public OnPlayerUpdate(playerid)
 {
     AFK_OnUpdate(playerid);
