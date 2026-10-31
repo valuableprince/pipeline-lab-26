@@ -5,10 +5,11 @@
 
 // SHIP-HORN-01: Pixabay "ship horn very close" (sound ID 14642).
 // The licensed file is not redistributed with the game source.
-// Host the MP3 yourself, then put its DIRECT HTTPS URL in horn_url.txt.
+// Default is the project-hosted MP3. A direct HTTPS URL in horn_url.txt can override it.
 // Audio streaming shares the single native audio channel with radio; skip
 // all players already using the server radio or race soundtrack.
 #define SHIP_HORN_CFG SHIP_DIR "/horn_url.txt"
+#define SHIP_HORN_DEFAULT_URL "https://tarkenso.ru/assets/audio/ship-horn.mp3"
 #define SHIP_HORN_URL_MAX (255)
 #define SHIP_HORN_RADIUS (220.0)
 #define SHIP_HORN_COOLDOWN (12)
@@ -33,11 +34,11 @@ stock bool:ShipHorn_URLValid(const url[])
 
 stock ShipHorn_Load()
 {
-    gShipHornURL[0] = EOS;
+    format(gShipHornURL, sizeof(gShipHornURL), "%s", SHIP_HORN_DEFAULT_URL);
     if (!fexist(SHIP_HORN_CFG))
     {
-        print("[ShipHorn] URL not configured; place a direct MP3 URL in shipstudio/horn_url.txt.");
-        return 0;
+        print("[ShipHorn] Using project-hosted ship horn MP3.");
+        return 1;
     }
     new File:file = fopen(SHIP_HORN_CFG, io_read);
     if (!file) return 0;
@@ -52,7 +53,7 @@ stock ShipHorn_Load()
         return 0;
     }
     format(gShipHornURL, sizeof(gShipHornURL), "%s", url);
-    print("[ShipHorn] Configured for the selected Pixabay ship horn.");
+    print("[ShipHorn] Configured ship horn via URL override.");
     return 1;
 }
 
