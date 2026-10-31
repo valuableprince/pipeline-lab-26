@@ -5,9 +5,9 @@
 
 // PASSPORT-01. All accounts automatically have a non-expiring passport.
 // Serial is a separate SQL AUTO_INCREMENT, not accounts.account_id.
-#define PASSPORT_DLG_SELF       (7960)
-#define PASSPORT_DLG_SHARED     (7961)
-#define PASSPORT_DLG_BIRTH      (7962)
+#define PASSPORT_DLG_SELF       (15011)
+#define PASSPORT_DLG_SHARED     (15012)
+#define PASSPORT_DLG_BIRTH      (15013)
 #define PASSPORT_SHOW_RADIUS    (3.0)
 #define PASSPORT_SHOW_COOLDOWN  (5)
 
