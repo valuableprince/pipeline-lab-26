@@ -225,6 +225,99 @@ jobs:
       - name: GOV-09 state buyback, coupons, escrow and replay MariaDB UAT
         run: python3 tests/gov09_buyback_mysql_uat.py
 
+
+  crime02_mysql_uat:
+    name: CRIME-02.1 MariaDB UAT
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: crime02-ci-only
+          MARIADB_DATABASE: tarkenso_crime02
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CRIME_TEST_HOST: 127.0.0.1
+      CRIME_TEST_USER: root
+      CRIME_TEST_PASSWORD: crime02-ci-only
+      CRIME_TEST_DB: tarkenso_crime02
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install MariaDB CLI and connector
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+          python3 -m pip install --user mysql-connector-python
+
+      - name: Install isolated base, syndicates and contracts
+        run: |
+          set -euo pipefail
+          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql 033_crime_npc_contacts.sql 034_crime_solo_scenarios.sql 035_crime_replay_variants.sql 036_crime_world_evidence.sql 037_crime_witness_interview.sql 038_crime_npc_heat.sql 039_crime_syndicate_influence.sql 040_crime_asset_operations.sql 041_crime_competitive_contracts.sql 042_crime_tender_offers.sql 043_crime_tender_incidents.sql 044_crime_tender_aftermath.sql 045_crime_intelligence_cases.sql 046_crime_contact_recovery.sql; do
+            mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$CRIME_TEST_PASSWORD" "$CRIME_TEST_DB" < "db/migrations/$migration"
+          done
+
+      - name: Test solo lifecycle and exactly-once reward
+        run: python3 tests/crime02_mysql_uat.py
+
+      - name: Test NPC introductions, trust gates and atomic reputation
+        run: python3 tests/crime022_mysql_uat.py
+
+      - name: Test investigation and negotiation decision outcomes
+        run: python3 tests/crime023_mysql_uat.py
+
+      - name: Test replay cooldown, unique missions and persistent variations
+        run: python3 tests/crime024_mysql_uat.py
+
+      - name: Test evidence discovery and staged physical investigations
+        run: python3 tests/crime025_mysql_uat.py
+
+      - name: Test witness interviews and evidence-quality trust bonus
+        run: python3 tests/crime026_mysql_uat.py
+
+      - name: Test contact heat, risk gates and solo recovery
+        run: python3 tests/crime027_mysql_uat.py
+
+      - name: Test syndicate influence, assets and one-player organizational progression
+        run: python3 tests/crime028_mysql_uat.py
+
+      - name: Test physical asset maintenance and solo service rewards
+        run: python3 tests/crime029_mysql_uat.py
+
+      - name: Test cross-syndicate competition, solo victory and winner-only payment
+        run: python3 tests/crime031_mysql_uat.py
+
+      - name: CRIME-03.2 NPC tenders, competing bids, solo award and penalties
+        run: python3 tests/crime032_mysql_uat.py
+
+      - name: CRIME-03.3 persistent physical encounters and payout gates
+        run: python3 tests/crime033_mysql_uat.py
+
+      - name: CRIME-03.4 follow-up NPC, payout gate and reputation divergence
+        run: python3 tests/crime034_mysql_uat.py
+
+      - name: CRIME-03.5 solo intelligence puzzle, expiry and one-time outcomes
+        run: python3 tests/crime035_mysql_uat.py
+
+      - name: CRIME-03.6 high-heat solo recovery, replay and 60-minute cooldown
+        run: python3 tests/crime036_mysql_uat.py
+
+      - name: CRIME-03.7 read-only ranking, event history and balance UAT
+        run: python3 tests/crime037_mysql_uat.py
+
+      - name: CRIME-UAT-01 login reminders, expired missions and pending NPC tenders
+        run: python3 tests/crime_reconnect_mysql_uat.py
+
   compile:
     name: Compile
     needs: sql_security

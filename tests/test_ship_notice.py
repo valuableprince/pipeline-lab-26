@@ -45,7 +45,7 @@ class ShipNoticeContracts(unittest.TestCase):
         self.assertNotIn("SetPlayerPos(", NOTICE)
 
     def test_public_notification_is_relative_and_time_zone_explicit(self):
-        self.assertIn("SendClientMessageToAll(SHIP_COLOR, message);", NOTICE)
+        self.assertIn("TNotify_All(TNOTIFY_SHIP,TNOTIFY_INFO,message);", NOTICE)
         self.assertIn("прибытие через ~%d ч %d мин", NOTICE)
         self.assertIn("около %02d:%02d (время сервера)", NOTICE)
         self.assertIn("рейда у порта", NOTICE)

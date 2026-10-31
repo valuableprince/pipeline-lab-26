@@ -37,6 +37,32 @@ class ChatStyle(unittest.TestCase):
             self.assertEqual(errors, [])
             self.assertEqual(checked, 4)
 
+    def test_crime_reconnect_scope_is_strict(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            src = root / "gamemodes/includes"
+            src.mkdir(parents=True)
+            crime = src / "crime_reconnect.inc"
+            ordinary = src / "ordinary.inc"
+            good = 'SendClientMessage(playerid, CRIME_COLOR, "{FFD15C}Контракт {FFFFFF}активен. {C7C7C7}Подсказка. {E27E82}Риск.");\n'
+            crime.write_text(good, encoding="utf-8")
+            ordinary.write_text(good, encoding="utf-8")
+            crime_path = "gamemodes/includes/crime_reconnect.inc"
+            other_path = "gamemodes/includes/ordinary.inc"
+            errors, count, unknown = check({crime_path: {1}}, root)
+            self.assertEqual((errors, count, unknown), ([], 1, 0))
+            errors, count, unknown = check({other_path: {1}}, root)
+            self.assertEqual(count, 1)
+            self.assertEqual(unknown, 0)
+            self.assertTrue(any("outside /ahelp palette" in error for error in errors))
+            self.assertGreaterEqual(len(errors), 2)
+            crime.write_text('SendClientMessage(playerid,-1,"{FF0000}Недопустимый цвет.");\n', encoding="utf-8")
+            errors, count, unknown = check({crime_path: {1}}, root)
+            self.assertEqual((count, unknown), (1, 0))
+            self.assertEqual(len(errors), 1)
+            self.assertIn("outside /crime reconnect palette", errors[0])
+
     def test_dynamic_chat_remains_unverified_not_rejected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:

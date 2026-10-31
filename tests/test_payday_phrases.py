@@ -63,8 +63,10 @@ class PayDayPhraseContracts(unittest.TestCase):
         notifications = PAYDAY[PAYDAY.index("stock PayDay_Notify("):PAYDAY.index("stock PayDay_Grant(")]
         self.assertIn("if (levelUp)", notifications)
         self.assertIn("PayDay_SendLevelUpPhrase(playerid);", notifications.split("if (levelUp)", 1)[1])
-        self.assertLess(notifications.index("========================================"),
+        self.assertIn('TNotify_Send(playerid,TNOTIFY_GENERAL,TNOTIFY_INFO,', notifications)
+        self.assertLess(notifications.index("TNotify_Send(playerid,TNOTIFY_GENERAL"),
                         notifications.index("PayDay_SendLevelUpPhrase(playerid);"))
+        self.assertNotIn('========================================', notifications)
         self.assertNotIn("fopen(", notifications)
         self.assertLess(PAYDAY.index("if (!DBPrimary_Execute(query, affected) || affected != 1)"),
                         PAYDAY.index("PayDay_Notify(playerid, earnedExp, levelUp);"))

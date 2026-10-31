@@ -95,7 +95,8 @@ stock bool:Admin_Require(playerid, E_ADMIN_PERMISSION:permission)
     }
     if (!gAdminDuty[playerid])
     {
-        SendClientMessage(playerid, ADMIN_ERROR, "Включите административный режим: /aduty.");
+        TNotify_Send(playerid,TNOTIFY_ADMIN,TNOTIFY_WARNING,
+            "Включите административный режим: /aduty.");
         return false;
     }
     return true;
@@ -439,9 +440,11 @@ stock bool:Admin_OnReady(playerid)
         gAdminEvent[playerid] = false;
     }
     if (Admin_IsFounder(playerid))
-        SendClientMessage(playerid, ADMIN_OK, "VEYRAN | FOUNDER: /aduty, /admin, /founder.");
+        TNotify_Send(playerid,TNOTIFY_ADMIN,TNOTIFY_SUCCESS,
+            "VEYRAN | FOUNDER: /aduty, /admin, /founder.");
     else if (gAdminLevel[playerid] > 0)
-        SendClientMessage(playerid, ADMIN_COLOR, "Доступ администрации: /aduty и /admin.");
+        TNotify_Send(playerid,TNOTIFY_ADMIN,TNOTIFY_INFO,
+            "Доступ администрации: /aduty и /admin.");
     return true;
 }
 

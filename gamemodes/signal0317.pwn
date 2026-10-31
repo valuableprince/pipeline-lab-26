@@ -164,6 +164,7 @@ forward bool:AdminPunish_IsJailed(playerid);
 forward bool:AdminPunish_Release(playerid, const actor[]);
 forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 
+#include "notification_style.inc"
 #include "auth_camera.inc"
 #include "auth_dialogs.inc"
 #include "console_ru.inc"
@@ -196,6 +197,25 @@ forward bool:GovDebt_OnError(errorid,const callback[],const query[]);
 forward bool:GovBond_UI_OnError(errorid,const callback[],const query[]);
 forward GovBond_UI_PublicReport(playerid);
 #include "db_primary.inc"
+#include "crime_contracts.inc"
+#include "crime_contacts.inc"
+#include "crime_scenarios.inc"
+#include "crime_org.inc"
+#include "crime_competition.inc"
+#include "crime_tenders.inc"
+#include "crime_ui.inc"
+#include "crime_comp_ui.inc"
+#include "crime_tenders_ui.inc"
+#include "crime_incidents.inc"
+#include "crime_aftermath.inc"
+#include "crime_intel.inc"
+#include "crime_intel_ui.inc"
+#include "crime_recovery.inc"
+#include "crime_recovery_ui.inc"
+#include "crime_leaderboard.inc"
+#include "crime_reconnect.inc"
+#include "crime_world.inc"
+#include "crime_assets.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
 #include "bond_fund.inc"
@@ -714,6 +734,8 @@ stock Auth_EnterWorld(playerid)
     SetPlayerVirtualWorld(playerid, 0);
     gAuthProfSpawnPending[playerid] = true; // Arm before possible synchronous callback.
     SpawnPlayer(playerid);
+    // Login-only, after full account/faction load and world spawn.
+    CrimeReconnect_Notify(playerid);
     AuthProfiler_Step(playerid, "spawn_request", started);
     AuthProfiler_WorldEnd(playerid);
     return 1;
@@ -876,6 +898,7 @@ public OnGameModeInit()
     ShipSurf_Init();
     Economy_Init();
     Leader_Init();
+    Crime_Init();
     OrvelarHUD_Init();
     print("[Tarkenso RPG / SIGNAL 03:17] Authentication initialized; samp-bcrypt required.");
     return 1;
@@ -891,6 +914,11 @@ public OnGameModeExit()
     gAdminJailTimer = 0;
     PayDay_Shutdown();
     Economy_Shutdown();
+    CrimeRecovery_Shutdown();
+    CrimeAftermath_Shutdown();
+    CrimeIncident_Shutdown();
+    CrimeWorld_Shutdown();
+    CrimeContacts_Shutdown();
     Admin_ClockShutdown();
     Auth_Autosave();
     AdminVeh_Shutdown();
@@ -950,6 +978,15 @@ public OnPlayerConnect(playerid)
     Radio_OnConnect(playerid);
     Leader_OnConnect(playerid);
     Leader_UI_Reset(playerid);
+    CrimeUI_Reset(playerid);
+    CrimeIncident_Reset(playerid);
+    CrimeAftermath_Reset(playerid);
+    CrimeIntel_Reset(playerid);
+    CrimeRecovery_Reset(playerid);
+    CrimeRank_Reset(playerid);
+    CrimeReconnect_Reset(playerid);
+    CrimeWorld_Reset(playerid);
+    CrimeAssets_Reset(playerid);
     Admin_UI_OnDisconnect(playerid);
     OrvelarHUD_OnConnect(playerid);
     gAuthToken[playerid]++;
@@ -1043,6 +1080,15 @@ public OnPlayerDisconnect(playerid, reason)
     Admin_OnDisconnect(playerid);
     Leader_OnDisconnect(playerid);
     Leader_UI_Reset(playerid);
+    CrimeUI_Reset(playerid);
+    CrimeIncident_Reset(playerid);
+    CrimeAftermath_Reset(playerid);
+    CrimeIntel_Reset(playerid);
+    CrimeRecovery_Reset(playerid);
+    CrimeRank_Reset(playerid);
+    CrimeReconnect_Reset(playerid);
+    CrimeWorld_Reset(playerid);
+    CrimeAssets_Reset(playerid);
     gAuthToken[playerid]++;
     gAuthState[playerid] = AUTH_NONE;
     gAuthDialogOpen[playerid] = false;
@@ -1210,6 +1256,11 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     }
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeWorld_OnKeys(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeIncident_OnKeys(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeAftermath_OnKeys(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeRecovery_OnKeys(playerid, newkeys, oldkeys)) return 1;
+    if (CrimeAssets_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
     return 1;
@@ -1304,6 +1355,14 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (AdminHelp_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Admin_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (Leader_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (CrimeCompUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeTenderUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeIncident_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeAftermath_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeIntelUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeRecoveryUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeRank_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (CrimeUI_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (BondsUI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (GovBond_UI_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&

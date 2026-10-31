@@ -132,16 +132,16 @@ stock ShipNotice_Depart(port)
         port == SHIP_PORT_LS ? SHIP_PORT_SF : SHIP_PORT_LS);
     new message[160];
     format(message, sizeof(message),
-        "[Tarkenso RPG] Судоходство: из порта %s вышел грузовой корабль. Курс: %s.",
+        "Из порта %s вышел грузовой корабль. Курс: %s.",
         port == SHIP_PORT_LS ? ("Лос-Сантоса") : ("Сан-Фиерро"),
         port == SHIP_PORT_LS ? ("Сан-Фиерро") : ("Лос-Сантос"));
-    SendClientMessageToAll(SHIP_COLOR, message);
+    TNotify_All(TNOTIFY_SHIP,TNOTIFY_INFO,message);
     format(message, sizeof(message),
-        "[Tarkenso RPG] Путь ~%d ч %d мин; прибытие через ~%d ч %d мин, около %02d:%02d (время сервера).",
+        "Путь ~%d ч %d мин; прибытие через ~%d ч %d мин, около %02d:%02d (время сервера).",
         travelHours, travelRest, travelHours, travelRest, etaHour, etaMinute);
-    SendClientMessageToAll(SHIP_COLOR, message);
+    TNotify_All(TNOTIFY_SHIP,TNOTIFY_INFO,message);
     if (!toBerth)
-        SendClientMessageToAll(SHIP_COLOR,
-            "[Tarkenso RPG] Прибытие рассчитано до рейда у порта: заход к причалу ещё не настроен.");
+        TNotify_All(TNOTIFY_SHIP,TNOTIFY_HINT,
+            "Расчёт до рейда у порта: заход к причалу ещё не настроен.");
     return 1;
 }

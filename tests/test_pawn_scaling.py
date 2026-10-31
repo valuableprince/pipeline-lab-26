@@ -67,6 +67,40 @@ stock Other() { return 1; }
         with self.assertRaises(ValueError):
             parse_samples("\n".join(lines) + "\nPERF_SCALE_ERROR: failure")
 
+    def test_staging_includes_criminal_rank_helpers(self):
+        from tempfile import TemporaryDirectory
+        source = """#define FACTION_FINANCE (5)
+#define FACTION_CRIME_FIRST (6)
+#define FACTION_CRIME_LAST (8)
+stock bool:Leader_IsCriminal(org) { return org >= FACTION_CRIME_FIRST; }
+stock Leader_MaxRank(org) { return Leader_IsCriminal(org) ? 5 : 10; }
+stock Leader_LeaderRank(org) { return Leader_MaxRank(org); }
+stock Leader_DeputyRank(org) { return org == FACTION_FINANCE ? 3 : 4; }
+stock bool:Leader_ValidateRoster(org)
+{
+    return Leader_MaxRank(org) > 0 && Leader_LeaderRank(org) > 0
+        && Leader_DeputyRank(org) > 0;
+}
+"""
+        snapshot = {
+            "gamemodes/includes/payday.inc": b"stock PayDay_Grant() { return 1; }",
+            "gamemodes/includes/leader_system.inc": source.encode("utf-8"),
+            "gamemodes/includes/studio_system.inc":
+                b"public StudioZone_Poll() { return 1; }",
+        }
+        with TemporaryDirectory() as t:
+            stage_sources(Path(t), snapshot)
+            staged = (Path(t) / "perf_leader_validate.inc").read_text(
+                encoding="cp1251"
+            )
+            for fragment in ("#define FACTION_CRIME_FIRST (6)",
+                             "stock bool:Leader_IsCriminal(org)",
+                             "stock Leader_MaxRank(org)",
+                             "stock Leader_LeaderRank(org)",
+                             "stock Leader_DeputyRank(org)",
+                             "stock bool:Leader_ValidateRoster(org)"):
+                self.assertIn(fragment, staged)
+
     def test_stage_extracts_real_Pawn_code(self):
         from tempfile import TemporaryDirectory
         inputs = {
