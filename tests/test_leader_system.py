@@ -148,8 +148,8 @@ class LeaderCoreContract(unittest.TestCase):
 
     def test_finance_rank_range_message_uses_faction_palette(self):
         # GOV UAT 3.5.2: explain the accepted rank range without role lists.
-        block = CORE.split('if (org == FACTION_FINANCE)', 1)[1].split(
-            'if (second < 1 || second >= myRank', 1)[0]
+        block = CORE.rsplit('if (org == FACTION_FINANCE)', 1)[1].split(
+            'if (Leader_IsCriminal(org)', 1)[0]
         self.assertIn("if (second < 1 || second > 3)", block)
         self.assertIn('return SendClientMessage(playerid, FACTION_COLOR,', block)
         self.assertIn('"Для Министерства финансов доступен ранг от 1 до 3."', block)
