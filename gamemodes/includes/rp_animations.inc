@@ -4,7 +4,7 @@
 #define _tarkenso_rp_animations_included
 
 // RP-ANIM-01: explicitly whitelisted GTA SA gestures; no user-supplied clip names.
-#define RP_ANIM_DIALOG (7951)
+#define RP_ANIM_DIALOG (15010)
 #define RP_ANIM_COLOR (0xD5B477FF)
 
 enum E_RP_ANIM
