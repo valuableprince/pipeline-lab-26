@@ -52,6 +52,14 @@ class PassportTests(unittest.TestCase):
             self.assertIn(phrase, PASSPORT)
         self.assertIn("DIALOG_STYLE_INPUT", PASSPORT)
         self.assertIn("Passport_BirthPrompt(playerid)", PASSPORT)
+        self.assertIn('gPassportBirth[playerid][0] ? "" : "Указать дату"', PASSPORT)
+        self.assertIn('if (!response && gAuthState[playerid] == AUTH_READY &&', PASSPORT)
+        self.assertIn('"Не указана"', PASSPORT)
+        open_body = PASSPORT.split("stock Passport_Open(playerid)", 1)[1].split(
+            "stock Passport_Show(playerid, target)", 1
+        )[0]
+        self.assertNotIn("return Passport_BirthPrompt(playerid)", open_body)
+        self.assertIn("Passport_Build(playerid, body, sizeof(body));", open_body)
 
     def test_sql_gate_uses_mysql_format_not_string_format(self):
         self.assertNotIn("format(query, sizeof(query),", PASSPORT)
@@ -59,6 +67,15 @@ class PassportTests(unittest.TestCase):
         self.assertIn("mysql_format(gDBPrimary, query,", PASSPORT)
         self.assertIn("mysql_format(gDBPrimary, q,", PASSPORT)
         self.assertEqual(PASSPORT.count("birth_date='%e'"), 2)
+
+    def test_legacy_accounts_can_show_passport_without_birthdate(self):
+        show = PASSPORT.split("stock Passport_Show(playerid, target)", 1)[1].split(
+            "stock Passport_OnDialog(playerid", 1
+        )[0]
+        self.assertNotIn("!gPassportBirth[playerid][0]", show)
+        self.assertIn("!gPassportID[playerid] && !Passport_Load(playerid)", show)
+        self.assertIn("Passport_Build(playerid, body, sizeof(body));", show)
+        self.assertIn("birth_date DATE DEFAULT NULL", MIG)
 
     def test_showpass_restricted_to_nearby_authenticated_players(self):
         for phrase in ("target == playerid", "gAuthState[target] != AUTH_READY",
