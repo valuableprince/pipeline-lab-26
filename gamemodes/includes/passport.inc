@@ -93,13 +93,13 @@ stock bool:Passport_Init()
     gPassportSchemaReady = false;
     if (!DBPrimary_IsReady()) return false;
     new Cache:c = mysql_query(gDBPrimary,
-        "SELECT version FROM schema_migrations WHERE version=31 LIMIT 1");
+        "SELECT version FROM schema_migrations WHERE version=47 LIMIT 1");
     new count;
     if (c == Cache:0 || mysql_errno(gDBPrimary) ||
         !cache_get_row_count(count) || count != 1)
     {
         if (c != Cache:0) cache_delete(c);
-        print("[PASSPORT] Migration 031 missing. Start rejected to avoid partial passport data.");
+        print("[PASSPORT] Migration 047 missing. Start rejected to avoid partial passport data.");
         return false;
     }
     cache_delete(c);

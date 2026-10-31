@@ -1,5 +1,5 @@
 -- PASSPORT-01. Dedicated document serial, separated from internal accounts.account_id.
--- Apply AFTER 030 with a DBA backup before deploying the corresponding Pawn.
+-- Apply AFTER 046 with a DBA backup before deploying the corresponding Pawn.
 -- Each existing account receives a passport, keeping the original issue date.
 CREATE TABLE player_passports (
     passport_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -17,4 +17,4 @@ CREATE TABLE player_passports (
 INSERT INTO player_passports (account_id, issued_on)
 SELECT account_id, DATE(created_at) FROM accounts ORDER BY account_id;
 
-INSERT INTO schema_migrations (version) VALUES (31);
+INSERT INTO schema_migrations (version) VALUES (47);

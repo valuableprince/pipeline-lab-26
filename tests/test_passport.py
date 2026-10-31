@@ -9,7 +9,7 @@ CMDS = (ROOT / "gamemodes/includes/commands.inc").read_text(encoding="utf-8")
 MENU = (ROOT / "gamemodes/includes/player_menu.inc").read_text(encoding="utf-8")
 HELP = (ROOT / "gamemodes/includes/player_command_help.inc").read_text(encoding="utf-8")
 AUTH = (ROOT / "gamemodes/includes/auth_dialogs.inc").read_text(encoding="utf-8")
-MIG = (ROOT / "db/migrations/031_passports.sql").read_text(encoding="utf-8")
+MIG = (ROOT / "db/migrations/047_passports.sql").read_text(encoding="utf-8")
 DOC = (ROOT / "docs/PASSPORT_SYSTEM.md").read_text(encoding="utf-8")
 
 
@@ -20,7 +20,7 @@ class PassportTests(unittest.TestCase):
             "UNIQUE KEY uq_player_passports_account (account_id)",
             "REFERENCES accounts(account_id) ON DELETE RESTRICT",
             "SELECT account_id, DATE(created_at) FROM accounts ORDER BY account_id",
-            "INSERT INTO schema_migrations (version) VALUES (31)",
+            "INSERT INTO schema_migrations (version) VALUES (47)",
             "AUTO_INCREMENT=500001",
         ):
             self.assertIn(phrase, MIG)
@@ -36,7 +36,7 @@ class PassportTests(unittest.TestCase):
                        "AUTH_REGISTER_BIRTH",
                        "Passport_OnDialog(playerid, dialogid, response, inputtext)"):
             self.assertIn(phrase, GAME)
-        self.assertIn("FROM schema_migrations WHERE version=31", PASSPORT)
+        self.assertIn("FROM schema_migrations WHERE version=47", PASSPORT)
         self.assertEqual(GAME.count("Passport_Reset(playerid);"), 2)
         self.assertIn("AuthDialog_BirthDate(playerid, error);", GAME)
         self.assertIn("gPassportPendingBirth[playerid]", GAME)
