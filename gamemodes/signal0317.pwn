@@ -863,6 +863,7 @@ public OnGameModeInit()
     EnableStuntBonusForAll(false);
     ShowPlayerMarkers(PLAYER_MARKERS_MODE_STREAMED);
     ShowNameTags(true);
+    SetNameTagDrawDistance(12.0);
     DisableInteriorEnterExits();
     AddPlayerClass(26, START_X, START_Y, START_Z, START_A, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
     fcreatedir(ACCOUNT_DIRECTORY);
@@ -890,6 +891,7 @@ public OnGameModeInit()
     GovDebt_Init();
     GovBond_UI_Init();
     RP_Init();
+    RPTime_Init();
     AFK_Init();
     Guard_Init();
     LoadTest_Init();
@@ -1060,6 +1062,7 @@ public OnPlayerConnect(playerid)
     GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     Leader_ApplyPlayerColor(playerid);
+    Leader_RefreshRadarForViewer(playerid);
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
     return 1;
@@ -1202,8 +1205,10 @@ public OnPlayerSpawn(playerid)
     }
 
     RPAnim_Reset(playerid);
-    // Restore faction/neutral color after each respawn (also refreshes TAB).
+    RPTime_Reset(playerid);
+    // Restore the public nick/TAB color and the private radar marker.
     Leader_ApplyPlayerColor(playerid);
+    Leader_RefreshRadarForViewer(playerid);
 
     if (!gAccountSpawned[playerid])
     {
@@ -1250,6 +1255,7 @@ public OnPlayerSpawn(playerid)
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
     RPAnim_Reset(playerid);
+    RPTime_Reset(playerid);
     AFK_Reset(playerid);
     ShipCam_Reset(playerid);
     ShipPanel_Reset(playerid);
@@ -1300,6 +1306,13 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     if (CrimeAssets_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
+    return 1;
+}
+
+public OnPlayerStreamIn(playerid, forplayerid)
+{
+    // Streaming can recreate radar blips; restore the per-viewer alpha.
+    Leader_RefreshRadarMarker(forplayerid, playerid);
     return 1;
 }
 

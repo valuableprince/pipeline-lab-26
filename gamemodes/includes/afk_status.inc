@@ -7,7 +7,7 @@
 // not merely standing still. A single timer serves all online players.
 #define AFK_TIMEOUT_SECONDS       (5)
 #define AFK_UPDATE_INTERVAL_MS    (1000)
-#define AFK_LABEL_DISTANCE        (20.0)
+#define AFK_LABEL_DISTANCE        (12.0)
 #define AFK_LABEL_COLOR           (0xB7BEC8FF)
 
 new gAFKTimer;
@@ -119,7 +119,7 @@ public AFK_Tick()
             gAFKLabel[i] = Create3DTextLabel(labelText, AFK_LABEL_COLOR, x, y, z,
                 AFK_LABEL_DISTANCE, world, true);
             if (gAFKLabel[i] == Text3D:INVALID_3DTEXT_ID) continue;
-            if (!Attach3DTextLabelToPlayer(gAFKLabel[i], i, 0.0, 0.0, 0.95))
+            if (!Attach3DTextLabelToPlayer(gAFKLabel[i], i, 0.0, 0.0, 0.55))
             {
                 AFK_ClearLabel(i);
                 continue;

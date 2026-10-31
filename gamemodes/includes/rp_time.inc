@@ -4,17 +4,81 @@
 #define _tarkenso_rp_time_included
 
 // RP-TIME-01: one-shot wristwatch animation and RP action.
-// GameText uses the player's world clock, including administrator overrides.
+// The lower-right PlayerTextDraw uses the player world clock, including admin overrides.
 #define RP_TIME_ANIM_MS  (2100)
 #define RP_TIME_TEXT_MS  (3500)
 #define RP_TIME_COOLDOWN (4)
 
 new gRPTimeNextUse[MAX_PLAYERS];
+new PlayerText:gRPTimeDraw[MAX_PLAYERS];
+new gRPTimeSerial[MAX_PLAYERS];
+
+forward RPTime_HideLater(playerid, serial);
+
+stock RPTime_Init()
+{
+    for (new i = 0; i < MAX_PLAYERS; i++)
+    {
+        gRPTimeDraw[i] = PlayerText:INVALID_TEXT_DRAW;
+        gRPTimeSerial[i] = 0;
+        gRPTimeNextUse[i] = 0;
+    }
+    return 1;
+}
+
+stock RPTime_Hide(playerid)
+{
+    if (gRPTimeDraw[playerid] != PlayerText:INVALID_TEXT_DRAW)
+    {
+        if (IsPlayerConnected(playerid))
+            PlayerTextDrawDestroy(playerid, gRPTimeDraw[playerid]);
+        gRPTimeDraw[playerid] = PlayerText:INVALID_TEXT_DRAW;
+    }
+    return 1;
+}
 
 stock RPTime_Reset(playerid)
 {
+    // Invalidate pending callbacks before a player ID can be reused.
+    gRPTimeSerial[playerid]++;
+    RPTime_Hide(playerid);
     gRPTimeNextUse[playerid] = 0;
     return 1;
+}
+
+public RPTime_HideLater(playerid, serial)
+{
+    if (IsPlayerConnected(playerid) && gRPTimeSerial[playerid] == serial)
+        RPTime_Hide(playerid);
+    return 1;
+}
+
+stock bool:RPTime_ShowClock(playerid, hour, minute)
+{
+    RPTime_Hide(playerid);
+    new clockText[36];
+    format(clockText, sizeof(clockText), "~w~TIME: ~y~%02d:%02d", hour, minute);
+    // Native GameText has fixed screen anchors. TextDraw is used so the
+    // same clock can sit in the lower-right corner (640x448 canvas).
+    gRPTimeDraw[playerid] = CreatePlayerTextDraw(playerid,
+        618.0, 374.0, clockText);
+    if (gRPTimeDraw[playerid] == PlayerText:INVALID_TEXT_DRAW) return false;
+    PlayerTextDrawAlignment(playerid, gRPTimeDraw[playerid], TEXT_DRAW_ALIGN_RIGHT);
+    PlayerTextDrawFont(playerid, gRPTimeDraw[playerid], TEXT_DRAW_FONT_2);
+    PlayerTextDrawLetterSize(playerid, gRPTimeDraw[playerid], 0.40, 1.70);
+    PlayerTextDrawColour(playerid, gRPTimeDraw[playerid], 0xFFFFFFFF);
+    PlayerTextDrawBackgroundColour(playerid, gRPTimeDraw[playerid], 0x11251BFF);
+    PlayerTextDrawSetOutline(playerid, gRPTimeDraw[playerid], 1);
+    PlayerTextDrawSetProportional(playerid, gRPTimeDraw[playerid], true);
+    PlayerTextDrawShow(playerid, gRPTimeDraw[playerid]);
+    gRPTimeSerial[playerid]++;
+    if (!SetTimerEx("RPTime_HideLater", RP_TIME_TEXT_MS, false,
+        "ii", playerid, gRPTimeSerial[playerid]))
+    {
+        RPTime_Hide(playerid);
+        return false;
+    }
+    return true;
 }
 
 stock bool:RPTime_Allowed(playerid)
@@ -65,7 +129,7 @@ stock RPTime_Command(playerid)
         return SendClientMessage(playerid, COLOR_RED,
             "Игровое время временно недоступно.");
 
-    new label[110], clockText[36];
+    new label[110];
     format(label, sizeof(label), "* %s посмотрел(а) на часы", gAccountName[playerid]);
     if (!RP_ShowActionLabel(playerid, label))
         return SendClientMessage(playerid, COLOR_RED,
@@ -75,8 +139,8 @@ stock RPTime_Command(playerid)
     ApplyAnimation(playerid, "COP_AMBIENT", "Coplook_watch", 4.1,
         false, false, false, false, RP_TIME_ANIM_MS, SYNC_ALL);
 
-    format(clockText, sizeof(clockText), "~w~TIME: ~y~%02d:%02d", hour, minute);
-    GameTextForPlayer(playerid, clockText, RP_TIME_TEXT_MS, 3);
+    if (!RPTime_ShowClock(playerid, hour, minute))
+        SendClientMessage(playerid, COLOR_RED, "Не удалось показать время на экране.");
     RP_SendLocal(playerid, RP_COLOR_ACTION, label, RP_RADIUS_ACTION);
     gRPTimeNextUse[playerid] = gettime() + RP_TIME_COOLDOWN;
     return 1;
