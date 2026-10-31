@@ -14,6 +14,9 @@ class ShipHornContracts(unittest.TestCase):
     def test_selected_sound_without_unverified_hotlink(self):
         self.assertIn('Pixabay "ship horn very close" (sound ID 14642)', HORN)
         self.assertIn('horn_url.txt', HORN)
+        self.assertIn('SHIP_HORN_DEFAULT_URL "https://tarkenso.ru/assets/audio/ship-horn.mp3"', HORN)
+        self.assertIn('Using project-hosted ship horn MP3.', HORN)
+        self.assertIn('GetObjectPos(gShipRoot, x, y, z);', HORN)
         self.assertIn('stock ShipHorn_Load()', HORN)
         self.assertIn('ShipHorn_URLValid', HORN)
         self.assertIn('https://', HORN)
