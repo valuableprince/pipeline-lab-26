@@ -38,6 +38,27 @@ class RPTimeTests(unittest.TestCase):
         self.assertNotIn("ClearAnimations(playerid", TIME)
         self.assertNotIn("TogglePlayerControllable(", TIME)
 
+    def test_first_use_animation_library_is_primed_without_double_sync(self):
+        # SA-MP can silently ignore the first ApplyAnimation for a new library.
+        # Only the first successful /time after each spawn needs a priming call.
+        self.assertIn("new bool:gRPTimeAnimPrimed[MAX_PLAYERS];", TIME)
+        init = TIME.split("stock RPTime_Init()", 1)[1].split("stock RPTime_Hide(playerid)", 1)[0]
+        self.assertIn("gRPTimeAnimPrimed[i] = false;", init)
+        reset = TIME.split("stock RPTime_Reset(playerid)", 1)[1].split("public RPTime_HideLater", 1)[0]
+        self.assertIn("gRPTimeAnimPrimed[playerid] = false;", reset)
+        cmd = TIME.split("stock RPTime_Command(playerid)", 1)[1]
+        priming = cmd.index("if (!gRPTimeAnimPrimed[playerid])")
+        init_call = cmd.index('ApplyAnimation(playerid, "COP_AMBIENT"', priming)
+        sync_call = cmd.index('ApplyAnimation(playerid, "COP_AMBIENT"', init_call + 1)
+        self.assertLess(priming, init_call)
+        self.assertLess(init_call, sync_call)
+        self.assertEqual(cmd.count('ApplyAnimation(playerid, "COP_AMBIENT"'), 2)
+        self.assertIn("RP_TIME_ANIM_MS, SYNC_NONE);", cmd[init_call:sync_call])
+        self.assertIn("gRPTimeAnimPrimed[playerid] = true;", cmd[init_call:sync_call])
+        self.assertIn("RP_TIME_ANIM_MS, SYNC_ALL);", cmd[sync_call:])
+        self.assertNotIn("ClearAnimations(", cmd)
+        self.assertNotIn("TogglePlayerControllable(", cmd)
+
     def test_other_animations_are_not_interrupted_and_cooldown(self):
         for piece in ("IsPlayerConnected(playerid)", "!IsPlayerNPC(playerid)",
                       "AUTH_READY", "gAccountSpawned[playerid]", "!gAccountDead[playerid]",
