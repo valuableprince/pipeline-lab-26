@@ -152,7 +152,7 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, RP_COLOR_ACTION, "RP-действия: /me, /do, /try, /todo, /ame (текст над персонажем).");
         SendClientMessage(playerid, RP_COLOR_OOC, "Общение: /b (OOC), /s (крик 45 м), /w (шёпот 4 м), /low (тихо 8 м).");
         SendClientMessage(playerid, COLOR_GREY, "Обычная речь и /me, /do, /try, /todo, /b — локально до 20 м. Пример: /todo Привет!*протянув руку.");
-        SendClientMessage(playerid, RP_ANIM_COLOR, "Анимации: /anim, /sit, /handsup, /wave. Остановить — пробел.");
+        SendClientMessage(playerid, RP_ANIM_COLOR, "Анимации: /anim, /sit, /handsup, /wave. Часы: /time. Остановить позу — пробел.");
         return 1;
     }
     if (!strcmp(category, "anim", true))
@@ -240,6 +240,13 @@ cmd:anim(playerid, params[]) { return RPAnim_Command(playerid, params); }
 cmd:sit(playerid, params[]) { return RPAnim_Quick(playerid, "sit"); }
 cmd:handsup(playerid, params[]) { return RPAnim_Quick(playerid, "handsup"); }
 cmd:wave(playerid, params[]) { return RPAnim_Quick(playerid, "wave"); }
+
+// RP-TIME-01: roleplay wristwatch gesture and game-world clock.
+cmd:time(playerid, params[])
+{
+    #pragma unused params
+    return RPTime_Command(playerid);
+}
 
 cmd:trashdrop(playerid, params[])
 {
