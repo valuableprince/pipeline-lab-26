@@ -1062,7 +1062,6 @@ public OnPlayerConnect(playerid)
     GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
     Leader_ApplyPlayerColor(playerid);
-    Leader_RefreshRadarForViewer(playerid);
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
     return 1;
@@ -1206,9 +1205,8 @@ public OnPlayerSpawn(playerid)
 
     RPAnim_Reset(playerid);
     RPTime_Reset(playerid);
-    // Restore the public nick/TAB color and the private radar marker.
+    // Restore the shared nick/TAB and native radar marker color.
     Leader_ApplyPlayerColor(playerid);
-    Leader_RefreshRadarForViewer(playerid);
 
     if (!gAccountSpawned[playerid])
     {
@@ -1306,13 +1304,6 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
     if (CrimeAssets_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (!Truck_OnKeyStateChange(playerid, newkeys, oldkeys))
         Cleaner_OnKeyStateChange(playerid, newkeys, oldkeys);
-    return 1;
-}
-
-public OnPlayerStreamIn(playerid, forplayerid)
-{
-    // Streaming can recreate radar blips; restore the per-viewer alpha.
-    Leader_RefreshRadarMarker(forplayerid, playerid);
     return 1;
 }
 
