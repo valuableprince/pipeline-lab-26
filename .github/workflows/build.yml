@@ -98,7 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           for migration in 001_initial.sql 004_username_case.sql 017_treasury_core.sql 018_gov_atomic_transfers.sql 019_bond_fund_core.sql; do
-            mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" \
+            mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" \
               < "db/migrations/$migration"
           done
 
@@ -110,28 +110,28 @@ jobs:
 
       - name: Apply migration 020 after GOV-01 regression UAT
         run: |
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/020_government_bond_issues.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/020_government_bond_issues.sql
 
       - name: Test GOV-02 atomic approval, cancellation and immutable terms
         run: python3 tests/gov02_mysql_uat.py
 
       - name: Apply migration 021 after GOV-02 regression UAT
         run: |
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/021_bond_settlement.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/021_bond_settlement.sql
 
       - name: Test GOV-03 placement, maturity escrow and insurance
         run: python3 tests/gov03_mysql_uat.py
       
       - name: Apply migration 022 after GOV-03 regression UAT
         run: |
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/022_bond_debt_crisis.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/022_bond_debt_crisis.sql
 
       - name: Test GOV-04 debt recovery, crisis and restructuring
         run: python3 tests/gov04_mysql_uat.py
 
       - name: Apply migration 023 after GOV-04 regression UAT
         run: |
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/023_bond_governance.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/023_bond_governance.sql
 
       - name: Test GOV-05 auto-code and official authorization on MariaDB
         run: python3 tests/gov05_mysql_uat.py
@@ -142,7 +142,7 @@ jobs:
       - name: Apply GOV-06 security migration 024 on disposable MariaDB
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/024_finance_assurance.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/024_finance_assurance.sql
 
       - name: GOV-06 audit financial invariants, privileges and concurrent reads
         run: python3 tests/gov06_mysql_uat.py
@@ -168,7 +168,7 @@ jobs:
       - name: Apply GOV-05.1 revision + opening-clock migration 025 on disposable MariaDB
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/025_bond_application_revisions.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/025_bond_application_revisions.sql
 
       - name: GOV-05 CP1251 client to UTF8MB4 Cyrillic roundtrip MariaDB UAT
         run: python3 tests/gov05_charset_mysql_uat.py
@@ -188,22 +188,22 @@ jobs:
       - name: Install GOV-07 coupon accounts and settlement procedure 026
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/026_bond_payday_coupons.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/026_bond_payday_coupons.sql
 
       - name: Install GOV-07.1 durable coupon notice queue migration 027
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/027_bond_coupon_payday_notices.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/027_bond_coupon_payday_notices.sql
 
       - name: Apply GOV-07.2 timezone-independent PayDay fix 028
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/028_coupon_payday_timezone.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/028_coupon_payday_timezone.sql
 
       - name: Install GOV-08 Ministry fund capitalization 029
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/029_minfin_fund_capitalization.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/029_minfin_fund_capitalization.sql
 
       - name: GOV-08 minister-only fund top-up, replay and ledger MariaDB UAT
         run: python3 tests/gov08_fund_mysql_uat.py
@@ -220,10 +220,105 @@ jobs:
       - name: Install GOV-09 fixed-price early buyback migration 030
         run: |
           set -euo pipefail
-          mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/030_gov09_bond_buyback.sql
+          mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$GOV00_TEST_PASSWORD" "$GOV00_TEST_DB" < db/migrations/030_gov09_bond_buyback.sql
 
       - name: GOV-09 state buyback, coupons, escrow and replay MariaDB UAT
         run: python3 tests/gov09_buyback_mysql_uat.py
+
+
+  crime02_mysql_uat:
+    name: CRIME-02.1 MariaDB UAT
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: crime02-ci-only
+          MARIADB_DATABASE: tarkenso_crime02
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CRIME_TEST_HOST: 127.0.0.1
+      CRIME_TEST_USER: root
+      CRIME_TEST_PASSWORD: crime02-ci-only
+      CRIME_TEST_DB: tarkenso_crime02
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # CI MariaDB service has no TLS; newer clients default to requiring SSL.
+      # Disable TLS only for ephemeral loopback test invocations.
+      - name: Install MariaDB CLI and connector
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-client
+          python3 -m pip install --user mysql-connector-python
+
+      - name: Install isolated base, syndicates and contracts
+        run: |
+          set -euo pipefail
+          for migration in 001_initial.sql 004_username_case.sql 031_crime_syndicates.sql 032_crime_contract_core.sql 033_crime_npc_contacts.sql 034_crime_solo_scenarios.sql 035_crime_replay_variants.sql 036_crime_world_evidence.sql 037_crime_witness_interview.sql 038_crime_npc_heat.sql 039_crime_syndicate_influence.sql 040_crime_asset_operations.sql 041_crime_competitive_contracts.sql 042_crime_tender_offers.sql 043_crime_tender_incidents.sql 044_crime_tender_aftermath.sql 045_crime_intelligence_cases.sql 046_crime_contact_recovery.sql; do
+            mariadb --skip-ssl --protocol=tcp -h 127.0.0.1 -P 3306 -uroot "-p$CRIME_TEST_PASSWORD" "$CRIME_TEST_DB" < "db/migrations/$migration"
+          done
+
+      - name: Test solo lifecycle and exactly-once reward
+        run: python3 tests/crime02_mysql_uat.py
+
+      - name: Test NPC introductions, trust gates and atomic reputation
+        run: python3 tests/crime022_mysql_uat.py
+
+      - name: Test investigation and negotiation decision outcomes
+        run: python3 tests/crime023_mysql_uat.py
+
+      - name: Test replay cooldown, unique missions and persistent variations
+        run: python3 tests/crime024_mysql_uat.py
+
+      - name: Test evidence discovery and staged physical investigations
+        run: python3 tests/crime025_mysql_uat.py
+
+      - name: Test witness interviews and evidence-quality trust bonus
+        run: python3 tests/crime026_mysql_uat.py
+
+      - name: Test contact heat, risk gates and solo recovery
+        run: python3 tests/crime027_mysql_uat.py
+
+      - name: Test syndicate influence, assets and one-player organizational progression
+        run: python3 tests/crime028_mysql_uat.py
+
+      - name: Test physical asset maintenance and solo service rewards
+        run: python3 tests/crime029_mysql_uat.py
+
+      - name: Test cross-syndicate competition, solo victory and winner-only payment
+        run: python3 tests/crime031_mysql_uat.py
+
+      - name: CRIME-03.2 NPC tenders, competing bids, solo award and penalties
+        run: python3 tests/crime032_mysql_uat.py
+
+      - name: CRIME-03.3 persistent physical encounters and payout gates
+        run: python3 tests/crime033_mysql_uat.py
+
+      - name: CRIME-03.4 follow-up NPC, payout gate and reputation divergence
+        run: python3 tests/crime034_mysql_uat.py
+
+      - name: CRIME-03.5 solo intelligence puzzle, expiry and one-time outcomes
+        run: python3 tests/crime035_mysql_uat.py
+
+      - name: CRIME-03.6 high-heat solo recovery, replay and 60-minute cooldown
+        run: python3 tests/crime036_mysql_uat.py
+
+      - name: CRIME-03.7 read-only ranking, event history and balance UAT
+        run: python3 tests/crime037_mysql_uat.py
+
+      - name: CRIME-UAT-01 login reminders, expired missions and pending NPC tenders
+        run: python3 tests/crime_reconnect_mysql_uat.py
 
   compile:
     name: Compile

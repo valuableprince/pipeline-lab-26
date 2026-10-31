@@ -13,9 +13,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Inline chat colors follow the /ahelp palette. No textual prefix is mandatory.
-# System-specific labels ([PAYDAY], [Работа], etc.) are content, not CI policy.
+# Default chat colours follow /ahelp. The crime reconnect notification is
+# a scoped, separately documented UI with the same colours as the /crime
+# dialogs. Keep that exception path-specific rather than globally weakening
+# the chat style gate for unrelated modules.
 CHAT_PALETTE = frozenset({"D9AA55", "FFFFFF", "B6E4B3", "9FAAB8"})
+CRIME_RECONNECT_PALETTE = frozenset({"FFD15C", "FFFFFF", "C7C7C7", "E27E82"})
+SCOPED_PALETTES = {
+    "gamemodes/includes/crime_reconnect.inc": CRIME_RECONNECT_PALETTE,
+}
 CALL = re.compile(r"\b(?:SendClientMessage|SendClientMessageToAll)\s*\(")
 LITERAL = re.compile(r'"((?:\\.|[^"\\])*)"')
 COLOR_TOKEN = re.compile(r"\{([0-9A-Fa-f]{6})\}")
@@ -89,6 +95,8 @@ def check(changed: dict[str, set[int]], root: Path):
     unknown = 0
     for path, touched in sorted(changed.items()):
         full = root / path
+        palette = SCOPED_PALETTES.get(path, CHAT_PALETTE)
+        palette_name = "/crime reconnect" if path in SCOPED_PALETTES else "/ahelp"
         if not full.is_file():
             continue
         for first, last, args in calls(full.read_text(encoding="utf-8")):
@@ -103,9 +111,9 @@ def check(changed: dict[str, set[int]], root: Path):
             msg = literals[-1]
             checked += 1
             for color in COLOR_TOKEN.findall(msg):
-                if color.upper() not in CHAT_PALETTE:
+                if color.upper() not in palette:
                     issues.append(
-                        f"{path}:{first}: inline chat color {{{color}}} is outside /ahelp palette"
+                        f"{path}:{first}: inline chat color {{{color}}} is outside {palette_name} palette"
                     )
             if TRANSLIT_UI.search(COLOR_TOKEN.sub("", msg)):
                 issues.append(

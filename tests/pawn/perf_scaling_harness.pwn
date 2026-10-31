@@ -101,6 +101,22 @@ stock Perf_Send(playerid, color, const message[])
     ++gPerfMessages;
     return 1;
 }
+// Isolated scaling benchmarks mock presentation just like other native UI.
+// Production missions use notification_style.inc; performance metrics here
+// focus on money/EXP SQL logic and synthetic player counts.
+#define TNOTIFY_GENERAL (0)
+#define TNOTIFY_INFO (0)
+#define TNOTIFY_HINT (3)
+stock TNotify_Send(playerid,system,severity,const body[])
+{
+    #pragma unused system,severity
+    return Perf_Send(playerid,0xFFFFFFFF,body);
+}
+stock TNotify_Detail(playerid,severity,const body[])
+{
+    #pragma unused severity
+    return Perf_Send(playerid,0xFFFFFFFF,body);
+}
 stock Perf_Pos(playerid, &Float:x, &Float:y, &Float:z)
 {
     x = float(playerid % 100);

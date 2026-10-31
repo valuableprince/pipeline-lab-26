@@ -43,7 +43,7 @@ stock PayDay_Status(playerid)
         format(message, sizeof(message), "Уровень: %d. EXP: %d/%d. PayDay каждый час в :00.",
             gCharacterLevel[playerid], gCharacterEXP[playerid],
             gCharacterLevel[playerid] * PAYDAY_EXP_STEP);
-    SendClientMessage(playerid, PAYDAY_COLOR, message);
+    TNotify_Send(playerid,TNOTIFY_GENERAL,TNOTIFY_INFO,message);
     return 1;
 }
 
@@ -91,13 +91,13 @@ stock PayDay_LoadPhrases()
 stock PayDay_SendLevelUpPhrase(playerid)
 {
     if (gPayDayPhraseCount <= 0)
-        return SendClientMessage(playerid, PAYDAY_COLOR,
-            "{9FAAB8}Вы стали опытнее. По крайней мере, так утверждает наша база данных.");
+        return TNotify_Detail(playerid,TNOTIFY_HINT,
+            "Вы стали опытнее. По крайней мере, так утверждает наша база данных.");
 
     new message[144];
     format(message, sizeof(message), "{9FAAB8}%s",
         gPayDayPhrases[random(gPayDayPhraseCount)]);
-    return SendClientMessage(playerid, PAYDAY_COLOR, message);
+    return TNotify_Detail(playerid,TNOTIFY_HINT,message);
 }
 
 // Chat receipt is shown only after the persisted hourly grant succeeds.
@@ -105,13 +105,13 @@ stock PayDay_SendLevelUpPhrase(playerid)
 stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
 {
     new message[144];
-    SendClientMessage(playerid, PAYDAY_COLOR,
-        "{D9AA55}========== TARKENSO | PAYDAY ==========");
+    TNotify_Send(playerid,TNOTIFY_GENERAL,TNOTIFY_INFO,
+        "PAYDAY: итоги игрового часа.");
 
     format(message, sizeof(message),
         "{FFFFFF}Опыт за час: {B6E4B3}+%d EXP {9FAAB8}| {FFFFFF}Уровень: {D9AA55}%d",
         earnedExp, gCharacterLevel[playerid]);
-    SendClientMessage(playerid, PAYDAY_COLOR, message);
+    TNotify_Detail(playerid,TNOTIFY_INFO,message);
 
     if (gCharacterLevel[playerid] >= PAYDAY_LEVEL_LIMIT)
     {
@@ -124,18 +124,17 @@ stock PayDay_Notify(playerid, earnedExp, bool:levelUp)
         format(message, sizeof(message),
             "{FFFFFF}Прогресс: {B6E4B3}%d/%d EXP {9FAAB8}| {FFFFFF}Осталось: {D9AA55}%d EXP",
             gCharacterEXP[playerid], threshold, threshold - gCharacterEXP[playerid]);
-        SendClientMessage(playerid, PAYDAY_COLOR, message);
+        TNotify_Detail(playerid,TNOTIFY_INFO,message);
     }
 
-    SendClientMessage(playerid, PAYDAY_COLOR,
-        "{D9AA55}========================================");
+    // The standardized system prefix replaces the decorative separator.
 
     if (levelUp)
     {
         format(message, sizeof(message),
             "{D9AA55}Поздравляем! {FFFFFF}Вы достигли {B6E4B3}%d {FFFFFF}уровня.",
             gCharacterLevel[playerid]);
-        SendClientMessage(playerid, PAYDAY_COLOR, message);
+        TNotify_Detail(playerid,TNOTIFY_INFO,message);
         PayDay_SendLevelUpPhrase(playerid);
     }
 

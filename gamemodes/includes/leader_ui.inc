@@ -3,6 +3,9 @@
 #endif
 #define _signal_leader_ui_included
 
+// Dialogue entrypoint is implemented in crime_ui.inc after db_primary.inc.
+forward CrimeUI_Main(playerid);
+
 // Стандартные SA-MP/open.mp диалоги, без TextDraw.
 #define LEADER_DLG_MAIN (6600)
 #define LEADER_DLG_MANAGE (6601)
@@ -23,12 +26,19 @@ stock Leader_UI_Main(playerid)
     new org = Leader_PlayerOrg(playerid), name[48], title[96];
     if (!org) return SendClientMessage(playerid, FACTION_ERROR, "Вы не состоите в организации.");
     Leader_OrgTitle(org, name, sizeof(name));
-    format(title, sizeof(title), "%s | Ранг %d", name,
+    if (Leader_IsCriminal(org))
+    {
+        new role[32];
+        Leader_CrimeRankTitle(Leader_PlayerRank(playerid), role, sizeof(role));
+        format(title, sizeof(title), "%s | Ранг %d: %s", name, Leader_PlayerRank(playerid), role);
+    }
+    else format(title, sizeof(title), "%s | Ранг %d", name,
         Leader_PublicRank(org,Leader_PlayerRank(playerid)));
     gFactionDialogMode[playerid] = 1;
+    new menu[180] = "Информация о составе\nСписок сотрудников\nСвязь организации\nПокинуть организацию\nРуководство";
+    if (Leader_IsCriminal(org)) strcat(menu, "\nТеневой рынок", sizeof(menu));
     ShowPlayerDialog(playerid, LEADER_DLG_MAIN, DIALOG_STYLE_LIST,
-        title, "Информация о составе\nСписок сотрудников\nСвязь организации\nПокинуть организацию\nРуководство",
-        "Выбрать", "Закрыть");
+        title, menu, "Выбрать", "Закрыть");
     return 1;
 }
 
@@ -50,7 +60,15 @@ stock Leader_UI_Roster(playerid)
     body[0] = EOS;
     for (new i = 0; i < gFactionCount[org - 1] && count < 25; i++)
     {
-        format(line, sizeof(line), "%s | Ранг %d%s\n",
+        if (Leader_IsCriminal(org))
+        {
+            new role[32];
+            Leader_CrimeRankTitle(gFactionMemberRank[org - 1][i], role, sizeof(role));
+            format(line, sizeof(line), "%s | %d: %s%s\n",
+                gFactionMemberName[org - 1][i], gFactionMemberRank[org - 1][i], role,
+                Leader_FindOnline(gFactionMemberName[org - 1][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
+        }
+        else format(line, sizeof(line), "%s | Ранг %d%s\n",
             gFactionMemberName[org - 1][i],
             Leader_PublicRank(org,gFactionMemberRank[org - 1][i]),
             Leader_FindOnline(gFactionMemberName[org - 1][i]) != INVALID_PLAYER_ID ? (" [online]") : (""));
@@ -82,7 +100,9 @@ stock Leader_UI_Input(playerid, action)
                 "LEADER | Повышение",
                 org==FACTION_FINANCE ?
                     ("Минфин: ID и ранг 1-3 (3=заместитель), например: 12 2") :
-                    ("Укажите ID и новый ранг (1-9), например: 12 4"),
+                    (Leader_IsCriminal(org) ?
+                        ("Синдикат: ID и ранг 1-4 (4=заместитель), например: 12 3") :
+                        ("Укажите ID и новый ранг (1-9), например: 12 4")),
                 "Применить", "Отмена");
         }
     }
@@ -95,7 +115,8 @@ stock Leader_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext
     {
         if (gFactionDialogMode[playerid] != 1) return 1;
         gFactionDialogMode[playerid] = 0;
-        if (!response || listitem < 0 || listitem > 4 || !Leader_PlayerOrg(playerid)) return 1;
+        if (!response || listitem < 0 || !Leader_PlayerOrg(playerid) ||
+            listitem > (Leader_IsCriminal(Leader_PlayerOrg(playerid)) ? 5 : 4)) return 1;
         switch (listitem)
         {
             case 0: return Leader_List(playerid);
@@ -103,6 +124,7 @@ stock Leader_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext
             case 2: return SendClientMessage(playerid, FACTION_COLOR, "Рация организации: /r сообщение. Префикс в чате: [R].");
             case 3: return Leader_Command(playerid, "fleave", "");
             case 4: return Leader_UI_Leader(playerid);
+            case 5: return CrimeUI_Main(playerid);
         }
         return 1;
     }

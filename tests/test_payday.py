@@ -42,7 +42,9 @@ class PayDayContract(unittest.TestCase):
         self.assertNotIn("cmd:level(playerid, params[])", COMMANDS)
 
     def test_chat_receipt_and_native_right_game_text(self):
-        self.assertIn('========== TARKENSO | PAYDAY ==========', PAYDAY)
+        self.assertIn('TNotify_Send(playerid,TNOTIFY_GENERAL,TNOTIFY_INFO,', PAYDAY)
+        self.assertIn('"PAYDAY: итоги игрового часа."', PAYDAY)
+        self.assertNotIn('========== TARKENSO | PAYDAY ==========', PAYDAY)
         self.assertIn('Опыт за час:', PAYDAY)
         self.assertNotIn("[Tarkenso RPG]", PAYDAY)
         self.assertIn("#define PAYDAY_COLOR (0xFFFFFFFF)", PAYDAY)
