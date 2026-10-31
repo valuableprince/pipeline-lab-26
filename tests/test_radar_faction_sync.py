@@ -12,7 +12,11 @@ class RadarFactionSyncTests(unittest.TestCase):
     def test_crime_org_six_uses_same_copper_color_as_nametag(self):
         self.assertIn("case 6: return 0xB87949FF;", LEADER)
         self.assertIn("SetPlayerColor(playerid, Leader_ColorForOrg(org));", LEADER)
-        self.assertIn("SetPlayerMarkerForPlayer(viewerid, targetid, Leader_ColorForOrg(org));", LEADER)
+        self.assertIn("SetPlayerMarkerForPlayer(viewerid, targetid, Leader_RadarColorForOrg(org));", LEADER)
+        self.assertIn("return Leader_ColorForOrg(org);", LEADER)
+        self.assertIn("#define PLAYER_COLOR_CIVILIAN (0xFFFFFFFF)", LEADER)
+        self.assertIn("#define PLAYER_MARKER_CIVILIAN (0xFFFFFF77)", LEADER)
+        self.assertIn("return PLAYER_MARKER_CIVILIAN;", LEADER)
 
     def test_faction_change_pushes_blip_color_to_observers(self):
         method = LEADER.split("stock Leader_ApplyPlayerColor(playerid)", 1)[1].split(
