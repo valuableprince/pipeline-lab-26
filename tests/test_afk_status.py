@@ -33,11 +33,12 @@ class AfkIndicatorContracts(unittest.TestCase):
 
     def test_3d_label_created_once_and_updated_on_timer(self):
         self.assertIn("#define AFK_UPDATE_INTERVAL_MS    (1000)", AFK)
+        self.assertIn("#define AFK_LABEL_DISTANCE        (12.0)", AFK)
         self.assertEqual(len(re.findall(r'SetTimer\(', AFK)), 1)
         self.assertNotIn("SetTimerEx(", AFK)
         self.assertIn('SetTimer("AFK_Tick", AFK_UPDATE_INTERVAL_MS, true)', AFK)
         self.assertIn("Create3DTextLabel(labelText,", AFK)
-        self.assertIn("Attach3DTextLabelToPlayer(gAFKLabel[i], i, 0.0, 0.0, 0.95)", AFK)
+        self.assertIn("Attach3DTextLabelToPlayer(gAFKLabel[i], i, 0.0, 0.0, 0.55)", AFK)
         self.assertIn("Update3DTextLabelText(gAFKLabel[i], AFK_LABEL_COLOR, labelText);", AFK)
         self.assertIn("gAFKLabelWorld[i] != world", AFK)
         self.assertIn("Delete3DTextLabel(gAFKLabel[playerid]);", AFK)

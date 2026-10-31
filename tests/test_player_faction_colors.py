@@ -21,9 +21,17 @@ class PlayerFactionColors(unittest.TestCase):
         self.assertTrue(all(value.endswith("FF") for value in palette.values()))
 
     def test_civilians_have_neutral_semtransparent_radar_markers(self):
-        self.assertIn("#define PLAYER_COLOR_CIVILIAN (0xAAB2BD77)", LEADER)
+        self.assertIn("#define PLAYER_COLOR_CIVILIAN (0xFFFFFFFF)", LEADER)
+        self.assertIn("#define PLAYER_MARKER_CIVILIAN (0xFFFFFF77)", LEADER)
+        self.assertIn("return PLAYER_MARKER_CIVILIAN;", LEADER)
+        self.assertIn("SetPlayerMarkerForPlayer(viewerid, targetid, Leader_RadarColorForOrg(org));", LEADER)
         self.assertIn("return PLAYER_COLOR_CIVILIAN;", LEADER)
         self.assertIn("SetPlayerColor(playerid, Leader_ColorForOrg(org));", LEADER)
+        self.assertIn("Leader_RefreshRadarMarker(viewerid, playerid);", LEADER)
+        self.assertIn("Leader_RefreshRadarForViewer(playerid);", GAME)
+        self.assertIn("SetNameTagDrawDistance(12.0);", GAME)
+        stream = GAME.split("public OnPlayerStreamIn(playerid, forplayerid)", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("Leader_RefreshRadarMarker(forplayerid, playerid);", stream)
 
     def test_no_organization_leak_before_login_or_on_disabled_org(self):
         self.assertIn("gAuthState[playerid] != AUTH_READY || !Leader_OrgValid(org)", LEADER)
@@ -42,6 +50,13 @@ class PlayerFactionColors(unittest.TestCase):
             "public OnPlayerDeath", 1
         )[0]
         self.assertIn("Leader_ApplyPlayerColor(playerid);", spawn)
+
+    def test_civilian_name_white_and_marker_override_not_in_hot_loop(self):
+        self.assertIn("SetPlayerColor(playerid, Leader_ColorForOrg(org));", LEADER)
+        self.assertIn("SetPlayerMarkerForPlayer(viewerid, targetid,", LEADER)
+        self.assertIn("Leader_RefreshRadarForViewer(viewerid)", LEADER)
+        onupdate = GAME.split("public OnPlayerUpdate(playerid)", 1)[1].split("\n}\n", 1)[0]
+        self.assertNotIn("Leader_RefreshRadarMarker", onupdate)
 
     def test_radar_enabled_only_for_streamed_nearby_players(self):
         self.assertIn("ShowPlayerMarkers(PLAYER_MARKERS_MODE_STREAMED);", GAME)
