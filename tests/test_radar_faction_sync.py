@@ -32,7 +32,7 @@ class RadarFactionSyncTests(unittest.TestCase):
         self.assertNotIn("Leader_RefreshRadarMarker", GAME)
         self.assertNotIn("Leader_RefreshRadarForViewer", GAME)
         self.assertNotIn("SetPlayerMapIcon(", LEADER)
-        self.assertIn("собственную белую стрелку", DOCS)
+        self.assertIn("Штатная стрелка собственного персонажа", DOCS)
 
     def test_source_cp1251(self):
         for item in (GAME, LEADER):
