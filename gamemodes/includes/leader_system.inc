@@ -56,6 +56,36 @@ stock Leader_OrgTitle(org, output[], size)
     return 1;
 }
 
+// The final byte is alpha (RRGGBBAA): civilians are translucent on the radar.
+#define PLAYER_COLOR_CIVILIAN (0xAAB2BD77)
+
+stock Leader_ColorForOrg(org)
+{
+    switch (org)
+    {
+        case 1: return 0x3478C0FF; // Sheriff Department
+        case 2: return 0xE76B70FF; // Emergency Medical Service
+        case 3: return 0xD6A64DFF; // Radio 03:17
+        case 4: return 0x8B75C9FF; // Reserved Research Department
+        case 5: return 0x48A889FF; // Ministry of Finance
+        case 6: return 0xB87949FF; // Syndicate Haven (CRIME-01)
+        case 7: return 0xA85D86FF; // Vector Consortium (CRIME-01)
+        case 8: return 0x579BA8FF; // Orion Network (CRIME-01)
+    }
+    return PLAYER_COLOR_CIVILIAN;
+}
+
+// Called only at lifecycle transitions, never in a high-frequency player loop.
+stock Leader_ApplyPlayerColor(playerid)
+{
+    if (!IsPlayerConnected(playerid)) return 0;
+    new org = gFactionCachedOrg[playerid];
+    // A stale/inaccessible faction or an unauthenticated player is neutral.
+    if (gAuthState[playerid] != AUTH_READY || !Leader_OrgValid(org)) org = 0;
+    SetPlayerColor(playerid, Leader_ColorForOrg(org));
+    return 1;
+}
+
 stock Leader_FilePath(org, output[], size)
 {
     format(output, size, "%s/org_%d.dat", FACTION_DIRECTORY, org);
@@ -346,8 +376,10 @@ stock Leader_RefreshPlayer(playerid)
         if (idx < 0) continue;
         gFactionCachedOrg[playerid] = org;
         gFactionCachedRank[playerid] = gFactionMemberRank[org - 1][idx];
+        Leader_ApplyPlayerColor(playerid);
         return org;
     }
+    Leader_ApplyPlayerColor(playerid);
     return 0;
 }
 

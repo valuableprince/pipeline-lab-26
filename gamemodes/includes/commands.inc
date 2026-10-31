@@ -110,13 +110,27 @@ cmd:crime(playerid, params[])
 }
 
 // Справка по ролям и темам вместо одного длинного списка команд.
+cmd:pass(playerid, params[])
+{
+    #pragma unused params
+    return Passport_Open(playerid);
+}
+cmd:showpass(playerid, params[])
+{
+    new target;
+    if (isnull(params) || sscanf(params, "u", target))
+        return SendClientMessage(playerid, COLOR_RED,
+            "Использование: /showpass ID (игрок в радиусе 3 метров).");
+    return Passport_Show(playerid, target);
+}
+
 cmd:help(playerid, params[])
 {
     new category[20];
     if (isnull(params))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Tarkenso RPG | /help player, /help rp, /help jobs, /help race, /help factions.");
+            "Tarkenso RPG | /help player, /help rp, /help anim, /help jobs, /help race, /help factions.");
         if (gAdminLevel[playerid] > 0)
             SendClientMessage(playerid, ADMIN_COLOR,
                 "Администрация: /ahelp, /help admin.");
@@ -126,11 +140,11 @@ cmd:help(playerid, params[])
         return 1;
     }
     if (sscanf(params, "s[20]", category))
-        return SendClientMessage(playerid, COLOR_RED, "Использование: /help [player|rp|jobs|race|factions|admin|studio].");
+        return SendClientMessage(playerid, COLOR_RED, "Использование: /help [player|rp|anim|jobs|race|factions|admin|studio].");
     if (!strcmp(category, "player", true))
     {
         SendClientMessage(playerid, COLOR_WHITE,
-            "Игрок: /mn, /story, /bonds, /bondgov, /position, /play, /report, /admins.");
+            "Игрок: /mn, /pass, /showpass ID, /story, /bonds, /position, /play, /report.");
         return 1;
     }
     if (!strcmp(category, "rp", true))
@@ -138,6 +152,14 @@ cmd:help(playerid, params[])
         SendClientMessage(playerid, RP_COLOR_ACTION, "RP-действия: /me, /do, /try, /todo, /ame (текст над персонажем).");
         SendClientMessage(playerid, RP_COLOR_OOC, "Общение: /b (OOC), /s (крик 45 м), /w (шёпот 4 м), /low (тихо 8 м).");
         SendClientMessage(playerid, COLOR_GREY, "Обычная речь и /me, /do, /try, /todo, /b — локально до 20 м. Пример: /todo Привет!*протянув руку.");
+        SendClientMessage(playerid, RP_ANIM_COLOR, "Анимации: /anim, /sit, /handsup, /wave. Остановить — пробел.");
+        return 1;
+    }
+    if (!strcmp(category, "anim", true))
+    {
+        SendClientMessage(playerid, RP_ANIM_COLOR, "Анимации: /anim — выбрать действие в меню или /anim sit, wave, handsup и т.д.");
+        SendClientMessage(playerid, COLOR_WHITE, "Быстрые команды: /sit, /handsup, /wave. Для остановки — ПРОБЕЛ (бег).");
+        SendClientMessage(playerid, COLOR_GREY, "Работает только пешком и вне специальных действий. /mn -> Помощь по командам.");
         return 1;
     }
     if (!strcmp(category, "jobs", true))
@@ -199,7 +221,7 @@ cmd:help(playerid, params[])
         return 1;
     }
     return SendClientMessage(playerid, COLOR_RED,
-        "Разделы: player, rp, jobs, race, factions, admin, studio.");
+        "Разделы: player, rp, anim, jobs, race, factions, admin, studio.");
 }
 
 // RP-CHAT-01: commands available to every authenticated, spawned player.
@@ -212,6 +234,12 @@ cmd:b(playerid, params[]) { return RP_Command(playerid, 5, params); }
 cmd:s(playerid, params[]) { return RP_Command(playerid, 6, params); }
 cmd:w(playerid, params[]) { return RP_Command(playerid, 7, params); }
 cmd:low(playerid, params[]) { return RP_Command(playerid, 8, params); }
+
+// RP-ANIM-01: catalog and convenient aliases. Stop with SPACE (KEY_SPRINT).
+cmd:anim(playerid, params[]) { return RPAnim_Command(playerid, params); }
+cmd:sit(playerid, params[]) { return RPAnim_Quick(playerid, "sit"); }
+cmd:handsup(playerid, params[]) { return RPAnim_Quick(playerid, "handsup"); }
+cmd:wave(playerid, params[]) { return RPAnim_Quick(playerid, "wave"); }
 
 cmd:trashdrop(playerid, params[])
 {

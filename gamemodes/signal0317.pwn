@@ -41,6 +41,7 @@
 #define DIALOG_LOGIN        (6104)
 #define DIALOG_SUCCESS      (6105)
 #define DIALOG_REGION       (6106)
+#define DIALOG_BIRTH        (6107)
 
 enum E_AUTH_STATE
 {
@@ -50,6 +51,7 @@ enum E_AUTH_STATE
     AUTH_REGISTER_CONFIRM,
     AUTH_REGISTER_BACKGROUND,
     AUTH_REGISTER_REGION,
+    AUTH_REGISTER_BIRTH,
     AUTH_HASHING,
     AUTH_LOGIN,
     AUTH_VERIFYING,
@@ -190,6 +192,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "race_progress.inc"
 #include "race_core.inc"
 #include "server_guard.inc"
+#include "afk_status.inc"
 #include "load_test.inc"
 #include "db_shadow.inc"
 // GOV-04 tagged SQL rollback helper is used by DBPrimary before its include.
@@ -216,6 +219,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "crime_reconnect.inc"
 #include "crime_world.inc"
 #include "crime_assets.inc"
+#include "passport.inc"
 #include "treasury.inc"
 #include "gov_transfer.inc"
 #include "bond_fund.inc"
@@ -251,6 +255,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "ship_horn.inc"
 #include "ship_panel.inc"
 #include "tdstudio.inc"
+#include "rp_animations.inc"
 #include "rp_chat.inc"
 #include "commands.inc"
 #include "ship_notice.inc"
@@ -634,6 +639,12 @@ stock Auth_ShowRegion(playerid)
     return AuthDialog_Region(playerid);
 }
 
+stock Auth_ShowBirth(playerid, error = 0)
+{
+    gAuthState[playerid] = AUTH_REGISTER_BIRTH;
+    return AuthDialog_BirthDate(playerid, error);
+}
+
 stock Auth_ShowLogin(playerid, failures = 0)
 {
     gAuthState[playerid] = AUTH_LOGIN;
@@ -720,6 +731,7 @@ stock Auth_EnterWorld(playerid)
     started = GetTickCount();
     PayDay_OnReady(playerid);
     AuthProfiler_Step(playerid, "payday_ready", started);
+    Passport_OnReady(playerid);
     // AUTH_READY + loaded MySQL account: deliver pending offline coupons.
     BondCoupon_NotifyPlayer(playerid,true);
     // Offline debt maturities remain payable; remind on successful login.
@@ -848,7 +860,7 @@ public OnGameModeInit()
     SetGameModeText("RPG | СИГНАЛ: 03:17");
     // GTA SA wheelie/jump/airtime payouts are disabled on this RP server.
     EnableStuntBonusForAll(false);
-    ShowPlayerMarkers(PLAYER_MARKERS_MODE_OFF);
+    ShowPlayerMarkers(PLAYER_MARKERS_MODE_STREAMED);
     ShowNameTags(true);
     DisableInteriorEnterExits();
     AddPlayerClass(26, START_X, START_Y, START_Z, START_A, WEAPON_FIST, 0, WEAPON_FIST, 0, WEAPON_FIST, 0);
@@ -863,6 +875,11 @@ public OnGameModeInit()
         SendRconCommand("exit");
         return 0;
     }
+    if (!Passport_Init())
+    {
+        SendRconCommand("exit");
+        return 0;
+    }
     Treasury_Init();
     GovTransfer_Init();
     BondFund_Init();
@@ -872,6 +889,7 @@ public OnGameModeInit()
     GovDebt_Init();
     GovBond_UI_Init();
     RP_Init();
+    AFK_Init();
     Guard_Init();
     LoadTest_Init();
 
@@ -909,6 +927,7 @@ public OnGameModeExit()
     if (gAccountAutosaveTimer) KillTimer(gAccountAutosaveTimer);
     gAccountAutosaveTimer = 0;
     LoadTest_Shutdown();
+    AFK_Shutdown();
     Guard_Shutdown();
     if (gAdminJailTimer) KillTimer(gAdminJailTimer);
     gAdminJailTimer = 0;
@@ -959,6 +978,9 @@ public OnPlayerConnect(playerid)
     DisablePlayerRaceCheckpoint(playerid);
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
+    RPAnim_Reset(playerid);
+    Passport_Reset(playerid);
+    AFK_Reset(playerid);
     Admin_OnConnect(playerid);
     AdminFly_Reset(playerid);
     AdminPunish_Reset(playerid);
@@ -1035,6 +1057,7 @@ public OnPlayerConnect(playerid)
     GovDebt_Reset(playerid);
     GovBond_UI_Reset(playerid);
     gAuthState[playerid] = AUTH_INTRO;
+    Leader_ApplyPlayerColor(playerid);
     AuthCamera_Start(playerid);
     Auth_BeginAccount(playerid);
     return 1;
@@ -1045,6 +1068,9 @@ public OnPlayerDisconnect(playerid, reason)
     AdminFly_Reset(playerid);
     TDS_Reset(playerid, false);
     RP_Reset(playerid);
+    RPAnim_Reset(playerid);
+    Passport_Reset(playerid);
+    AFK_Reset(playerid);
     LoadTest_OnDisconnect(playerid);
     AuthProfiler_Reset(playerid);
     Guard_OnDisconnect(playerid);
@@ -1172,6 +1198,10 @@ public OnPlayerSpawn(playerid)
         return 1;
     }
 
+    RPAnim_Reset(playerid);
+    // Restore faction/neutral color after each respawn (also refreshes TAB).
+    Leader_ApplyPlayerColor(playerid);
+
     if (!gAccountSpawned[playerid])
     {
         ResetPlayerMoney(playerid);
@@ -1209,12 +1239,15 @@ public OnPlayerSpawn(playerid)
     CleanerDump_NavClear(playerid);
     Admin_ApplyEvent(playerid);
     if (!AdminPunish_OnSpawn(playerid)) Story_OnSpawn(playerid);
+    AFK_OnSpawn(playerid);
     AuthProfiler_FirstSpawnEnd(playerid);
     return 1;
 }
 
 public OnPlayerDeath(playerid, killerid, WEAPON:reason)
 {
+    RPAnim_Reset(playerid);
+    AFK_Reset(playerid);
     ShipCam_Reset(playerid);
     ShipPanel_Reset(playerid);
     ShipEditor_Reset(playerid);
@@ -1254,6 +1287,7 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
         TDSInput_OnKeys(playerid, newkeys);
         return 1;
     }
+    if (RPAnim_OnKeys(playerid, newkeys, oldkeys)) return 1;
     if (SortUI_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (Story_OnKeyStateChange(playerid, newkeys, oldkeys)) return 1;
     if (CrimeWorld_OnKeys(playerid, newkeys, oldkeys)) return 1;
@@ -1268,6 +1302,7 @@ public OnPlayerKeyStateChange(playerid, KEY:newkeys, KEY:oldkeys)
 
 public OnPlayerUpdate(playerid)
 {
+    AFK_OnUpdate(playerid);
     if (TDS_Active(playerid)) TDSInput_OnUpdate(playerid);
     return 1;
 }
@@ -1301,6 +1336,7 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 
 public OnPlayerStateChange(playerid, PLAYER_STATE:newstate, PLAYER_STATE:oldstate)
 {
+    if (newstate != PLAYER_STATE_ONFOOT) RPAnim_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) ShipCam_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) ShipEditor_Reset(playerid);
     if (newstate != PLAYER_STATE_ONFOOT) AdminFly_Stop(playerid);
@@ -1341,6 +1377,8 @@ public OnVehicleDeath(vehicleid, killerid)
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
     if (TDS_OnDialog(playerid, dialogid, response, listitem, inputtext)) return 1;
+    if (RPAnim_OnDialog(playerid, dialogid, response, listitem)) return 1;
+    if (Passport_OnDialog(playerid, dialogid, response, inputtext)) return 1;
     if (Radio_OnDialog(playerid, dialogid, response, listitem)) return 1;
     if (Story_OnDialog(playerid, dialogid, response)) return 1;
     if (PlayerMenu_OnDialog(playerid, dialogid, response, listitem)) return 1;
@@ -1368,7 +1406,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     if (dialogid != DIALOG_INTRO && dialogid != DIALOG_REGISTER &&
         dialogid != DIALOG_CONFIRM && dialogid != DIALOG_BACKGROUND &&
         dialogid != DIALOG_LOGIN && dialogid != DIALOG_SUCCESS &&
-        dialogid != DIALOG_REGION) return 0;
+        dialogid != DIALOG_REGION && dialogid != DIALOG_BIRTH) return 0;
     if (!gAuthDialogOpen[playerid]) return 1;
     gAuthDialogOpen[playerid] = false;
 
@@ -1453,6 +1491,16 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
                 return 1;
             }
             gStartRegion[playerid] = listitem + REGION_FORT_CARSON;
+            Auth_ShowBirth(playerid);
+            return 1;
+        }
+        case DIALOG_BIRTH:
+        {
+            if (gAuthState[playerid] != AUTH_REGISTER_BIRTH) return 1;
+            if (!response) return Auth_ShowRegion(playerid);
+            if (!Passport_ParseBirth(inputtext, gPassportPendingBirth[playerid],
+                sizeof(gPassportPendingBirth[])))
+                return Auth_ShowBirth(playerid, 1);
             if (Auth_AccountExists(playerid))
             {
                 gPasswordPending[playerid][0] = EOS;
@@ -1574,5 +1622,16 @@ public OnPlayerText(playerid, text[])
     cleanText[n] = EOS;
     format(message, sizeof(message), "%s(%d): %s", nickname, playerid, cleanText);
     RP_SendLocal(playerid, COLOR_WHITE, message, RP_RADIUS_SPEECH);
+    // Only actual spoken text triggers the short gesture, after chat is accepted.
+    new bool:hasSpeech = false;
+    for (new i = 0; i < n; i++)
+    {
+        if (cleanText[i] > ' ')
+        {
+            hasSpeech = true;
+            break;
+        }
+    }
+    if (hasSpeech) RP_PlaySpeechAnimation(playerid);
     return 0;
 }
