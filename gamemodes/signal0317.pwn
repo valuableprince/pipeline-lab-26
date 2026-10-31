@@ -257,6 +257,7 @@ forward GovBond_UI_PublicReport(playerid);
 #include "tdstudio.inc"
 #include "rp_animations.inc"
 #include "rp_chat.inc"
+#include "rp_time.inc"
 #include "commands.inc"
 #include "ship_notice.inc"
 
@@ -979,6 +980,7 @@ public OnPlayerConnect(playerid)
     Guard_OnConnect(playerid);
     RP_Reset(playerid);
     RPAnim_Reset(playerid);
+    RPTime_Reset(playerid);
     Passport_Reset(playerid);
     AFK_Reset(playerid);
     Admin_OnConnect(playerid);
@@ -1069,6 +1071,7 @@ public OnPlayerDisconnect(playerid, reason)
     TDS_Reset(playerid, false);
     RP_Reset(playerid);
     RPAnim_Reset(playerid);
+    RPTime_Reset(playerid);
     Passport_Reset(playerid);
     AFK_Reset(playerid);
     LoadTest_OnDisconnect(playerid);

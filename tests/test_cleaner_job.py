@@ -114,6 +114,14 @@ class CleanerIntegrationTest(unittest.TestCase):
         self.assertIn('true, false, false, false, CLEANER_ANIM_MS, SYNC_ALL)', JOB)
         self.assertIn("ClearAnimations(playerid);", JOB)
 
+    def test_bag_hud_is_russian_and_cp1251_safe(self):
+        self.assertIn('"МЕШОК: 0/6"', JOB)
+        self.assertIn('"МЕШОК: %d/%d"', JOB)
+        self.assertNotIn('"BAG: 0/6"', JOB)
+        self.assertNotIn('"BAG: %d/%d"', JOB)
+        self.assertIn("PlayerTextDrawSetString(playerid, gCleanerBagHud[playerid], label);", JOB)
+        JOB.encode("cp1251", errors="strict")
+
     def test_carried_bag_and_progress_hud(self):
         for needle in (
             "CLEANER_BAG_MODEL       (1265)",
@@ -124,8 +132,8 @@ class CleanerIntegrationTest(unittest.TestCase):
             "Cleaner_RemoveBagProp(playerid)",
             "PlayerText:gCleanerBagHud[MAX_PLAYERS]",
             'CreatePlayerTextDraw(playerid,',
-            '"BAG: 0/6"',
-            '"BAG: %d/%d"',
+            '"МЕШОК: 0/6"',
+            '"МЕШОК: %d/%d"',
             "TEXT_DRAW_ALIGN_RIGHT",
             "PlayerTextDrawSetString(",
             "PlayerTextDrawDestroy(",

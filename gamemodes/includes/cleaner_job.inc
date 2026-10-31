@@ -160,7 +160,7 @@ new gCleanerNextCollect[MAX_PLAYERS];
 new gCleanerLastInteract[MAX_PLAYERS];
 new gCleanerZoneHold[MAX_PLAYERS]; // index+1 = нужно отойти на 3,5 м
 new gCleanerBagPropSlot[MAX_PLAYERS]; // -1, если аксессуар не был выдан работой
-new PlayerText:gCleanerBagHud[MAX_PLAYERS]; // один клиент-независимый ASCII TextDraw: BAG: X/Y
+new PlayerText:gCleanerBagHud[MAX_PLAYERS]; // компактный кириллический TextDraw: МЕШОК: X/Y (rustext)
 new gCleanerNightDistrict[MAX_PLAYERS]; // -1 = ночного контракта нет
 new gCleanerNightProgress[MAX_PLAYERS];
 new gCleanerNightCompleted[MAX_PLAYERS];
@@ -242,13 +242,13 @@ stock bool:Cleaner_NearDepot(playerid)
 }
 
 
-// Стандартный TextDraw GTA не поддерживает кириллицу у всех клиентов.
-// Пишем BAG: X/Y обычным ASCII в одном компактном элементе.
+// UTF-8 исходник компилируется в CP1251; rustext конвертирует TextDraw RPC.
+// Кириллическую надпись проверять в GTA с поддерживаемым русификатором.
 stock Cleaner_BagHudUpdate(playerid)
 {
     if (gCleanerBagHud[playerid] == PlayerText:INVALID_TEXT_DRAW) return 0;
     new label[36];
-    format(label, sizeof(label), "BAG: %d/%d",
+    format(label, sizeof(label), "МЕШОК: %d/%d",
         gCleanerBag[playerid], Cleaner_Capacity(playerid));
     PlayerTextDrawSetString(playerid, gCleanerBagHud[playerid], label);
     return 1;
@@ -259,7 +259,7 @@ stock Cleaner_BagHudShow(playerid)
     if (gCleanerBagHud[playerid] != PlayerText:INVALID_TEXT_DRAW)
         return Cleaner_BagHudUpdate(playerid);
     gCleanerBagHud[playerid] = CreatePlayerTextDraw(playerid,
-        618.0, 404.0, "BAG: 0/6");
+        618.0, 404.0, "МЕШОК: 0/6");
     if (gCleanerBagHud[playerid] == PlayerText:INVALID_TEXT_DRAW) return 0;
     PlayerTextDrawFont(playerid, gCleanerBagHud[playerid], TEXT_DRAW_FONT_2);
     PlayerTextDrawAlignment(playerid, gCleanerBagHud[playerid], TEXT_DRAW_ALIGN_RIGHT);
