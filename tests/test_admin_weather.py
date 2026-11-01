@@ -16,7 +16,7 @@ class WeatherAndBrandingTests(unittest.TestCase):
     def test_weather_is_admin_only_and_audited_before_change(self):
         self.assertIn("cmd:weather(playerid, params[])", COMMANDS)
         handler = ADMIN.split('if (!strcmp(command, "/weather", true))', 1)[1].split(
-            'if (!strcmp(command, "/event", true))', 1)[0]
+            'if (!strcmp(command, "/setadmin", true))', 1)[0]
         for expression in (
             "Admin_Require(playerid, PERM_MODERATE)",
             "Admin_UnsignedNumber(arg1)",
@@ -30,18 +30,13 @@ class WeatherAndBrandingTests(unittest.TestCase):
         self.assertLess(handler.index('Admin_LogPlayer(playerid, "WEATHER", detail)'),
                         handler.index("gAdminWeather = weatherid;"))
 
-    def test_weather_applies_on_respawn_and_event_is_compatible(self):
+    def test_weather_applies_on_respawn_without_night_commands(self):
         self.assertIn("gAdminWeather = 1; // Default game-world weather;", ADMIN)
         self.assertIn("SetPlayerWeather(playerid, gAdminWeather);", ADMIN)
         self.assertIn("Admin_ApplyEvent(playerid);", GAME)
-        event_handler = ADMIN.split('if (!strcmp(command, "/event", true))', 1)[1]
-        self.assertIn("gAdminWeather = 20;", event_handler)
-        night = event_handler.split('if (!strcmp(arg1, "night", true))', 1)[1].split(
-            'else if (!strcmp(arg1, "clear", true))', 1)[0]
-        clear = event_handler.split('else if (!strcmp(arg1, "clear", true))', 1)[1].split(
-            "else return AdminHelp_Usage", 1)[0]
-        self.assertIn("gAdminWeather = 9;", night)
-        self.assertIn("gAdminWeather = 1;", clear)
+        self.assertNotIn('if (!strcmp(command, "/event", true))', ADMIN)
+        self.assertNotIn("cmd:event(", COMMANDS)
+        self.assertNotIn("gAdminClockHour = 3;", ADMIN)
 
     def test_auth_weather_remains_9_and_world_weather_is_restored(self):
         start = CAMERA.split("stock AuthCamera_Start(playerid)", 1)[1].split(
