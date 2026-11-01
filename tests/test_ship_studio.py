@@ -9,6 +9,15 @@ SHIP = (ROOT / "gamemodes/includes/ship_studio.inc").read_text(encoding="utf-8")
 
 
 class ShipStudioStage1(unittest.TestCase):
+
+    def test_multiword_ship_commands_dispatch_by_first_token(self):
+        # The argument string may contain spaces; only its first token is action.
+        self.assertIn('new delimiter = strfind(params, " ");', SHIP)
+        self.assertIn('strmid(action, params, 0, delimiter, sizeof(action));', SHIP)
+        self.assertNotIn('sscanf(params, "s[24]", action)', SHIP)
+        for command in ('"set"', '"port"', '"edit"', '"save"'):
+            self.assertIn('!strcmp(action, ' + command, SHIP)
+
     def test_lifecycle_and_command(self):
         self.assertIn('#include "ship_studio.inc"', MAIN)
         self.assertIn("Ship_Init();", MAIN)
