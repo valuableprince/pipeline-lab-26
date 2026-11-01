@@ -22,6 +22,11 @@
 // Development-only ocean-edge experiment. Not an expanded GTA map.
 #define SHIP_OCEAN_TEST_MAX_X (3600.0)
 new bool:gShipOceanProbe;
+new bool:gShipOceanActive;
+new bool:gShipOceanHold;
+forward ShipOcean_Stop();
+forward ShipOcean_Tick();
+forward ShipOcean_Command(playerid, const arguments[]);
 
 new gShipRoot = INVALID_OBJECT_ID;
 new gShipModel;
@@ -83,6 +88,7 @@ stock bool:Ship_Ready()
 
 stock Ship_Stop()
 {
+    ShipOcean_Stop();
     ShipManeuver_Stop();
     gShipPortDeparture = -1;
     gShipRunning = false;
@@ -312,6 +318,7 @@ stock Ship_Advance()
 
 public Ship_Tick()
 {
+    if (gShipOceanActive) return ShipOcean_Tick();
     if (gShipManeuverActive) return ShipManeuver_Tick();
     if (gShipPortDeparture >= 0) return ShipPort_Tick();
     if (!gShipRunning || !Ship_Ready()) return 1;
@@ -551,6 +558,8 @@ stock Ship_Help(playerid)
         "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
     SendClientMessage(playerid, SHIP_COLOR,
         "[Tarkenso RPG] /ship oceanprobe on|off — временный тест корабля за X=3000.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "[Tarkenso RPG] /ship oceanroute start|continue|status|stop — плавный обход LS (тест).");
     return 1;
 }
 
@@ -563,7 +572,9 @@ stock Ship_Status(playerid)
     GetObjectRot(gShipRoot, rx, ry, yaw);
     format(line, sizeof(line), "Ship | hull %d | parts %d/%d | route %d/%d | %s",
         gShipModel, gShipPartCount, SHIP_MAX_PARTS, gShipPointCount,
-        SHIP_MAX_POINTS, gShipRunning ? ("AUTO") : ("STOP"));
+        SHIP_MAX_POINTS, gShipOceanActive ? ("OCEAN AUTO") :
+        (gShipOceanHold ? ("OCEAN HOLD") :
+        (gShipRunning ? ("AUTO") : ("STOP"))));
     SendClientMessage(playerid, SHIP_COLOR, line);
     format(line, sizeof(line), "Position: %.2f %.2f %.2f | angle %.2f | editor ID %d",
         x, y, z, yaw, gShipOwner);
@@ -605,12 +616,15 @@ stock Ship_Command(playerid, const params[])
     if (start < length) strmid(arguments, params, start, length, sizeof(arguments));
     if (!strcmp(action, "help", true)) return Ship_Help(playerid);
     if (!strcmp(action, "status", true)) return Ship_Status(playerid);
+    if (!strcmp(action, "oceanroute", true))
+        return ShipOcean_Command(playerid, arguments);
     if (!strcmp(action, "oceanprobe", true))
     {
         if (!strcmp(arguments, "on", true))
         {
             if (gShipEditOwner != INVALID_PLAYER_ID || gShipRunning ||
-                gShipPortDeparture >= 0 || gShipManeuverActive || !Ship_Ready() ||
+                gShipPortDeparture >= 0 || gShipManeuverActive ||
+                gShipOceanActive || gShipOceanHold || !Ship_Ready() ||
                 gShipModel != SHIP_CARGO_ROOT_ID)
                 return SendClientMessage(playerid, ADMIN_ERROR,
                     "[Tarkenso RPG] Тест доступен только для остановленного грузового корабля вне редактора.");
@@ -620,6 +634,9 @@ stock Ship_Command(playerid, const params[])
         }
         if (!strcmp(arguments, "off", true))
         {
+            if (gShipOceanActive)
+                return SendClientMessage(playerid, ADMIN_ERROR,
+                    "[Tarkenso RPG] Сначала остановите OCEAN-маршрут: /ship stop.");
             if (Ship_Ready())
             {
                 new Float:x, Float:y, Float:z;
@@ -634,6 +651,17 @@ stock Ship_Command(playerid, const params[])
         }
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Использование: /ship oceanprobe on|off.");
+    }
+    if (gShipOceanActive)
+    {
+        if (!strcmp(action, "stop", true))
+        {
+            Ship_Stop();
+            return SendClientMessage(playerid, SHIP_COLOR,
+                "[Tarkenso RPG] Испытательный OCEAN-маршрут остановлен.");
+        }
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] OCEAN-маршрут активен. Сначала /ship stop.");
     }
     if (!strcmp(action, "edit", true))
     {
@@ -873,6 +901,7 @@ stock Ship_Command(playerid, const params[])
 stock Ship_Init()
 {
     gShipOceanProbe = false;
+    ShipOcean_Stop();
     fcreatedir(SHIP_DIR);
     for (new i = 0; i < SHIP_MAX_PARTS; i++) gShipPartObject[i] = INVALID_OBJECT_ID;
     if (fexist(SHIP_DATA))
