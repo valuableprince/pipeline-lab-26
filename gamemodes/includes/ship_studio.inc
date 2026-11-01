@@ -540,16 +540,17 @@ stock Ship_Help(playerid)
 
 stock Ship_Status(playerid)
 {
-    new line[144], Float:x, Float:y, Float:z;
+    new line[144], Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:yaw;
     if (!Ship_Ready()) return SendClientMessage(playerid, SHIP_COLOR,
         "Ship Studio: корабль не загружен. /ship create [model] или /ship load.");
     GetObjectPos(gShipRoot, x, y, z);
+    GetObjectRot(gShipRoot, rx, ry, yaw);
     format(line, sizeof(line), "Ship | hull %d | parts %d/%d | route %d/%d | %s",
         gShipModel, gShipPartCount, SHIP_MAX_PARTS, gShipPointCount,
         SHIP_MAX_POINTS, gShipRunning ? ("AUTO") : ("STOP"));
     SendClientMessage(playerid, SHIP_COLOR, line);
-    format(line, sizeof(line), "Position: %.2f %.2f %.2f | editor ID %d",
-        x, y, z, gShipOwner);
+    format(line, sizeof(line), "Position: %.2f %.2f %.2f | angle %.2f | editor ID %d",
+        x, y, z, yaw, gShipOwner);
     SendClientMessage(playerid, SHIP_COLOR, line);
     return 1;
 }
