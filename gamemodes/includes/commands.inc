@@ -503,11 +503,6 @@ cmd:spec(playerid, params[])
     return Command_ExecuteAdmin(playerid, "spec", params);
 }
 
-cmd:event(playerid, params[])
-{
-    return Command_ExecuteAdmin(playerid, "event", params);
-}
-
 cmd:weather(playerid, params[])
 {
     return Command_ExecuteAdmin(playerid, "weather", params);
