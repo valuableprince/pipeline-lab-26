@@ -12,8 +12,9 @@ class ShipStudioStage1(unittest.TestCase):
 
     def test_multiword_ship_commands_dispatch_by_first_token(self):
         # The argument string may contain spaces; only its first token is action.
-        self.assertIn('new delimiter = strfind(params, " ");', SHIP)
-        self.assertIn('strmid(action, params, 0, delimiter, sizeof(action));', SHIP)
+        self.assertIn("new action[24], arguments[160];", SHIP)
+        self.assertIn("strmid(action, params, start, delimiter, sizeof(action));", SHIP)
+        self.assertIn("strmid(arguments, params, start, length, sizeof(arguments));", SHIP)
         self.assertNotIn('sscanf(params, "s[24]", action)', SHIP)
         for command in ('"set"', '"port"', '"edit"', '"save"'):
             self.assertIn('!strcmp(action, ' + command, SHIP)
