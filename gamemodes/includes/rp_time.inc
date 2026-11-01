@@ -12,6 +12,8 @@
 new gRPTimeNextUse[MAX_PLAYERS];
 new PlayerText:gRPTimeDraw[MAX_PLAYERS];
 new gRPTimeSerial[MAX_PLAYERS];
+// COP_AMBIENT needs one extra ApplyAnimation on first use after spawn.
+new bool:gRPTimeAnimPrimed[MAX_PLAYERS];
 
 forward RPTime_HideLater(playerid, serial);
 
@@ -22,6 +24,7 @@ stock RPTime_Init()
         gRPTimeDraw[i] = PlayerText:INVALID_TEXT_DRAW;
         gRPTimeSerial[i] = 0;
         gRPTimeNextUse[i] = 0;
+        gRPTimeAnimPrimed[i] = false;
     }
     return 1;
 }
@@ -43,6 +46,7 @@ stock RPTime_Reset(playerid)
     gRPTimeSerial[playerid]++;
     RPTime_Hide(playerid);
     gRPTimeNextUse[playerid] = 0;
+    gRPTimeAnimPrimed[playerid] = false;
     return 1;
 }
 
@@ -135,7 +139,16 @@ stock RPTime_Command(playerid)
         return SendClientMessage(playerid, COLOR_RED,
             "Не удалось отобразить действие над персонажем.");
 
-    // Two-second GTA SA clip; no loop, freeze, timers or ClearAnimations.
+    // GTA SA may only load an animation library on its first ApplyAnimation.
+    // Prime COP_AMBIENT once per spawn with no forced sync; then play the
+    // visible two-second watch gesture for the player and nearby observers.
+    // No timers, task clearing or additional animation on later /time calls.
+    if (!gRPTimeAnimPrimed[playerid])
+    {
+        ApplyAnimation(playerid, "COP_AMBIENT", "Coplook_watch", 4.1,
+            false, false, false, false, RP_TIME_ANIM_MS, SYNC_NONE);
+        gRPTimeAnimPrimed[playerid] = true;
+    }
     ApplyAnimation(playerid, "COP_AMBIENT", "Coplook_watch", 4.1,
         false, false, false, false, RP_TIME_ANIM_MS, SYNC_ALL);
 

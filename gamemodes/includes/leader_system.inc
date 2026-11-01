@@ -56,10 +56,10 @@ stock Leader_OrgTitle(org, output[], size)
     return 1;
 }
 
-// Keep citizens' public name and TAB color solid white. The radar is a
-// separate per-viewer semi-transparent white square (RRGGBBAA).
-#define PLAYER_COLOR_CIVILIAN (0xFFFFFFFF)
-#define PLAYER_MARKER_CIVILIAN (0xFFFFFF77)
+// RGB white for civilian nametags/TAB; alpha gives the native radar
+// marker a translucent square. Mirrors proven legacy SA-MP behavior.
+// All players see the same faction color (no per-viewer overrides).
+#define PLAYER_COLOR_CIVILIAN (0xFFFFFF77)
 
 stock Leader_ColorForOrg(org)
 {
@@ -77,46 +77,16 @@ stock Leader_ColorForOrg(org)
     return PLAYER_COLOR_CIVILIAN;
 }
 
-stock Leader_RadarColorForOrg(org)
-{
-    if (!Leader_OrgValid(org)) return PLAYER_MARKER_CIVILIAN;
-    return Leader_ColorForOrg(org);
-}
-
-// Per-viewer override only changes the rendered player marker, keeping
-// SetPlayerColor's public white citizen RGB for nick and TAB.
-stock Leader_RefreshRadarMarker(viewerid, targetid)
-{
-    if (!IsPlayerConnected(viewerid) || IsPlayerNPC(viewerid) ||
-        !IsPlayerConnected(targetid) || IsPlayerNPC(targetid) ||
-        viewerid == targetid) return 0;
-    new org = gFactionCachedOrg[targetid];
-    if (gAuthState[targetid] != AUTH_READY || !Leader_OrgValid(org)) org = 0;
-    SetPlayerMarkerForPlayer(viewerid, targetid, Leader_RadarColorForOrg(org));
-    return 1;
-}
-
-stock Leader_RefreshRadarForViewer(viewerid)
-{
-    if (!IsPlayerConnected(viewerid) || IsPlayerNPC(viewerid)) return 0;
-    for (new targetid = 0; targetid < MAX_PLAYERS; targetid++)
-        if (IsPlayerConnected(targetid) && viewerid != targetid)
-            Leader_RefreshRadarMarker(viewerid, targetid);
-    return 1;
-}
-
-// Called only at lifecycle transitions, never in a high-frequency player loop.
+// A single color is applied server-wide. In SA-MP/open.mp the last byte
+// controls radar-blip alpha, while RRGGBB controls the public color.
+// Personal marker overrides could survive or race with organization changes;
+// they are intentionally not used for the standard faction palette.
 stock Leader_ApplyPlayerColor(playerid)
 {
     if (!IsPlayerConnected(playerid)) return 0;
     new org = gFactionCachedOrg[playerid];
     if (gAuthState[playerid] != AUTH_READY || !Leader_OrgValid(org)) org = 0;
-    // SetPlayerColor restores the default marker for all viewers, so reapply
-    // their per-viewer marker afterwards (also handles faction changes).
     SetPlayerColor(playerid, Leader_ColorForOrg(org));
-    for (new viewerid = 0; viewerid < MAX_PLAYERS; viewerid++)
-        if (IsPlayerConnected(viewerid) && viewerid != playerid)
-            Leader_RefreshRadarMarker(viewerid, playerid);
     return 1;
 }
 

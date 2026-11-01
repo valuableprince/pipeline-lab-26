@@ -27,6 +27,8 @@ class PassportTests(unittest.TestCase):
         self.assertIn("TK-%06d", PASSPORT)
         self.assertIn("gCharacterLevel[playerid]", PASSPORT)
         self.assertIn("ON DUPLICATE KEY UPDATE account_id=account_id", PASSPORT)
+        self.assertIn("SELECT passport_id FROM player_passports WHERE account_id=%d LIMIT 1", PASSPORT)
+        self.assertIn("if (existingRows == 0)", PASSPORT)
         self.assertIn("birth_date IS NULL", PASSPORT)
         self.assertIn("changed != 1", PASSPORT)
 
