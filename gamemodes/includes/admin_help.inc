@@ -58,7 +58,7 @@ new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
     {"weather", "/weather 0-45", "Сменить погоду на сервере", "/weather 9", 4, 2},
     {"respawn", "/respawn ID", "Возродить игрока на точке появления", "/respawn 12", 2, 3},
     {"setskin", "/setskin ID skin", "Временно изменить скин персонажа", "/setskin 12 29", 2, 3},
-    {"settime", "/settime HH MM | auto", "Время: вручную или часы сервера", "/settime auto", 4, 3},
+    {"settime", "/settime ЧЧ | auto", "Час вручную (0–23) или время Москвы", "/settime 11", 4, 3},
     {"goto", "/goto ID", "Телепортироваться к игроку", "/goto 12", 2, 3},
     {"gethere", "/gethere ID", "Переместить игрока к себе", "/gethere 12", 2, 3},
     {"ban", "/ban ID минуты причина", "Заблокировать аккаунт игрока", "/ban 12 60 Читы", 3, 3},
@@ -79,7 +79,6 @@ new const gAdminHelp[][E_ADMIN_HELP_ENTRY] =
     {"addtreasury", "/addtreasury сумма", "Пополнить казну из админ-эмиссии (до $1 млн)", "/addtreasury 500000", 3, 5},
     {"setadmin", "/setadmin ID уровень", "Назначить права администратора", "/setadmin 12 2", 3, 5},
     {"setevent", "/setevent ID 0|1", "Управлять ролью Event Team", "/setevent 12 1", 3, 5},
-    {"event", "/event fog|night|clear", "Активировать сюжетную атмосферу", "/event fog", 4, 7},
     {"founder", "/founder [announce текст]", "Инструменты основателя проекта", "/founder announce Сбор", 5, 6},
     {"studio", "/studio [режим]", "Открыть редактор мира", "/studio", 5, 6},
     {"zoneedit", "/zoneedit", "Редактировать игровые зоны", "/zoneedit", 5, 6},
@@ -212,7 +211,6 @@ stock bool:AdminHelp_RequiresParams(const command[])
             !strcmp(command, "kick", true) ||
             !strcmp(command, "freeze", true) ||
             !strcmp(command, "weather", true) ||
-            !strcmp(command, "event", true) ||
             !strcmp(command, "goto", true) ||
             !strcmp(command, "gethere", true) ||
             !strcmp(command, "ban", true) ||
