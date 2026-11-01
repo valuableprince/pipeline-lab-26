@@ -13,7 +13,7 @@ HELP = (ROOT / "gamemodes/includes/admin_help.inc").read_text("utf-8")
 class ServerClockTests(unittest.TestCase):
     def test_default_server_weather_and_os_clock(self):
         init = ADMIN.split("stock Admin_Init()", 1)[1].split("\n}\n", 1)[0]
-        self.assertIn("gAdminWeather = 9;", init)
+        self.assertIn("gAdminWeather = 1;", init)
         self.assertIn("gAdminClockAuto = true;", init)
         self.assertIn("gettime(gAdminClockHour, gAdminClockMinute, second);", init)
         self.assertNotIn("gAdminClockHour = 3;", init)
@@ -52,7 +52,7 @@ class ServerClockTests(unittest.TestCase):
             "else return AdminHelp_Usage(playerid, \"event\");", 1)[0]
         self.assertIn("gAdminClockAuto = true;", event_clear)
         self.assertIn("Admin_ClockRefresh();", event_clear)
-        self.assertIn("gAdminWeather = 9;", event_clear)
+        self.assertIn("gAdminWeather = 1;", event_clear)
         self.assertIn("/settime auto", HELP)
         self.assertIn("SetPlayerWeather(playerid, gAdminWeather);", ADMIN)
 
