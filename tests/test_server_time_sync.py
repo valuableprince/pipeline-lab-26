@@ -1,4 +1,4 @@
-"""Default environment follows the game host clock, not a hard-coded 03:17."""
+"""Default world environment follows the Moscow clock, not the host OS timezone."""
 from pathlib import Path
 import re
 import unittest
@@ -11,11 +11,12 @@ HELP = (ROOT / "gamemodes/includes/admin_help.inc").read_text("utf-8")
 
 
 class ServerClockTests(unittest.TestCase):
-    def test_default_server_weather_and_os_clock(self):
+    def test_default_server_weather_and_moscow_clock(self):
         init = ADMIN.split("stock Admin_Init()", 1)[1].split("\n}\n", 1)[0]
         self.assertIn("gAdminWeather = 1;", init)
         self.assertIn("gAdminClockAuto = true;", init)
-        self.assertIn("gettime(gAdminClockHour, gAdminClockMinute, second);", init)
+        self.assertIn("Admin_ClockRefresh();", init)
+        self.assertIn("(gettime() + 3 * 3600) % (24 * 3600)", ADMIN)
         self.assertNotIn("gAdminClockHour = 3;", init)
         self.assertNotIn("gAdminClockMinute = 17;", init)
 
@@ -42,18 +43,16 @@ class ServerClockTests(unittest.TestCase):
 
     def test_admin_overrides_are_preserved_and_reversible(self):
         self.assertIn("gAdminClockAuto = false;", TOOLS)
-        self.assertIn('!strcmp(params, "auto", true)', TOOLS)
+        self.assertIn('!strcmp(arg, "auto", true)', TOOLS)
         self.assertIn('Admin_LogPlayer(playerid, "SETTIME", "auto")', TOOLS)
         self.assertLess(TOOLS.index('Admin_LogPlayer(playerid, "SETTIME", "auto")'),
                         TOOLS.index("gAdminClockAuto = true;"))
         self.assertIn("Admin_ClockTick();", TOOLS)
-        self.assertIn("gAdminClockAuto = false;", ADMIN)  # fog / night
-        event_clear = ADMIN.split('else if (!strcmp(arg1, "clear", true))', 1)[1].split(
-            "else return AdminHelp_Usage(playerid, \"event\");", 1)[0]
-        self.assertIn("gAdminClockAuto = true;", event_clear)
-        self.assertIn("Admin_ClockRefresh();", event_clear)
-        self.assertIn("gAdminWeather = 1;", event_clear)
-        self.assertIn("/settime auto", HELP)
+        self.assertNotIn('if (!strcmp(command, "/event", true))', ADMIN)
+        self.assertIn("Admin_ClockRefresh();", ADMIN)
+        self.assertIn("gAdminWeather = 1;", ADMIN)
+        self.assertIn("gAdminClockMinute = 0;", TOOLS)
+        self.assertIn("/settime ЧЧ | auto", HELP)
         self.assertIn("SetPlayerWeather(playerid, gAdminWeather);", ADMIN)
 
     def test_cp1251_build_encoding(self):

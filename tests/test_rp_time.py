@@ -13,7 +13,9 @@ DOC = (ROOT / "docs/RP_COMMANDS.md").read_text(encoding="utf-8")
 
 class RPTimeTests(unittest.TestCase):
     def test_world_time_not_unix_timestamp(self):
-        self.assertIn("GetPlayerTime(playerid, hour, minute)", TIME)
+        self.assertIn("Admin_ClockRefresh();", TIME)
+        self.assertIn("new hour = gAdminClockHour, minute = gAdminClockMinute;", TIME)
+        self.assertNotIn("GetPlayerTime(", TIME)
         self.assertIn('"~w~TIME: ~y~%02d:%02d"', TIME)
         self.assertIn("RPTime_ShowClock(playerid, hour, minute)", TIME)
         self.assertIn("CreatePlayerTextDraw(playerid,", TIME)

@@ -4,7 +4,7 @@
 #define _tarkenso_rp_time_included
 
 // RP-TIME-01: one-shot wristwatch animation and RP action.
-// The lower-right PlayerTextDraw uses the player world clock, including admin overrides.
+// The lower-right PlayerTextDraw shows the authoritative Moscow / admin clock.
 #define RP_TIME_ANIM_MS  (2100)
 #define RP_TIME_TEXT_MS  (3500)
 #define RP_TIME_COOLDOWN (4)
@@ -125,10 +125,10 @@ stock RPTime_Command(playerid)
         return SendClientMessage(playerid, COLOR_AMBER,
             "Посмотреть на часы повторно можно через несколько секунд.");
 
-    new hour, minute;
-    if (!GetPlayerTime(playerid, hour, minute))
-        return SendClientMessage(playerid, COLOR_RED,
-            "Не удалось определить игровое время.");
+    // The same server-side clock drives /settime, world lighting and /time.
+    // Do not read the GTA client clock: it can drift between sync ticks.
+    Admin_ClockRefresh();
+    new hour = gAdminClockHour, minute = gAdminClockMinute;
     if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
         return SendClientMessage(playerid, COLOR_RED,
             "Игровое время временно недоступно.");

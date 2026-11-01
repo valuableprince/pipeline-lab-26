@@ -398,8 +398,7 @@ stock Admin_Init()
     gReportSerial = 0;
     gAdminWeather = 1; // Default game-world weather; authorization keeps its own weather 9.
     gAdminClockAuto = true;
-    new second;
-    gettime(gAdminClockHour, gAdminClockMinute, second);
+    Admin_ClockRefresh();
     gAdminClockTimer = SetTimer("Admin_ClockTick", ADMIN_CLOCK_SYNC_MS, true);
     if (!gAdminClockTimer) print("[CLOCK] ERROR: real-time synchronization timer unavailable.");
     for (new i = 0; i < ADMIN_REPORT_LIMIT; i++) gReportState[i] = 0;
@@ -476,14 +475,15 @@ stock Admin_OnDisconnect(playerid)
     return 1;
 }
 
-// Server OS local clock is authoritative in auto mode. Never derive time
-// from a player's GTA clock: it can run faster than real-world minutes.
+// Unix timestamps are timezone-independent; Moscow (UTC+3) has no DST.
+// Do not rely on the host OS timezone or the accelerated GTA clock.
 stock Admin_ClockRefresh()
 {
     if (gAdminClockAuto)
     {
-        new second;
-        gettime(gAdminClockHour, gAdminClockMinute, second);
+        new daySecond = (gettime() + 3 * 3600) % (24 * 3600);
+        gAdminClockHour = daySecond / 3600;
+        gAdminClockMinute = (daySecond % 3600) / 60;
     }
     return 1;
 }
@@ -505,8 +505,8 @@ stock Admin_ClockShutdown()
 
 stock Admin_ApplyEvent(playerid)
 {
-    // Weather is server-wide; on spawn/join apply the current OS time (or
-    // a deliberate admin override) rather than the old scripted 03:17.
+    // Apply the current Moscow time (or an explicit /settime override).
+    // Authorization weather/time are managed separately by AuthCamera.
     Admin_ClockRefresh();
     SetPlayerWeather(playerid, gAdminWeather);
     SetPlayerTime(playerid, gAdminClockHour, gAdminClockMinute);
@@ -828,38 +828,6 @@ stock Admin_Execute(playerid, const input[])
             if (Admin_Ready(i)) Admin_ApplyEvent(i);
         format(message, sizeof(message), "Погода на сервере изменена: ID %d.", weatherid);
         return SendClientMessage(playerid, ADMIN_OK, message);
-    }
-
-    if (!strcmp(command, "/event", true))
-    {
-        if (!Admin_Require(playerid, PERM_EVENT)) return 1;
-        if (!Admin_Next(input, offset, arg1, sizeof(arg1)))
-            return AdminHelp_Usage(playerid, "event");
-        if (!strcmp(arg1, "fog", true))
-        {
-            gAdminWeather = 20;
-            gAdminClockAuto = false;
-            gAdminClockHour = 3;
-            gAdminClockMinute = 17;
-        }
-        else if (!strcmp(arg1, "night", true))
-        {
-            gAdminWeather = 9;
-            gAdminClockAuto = false;
-            gAdminClockHour = 0;
-            gAdminClockMinute = 0;
-        }
-        else if (!strcmp(arg1, "clear", true))
-        {
-            gAdminWeather = 1;
-            gAdminClockAuto = true;
-            Admin_ClockRefresh();
-        }
-        else return AdminHelp_Usage(playerid, "event");
-        for (new i = 0; i < MAX_PLAYERS; i++)
-            if (Admin_Ready(i)) Admin_ApplyEvent(i);
-        Admin_LogPlayer(playerid, "EVENT", arg1);
-        return SendClientMessage(playerid, ADMIN_OK, "Сюжетный эффект применён.");
     }
 
     if (!strcmp(command, "/setadmin", true) || !strcmp(command, "/setevent", true))

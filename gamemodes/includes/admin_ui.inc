@@ -10,7 +10,6 @@
 #define ADMIN_DLG_PLAYER_ACTIONS (6512)
 #define ADMIN_DLG_PLAYER_REASON (6513)
 #define ADMIN_DLG_PUNISH (6514)
-#define ADMIN_DLG_EVENTS (6515)
 
 new gAdminUIReportMap[MAX_PLAYERS][8];
 new gAdminUIReportSerial[MAX_PLAYERS][8];
@@ -33,7 +32,7 @@ stock Admin_UI_Toggle(playerid)
         format(title, sizeof(title), "ADMIN | Уровень %d | Duty: %s",
             gAdminLevel[playerid], gAdminDuty[playerid] ? ("ON") : ("OFF"));
     format(body, sizeof(body),
-        "Рабочий режим: %s\nОбращения: %d открыто\nИгроки\nНаказания и команды\nЖурнал действий\nСюжетные события\nТелепортация (карта / координаты)\nСправочник команд",
+        "Рабочий режим: %s\nОбращения: %d открыто\nИгроки\nНаказания и команды\nЖурнал действий\nТелепортация (карта / координаты)\nСправочник команд",
         gAdminDuty[playerid] ? ("выключить") : ("включить"), Admin_OpenReportCount());
     gAdminUIDialogMode[playerid] = 1;
     ShowPlayerDialog(playerid, ADMIN_DLG_MAIN, DIALOG_STYLE_LIST,
@@ -100,24 +99,13 @@ stock Admin_UI_ShowPunish(playerid)
     return 1;
 }
 
-stock Admin_UI_ShowEvents(playerid)
-{
-    if (!Admin_Require(playerid, PERM_EVENT)) return 1;
-    gAdminUIDialogMode[playerid] = 7;
-    ShowPlayerDialog(playerid, ADMIN_DLG_EVENTS, DIALOG_STYLE_LIST,
-        "ADMIN | Сюжетные события",
-        "Снять эффекты\nТуман\nНочная сцена",
-        "Применить", "Назад");
-    return 1;
-}
-
 stock Admin_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext[])
 {
     if (dialogid == ADMIN_DLG_MAIN)
     {
         if (gAdminUIDialogMode[playerid] != 1) return 1;
         gAdminUIDialogMode[playerid] = 0;
-        if (!response || listitem < 0 || listitem > 7) return 1;
+        if (!response || listitem < 0 || listitem > 6) return 1;
         if (!Admin_Allowed(playerid, PERM_REPORT)) return 1;
         switch (listitem)
         {
@@ -134,9 +122,8 @@ stock Admin_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext[
                 Admin_RecentLogs(playerid);
                 return Admin_UI_Toggle(playerid);
             }
-            case 5: return Admin_UI_ShowEvents(playerid);
-            case 6: return AdminTP_Info(playerid);
-            case 7: return AdminHelp_Categories(playerid);
+            case 5: return AdminTP_Info(playerid);
+            case 6: return AdminHelp_Categories(playerid);
         }
         return 1;
     }
@@ -224,20 +211,6 @@ stock Admin_UI_OnDialog(playerid, dialogid, response, listitem, const inputtext[
         if (gAdminUIDialogMode[playerid] != 6) return 1;
         gAdminUIDialogMode[playerid] = 0;
         if (response) return Admin_UI_Toggle(playerid);
-        return 1;
-    }
-    if (dialogid == ADMIN_DLG_EVENTS)
-    {
-        if (gAdminUIDialogMode[playerid] != 7) return 1;
-        gAdminUIDialogMode[playerid] = 0;
-        if (!response) return Admin_UI_Toggle(playerid);
-        if (listitem < 0 || listitem > 2 || !Admin_Require(playerid, PERM_EVENT)) return 1;
-        switch (listitem)
-        {
-            case 0: return Admin_Execute(playerid, "/event clear");
-            case 1: return Admin_Execute(playerid, "/event fog");
-            case 2: return Admin_Execute(playerid, "/event night");
-        }
         return 1;
     }
     return 0;

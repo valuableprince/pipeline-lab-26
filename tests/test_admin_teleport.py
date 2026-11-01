@@ -60,7 +60,7 @@ class AdminTeleportContracts(unittest.TestCase):
 
     def test_admin_ui_and_build_staging(self):
         self.assertIn("Телепортация (карта / координаты)", UI)
-        self.assertIn("case 6: return AdminTP_Info(playerid);", UI)
+        self.assertIn("case 5: return AdminTP_Info(playerid);", UI)
         self.assertIn("ADMIN_TP_DLG_CONFIRM  (6516)", TELEPORT)
         self.assertIn("ADMIN_TP_DLG_HEIGHT   (6517)", TELEPORT)
         self.assertIn("ADMIN_TP_DLG_INFO     (6518)", TELEPORT)

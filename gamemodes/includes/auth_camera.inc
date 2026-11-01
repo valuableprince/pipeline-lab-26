@@ -4,6 +4,48 @@
 
 new gAuthCameraTimer[MAX_PLAYERS];
 new gAuthCameraPhase[MAX_PLAYERS];
+new PlayerText:gAuthCameraBarTop[MAX_PLAYERS];
+new PlayerText:gAuthCameraBarBottom[MAX_PLAYERS];
+
+// Cinematic 640x448 letterbox: black strips at top and bottom of login view.
+stock PlayerText:AuthCamera_CreateBar(playerid, Float:y)
+{
+    new PlayerText:td = CreatePlayerTextDraw(playerid, 0.0, y, "_");
+    if (td == PlayerText:INVALID_TEXT_DRAW) return td;
+    PlayerTextDrawFont(playerid, td, TEXT_DRAW_FONT_1);
+    PlayerTextDrawAlignment(playerid, td, TEXT_DRAW_ALIGN_LEFT);
+    PlayerTextDrawLetterSize(playerid, td, 0.0, 4.0);
+    PlayerTextDrawColour(playerid, td, 0x000000FF);
+    PlayerTextDrawUseBox(playerid, td, true);
+    PlayerTextDrawBoxColour(playerid, td, 0x000000FF);
+    PlayerTextDrawTextSize(playerid, td, 640.0, y + 40.0);
+    PlayerTextDrawShow(playerid, td);
+    return td;
+}
+
+stock AuthCamera_ShowBars(playerid)
+{
+    gAuthCameraBarTop[playerid] = AuthCamera_CreateBar(playerid, 0.0);
+    gAuthCameraBarBottom[playerid] = AuthCamera_CreateBar(playerid, 414.0);
+    return 1;
+}
+
+stock AuthCamera_HideBars(playerid)
+{
+    if (gAuthCameraBarTop[playerid] != PlayerText:INVALID_TEXT_DRAW)
+    {
+        if (IsPlayerConnected(playerid))
+            PlayerTextDrawDestroy(playerid, gAuthCameraBarTop[playerid]);
+        gAuthCameraBarTop[playerid] = PlayerText:INVALID_TEXT_DRAW;
+    }
+    if (gAuthCameraBarBottom[playerid] != PlayerText:INVALID_TEXT_DRAW)
+    {
+        if (IsPlayerConnected(playerid))
+            PlayerTextDrawDestroy(playerid, gAuthCameraBarBottom[playerid]);
+        gAuthCameraBarBottom[playerid] = PlayerText:INVALID_TEXT_DRAW;
+    }
+    return 1;
+}
 
 forward AuthCamera_Initialize(playerid, token);
 forward AuthCamera_Advance(playerid, token);
@@ -17,6 +59,8 @@ stock AuthCamera_SetOpeningView(playerid)
 
 stock AuthCamera_Start(playerid)
 {
+    gAuthCameraBarTop[playerid] = PlayerText:INVALID_TEXT_DRAW;
+    gAuthCameraBarBottom[playerid] = PlayerText:INVALID_TEXT_DRAW;
     if (gAuthCameraTimer[playerid]) KillTimer(gAuthCameraTimer[playerid]);
     gAuthCameraTimer[playerid] = 0;
     gAuthCameraPhase[playerid] = 0;
@@ -38,6 +82,7 @@ public AuthCamera_Initialize(playerid, token)
         gAuthState[playerid] == AUTH_NONE || gAuthState[playerid] == AUTH_READY) return 1;
     gAuthCameraTimer[playerid] = 0;
     AuthCamera_SetOpeningView(playerid);
+    AuthCamera_ShowBars(playerid);
     gAuthCameraTimer[playerid] = SetTimerEx("AuthCamera_Advance",
         1700, false, "ii", playerid, token);
     return 1;
@@ -72,6 +117,7 @@ public AuthCamera_Advance(playerid, token)
 
 stock AuthCamera_Stop(playerid)
 {
+    AuthCamera_HideBars(playerid);
     if (gAuthCameraTimer[playerid]) KillTimer(gAuthCameraTimer[playerid]);
     gAuthCameraTimer[playerid] = 0;
     gAuthCameraPhase[playerid] = 0;
