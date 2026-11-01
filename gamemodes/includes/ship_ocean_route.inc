@@ -32,6 +32,17 @@ stock bool:ShipOcean_TrialCoord(Float:x, Float:y, Float:z)
         z >= -100.0 && z <= 1000.0;
 }
 
+// GetObjectRot may report either negative yaw or an equivalent 0..360 yaw.
+stock Float:ShipOcean_YawDelta(Float:a, Float:b)
+{
+    while (a < 0.0) a += 360.0;
+    while (b < 0.0) b += 360.0;
+    while (a >= 360.0) a -= 360.0;
+    while (b >= 360.0) b -= 360.0;
+    new Float:diff = floatabs(a-b);
+    return diff > 180.0 ? 360.0-diff : diff;
+}
+
 stock ShipOcean_Stop()
 {
     gShipOceanActive = false;
@@ -207,7 +218,7 @@ stock ShipOcean_Command(playerid, const arguments[])
         new Float:ba = gShipPortCoord[SHIP_PORT_LS][SHIP_PORT_BERTH][3];
         // This trial is calibrated to the confirmed LS freight berth.
         if (floatabs(bx - 2682.0) > 12.0 || floatabs(by + 2273.0) > 12.0 ||
-            floatabs(bz - SHIP_CARGO_ROOT_Z) > 3.0 || floatabs(ba - 0.9) > 5.0)
+            floatabs(bz - SHIP_CARGO_ROOT_Z) > 3.0 || ShipOcean_YawDelta(ba, 0.9) > 5.0)
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "[Tarkenso RPG] Стоянка LS отличается от утвержденной. Маршрут не запускается.");
         new Float:cx, Float:cy, Float:cz, Float:rx, Float:ry, Float:ca;
@@ -219,7 +230,7 @@ stock ShipOcean_Command(playerid, const arguments[])
             floatsin(ba, degrees) / floatcos(ba, degrees);
         if (cx < bx-6.0 || cx > SHIP_OCEAN_TURN_X+6.0 ||
             floatabs(cy - expectedY) > 15.0 ||
-            floatabs(cz - bz) > 3.0 || floatabs(ca - ba) > 6.0)
+            floatabs(cz - bz) > 3.0 || ShipOcean_YawDelta(ca, ba) > 6.0)
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "[Tarkenso RPG] Начните от сохраненной стоянки или восточного прямого подхода (X<=3098).");
         gShipOceanBaseYaw = ba;
@@ -244,7 +255,7 @@ stock ShipOcean_Command(playerid, const arguments[])
         if (floatabs(x - SHIP_OCEAN_EAST_LANE_X) > 2.0 ||
             floatabs(y + 2980.0) > 2.0 ||
             floatabs(z - gShipOceanRootZ) > 2.0 ||
-            floatabs(yaw - (gShipOceanBaseYaw - 90.0)) > 5.0)
+            ShipOcean_YawDelta(yaw, gShipOceanBaseYaw - 90.0) > 5.0)
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "[Tarkenso RPG] Положение изменилось после контрольной остановки. Возобновление запрещено.");
         gShipOceanNext = 20;
