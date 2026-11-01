@@ -830,7 +830,19 @@ stock Admin_Execute(playerid, const input[])
         return SendClientMessage(playerid, ADMIN_OK, message);
     }
 
-    if (!strcmp(command, "/setadmin", true))
+    if (!strcmp(command, "/setadmin", true) || !strcmp(command, "/setevent", true))
+    {
+        if (!Admin_Require(playerid, PERM_MANAGE_STAFF)) return 1;
+        if (!Admin_Next(input, offset, arg1, sizeof(arg1)) ||
+            !Admin_Next(input, offset, arg2, sizeof(arg2)) ||
+            !Admin_UnsignedNumber(arg1) || !Admin_UnsignedNumber(arg2))
+            return AdminHelp_FromSlash(playerid, command);
+        new target = strval(arg1), value = strval(arg2);
+        if (target < 0 || target >= MAX_PLAYERS || !Admin_Ready(target) || target == playerid ||
+            Admin_IsFounderName(gAccountName[target]) ||
+            (gAdminLevel[target] >= gAdminLevel[playerid] && !Admin_IsFounder(playerid)))
+            return SendClientMessage(playerid, ADMIN_ERROR, "Цель недоступна или имеет равные/старшие права.");
+        if (!strcmp(command, "/setadmin", true))
         {
             new limit = gAdminLevel[playerid] == 6 ? 5 : 4;
             if (value > limit)
