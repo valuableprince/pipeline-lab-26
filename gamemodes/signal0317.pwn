@@ -177,6 +177,7 @@ forward bool:AdminPunish_WriteWarning(playerid, target, const reason[]);
 #include "ship_studio.inc"
 #include "ship_port.inc"
 #include "ship_port_route.inc"
+#include "ship_sf_pier_map.inc"
 #include "ship_passenger_sync.inc"
 #include "economy.inc"
 #include "admin_ui.inc"
@@ -912,6 +913,7 @@ public OnGameModeInit()
     Studio_Init();
     Ship_Init();
     ShipPort_Init();
+    ShipSFPierMap_Init();
     ShipManeuver_Init();
     ShipHorn_Init();
     ShipEditor_Init();
@@ -955,6 +957,7 @@ public OnGameModeExit()
     ShipCam_Shutdown();
     ShipEditor_Shutdown();
     ShipSurf_Shutdown();
+    ShipSFPierMap_Shutdown();
     Ship_Shutdown();
     Studio_Shutdown();
     GovBond_UI_Shutdown();
