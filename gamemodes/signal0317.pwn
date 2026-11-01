@@ -972,6 +972,9 @@ public OnGameModeExit()
 
 public OnPlayerConnect(playerid)
 {
+    // Also reset auth overlays for connections rejected before AuthCamera_Start.
+    gAuthCameraBarTop[playerid] = PlayerText:INVALID_TEXT_DRAW;
+    gAuthCameraBarBottom[playerid] = PlayerText:INVALID_TEXT_DRAW;
     TDS_Reset(playerid);
     // Also apply at connection: default GTA stunt bonuses are enabled per player.
     EnableStuntBonusForPlayer(playerid, false);
