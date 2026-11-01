@@ -547,7 +547,7 @@ stock Ship_Help(playerid)
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship move [meters], /ship turn [degrees], /ship set [x y z angle], /ship mark.");
     SendClientMessage(playerid, SHIP_COLOR,
-        "/ship run, /ship stop, /ship undo, /ship save, /ship load, /ship export.");
+        "/ship run (только рядом с первой морской точкой), /ship stop, /ship undo, /ship save, /ship load, /ship export.");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship preset lssf|sfls — готовый черновик морского маршрута (без проверки коллизий).");
     SendClientMessage(playerid, SHIP_COLOR,
@@ -881,19 +881,41 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "run", true))
     {
         if (gShipPointCount < 2)
-            return SendClientMessage(playerid, ADMIN_ERROR, "Запишите хотя бы две точки.");
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Нет готового морского маршрута: нужно минимум две точки.");
+        if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive ||
+            gShipOceanHold)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Уже идёт рейс или стоит контрольная остановка. Сначала /ship stop.");
         if (ShipEditor_Occupied())
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "[Tarkenso RPG] Нельзя переносить корабль на начало маршрута: рядом игроки.");
+                "[Tarkenso RPG] Нельзя начинать тестовый рейс с игроками у корпуса.");
+
+        // Do not teleport to the old preset's first waypoint! Only start a
+        // sea-route test when the vessel is already physically at its start.
+        // The normal LS freight berth has its own /ship oceanroute start.
+        new Float:x, Float:y, Float:z;
+        GetObjectPos(gShipRoot, x, y, z);
+        new Float:dx = x-gShipPoint[0][0];
+        new Float:dy = y-gShipPoint[0][1];
+        new Float:dz = z-gShipPoint[0][2];
+        new Float:distance = floatsqroot(dx*dx + dy*dy + dz*dz);
+        if (distance > 12.0)
+        {
+            new line[144];
+            format(line, sizeof(line),
+                "[Tarkenso RPG] /ship run отменён: до начала старого маршрута %.1f м. Телепортации нет.",
+                distance);
+            SendClientMessage(playerid, ADMIN_ERROR, line);
+            return SendClientMessage(playerid, SHIP_COLOR,
+                "[Tarkenso RPG] Для нового выхода LS: /ship oceanprobe on, затем /ship oceanroute start.");
+        }
         Ship_Stop();
-        SetObjectPos(gShipRoot, gShipPoint[0][0],
-            gShipPoint[0][1], gShipPoint[0][2]);
-        SetObjectRot(gShipRoot, 0.0, 0.0, gShipPoint[0][3]);
         gShipNextPoint = 1;
         gShipRunning = true;
         Ship_Advance();
         return SendClientMessage(playerid, SHIP_COLOR,
-            "Пробный рейс запущен. Проверяйте вручную препятствия и палубу.");
+            "[Tarkenso RPG] Морской тест начат с текущей позиции без телепортации.");
     }
     return Ship_Help(playerid);
 }
