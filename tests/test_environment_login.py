@@ -60,7 +60,7 @@ class EnvironmentLoginContract(unittest.TestCase):
     def test_authorization_letterbox_is_per_player_and_cleaned_up(self):
         self.assertIn("CreatePlayerTextDraw(playerid, 0.0, y", CAMERA)
         self.assertIn("AuthCamera_CreateBar(playerid, 0.0)", CAMERA)
-        self.assertIn("AuthCamera_CreateBar(playerid, 408.0)", CAMERA)
+        self.assertIn("AuthCamera_CreateBar(playerid, 414.0)", CAMERA)
         self.assertIn("PlayerTextDrawUseBox(playerid, td, true)", CAMERA)
         self.assertIn("PlayerTextDrawBoxColour(playerid, td, 0x000000FF)", CAMERA)
         self.assertIn("PlayerTextDrawTextSize(playerid, td, 640.0, y + 40.0)", CAMERA)
