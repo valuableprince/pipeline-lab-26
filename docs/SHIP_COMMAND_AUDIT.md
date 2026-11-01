@@ -21,7 +21,7 @@ Automated checks: `tests/test_ship_command_audit.py` plus existing ship-related 
 | `/ship undo` | Remove last sea route point |
 | `/ship preset lssf` | Load unverified LS→SF route draft |
 | `/ship preset sfls` | Load reverse route draft |
-| `/ship run` | Start one-shot route test; may snap to first waypoint only if hull area is clear |
+| `/ship run` | Start legacy sea route **only when already within 12 units of waypoint 1**; never teleport the ship; otherwise explain refusal and suggest `/ship oceanroute start` for new LS departure |
 | `/ship stop` | Stop manual/port/sea movement |
 | `/ship save` | Write `scriptfiles/shipstudio/cargo_01.dat` |
 | `/ship load` | Load file into empty ship slot |
@@ -64,3 +64,9 @@ Berths are persisted separately to `scriptfiles/shipstudio/ports_01.dat`. The be
 9. With a tester **near the hull** (closed test server), `/ship clear`, `/ship set`, `/ship run` should refuse to teleport or remove the hull.
 10. Verify `/ship stop` cancels port movement, and `/ship move`, `/ship turn`, `/ship add`, `/ship mark`, `/ship undo`, `/ship preset` cannot modify an active port/sea voyage.
 11. Check LS and SF `berth`/`exit` storage separately. **Do not start public departure** until the full-size hull has been checked for shore, crane and bridge collisions.
+
+## Legacy `/ship run` vs LS ocean departure
+
+As of the no-snap fix, `/ship run` is **only** a test of the old sea waypoint list, not a command to depart from the saved LS berth. It checks distance from the ship's present coordinates to the first waypoint. More than 12 units away -> rejects without modifying the ship or the active route. If within 12 units and the hull is empty, proceeds toward waypoint 2 from the **current ship position**, without resetting yaw or teleporting.
+
+For the new opt-in LS ocean-edge path, use `/ship oceanprobe on` followed by `/ship oceanroute start`, after installing the corresponding AMX. The offshore route has a required pause and remains an unvalidated in-game test.
