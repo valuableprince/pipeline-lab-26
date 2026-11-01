@@ -22,7 +22,7 @@ COMMANDS = read("gamemodes/includes/commands.inc")
 ACTIONS = {
     "help", "status", "edit", "port", "load", "release", "cargo",
     "create", "clear", "preset", "stop", "save", "export", "add",
-    "move", "turn", "set", "mark", "undo", "run",
+    "move", "turn", "set", "mark", "undo", "run", "oceanprobe",
 }
 EDITOR_ACTIONS = {
     "SE_NORTH", "SE_SOUTH", "SE_WEST", "SE_EAST", "SE_ROTATE_L",
