@@ -100,6 +100,16 @@ stock bool:ShipOcean_Target(step, &Float:x, &Float:y,
     return false;
 }
 
+stock ShipOcean_Pause()
+{
+    gShipOceanActive = false;
+    gShipOceanHold = true;
+    if (gShipOwner != INVALID_PLAYER_ID && IsPlayerConnected(gShipOwner))
+        SendClientMessage(gShipOwner, SHIP_COLOR,
+            "[Tarkenso RPG] OCEAN: контрольная точка X=3400 Y=-2980. Проверьте воду, затем /ship oceanroute continue.");
+    return 1;
+}
+
 stock ShipOcean_MoveNext()
 {
     if (!gShipOceanActive || !Ship_Ready()) return 0;
@@ -120,22 +130,14 @@ stock ShipOcean_MoveNext()
             // Keep tangent yaw in sync even when the target was reached
             // before the previous segment's end-of-movement callback.
             SetObjectRot(gShipRoot, 0.0, 0.0, yaw);
-            if (step == SHIP_OCEAN_HOLD_STEP) break;
+            if (step == SHIP_OCEAN_HOLD_STEP) return ShipOcean_Pause();
             continue;
         }
         MoveObject(gShipRoot, x, y, z, speed, 0.0, 0.0, yaw);
         return 1;
     }
 
-    if (gShipOceanNext == SHIP_OCEAN_HOLD_STEP + 1)
-    {
-        gShipOceanActive = false;
-        gShipOceanHold = true;
-        if (gShipOwner != INVALID_PLAYER_ID && IsPlayerConnected(gShipOwner))
-            SendClientMessage(gShipOwner, SHIP_COLOR,
-                "[Tarkenso RPG] OCEAN: контрольная точка X=3400 Y=-2980. Проверьте воду, затем /ship oceanroute continue.");
-        return 1;
-    }
+    if (gShipOceanNext == SHIP_OCEAN_HOLD_STEP + 1) return ShipOcean_Pause();
     gShipOceanActive = false;
     gShipOceanHold = false;
     if (gShipOwner != INVALID_PLAYER_ID && IsPlayerConnected(gShipOwner))
@@ -158,7 +160,11 @@ stock ShipOcean_Tick()
     GetObjectPos(gShipRoot, x, y, z);
     new Float:dx = x-tx, Float:dy = y-ty, Float:dz = z-tz;
     if (dx*dx + dy*dy + dz*dz <= SHIP_OCEAN_ARRIVAL_EPS)
+    {
+        if (gShipOceanNext - 1 == SHIP_OCEAN_HOLD_STEP)
+            return ShipOcean_Pause();
         return ShipOcean_MoveNext();
+    }
     return 1;
 }
 
@@ -226,12 +232,26 @@ stock ShipOcean_Command(playerid, const arguments[])
     }
     if (!strcmp(arguments, "continue", true))
     {
-        if (!ShipOcean_StartAllowed(playerid))
+        if (!gShipOceanHold || !gShipOceanProbe || gShipOceanActive ||
+            !Ship_Ready() || gShipModel != SHIP_CARGO_ROOT_ID ||
+            gShipRunning || gShipPortDeparture >= 0 ||
+            gShipManeuverActive || gShipEditOwner != INVALID_PLAYER_ID ||
+            ShipEditor_Occupied() || !Ship_Lock(playerid))
             return SendClientMessage(playerid, ADMIN_ERROR,
-                "[Tarkenso RPG] Возобновление невозможно: нужен свободный корпус и OCEAN TEST ON.");
-        // ShipOcean_StartAllowed rejects 'hold', so handle the saved
-        // checkpoint separately below in this branch instead.
-        return 1;
+                "[Tarkenso RPG] Нужна контрольная остановка X=3400 Y=-2980 и свободный корпус.");
+        new Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:yaw;
+        GetObjectPos(gShipRoot, x, y, z);
+        GetObjectRot(gShipRoot, rx, ry, yaw);
+        if (floatabs(x - SHIP_OCEAN_EAST_LANE_X) > 2.0 ||
+            floatabs(y + 2980.0) > 2.0 ||
+            floatabs(z - gShipOceanRootZ) > 2.0 ||
+            floatabs(yaw - (gShipOceanBaseYaw - 90.0)) > 5.0)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Положение изменилось после контрольной остановки. Возобновление запрещено.");
+        gShipOceanNext = 20;
+        gShipOceanHold = false;
+        gShipOceanActive = true;
+        return ShipOcean_MoveNext();
     }
     return SendClientMessage(playerid, ADMIN_ERROR,
         "[Tarkenso RPG] Использование: /ship oceanroute start|continue|status|stop.");
