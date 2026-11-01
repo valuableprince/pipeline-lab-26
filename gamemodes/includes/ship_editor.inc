@@ -122,7 +122,10 @@ stock ShipEditor_AddButton(playerid, slot, Float:x, Float:y,
     PlayerTextDrawSetOutline(playerid, td, 1);
     PlayerTextDrawUseBox(playerid, td, true);
     PlayerTextDrawBoxColour(playerid, td, 0x193C53D9);
-    PlayerTextDrawTextSize(playerid, td, x+w, y+19.0);
+    // GTA textdraw boxes extend ~10 units ABOVE their anchor. The old
+    // y+19 hitboxes overlapped the next row (23 units lower), so clicks on
+    // SAVE SHIP or LS BERTH could dispatch ADD POINT or PREVIEW instead.
+    PlayerTextDrawTextSize(playerid, td, x+w, y+10.0);
     PlayerTextDrawSetSelectable(playerid, td, true);
     PlayerTextDrawShow(playerid, td);
     return 1;
@@ -380,6 +383,9 @@ stock ShipEditor_Command(playerid, const params[])
         return SendClientMessage(playerid, SHIP_COLOR,
             "[Tarkenso RPG] В редакторе: /ship edit save или /ship edit cancel.");
     }
+    if (!strcmp(params, "save", true) || !strcmp(params, "cancel", true))
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] Редактор уже закрыт. /ship edit — открыть, /ship save — сохранить корабль.");
     if (isnull(params) || !strcmp(params, "start", true))
         return ShipEditor_Begin(playerid);
     return SendClientMessage(playerid, ADMIN_ERROR,

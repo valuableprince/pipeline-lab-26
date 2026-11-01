@@ -580,6 +580,26 @@ stock Ship_Command(playerid, const params[])
         strmid(editParams, params, 5, strlen(params), sizeof(editParams));
         return ShipEditor_Command(playerid, editParams);
     }
+    if (!strcmp(action, "port", true))
+    {
+        new portParams[64];
+        portParams[0] = '\0';
+        if (strlen(params) > 5)
+            strmid(portParams, params, 5, strlen(params), sizeof(portParams));
+        if (gShipEditOwner != INVALID_PLAYER_ID)
+        {
+            // Text commands for recording the current berth/exit must work
+            // while the editor is open. Never allow departure during editing.
+            new place[12], operation[16];
+            if (gShipEditOwner != playerid ||
+                sscanf(portParams, "s[12]s[16]", place, operation) ||
+                (strcmp(place, "ls", true) && strcmp(place, "sf", true)) ||
+                (strcmp(operation, "berth", true) && strcmp(operation, "exit", true)))
+                return SendClientMessage(playerid, ADMIN_ERROR,
+                    "[Tarkenso RPG] В редакторе: /ship port ls|sf berth|exit; отход запрещён.");
+        }
+        return ShipPort_Command(playerid, portParams);
+    }
     if (gShipEditOwner != INVALID_PLAYER_ID)
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Позиционирование активно. Используйте /ship edit save|cancel.");
@@ -614,13 +634,6 @@ stock Ship_Command(playerid, const params[])
         SendClientMessage(playerid, SHIP_COLOR,
             "[Tarkenso RPG] Грузовой корабль собран! Маршрут LS -> SF задан, рейс НЕ запущен.");
         return Ship_Status(playerid);
-    }
-    if (!strcmp(action, "port", true))
-    {
-        new portParams[64];
-        if (strlen(params) <= 5) return ShipPort_Command(playerid, "");
-        strmid(portParams, params, 5, strlen(params), sizeof(portParams));
-        return ShipPort_Command(playerid, portParams);
     }
     if (!strcmp(action, "create", true))
     {
