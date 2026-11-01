@@ -456,6 +456,11 @@ jobs:
           export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
           python3 tools/test_tdstudio.py --server "$OMP_SERVER_DIR"
 
+      - name: Validate SF cargo pier Pawn lifecycle and scene geometry
+        run: |
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 tools/test_ship_sf_pier.py --server "$OMP_SERVER_DIR"
+
       - name: Validate stage 2 headless harness
         run: |
           python3 -m unittest discover -s tests -p 'test_loadtest_stage2.py' -v
@@ -513,6 +518,8 @@ jobs:
             build/compiler.log
             build/tdstudio-test-compile.log
             build/tdstudio-test-run.log
+            build/ship-sf-pier-*.log
+            build/ship_sf_pier_scene.csv
           if-no-files-found: ignore
           retention-days: 3
 
