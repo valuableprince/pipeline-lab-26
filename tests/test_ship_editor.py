@@ -31,6 +31,25 @@ class ShipEditorContracts(unittest.TestCase):
                        "SetCameraBehindPlayer(", "CancelSelectTextDraw(",
                        "TogglePlayerControllable(playerid, !gAdminFrozen[playerid])"):
             self.assertIn(phrase, E)
+    def test_click_regions_do_not_overlap_adjacent_rows(self):
+        # GTA font-1 textdraw boxes extend upward from their y anchor.
+        # Compact buttons (height 20) must not overlap rows 23 units apart.
+        self.assertIn("PlayerTextDrawTextSize(playerid, td, x+w, y+10.0);", E)
+        self.assertNotIn("y+19.0", E)
+        self.assertGreater(369 - 346, 20)
+        self.assertGreater(392 - 369, 20)
+
+    def test_port_recording_during_editor_and_no_departure(self):
+        # Dispatch berth/exit BEFORE the global edit lock, but deny depart.
+        self.assertLess(S.index('if (!strcmp(action, "port", true))'),
+                        S.index('if (gShipEditOwner != INVALID_PLAYER_ID)\n'
+                                '        return SendClientMessage'))
+        self.assertIn('strcmp(operation, "berth", true)', S)
+        self.assertIn('strcmp(operation, "exit", true)', S)
+        self.assertIn('gShipEditOwner != playerid', S)
+        self.assertIn('ShipPort_Command(playerid, portParams)', S)
+        self.assertIn('Редактор уже закрыт.', E)
+
     def test_safety_and_rollback(self):
         self.assertIn("ShipSurf_Component(GetPlayerSurfingObjectID(playerid))", E)
         self.assertIn("GetPlayerPos(playerid", E)
