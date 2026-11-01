@@ -142,8 +142,10 @@
         new Cache:c = mysql_query(gDBPrimary, query);
         if (c == Cache:0 || mysql_errno(gDBPrimary))
         {
+            new errorCode = mysql_errno(gDBPrimary);
             if (c != Cache:0) cache_delete(c);
-            print("[DB-PRIMARY] Operation not persisted due to SQL error.");
+            printf("[DB-PRIMARY] Sync SQL write failed, errno=%d (SQL redacted).",
+                errorCode);
             return false;
         }
         affected = cache_affected_rows();
