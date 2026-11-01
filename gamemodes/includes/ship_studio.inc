@@ -19,6 +19,9 @@
 #define SHIP_CARGO_HEADING_OFFSET (90.0)
 #define SHIP_CARGO_START_X  (2640.0)
 #define SHIP_CARGO_START_Y  (-2740.0)
+// Development-only ocean-edge experiment. Not an expanded GTA map.
+#define SHIP_OCEAN_TEST_MAX_X (3600.0)
+new bool:gShipOceanProbe;
 
 new gShipRoot = INVALID_OBJECT_ID;
 new gShipModel;
@@ -58,6 +61,16 @@ stock bool:Ship_ValidCoord(Float:x, Float:y, Float:z)
         y >= -3000.0 && y <= 3000.0 && z >= -100.0 && z <= 1000.0;
 }
 
+// Experimental manual positioning only, cargo model only. Persisted route,
+// berth, hull and global world limits stay inside vanilla +/-3000.
+stock bool:Ship_ValidManualCoord(Float:x, Float:y, Float:z)
+{
+    if (Ship_ValidCoord(x, y, z)) return true;
+    return gShipOceanProbe && gShipModel == SHIP_CARGO_ROOT_ID &&
+        x > 3000.0 && x <= SHIP_OCEAN_TEST_MAX_X &&
+        y >= -3000.0 && y <= 3000.0 && z >= -100.0 && z <= 1000.0;
+}
+
 stock bool:Ship_ValidModel(model)
 {
     return model >= 600 && model <= 19999;
@@ -92,6 +105,7 @@ stock Ship_Reset()
     gShipPointCount = 0;
     gShipNextPoint = 0;
     gShipOwner = INVALID_PLAYER_ID;
+    gShipOceanProbe = false;
     return 1;
 }
 
@@ -535,6 +549,8 @@ stock Ship_Help(playerid)
         "[Tarkenso RPG] /ship port ls|sf berth|exit|depart — портовая настройка и отход.");
     SendClientMessage(playerid, SHIP_COLOR,
         "/ship status, /ship release, /ship clear. EDITOR ONLY; collision is NOT checked.");
+    SendClientMessage(playerid, SHIP_COLOR,
+        "[Tarkenso RPG] /ship oceanprobe on|off — временный тест корабля за X=3000.");
     return 1;
 }
 
@@ -552,6 +568,9 @@ stock Ship_Status(playerid)
     format(line, sizeof(line), "Position: %.2f %.2f %.2f | angle %.2f | editor ID %d",
         x, y, z, yaw, gShipOwner);
     SendClientMessage(playerid, SHIP_COLOR, line);
+    if (x > 3000.0)
+        SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] За X=3000: TEST ONLY. Берег/видимость не гарантированы; /ship save недоступна.");
     return 1;
 }
 
@@ -586,6 +605,36 @@ stock Ship_Command(playerid, const params[])
     if (start < length) strmid(arguments, params, start, length, sizeof(arguments));
     if (!strcmp(action, "help", true)) return Ship_Help(playerid);
     if (!strcmp(action, "status", true)) return Ship_Status(playerid);
+    if (!strcmp(action, "oceanprobe", true))
+    {
+        if (!strcmp(arguments, "on", true))
+        {
+            if (gShipEditOwner != INVALID_PLAYER_ID || gShipRunning ||
+                gShipPortDeparture >= 0 || gShipManeuverActive || !Ship_Ready() ||
+                gShipModel != SHIP_CARGO_ROOT_ID)
+                return SendClientMessage(playerid, ADMIN_ERROR,
+                    "[Tarkenso RPG] Тест доступен только для остановленного грузового корабля вне редактора.");
+            gShipOceanProbe = true;
+            return SendClientMessage(playerid, SHIP_COLOR,
+                "[Tarkenso RPG] OCEAN TEST ON: ручной ход до X=3600. Только без пассажиров; не сохранять.");
+        }
+        if (!strcmp(arguments, "off", true))
+        {
+            if (Ship_Ready())
+            {
+                new Float:x, Float:y, Float:z;
+                GetObjectPos(gShipRoot, x, y, z);
+                if (x > 3000.0)
+                    return SendClientMessage(playerid, ADMIN_ERROR,
+                        "[Tarkenso RPG] Сначала верните корабль в X<=3000 через /ship move -100.");
+            }
+            gShipOceanProbe = false;
+            return SendClientMessage(playerid, SHIP_COLOR,
+                "[Tarkenso RPG] OCEAN TEST OFF: обычная граница X=3000 восстановлена.");
+        }
+        return SendClientMessage(playerid, ADMIN_ERROR,
+            "[Tarkenso RPG] Использование: /ship oceanprobe on|off.");
+    }
     if (!strcmp(action, "edit", true))
     {
         new editParams[32];
@@ -732,8 +781,17 @@ stock Ship_Command(playerid, const params[])
             angle -= SHIP_CARGO_HEADING_OFFSET;
         new Float:tx = x - floatsin(angle, degrees) * meters;
         new Float:ty = y + floatcos(angle, degrees) * meters;
-        if (!Ship_ValidCoord(tx, ty, z))
-            return SendClientMessage(playerid, ADMIN_ERROR, "За пределами карты.");
+        if (!Ship_ValidManualCoord(tx, ty, z))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Граница X=3000. Для краткого теста: /ship oceanprobe on.");
+        if (tx > 3000.0)
+        {
+            if (ShipEditor_Occupied())
+                return SendClientMessage(playerid, ADMIN_ERROR,
+                    "[Tarkenso RPG] За пределами карты нельзя двигаться с игроками у корпуса.");
+            SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] OCEAN TEST: проверяйте модель и воду. Не записывайте точку выхода за X=3000.");
+        }
         MoveObject(gShipRoot, tx, ty, z, SHIP_CRUISE_SPEED);
         return SendClientMessage(playerid, SHIP_COLOR,
             "Ручной ход начат. /ship stop — остановка; /ship mark — запись.");
@@ -756,13 +814,16 @@ stock Ship_Command(playerid, const params[])
     {
         new Float:x, Float:y, Float:z, Float:angle;
         if (sscanf(arguments, "ffff", x, y, z, angle) ||
-            !Ship_ValidCoord(x, y, z))
+            !Ship_ValidManualCoord(x, y, z))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "Usage: /ship set [x y z angle].");
         if (ShipEditor_Occupied())
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "[Tarkenso RPG] Нельзя переставить корабль: игроки находятся у корпуса.");
         Ship_Stop();
+        if (x > 3000.0)
+            SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] OCEAN TEST: координата за пределами обычной карты, сохранение запрещено.");
         SetObjectPos(gShipRoot, x, y, z);
         SetObjectRot(gShipRoot, 0.0, 0.0, angle);
         return Ship_Status(playerid);
@@ -811,6 +872,7 @@ stock Ship_Command(playerid, const params[])
 
 stock Ship_Init()
 {
+    gShipOceanProbe = false;
     fcreatedir(SHIP_DIR);
     for (new i = 0; i < SHIP_MAX_PARTS; i++) gShipPartObject[i] = INVALID_OBJECT_ID;
     if (fexist(SHIP_DATA))
