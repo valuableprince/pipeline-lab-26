@@ -26,7 +26,7 @@ stock PlayerText:AuthCamera_CreateBar(playerid, Float:y)
 stock AuthCamera_ShowBars(playerid)
 {
     gAuthCameraBarTop[playerid] = AuthCamera_CreateBar(playerid, 0.0);
-    gAuthCameraBarBottom[playerid] = AuthCamera_CreateBar(playerid, 408.0);
+    gAuthCameraBarBottom[playerid] = AuthCamera_CreateBar(playerid, 414.0);
     return 1;
 }
 
