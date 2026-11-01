@@ -499,9 +499,9 @@ stock Ship_Preset(playerid, bool:reverse)
     if (!Ship_Ready())
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Сначала создайте или загрузите корабль.");
-    if (gShipRunning)
+    if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)
         return SendClientMessage(playerid, ADMIN_ERROR,
-            "[Tarkenso RPG] Остановите автопилот командой /ship stop.");
+            "[Tarkenso RPG] Остановите рейс или манёвр командой /ship stop.");
     if (!Ship_SetRoutePreset(reverse))
         return SendClientMessage(playerid, ADMIN_ERROR,
             "[Tarkenso RPG] Ошибка загрузки точек маршрута.");
@@ -540,16 +540,17 @@ stock Ship_Help(playerid)
 
 stock Ship_Status(playerid)
 {
-    new line[144], Float:x, Float:y, Float:z;
+    new line[144], Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:yaw;
     if (!Ship_Ready()) return SendClientMessage(playerid, SHIP_COLOR,
         "Ship Studio: корабль не загружен. /ship create [model] или /ship load.");
     GetObjectPos(gShipRoot, x, y, z);
+    GetObjectRot(gShipRoot, rx, ry, yaw);
     format(line, sizeof(line), "Ship | hull %d | parts %d/%d | route %d/%d | %s",
         gShipModel, gShipPartCount, SHIP_MAX_PARTS, gShipPointCount,
         SHIP_MAX_POINTS, gShipRunning ? ("AUTO") : ("STOP"));
     SendClientMessage(playerid, SHIP_COLOR, line);
-    format(line, sizeof(line), "Position: %.2f %.2f %.2f | editor ID %d",
-        x, y, z, gShipOwner);
+    format(line, sizeof(line), "Position: %.2f %.2f %.2f | angle %.2f | editor ID %d",
+        x, y, z, yaw, gShipOwner);
     SendClientMessage(playerid, SHIP_COLOR, line);
     return 1;
 }
@@ -569,28 +570,32 @@ stock Ship_Command(playerid, const params[])
 {
     if (isnull(params)) return ShipPanel_Open(playerid);
     if (!Studio_Require(playerid)) return 1;
-    // sscanf "s[24]" without a following specifier may consume the whole
-    // input instead of only the first word, breaking /ship set|port|edit.
-    new action[24];
-    new delimiter = strfind(params, " ");
-    if (delimiter < 0) delimiter = strlen(params);
-    if (delimiter <= 0 || delimiter >= sizeof(action)) return Ship_Help(playerid);
-    strmid(action, params, 0, delimiter, sizeof(action));
+    // Extract a single verb and its tail once; never reparse the command name
+    // using sscanf. This also supports extra whitespace before arguments.
+    new action[24], arguments[160];
+    new length = strlen(params), start = 0;
+    while (start < length && (params[start] == ' ' || params[start] == '\t')) start++;
+    new delimiter = start;
+    while (delimiter < length && params[delimiter] != ' ' && params[delimiter] != '\t')
+        delimiter++;
+    if (delimiter == start || delimiter-start >= sizeof(action)) return Ship_Help(playerid);
+    strmid(action, params, start, delimiter, sizeof(action));
+    start = delimiter;
+    while (start < length && (params[start] == ' ' || params[start] == '\t')) start++;
+    arguments[0] = '\0';
+    if (start < length) strmid(arguments, params, start, length, sizeof(arguments));
     if (!strcmp(action, "help", true)) return Ship_Help(playerid);
     if (!strcmp(action, "status", true)) return Ship_Status(playerid);
     if (!strcmp(action, "edit", true))
     {
         new editParams[32];
-        if (strlen(params) <= 5) return ShipEditor_Command(playerid, "");
-        strmid(editParams, params, 5, strlen(params), sizeof(editParams));
+        strmid(editParams, arguments, 0, strlen(arguments), sizeof(editParams));
         return ShipEditor_Command(playerid, editParams);
     }
     if (!strcmp(action, "port", true))
     {
         new portParams[64];
-        portParams[0] = '\0';
-        if (strlen(params) > 5)
-            strmid(portParams, params, 5, strlen(params), sizeof(portParams));
+        strmid(portParams, arguments, 0, strlen(arguments), sizeof(portParams));
         if (gShipEditOwner != INVALID_PLAYER_ID)
         {
             // Text commands for recording the current berth/exit must work
@@ -643,7 +648,7 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "create", true))
     {
         new model;
-        if (sscanf(params, "s[24]i", action, model) || !Ship_ValidModel(model))
+        if (sscanf(arguments, "i", model) || !Ship_ValidModel(model))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "Usage: /ship create [hull model ID].");
         if (Ship_Ready()) return SendClientMessage(playerid, ADMIN_ERROR,
@@ -659,6 +664,9 @@ stock Ship_Command(playerid, const params[])
     }
     if (!strcmp(action, "clear", true))
     {
+        if (Ship_Ready() && ShipEditor_Occupied())
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Нельзя удалить корабль: игроки находятся у корпуса.");
         Ship_Reset();
         return SendClientMessage(playerid, SHIP_COLOR,
             "Корабль удалён из памяти. Файл сохранения не затронут.");
@@ -666,7 +674,7 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "preset", true))
     {
         new direction[16];
-        if (sscanf(params, "s[24]s[16]", action, direction))
+        if (sscanf(arguments, "s[16]", direction))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "Использование: /ship preset lssf|sfls.");
         if (!strcmp(direction, "lssf", true)) return Ship_Preset(playerid, false);
@@ -698,10 +706,11 @@ stock Ship_Command(playerid, const params[])
     {
         new model;
         new Float:dx, Float:dy, Float:dz, Float:rx, Float:ry, Float:rz;
-        if (sscanf(params, "s[24]iffffff", action, model, dx, dy, dz, rx, ry, rz))
+        if (sscanf(arguments, "iffffff", model, dx, dy, dz, rx, ry, rz))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "Usage: /ship add [model dx dy dz rx ry rz].");
-        if (gShipRunning || !Ship_AddPart(model, dx, dy, dz, rx, ry, rz))
+        if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive ||
+            !Ship_AddPart(model, dx, dy, dz, rx, ry, rz))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "Не удалось добавить часть (модель, лимит или движение).");
         return Ship_Status(playerid);
@@ -709,11 +718,12 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "move", true))
     {
         new Float:meters, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:angle;
-        if (sscanf(params, "s[24]f", action, meters) || floatabs(meters) > 100.0 ||
+        if (sscanf(arguments, "f", meters) || floatabs(meters) > 100.0 ||
             floatabs(meters) < 0.01)
             return SendClientMessage(playerid, ADMIN_ERROR, "Usage: /ship move [-100..100].");
-        if (gShipRunning) return SendClientMessage(playerid, ADMIN_ERROR,
-            "Остановите автопилот: /ship stop.");
+        if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Остановите рейс или манёвр: /ship stop.");
         StopObject(gShipRoot);
         GetObjectPos(gShipRoot, x, y, z);
         GetObjectRot(gShipRoot, rx, ry, angle);
@@ -731,11 +741,12 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "turn", true))
     {
         new Float:degreesValue, Float:rx, Float:ry, Float:angle;
-        if (sscanf(params, "s[24]f", action, degreesValue) ||
+        if (sscanf(arguments, "f", degreesValue) ||
             floatabs(degreesValue) > 180.0)
             return SendClientMessage(playerid, ADMIN_ERROR, "Usage: /ship turn [-180..180].");
-        if (gShipRunning) return SendClientMessage(playerid, ADMIN_ERROR,
-            "Остановите автопилот.");
+        if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "Остановите рейс или манёвр: /ship stop.");
         StopObject(gShipRoot);
         GetObjectRot(gShipRoot, rx, ry, angle);
         SetObjectRot(gShipRoot, 0.0, 0.0, angle + degreesValue);
@@ -744,10 +755,13 @@ stock Ship_Command(playerid, const params[])
     if (!strcmp(action, "set", true))
     {
         new Float:x, Float:y, Float:z, Float:angle;
-        if (sscanf(params, "s[24]ffff", action, x, y, z, angle) ||
+        if (sscanf(arguments, "ffff", x, y, z, angle) ||
             !Ship_ValidCoord(x, y, z))
             return SendClientMessage(playerid, ADMIN_ERROR,
                 "Usage: /ship set [x y z angle].");
+        if (ShipEditor_Occupied())
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Нельзя переставить корабль: игроки находятся у корпуса.");
         Ship_Stop();
         SetObjectPos(gShipRoot, x, y, z);
         SetObjectRot(gShipRoot, 0.0, 0.0, angle);
@@ -755,6 +769,9 @@ stock Ship_Command(playerid, const params[])
     }
     if (!strcmp(action, "mark", true))
     {
+        if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Остановите движение перед записью точки.");
         if (!Ship_Mark()) return SendClientMessage(playerid, ADMIN_ERROR,
             "Не удалось записать точку (предел 80 или координаты).");
         new line[72];
@@ -763,7 +780,12 @@ stock Ship_Command(playerid, const params[])
     }
     if (!strcmp(action, "undo", true))
     {
-        if (gShipRunning || !gShipPointCount) return 1;
+        if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Остановите рейс или манёвр перед удалением точки.");
+        if (!gShipPointCount)
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Нет точек маршрута для удаления.");
         gShipPointCount--;
         return SendClientMessage(playerid, SHIP_COLOR, "Последняя точка удалена.");
     }
@@ -771,6 +793,9 @@ stock Ship_Command(playerid, const params[])
     {
         if (gShipPointCount < 2)
             return SendClientMessage(playerid, ADMIN_ERROR, "Запишите хотя бы две точки.");
+        if (ShipEditor_Occupied())
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Нельзя переносить корабль на начало маршрута: рядом игроки.");
         Ship_Stop();
         SetObjectPos(gShipRoot, gShipPoint[0][0],
             gShipPoint[0][1], gShipPoint[0][2]);
