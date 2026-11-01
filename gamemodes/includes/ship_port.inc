@@ -138,6 +138,9 @@ public ShipPort_Command(playerid, const params[])
         new Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:yaw;
         GetObjectPos(gShipRoot, x, y, z);
         GetObjectRot(gShipRoot, rx, ry, yaw);
+        if (!Ship_ValidCoord(x, y, z))
+            return SendClientMessage(playerid, ADMIN_ERROR,
+                "[Tarkenso RPG] Стоянку/выход нельзя сохранить за X=3000. Верните корабль на карту.");
         gShipPortCoord[port][k][0] = x;
         gShipPortCoord[port][k][1] = y;
         gShipPortCoord[port][k][2] = z;
