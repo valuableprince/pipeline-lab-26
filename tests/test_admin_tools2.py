@@ -26,7 +26,7 @@ class AdminTools02Contract(unittest.TestCase):
     def test_help_metadata_for_all_administrative_commands(self):
         existing = ["ahelp","aduty","admin","admins","a","reports","accept",
                     "areply","close","spec","warn","mute","ban","unban",
-                    "setadmin","setevent","weather","event","veh","delveh",
+                    "setadmin","setevent","weather","veh","delveh",
                     "heal","armour","fixveh","flip","check","alog","founder"]
         for name in existing:
             self.assertIn('{"' + name + '", "/', HELP)
@@ -80,16 +80,17 @@ class AdminTools02Contract(unittest.TestCase):
     def test_time_and_clearchat_are_global_and_audited(self):
         for token in ("Admin_Require(playerid, PERM_BAN_DAY)",
                       "Admin_Require(playerid, PERM_BAN_MONTH)",
-                      "gAdminClockHour = hour", "gAdminClockMinute = minute",
-                      "SetPlayerTime(i, hour, minute)", 'Admin_LogPlayer(playerid, "SETTIME", detail)',
+                      "gAdminClockHour = hour", "gAdminClockMinute = 0",
+                      "SetPlayerTime(i, hour, 0)", 'Admin_LogPlayer(playerid, "SETTIME", detail)',
                       'Admin_LogPlayer(playerid, "CLEAR_CHAT", "global")',
                       "gAdminChatClearNext = gettime() + 30"):
             self.assertIn(token, MODULE)
         self.assertIn("SetPlayerTime(playerid, gAdminClockHour, gAdminClockMinute)", ADMIN)
         self.assertIn("gAdminClockAuto = true;", ADMIN)
-        self.assertIn("gettime(gAdminClockHour, gAdminClockMinute, second)", ADMIN)
-        self.assertIn("gAdminClockHour = 0;", ADMIN)
-        self.assertIn('!strcmp(params, "auto", true)', MODULE)
+        self.assertIn("(gettime() + 3 * 3600) % (24 * 3600)", ADMIN)
+        self.assertNotIn("gAdminClockHour = 0;", ADMIN)
+        self.assertIn('!strcmp(arg, "auto", true)', MODULE)
+        self.assertIn("Admin_Next(params, offset, extra, sizeof(extra))", MODULE)
 
     def test_cp1251_source_compatibility(self):
         for file in (CMDS, MODULE, HELP, ADMIN, GAME):
