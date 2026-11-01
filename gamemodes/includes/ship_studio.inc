@@ -569,8 +569,13 @@ stock Ship_Command(playerid, const params[])
 {
     if (isnull(params)) return ShipPanel_Open(playerid);
     if (!Studio_Require(playerid)) return 1;
+    // sscanf "s[24]" without a following specifier may consume the whole
+    // input instead of only the first word, breaking /ship set|port|edit.
     new action[24];
-    if (sscanf(params, "s[24]", action)) return Ship_Help(playerid);
+    new delimiter = strfind(params, " ");
+    if (delimiter < 0) delimiter = strlen(params);
+    if (delimiter <= 0 || delimiter >= sizeof(action)) return Ship_Help(playerid);
+    strmid(action, params, 0, delimiter, sizeof(action));
     if (!strcmp(action, "help", true)) return Ship_Help(playerid);
     if (!strcmp(action, "status", true)) return Ship_Status(playerid);
     if (!strcmp(action, "edit", true))
