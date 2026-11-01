@@ -22,7 +22,7 @@ class ShipRouteLssfContracts(unittest.TestCase):
         self.assertIn('!strcmp(direction, "lssf", true)', SOURCE)
         self.assertIn('!strcmp(direction, "sfls", true)', SOURCE)
         self.assertIn('return Ship_Preset(playerid, true);', SOURCE)
-        self.assertIn('if (gShipRunning)', SOURCE)
+        self.assertIn('if (gShipRunning || gShipPortDeparture >= 0 || gShipManeuverActive)', SOURCE)
         block = SOURCE.split("stock Ship_Preset(playerid, bool:reverse)", 1)[1].split("stock Ship_Help(playerid)", 1)[0]
         self.assertNotIn("Ship_Advance()", block)
         self.assertNotIn("Ship_Run()", block)
