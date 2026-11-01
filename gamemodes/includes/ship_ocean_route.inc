@@ -18,8 +18,7 @@
 #define SHIP_OCEAN_FINAL_STEP      (39)
 #define SHIP_OCEAN_ARRIVAL_EPS     (0.64)
 
-new bool:gShipOceanActive;
-new bool:gShipOceanHold;
+// Shared active/hold flags are declared in ship_studio.inc for global guards.
 new gShipOceanNext;
 new Float:gShipOceanTurnY;
 new Float:gShipOceanBaseYaw;
