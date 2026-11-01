@@ -52,7 +52,7 @@ class ServerClockTests(unittest.TestCase):
         self.assertIn("Admin_ClockRefresh();", ADMIN)
         self.assertIn("gAdminWeather = 1;", ADMIN)
         self.assertIn("gAdminClockMinute = 0;", TOOLS)
-        self.assertIn("/settime auto", HELP)
+        self.assertIn("/settime ЧЧ | auto", HELP)
         self.assertIn("SetPlayerWeather(playerid, gAdminWeather);", ADMIN)
 
     def test_cp1251_build_encoding(self):
