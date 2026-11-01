@@ -56,7 +56,7 @@ class ShipOffshoreRouteContracts(unittest.TestCase):
         self.assertIn("if (gShipOceanActive) return ShipOcean_Tick();", SHIP)
         self.assertIn("ShipOcean_Stop();\n    ShipManeuver_Stop();", SHIP)
         self.assertIn("if (gShipOceanActive)", SHIP)
-        self.assertIn("if (gShipOceanActive ||", SHIP)
+        self.assertIn("gShipOceanActive || gShipOceanHold", SHIP)
         self.assertIn('!strcmp(arguments, "start", true)', ROUTE)
         self.assertIn('!strcmp(arguments, "continue", true)', ROUTE)
         self.assertIn('!strcmp(arguments, "stop", true)', ROUTE)
