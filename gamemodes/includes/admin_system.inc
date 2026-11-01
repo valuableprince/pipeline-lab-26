@@ -396,7 +396,7 @@ stock Admin_Init()
     fcreatedir(ADMIN_DIRECTORY);
     fcreatedir(BAN_DIRECTORY);
     gReportSerial = 0;
-    gAdminWeather = 9; // Default ordinary weather; /weather may override.
+    gAdminWeather = 1; // Default game-world weather; authorization keeps its own weather 9.
     gAdminClockAuto = true;
     new second;
     gettime(gAdminClockHour, gAdminClockMinute, second);
@@ -851,7 +851,7 @@ stock Admin_Execute(playerid, const input[])
         }
         else if (!strcmp(arg1, "clear", true))
         {
-            gAdminWeather = 9;
+            gAdminWeather = 1;
             gAdminClockAuto = true;
             Admin_ClockRefresh();
         }

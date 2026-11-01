@@ -9,6 +9,7 @@ COMMANDS = (ROOT / "gamemodes/includes/commands.inc").read_text("utf-8")
 GAME = (ROOT / "gamemodes/signal0317.pwn").read_text("utf-8")
 MENU = (ROOT / "gamemodes/includes/player_menu.inc").read_text("utf-8")
 AUTH = (ROOT / "gamemodes/includes/auth_dialogs.inc").read_text("utf-8")
+CAMERA = (ROOT / "gamemodes/includes/auth_camera.inc").read_text("utf-8")
 
 
 class WeatherAndBrandingTests(unittest.TestCase):
@@ -30,12 +31,28 @@ class WeatherAndBrandingTests(unittest.TestCase):
                         handler.index("gAdminWeather = weatherid;"))
 
     def test_weather_applies_on_respawn_and_event_is_compatible(self):
-        self.assertIn("gAdminWeather = 9;", ADMIN)
+        self.assertIn("gAdminWeather = 1; // Default game-world weather;", ADMIN)
         self.assertIn("SetPlayerWeather(playerid, gAdminWeather);", ADMIN)
         self.assertIn("Admin_ApplyEvent(playerid);", GAME)
         event_handler = ADMIN.split('if (!strcmp(command, "/event", true))', 1)[1]
         self.assertIn("gAdminWeather = 20;", event_handler)
-        self.assertIn("gAdminWeather = 9;", event_handler)
+        night = event_handler.split('if (!strcmp(arg1, "night", true))', 1)[1].split(
+            'else if (!strcmp(arg1, "clear", true))', 1)[0]
+        clear = event_handler.split('else if (!strcmp(arg1, "clear", true))', 1)[1].split(
+            "else return AdminHelp_Usage", 1)[0]
+        self.assertIn("gAdminWeather = 9;", night)
+        self.assertIn("gAdminWeather = 1;", clear)
+
+    def test_auth_weather_remains_9_and_world_weather_is_restored(self):
+        start = CAMERA.split("stock AuthCamera_Start(playerid)", 1)[1].split(
+            "public AuthCamera_Initialize", 1)[0]
+        self.assertIn("SetPlayerWeather(playerid, 9);", start)
+        self.assertIn("SetPlayerTime(playerid, 3, 17);", start)
+        self.assertIn("AuthCamera_Start(playerid);", GAME)
+        spawn = GAME.split("public OnPlayerSpawn(playerid)", 1)[1].split(
+            "public OnPlayerDeath", 1)[0]
+        self.assertIn("Admin_ApplyEvent(playerid);", spawn)
+        self.assertNotIn("SetPlayerWeather(playerid, 1);", CAMERA)
 
     def test_character_statistics_are_kept_authoritative(self):
         self.assertIn('"Статистика персонажа", body, "Назад", "Закрыть"', MENU)
@@ -50,7 +67,7 @@ class WeatherAndBrandingTests(unittest.TestCase):
         self.assertNotIn("OPENMP SERVER", AUTH)
         self.assertIn('"SIGNAL0317|5"', GAME)
         self.assertIn('#if defined TARKENSO_DB_PRIMARY', GAME)
-        for source in (GAME, COMMANDS, MENU, ADMIN, AUTH):
+        for source in (GAME, COMMANDS, MENU, ADMIN, AUTH, CAMERA):
             self.assertEqual(source, source.encode("cp1251").decode("cp1251"))
 
 
