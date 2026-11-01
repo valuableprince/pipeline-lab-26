@@ -461,6 +461,53 @@ jobs:
           export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
           python3 tools/test_ship_sf_pier.py --server "$OMP_SERVER_DIR"
 
+      - name: Obtain pinned streamer v2.9.6 for SF pier integration
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import io
+          import os
+          from pathlib import Path
+          import urllib.request
+          import zipfile
+
+          url = "https://github.com/samp-incognito/samp-streamer-plugin/releases/download/v2.9.6/samp-streamer-plugin-2.9.6.zip"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              package = response.read()
+          expected = "bf30ab50a8d44e9e0fbf0d02cacf128fc36f147d9711881928716e76288f4700"
+          if hashlib.sha256(package).hexdigest() != expected:
+              raise SystemExit("Pinned streamer archive checksum mismatch")
+          with zipfile.ZipFile(io.BytesIO(package)) as archive:
+              expected_include = Path("gamemodes/includes/streamer.inc").read_bytes().replace(b"\r\n", b"\n")
+              actual_include = archive.read("pawno/include/streamer.inc").replace(b"\r\n", b"\n")
+              if actual_include != expected_include:
+                  raise SystemExit("Streamer plugin/include versions differ")
+              plugin = Path(os.environ["RUNNER_TEMP"]) / "sf-pier-streamer-2.9.6.so"
+              plugin.write_bytes(archive.read("plugins/streamer.so"))
+          with Path(os.environ["GITHUB_ENV"]).open("a") as environment:
+              environment.write(f"SF_PIER_STREAMER_PLUGIN={plugin}\n")
+          PY
+
+      - name: Validate SF cargo pier with real streamer natives
+        run: |
+          export LD_LIBRARY_PATH="$PAWN_LIB:${LD_LIBRARY_PATH:-}"
+          python3 tools/test_ship_sf_pier.py --server "$OMP_SERVER_DIR" \
+            --streamer-plugin "$SF_PIER_STREAMER_PLUGIN" --output build/native-streamer
+
+      - name: Upload SF pier editor preview and verification files
+        uses: actions/upload-artifact@v4
+        with:
+          name: ship-sf-pier-preview
+          path: |
+            build/ship_sf_pier_map_editor.pwn
+            build/ship_sf_pier_preview_objects.inc
+            build/ship_sf_pier_preview_README.txt
+            build/ship_sf_pier_scene.csv
+            build/ship-sf-pier-*.log
+            build/native-streamer/ship-sf-pier-*.log
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Validate stage 2 headless harness
         run: |
           python3 -m unittest discover -s tests -p 'test_loadtest_stage2.py' -v
@@ -520,6 +567,8 @@ jobs:
             build/tdstudio-test-run.log
             build/ship-sf-pier-*.log
             build/ship_sf_pier_scene.csv
+            build/ship_sf_pier_map_editor.pwn
+            build/native-streamer/ship-sf-pier-*.log
           if-no-files-found: ignore
           retention-days: 3
 

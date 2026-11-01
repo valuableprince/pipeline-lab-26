@@ -113,11 +113,35 @@ stock bool:Passport_Load(playerid)
         !gDBPrimaryLoaded[playerid] || gDBPrimaryAccountId[playerid] <= 0)
         return false;
 
-    new query[360], affected;
+    // Old accounts were backfilled by migration 047. Do not request INSERT
+    // or UPDATE rights just to read an already-issued passport on login.
+    new query[360], affected, existingRows = 0;
     mysql_format(gDBPrimary, query, sizeof(query),
-        "INSERT INTO player_passports (account_id,issued_on) SELECT account_id,DATE(created_at) FROM accounts WHERE account_id=%d ON DUPLICATE KEY UPDATE account_id=account_id",
+        "SELECT passport_id FROM player_passports WHERE account_id=%d LIMIT 1",
         gDBPrimaryAccountId[playerid]);
-    if (!DBPrimary_Execute(query, affected)) return false;
+    new Cache:existing = mysql_query(gDBPrimary, query);
+    new bool:lookupOK = existing != Cache:0 && mysql_errno(gDBPrimary) == 0;
+    if (lookupOK)
+        lookupOK = cache_get_row_count(existingRows) && existingRows <= 1;
+    if (existing != Cache:0) cache_delete(existing);
+    if (!lookupOK)
+    {
+        printf("[PASSPORT] Existing document lookup failed, errno=%d, player=%d.",
+            mysql_errno(gDBPrimary), playerid);
+        return false;
+    }
+    if (existingRows == 0)
+    {
+        mysql_format(gDBPrimary, query, sizeof(query),
+            "INSERT INTO player_passports (account_id,issued_on) SELECT account_id,DATE(created_at) FROM accounts WHERE account_id=%d ON DUPLICATE KEY UPDATE account_id=account_id",
+            gDBPrimaryAccountId[playerid]);
+        if (!DBPrimary_Execute(query, affected))
+        {
+            printf("[PASSPORT] Auto-issue failed; check INSERT/UPDATE grants, player=%d.",
+                playerid);
+            return false;
+        }
+    }
 
     // New character DOB collected before bcrypt registration; persist it once.
     // Existing records cannot be overwritten by repeat registration.
@@ -126,7 +150,12 @@ stock bool:Passport_Load(playerid)
         mysql_format(gDBPrimary, query, sizeof(query),
             "UPDATE player_passports SET birth_date='%e' WHERE account_id=%d AND birth_date IS NULL",
             gPassportPendingBirth[playerid], gDBPrimaryAccountId[playerid]);
-        if (!DBPrimary_Execute(query, affected)) return false;
+        if (!DBPrimary_Execute(query, affected))
+        {
+            printf("[PASSPORT] Birthdate update failed; check UPDATE grant, player=%d.",
+                playerid);
+            return false;
+        }
         gPassportPendingBirth[playerid][0] = EOS;
     }
 
@@ -143,7 +172,12 @@ stock bool:Passport_Load(playerid)
             cache_get_value_name(0, "birth_date", birthDate, sizeof(birthDate));
     if (c != Cache:0) cache_delete(c);
     if (!valid || passportID <= 0 || strlen(issueDate) != 10 ||
-        (birthDate[0] && strlen(birthDate) != 10)) return false;
+        (birthDate[0] && strlen(birthDate) != 10))
+    {
+        printf("[PASSPORT] Document read failed, errno=%d, player=%d.",
+            mysql_errno(gDBPrimary), playerid);
+        return false;
+    }
 
     gPassportID[playerid] = passportID;
     format(gPassportIssued[playerid], sizeof(gPassportIssued[]), "%s", issueDate);

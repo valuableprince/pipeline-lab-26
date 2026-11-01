@@ -142,8 +142,10 @@
         new Cache:c = mysql_query(gDBPrimary, query);
         if (c == Cache:0 || mysql_errno(gDBPrimary))
         {
+            new errorCode = mysql_errno(gDBPrimary);
             if (c != Cache:0) cache_delete(c);
-            print("[DB-PRIMARY] Operation not persisted due to SQL error.");
+            printf("[DB-PRIMARY] Sync SQL write failed, errno=%d (SQL redacted).",
+                errorCode);
             return false;
         }
         affected = cache_affected_rows();
@@ -543,6 +545,9 @@
             BondSettlement_OnError(errorid, query)) return 1;
         if (GovDebt_OnError(errorid, callback, query)) return 1;
         if (GovBond_UI_OnError(errorid, callback, query)) return 1;
+        BondSettlement_OnAsyncError(callback);
+        BondCoupon_OnAsyncError(callback);
+        GovDebt_OnAsyncError(callback);
         // A query syntax/collation/constraint error is NOT a broken
         // connection. Earlier code globally kicked all players for 1267,
         // then their disconnect saves failed because DBPrimaryReady=false.

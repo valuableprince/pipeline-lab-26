@@ -114,6 +114,25 @@ def validate_scene(rows):
         assert abs(row["world_rz"] - (90 + row["rz"])) < 0.0001
 
 
+def validate_editor_export(source, rows):
+    """Require literal, importable native calls matching the actual world scene."""
+    assert "#define SF_PIER_EDITOR_PREVIEW_ENABLED (0)" in source
+    assert "public OnFilterScriptExit()" in source and "SFPierEditor_Clear();" in source
+    assert "CreateDynamicObject(" not in source
+    calls = re.findall(r"sfPierObject = CreateObject\(([^)]+)\);", source)
+    assert len(calls) == len(rows), "Map Editor object count differs from scene"
+    for call, row in zip(calls, rows):
+        args = [float(value.strip()) for value in call.split(",")]
+        expected = (row["model"], row["world_x"], row["world_y"], row["world_z"],
+                    row["rx"], 0, row["world_rz"], 350)
+        assert len(args) == len(expected) and all(abs(a - b) < 0.00003 for a, b in zip(args, expected)), (
+            "Map Editor literal transform differs from scene", call, row)
+    concrete = sum(row["material"] == 1 for row in rows)
+    for index in (0, 1):
+        assert source.count(f'SetObjectMaterial(sfPierObject, {index}, 9514, "711_sfw", "ws_carpark2");') == concrete
+    assert source.count("if (!SFPierEditor_Keep(sfPierObject)) return 0;") == len(rows)
+
+
 class ShipSFPierIntegration(unittest.TestCase):
     def test_loaded_only_by_mode_lifecycle_and_staged(self):
         from build_contracts import assert_staged
@@ -133,6 +152,24 @@ class ShipSFPierIntegration(unittest.TestCase):
         self.assertAlmostEqual(bounds[3095][5], .555365)
         for model in (3570, 3571, 3572):
             self.assertAlmostEqual(bounds[model][5] - bounds[model][2], 2.697324)
+
+    def test_editor_export_validator_rejects_unsafe_or_misaligned_export(self):
+        row = {"model": 3095, "world_x": 101.25, "world_y": 202.5, "world_z": 30.75,
+               "rx": 90, "world_rz": 180, "material": 1}
+        source = '''#define SF_PIER_EDITOR_PREVIEW_ENABLED (0)
+sfPierObject = CreateObject(3095, 101.25, 202.5, 30.75, 90, 0, 180, 350);
+if (!SFPierEditor_Keep(sfPierObject)) return 0;
+SetObjectMaterial(sfPierObject, 0, 9514, "711_sfw", "ws_carpark2");
+SetObjectMaterial(sfPierObject, 1, 9514, "711_sfw", "ws_carpark2");
+public OnFilterScriptExit() { SFPierEditor_Clear(); }
+'''
+        validate_editor_export(source, [row])
+        for bad in (source.replace("(0)", "(1)", 1), source.replace("101.25", "101.5"),
+                    source.replace("90, 0, 180", "0, 90, 180"),
+                    source.replace("SFPierEditor_Clear();", ""),
+                    source.replace("CreateObject(", "CreateDynamicObject(")):
+            with self.subTest(source=bad), self.assertRaises(AssertionError):
+                validate_editor_export(bad, [row])
 
 
 if __name__ == "__main__":

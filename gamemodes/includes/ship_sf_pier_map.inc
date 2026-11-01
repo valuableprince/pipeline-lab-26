@@ -15,6 +15,12 @@
 #if !defined SF_PIER_SITE_VERIFIED
     #define SF_PIER_SITE_VERIFIED (0)
 #endif
+// A configuration flag alone must not silently select the zero fallback origin.
+#if SF_PIER_MAP_MODE > 0 && SF_PIER_SITE_CONFIGURED
+    #if !defined SF_PIER_BASE_X || !defined SF_PIER_BASE_Y || !defined SF_PIER_BASE_Z || !defined SF_PIER_BASE_ROT
+        #error Explicit SF_PIER_BASE_X/Y/Z/ROT are required for preview or live mode.
+    #endif
+#endif
 #if !defined SF_PIER_BASE_X
     #define SF_PIER_BASE_X (0.0)
 #endif
@@ -306,32 +312,69 @@ stock bool:ShipSFPierMap_CreateGeometry()
     return true;
 }
 
+stock bool:SFPM_WriteEditorHeader(File:out)
+{
+    if (fwrite(out, "#include <open.mp>\r\n// Map Editor import: literal world coordinates, original GTA SA objects.\r\n// Standalone test filterscript ONLY; do not load together with the pier module.\r\n#define SF_PIER_EDITOR_PREVIEW_ENABLED (0)\r\n") <= 0) return false;
+    if (fwrite(out, "new gSFPierEditorObjects[512], gSFPierEditorCount;\r\nstock SFPierEditor_Clear()\r\n{\r\n    while (gSFPierEditorCount > 0)\r\n    {\r\n        new objectid = gSFPierEditorObjects[--gSFPierEditorCount];\r\n        if (IsValidObject(objectid)) DestroyObject(objectid);\r\n    }\r\n    return 1;\r\n}\r\n") <= 0) return false;
+    if (fwrite(out, "stock bool:SFPierEditor_Keep(objectid)\r\n{\r\n    if (!IsValidObject(objectid) || gSFPierEditorCount >= sizeof(gSFPierEditorObjects))\r\n    {\r\n        if (IsValidObject(objectid)) DestroyObject(objectid);\r\n        SFPierEditor_Clear();\r\n        return false;\r\n    }\r\n    gSFPierEditorObjects[gSFPierEditorCount++] = objectid;\r\n    return true;\r\n}\r\n") <= 0) return false;
+    return fwrite(out, "main() {}\r\npublic OnFilterScriptInit()\r\n{\r\n    SFPierEditor_Clear();\r\n#if SF_PIER_EDITOR_PREVIEW_ENABLED\r\n    new sfPierObject;\r\n") > 0;
+}
+
 // Explicit developer export only. Not called at production startup or by players.
-// Generates the ACTUAL scene, including transformed pivots/materials, for Pawn.
-stock bool:ShipSFPierMap_Export()
+// false: streamer init fragment; true: literal CreateObject Map Editor import.
+// The standalone filterscript is OFF by default and owns/cleans its own handles.
+stock bool:ShipSFPierMap_Export(bool:mapEditor = false)
 {
     if (gSFPierPlanCount == 0) return false;
     fcreatedir(SF_PIER_EXPORT_DIR);
-    new File:out = fopen(SF_PIER_EXPORT_DIR "/preview_objects.inc", io_write);
+    new path[96];
+    format(path, sizeof(path), "%s/%s", SF_PIER_EXPORT_DIR,
+        mapEditor ? "map_editor.pwn" : "preview_objects.inc");
+    new File:out = fopen(path, io_write);
     if (!out) return false;
-    new bool:ok = fwrite(out, "// SHIP-MAP-01: NEEDS_IN_GAME_SURVEY. Paste inside a test init ONLY.\r\nnew sfPierObject;\r\n") > 0;
+#if SF_PIER_SITE_VERIFIED
+    new bool:ok = fwrite(out, "// SHIP-MAP-01: export from a survey-confirmed site configuration.\r\n") > 0;
+#else
+    new bool:ok = fwrite(out, "// SHIP-MAP-01: NEEDS_IN_GAME_SURVEY. Test preview, not approved SF coordinates.\r\n") > 0;
+#endif
     new line[384];
+    format(line, sizeof(line), "// BASE: %.6f %.6f %.6f ROT %.6f; objects %d; site verified: %d.\r\n",
+        SF_PIER_BASE_X, SF_PIER_BASE_Y, SF_PIER_BASE_Z, SF_PIER_BASE_ROT,
+        gSFPierPlanCount, SF_PIER_SITE_VERIFIED);
+    if (ok) ok = fwrite(out, line) > 0;
+    if (ok)
+    {
+        if (mapEditor) ok = SFPM_WriteEditorHeader(out);
+        else ok = fwrite(out, "// Paste inside a separate test init ONLY.\r\nnew sfPierObject;\r\n") > 0;
+    }
     for (new i; i < gSFPierPlanCount && ok; i++)
     {
         new Float:x, Float:y, Float:z;
         ShipSFPierMap_World(gSFPierPlan[i][sfpX], gSFPierPlan[i][sfpY],
             gSFPierPlan[i][sfpZ], x, y, z);
         new slot = gSFPierPlan[i][sfpModelSlot];
-        format(line, sizeof(line), "%sCreateDynamicObject(%d, %.6f, %.6f, %.6f, %.6f, 0.0, %.6f, 0, 0, -1, 450.0, 350.0, -1, %d);\r\n",
-            gSFPierPlan[i][sfpMaterial] == 0 ? "" : "sfPierObject = ",
-            gSFPierModels[slot][sfmID], x, y, z, gSFPierPlan[i][sfpRX],
-            SF_PIER_BASE_ROT + gSFPierPlan[i][sfpRZ], slot == SFPM_DECK ? 20 : 0);
+        if (mapEditor)
+            format(line, sizeof(line), "    sfPierObject = CreateObject(%d, %.6f, %.6f, %.6f, %.6f, 0.0, %.6f, 350.0);\r\n",
+                gSFPierModels[slot][sfmID], x, y, z, gSFPierPlan[i][sfpRX],
+                SF_PIER_BASE_ROT + gSFPierPlan[i][sfpRZ]);
+        else
+            format(line, sizeof(line), "%sCreateDynamicObject(%d, %.6f, %.6f, %.6f, %.6f, 0.0, %.6f, 0, 0, -1, 450.0, 350.0, -1, %d);\r\n",
+                gSFPierPlan[i][sfpMaterial] == 0 ? "" : "sfPierObject = ",
+                gSFPierModels[slot][sfmID], x, y, z, gSFPierPlan[i][sfpRX],
+                SF_PIER_BASE_ROT + gSFPierPlan[i][sfpRZ], slot == SFPM_DECK ? 20 : 0);
         ok = fwrite(out, line) > 0;
+        if (ok && mapEditor)
+            ok = fwrite(out, "    if (!SFPierEditor_Keep(sfPierObject)) return 0;\r\n") > 0;
         if (!ok || gSFPierPlan[i][sfpMaterial] == 0) continue;
-        ok = fwrite(out, "SetDynamicObjectMaterial(sfPierObject, 1, 9514, \"711_sfw\", \"ws_carpark2\");\r\n") > 0;
-        if (!ok) continue;
-        ok = fwrite(out, "SetDynamicObjectMaterial(sfPierObject, 0, 9514, \"711_sfw\", \"ws_carpark2\");\r\n") > 0;
+        for (new material; material < 2 && ok; material++)
+        {
+            format(line, sizeof(line), "%s(sfPierObject, %d, 9514, \"711_sfw\", \"ws_carpark2\");\r\n",
+                mapEditor ? "    SetObjectMaterial" : "SetDynamicObjectMaterial", material);
+            ok = fwrite(out, line) > 0;
+        }
     }
+    if (ok && mapEditor)
+        ok = fwrite(out, "#endif\r\n    return 1;\r\n}\r\npublic OnFilterScriptExit()\r\n{\r\n    SFPierEditor_Clear();\r\n    return 1;\r\n}\r\n") > 0;
     fclose(out);
     return ok;
 }

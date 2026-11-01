@@ -103,6 +103,7 @@ public OnGameModeInit()
     Check(ShipSFPierMap_Init() == 1 && tCreated == before, "idempotent init");
     Check(ShipSFPierMap_CreateGeometry() && tCreated == before, "idempotent allocation");
     Check(ShipSFPierMap_Export(), "full Pawn export");
+    Check(ShipSFPierMap_Export(true), "literal Map Editor export");
     Check(DumpScene() != 0, "actual plan export for independent geometry tests");
     ShipSFPierMap_Shutdown();
     ShipSFPierMap_Shutdown();

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Execute production Pawn scene with streamer doubles, then inspect its geometry.
+"""Execute the production Pawn scene, inspect geometry and run its native export.
 
-Requires the official open.mp SDK; runs a private loopback server with no plugins,
-database or GTA client. The doubles test ownership/fault handling, not streaming.
+Requires the official open.mp SDK; runs a private loopback server with no DB/GTA
+client. Default: streamer doubles for deterministic failures. --streamer-plugin:
+real v2.9.6 natives. Neither mode verifies rendering or connected-player streaming.
 """
 import argparse
 import importlib.util
@@ -22,7 +23,7 @@ from check_pawn_output import analyze_pawn_output
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(server: Path, prefix: list[str], output: Path):
+def run(server: Path, prefix: list[str], output: Path, streamer_plugin: Path | None = None):
     server = server.resolve()
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="ship-sf-pier-") as temporary:
@@ -32,7 +33,8 @@ def run(server: Path, prefix: list[str], output: Path):
         for name in ("ship_sf_pier_map.inc", "streamer.inc"):
             (stage / name).write_bytes((ROOT / "gamemodes/includes" / name).read_text("utf-8").encode("cp1251"))
         source = stage / "ship_sf_pier_harness.pwn"
-        source.write_bytes((ROOT / "tests/pawn/ship_sf_pier_harness.pwn").read_text("utf-8").encode("cp1251"))
+        harness = "ship_sf_pier_streamer_harness.pwn" if streamer_plugin else "ship_sf_pier_harness.pwn"
+        source.write_bytes((ROOT / "tests/pawn" / harness).read_text("utf-8").encode("cp1251"))
         (work / "gamemodes").mkdir()
         target = work / "gamemodes/ship_sf_pier_harness.amx"
         env = os.environ.copy()
@@ -61,6 +63,7 @@ def run(server: Path, prefix: list[str], output: Path):
         for label, replacement, message in (
             ("unconfigured", content.replace(b"#define SF_PIER_SITE_CONFIGURED (1)", b"#define SF_PIER_SITE_CONFIGURED (0)"), "Configure SF_PIER_BASE"),
             ("unverified", content.replace(b"#define SF_PIER_MAP_MODE (1)", b"#define SF_PIER_MAP_MODE (2)"), "NEEDS_IN_GAME_SURVEY"),
+            ("missing-origin", content.replace(b"#define SF_PIER_BASE_X (100.0)", b""), "Explicit SF_PIER_BASE"),
         ):
             variant = stage / f"{label}.pwn"
             variant.write_bytes(replacement)
@@ -68,6 +71,9 @@ def run(server: Path, prefix: list[str], output: Path):
         compile_pawn(source, "preview")
         shutil.copytree(server / "components", work / "components")
         (work / "scriptfiles").mkdir()
+        if streamer_plugin:
+            (work / "plugins").mkdir()
+            shutil.copy2(streamer_plugin, work / "plugins/streamer.so")
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
@@ -75,31 +81,36 @@ def run(server: Path, prefix: list[str], output: Path):
             "announce": False, "enable_query": False, "name": "Private SF pier logic tests",
             "max_players": 2, "max_bots": 0, "artwork": {"enable": False},
             "network": {"bind": "127.0.0.1", "port": port},
-            "pawn": {"legacy_plugins": [], "main_scripts": ["ship_sf_pier_harness 1"], "side_scripts": []},
+            "pawn": {"legacy_plugins": ["streamer"] if streamer_plugin else [],
+                     "main_scripts": ["ship_sf_pier_harness 1"], "side_scripts": []},
             "rcon": {"enable": False, "password": "local-pier-test-only"},
         }), encoding="utf-8")
-        process = subprocess.Popen(prefix + [str(server / "omp-server")], cwd=work, env=env,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
-        watchdog = threading.Timer(60, process.kill)
-        watchdog.start()
-        chunks = []
-        try:
-            for line in process.stdout:
-                chunks.append(line)
-                if b"PIER TEST RESULT:" in line:
+        def execute(name):
+            process = subprocess.Popen(prefix + [str(server / "omp-server")], cwd=work, env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+            watchdog = threading.Timer(60, process.kill)
+            watchdog.start()
+            chunks = []
+            try:
+                for line in process.stdout:
+                    chunks.append(line)
+                    if b"PIER TEST RESULT:" in line:
+                        process.kill()
+                        break
+                chunks.append(process.communicate(timeout=5)[0])
+            finally:
+                watchdog.cancel()
+                if process.poll() is None:
                     process.kill()
-                    break
-            chunks.append(process.communicate(timeout=5)[0])
-        finally:
-            watchdog.cancel()
-            if process.poll() is None:
-                process.kill()
-                process.wait(timeout=5)
-        log = b"".join(chunks).decode(errors="replace")
-        (output / "ship-sf-pier-run.log").write_text(log, encoding="utf-8")
-        result = re.search(r"PIER TEST RESULT: checks=(\d+) failures=(\d+)", log)
-        if process.returncode not in (0, -9) or not result or int(result[2]) or "PIER FAIL:" in log or int(result[1]) < 1000:
-            raise RuntimeError(f"Pier lifecycle tests failed:\n{log}")
+                    process.wait(timeout=5)
+            log = b"".join(chunks).decode(errors="replace")
+            (output / f"ship-sf-pier-{name}.log").write_text(log, encoding="utf-8")
+            result = re.search(r"PIER TEST RESULT: checks=(\d+) failures=(\d+)", log)
+            if process.returncode not in (0, -9) or not result or int(result[2]) or "PIER FAIL:" in log or int(result[1]) < 1000:
+                raise RuntimeError(f"Pier {name} tests failed:\n{log}")
+            return result
+
+        result = execute("run")
         scene = work / "scriptfiles/ship_sf_pier_scene.csv"
         spec = importlib.util.spec_from_file_location("pier_acceptance", ROOT / "tests/test_ship_sf_pier.py")
         acceptance = importlib.util.module_from_spec(spec)
@@ -114,7 +125,35 @@ def run(server: Path, prefix: list[str], output: Path):
             export.read_bytes() + b'\nreturn 1;\n}\n')
         compile_pawn(exported_source, "export")
         shutil.copy2(export, output / "ship_sf_pier_preview_objects.inc")
-        print(f"SF pier: {result[1]} Pawn assertions passed; 496-object geometry and exported Pawn passed. No GTA visual test.")
+        editor = work / "scriptfiles/ship_sf_pier/map_editor.pwn"
+        shutil.copy2(editor, output / "ship_sf_pier_map_editor.pwn")
+        acceptance.validate_editor_export(editor.read_text("cp1251"), rows)
+        compile_pawn(editor, "editor-disabled")
+        editor_enabled = stage / "map_editor_enabled.pwn"
+        editor_enabled.write_bytes(editor.read_bytes().replace(
+            b"#define SF_PIER_EDITOR_PREVIEW_ENABLED (0)", b"#define SF_PIER_EDITOR_PREVIEW_ENABLED (1)"))
+        compile_pawn(editor_enabled, "editor-enabled")
+        editor_harness = stage / "ship_sf_pier_editor_harness.pwn"
+        editor_harness.write_bytes((ROOT / "tests/pawn/ship_sf_pier_editor_harness.pwn").read_text("utf-8").encode("cp1251"))
+        compile_pawn(editor_harness, "editor-runtime")
+        editor_result = execute("editor-run")
+        (output / "ship_sf_pier_preview_README.txt").write_text(
+            "SHIP-MAP-01 / Tarkenso RolePlay Game\n\n"
+            "NEEDS_IN_GAME_SURVEY. Файлы созданы с тестовой привязкой\n"
+            "BASE=(100,200,30), ROT=90 градусов. Это не измеренные координаты в SF.\n\n"
+            "ship_sf_pier_map_editor.pwn: буквальные CreateObject и SetObjectMaterial\n"
+            "для импорта в Map Editor. Автосоздание на сервере отключено по умолчанию.\n"
+            "При явном включении отдельный filterscript очищает только свои объекты.\n"
+            "ship_sf_pier_preview_objects.inc: фрагмент CreateDynamicObject для теста.\n"
+            "ship_sf_pier_scene.csv: локальные и мировые pivots объектов.\n\n"
+            "Не загружать экспорт одновременно с основным модулем пирса.\n"
+            "Для фактической привязки задать измеренные BASE_X/Y/Z/ROT, включить\n"
+            "превью на тестовом сервере и вызвать ShipSFPierMap_Export(true).\n"
+            "Порядок привязки и проверок: docs/SHIP_SF_PIER_MAP_01.md.\n",
+            encoding="utf-8")
+        mode = "real streamer" if streamer_plugin else "streamer doubles"
+        print(f"SF pier ({mode}): {result[1]} Pawn assertions passed; 496-object geometry and both exports passed.")
+        print(f"Map Editor export: {editor_result[1]} native-engine assertions passed. No GTA visual test.")
 
 
 if __name__ == "__main__":
@@ -122,5 +161,6 @@ if __name__ == "__main__":
     parser.add_argument("--server", type=Path, required=True)
     parser.add_argument("--prefix", default="", help="Optional compiler/server execution prefix")
     parser.add_argument("--output", type=Path, default=ROOT / "build")
+    parser.add_argument("--streamer-plugin", type=Path, help="Run native integration against a pinned streamer.so")
     args = parser.parse_args()
-    run(args.server, shlex.split(args.prefix), args.output.resolve())
+    run(args.server, shlex.split(args.prefix), args.output.resolve(), args.streamer_plugin)
