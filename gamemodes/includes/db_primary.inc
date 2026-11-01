@@ -545,6 +545,9 @@
             BondSettlement_OnError(errorid, query)) return 1;
         if (GovDebt_OnError(errorid, callback, query)) return 1;
         if (GovBond_UI_OnError(errorid, callback, query)) return 1;
+        BondSettlement_OnAsyncError(callback);
+        BondCoupon_OnAsyncError(callback);
+        GovDebt_OnAsyncError(callback);
         // A query syntax/collation/constraint error is NOT a broken
         // connection. Earlier code globally kicked all players for 1267,
         // then their disconnect saves failed because DBPrimaryReady=false.

@@ -265,8 +265,7 @@ public BondSettlement_OnPlayerDone(playerid,authToken,accountId,serial)
         return 1;
 
     new rows = 0, cash, version, txnSerial, treasury, treasuryVersion, replayed;
-    new bool:valid = mysql_errno(gDBPrimary)==0 &&
-        cache_get_row_count(rows) && rows==1 &&
+    new bool:valid = cache_get_row_count(rows) && rows==1 &&
         cache_get_value_name_int(0,"account_balance",cash) &&
         cache_get_value_name_int(0,"account_row_version",version) &&
         cache_get_value_name_int(0,"account_txn_serial",txnSerial) &&
@@ -365,13 +364,29 @@ public BondSettlement_Tick()
     return 1;
 }
 
+// OnQueryError runs instead of a successful threaded callback.
+stock BondSettlement_OnAsyncError(const callback[])
+{
+    if (!strcmp(callback, "BondSettlement_OnScan", true))
+    {
+        gBondSettlementScanBusy = false;
+        return 1;
+    }
+    if (!strcmp(callback, "BondSettlement_OnAutomated", true))
+    {
+        if (gBondSettlementPendingGlobal > 0) gBondSettlementPendingGlobal--;
+        return 1;
+    }
+    return 0;
+}
+
 public BondSettlement_OnScan()
 {
 #if defined TARKENSO_DB_PRIMARY
     gBondSettlementScanBusy=false;
     if (!BondSettlement_IsReady()) return 1;
     new rows=0;
-    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows))
+    if (!cache_get_row_count(rows))
     {
         print("[GOV-03] Due-issue scan failed.");
         return 1;
@@ -414,7 +429,7 @@ public BondSettlement_OnAutomated(issueId,kind)
 #if defined TARKENSO_DB_PRIMARY
     if (gBondSettlementPendingGlobal>0) gBondSettlementPendingGlobal--;
     new rows=0;
-    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
+    if (!cache_get_row_count(rows) || rows!=1)
     {
         printf("[GOV-03] ERROR: automatic assessment failed, issue=%d step=%d.",issueId,kind);
         return 1;

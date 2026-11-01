@@ -178,7 +178,7 @@ public GovDebt_OnAdminAction(playerid,authToken,accountId,requestSerial)
     gGovDebtAdminAccount[playerid]=0;
     gGovDebtAdminEvent[playerid][0]=EOS;
     new rows=0;
-    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
+    if (!cache_get_row_count(rows) || rows!=1)
     {
         print("[GOV-04] Unconfirmed governance action; re-read SQL audit.");
         return 1;
@@ -226,13 +226,34 @@ public GovDebt_Tick()
     return 1;
 }
 
+// Failure callbacks must not leave periodic recovery or crisis scans busy.
+stock GovDebt_OnAsyncError(const callback[])
+{
+    if (!strcmp(callback, "GovDebt_OnScan", true))
+    {
+        gGovDebtScanBusy = false;
+        return 1;
+    }
+    if (!strcmp(callback, "GovDebt_OnCrisis", true))
+    {
+        gGovDebtCrisisBusy = false;
+        return 1;
+    }
+    if (!strcmp(callback, "GovDebt_OnRecovered", true))
+    {
+        gGovDebtRecoveryBusy = false;
+        return 1;
+    }
+    return 0;
+}
+
 public GovDebt_OnScan()
 {
 #if defined TARKENSO_DB_PRIMARY
     gGovDebtScanBusy=false;
     if (!GovDebt_IsReady()) return 1;
     new rows=0;
-    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows<1)
+    if (!cache_get_row_count(rows) || rows<1)
         return 1;
     new issueId,round,maxTx,code[65],eventKey[65],query[400];
     if (!cache_get_value_name_int(0,"issue_id",issueId) ||
@@ -262,7 +283,7 @@ public GovDebt_OnRecovered(issueId)
 #if defined TARKENSO_DB_PRIMARY
     gGovDebtRecoveryBusy=false;
     new rows=0;
-    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
+    if (!cache_get_row_count(rows) || rows!=1)
     {
         printf("[GOV-04] Recovery not confirmed for issue %d.",issueId);
         return 1;
@@ -285,7 +306,7 @@ public GovDebt_OnCrisis()
 #if defined TARKENSO_DB_PRIMARY
     gGovDebtCrisisBusy=false;
     new rows=0;
-    if (mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1)
+    if (!cache_get_row_count(rows) || rows!=1)
         print("[GOV-04] Crisis status reconciliation failed.");
     else if (!BondFund_Reload())
         print("[GOV-04] Fund snapshot refresh failed after crisis reconciliation.");

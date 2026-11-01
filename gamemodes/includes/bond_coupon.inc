@@ -108,14 +108,30 @@ public BondCoupon_Tick()
     return 1;
 }
 
+// Clear scheduled state after a real async failure, allowing later retry.
+stock BondCoupon_OnAsyncError(const callback[])
+{
+    if (!strcmp(callback, "BondCoupon_OnScan", true))
+    {
+        gBondCouponScanBusy = false;
+        return 1;
+    }
+    if (!strcmp(callback, "BondCoupon_OnAccrued", true))
+    {
+        if (gBondCouponPending > 0) gBondCouponPending--;
+        gBondCouponHadError = true;
+        return 1;
+    }
+    return 0;
+}
+
 public BondCoupon_OnScan()
 {
 #if defined TARKENSO_DB_PRIMARY
     gBondCouponScanBusy=false;
     if(!BondCoupon_IsReady())return 1;
     new rows=0;
-    if(mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) ||
-       rows>BOND_COUPON_SCAN_LIMIT)
+    if(!cache_get_row_count(rows) || rows>BOND_COUPON_SCAN_LIMIT)
     {
         print("[GOV-07] Coupon issue scan failed; retry on backstop.");
         return 1;
@@ -163,7 +179,7 @@ public BondCoupon_OnAccrued(issueId)
 #if defined TARKENSO_DB_PRIMARY
     if(gBondCouponPending>0)gBondCouponPending--;
     new rows=0,actualIssue,accrued,replayed;
-    if(mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) || rows!=1 ||
+    if(!cache_get_row_count(rows) || rows!=1 ||
        !cache_get_value_name_int(0,"issue_id",actualIssue) ||
        !cache_get_value_name_int(0,"newly_accrued",accrued) ||
        !cache_get_value_name_int(0,"replayed",replayed) ||
@@ -260,8 +276,7 @@ public BondCoupon_OnNotices(playerid,authToken,accountId,seq,offline)
         return 1;
     }
     new rows=0;
-    if(mysql_errno(gDBPrimary)!=0 || !cache_get_row_count(rows) ||
-        rows>BOND_COUPON_NOTICE_TOP)
+    if(!cache_get_row_count(rows) || rows>BOND_COUPON_NOTICE_TOP)
     {
         gBondCouponNotifyBusy[playerid]=false;
         return 1;
@@ -333,8 +348,8 @@ public BondCoupon_OnNoticeMarked(playerid,authToken,accountId,seq)
 {
 #if defined TARKENSO_DB_PRIMARY
     if(!BondCoupon_NoticeValid(playerid,authToken,accountId,seq))return 1;
-    if(mysql_errno(gDBPrimary)!=0)
-        print("[GOV-07] Coupon notification ACK failed; retry on next PayDay.");
+    // The threaded callback runs only after SQL success; real errors
+    // go to OnQueryError, not to mysql_errno on the sync connection.
     gBondCouponNotifyBusy[playerid]=false;
 #else
     #pragma unused playerid,authToken,accountId,seq
